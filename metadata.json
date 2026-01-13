@@ -1,0 +1,8 @@
+{
+  "name": "المركز السوري للعلوم",
+  "description": "المنصة الرائدة لتدريس العلوم في سوريا - من الثانوية إلى الجامعة.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
