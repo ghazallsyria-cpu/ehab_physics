@@ -4,14 +4,12 @@ import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, '.', '');
   return {
     plugins: [react()],
     define: {
-      // This ensures process.env.API_KEY works in the browser after build safely
+      // Vital: Only replace specific keys. Do NOT map 'process.env': {} as it breaks React's NODE_ENV check.
       'process.env.API_KEY': JSON.stringify(env.API_KEY),
-      // Fix for some libraries expecting global process
-      'process.env': {}
     },
     build: {
       outDir: 'dist',
@@ -29,7 +27,8 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
-      open: true
+      open: true,
+      // Ensure SPA routing works in local preview
     }
   };
 });

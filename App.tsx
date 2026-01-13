@@ -44,7 +44,17 @@ import { dbService } from './services/db';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<ViewState>('landing');
+  
+  // Initialize view based on URL to support direct navigation (e.g. from PWA icon)
+  const [view, setView] = useState<ViewState>(() => {
+    const path = window.location.pathname.replace('/', '');
+    // Simple mapping for main routes, default to landing
+    if (path === 'dashboard') return 'dashboard';
+    if (path === 'privacy-policy') return 'privacy-policy';
+    if (path === 'teacher-join') return 'teacher-join';
+    return 'landing';
+  });
+
   const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<Invoice | null>(null);

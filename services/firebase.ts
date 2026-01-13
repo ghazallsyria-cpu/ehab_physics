@@ -10,7 +10,7 @@
  */
 const firebaseConfig = {
   // 🔴 استبدل هذه القيم ببيانات مشروعك الحقيقي
-  apiKey: "AIzaSyD-YOUR-REAL-API-KEY-HERE",
+  apiKey: "AIzaSyBOKOR48inbN88UtVLKIRtQT7TUWvTktGo",
   authDomain: "your-project-id.firebaseapp.com",
   projectId: "your-project-id",
   storageBucket: "your-project-id.appspot.com",
