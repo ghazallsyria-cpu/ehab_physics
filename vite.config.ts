@@ -20,7 +20,10 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             vendor: ['react', 'react-dom', 'lucide-react'],
             ai: ['@google/genai'],
-            utils: ['katex', 'qrcode.react']
+manualChunks: {
+  vendor: ['react', 'react-dom', 'lucide-react'],
+  ai: ['@google/genai']
+}
           }
         }
       }
