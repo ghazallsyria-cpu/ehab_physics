@@ -2,26 +2,26 @@
 import { User, Invoice, QuizAttempt, AppNotification, WeeklyReport, EducationalResource, TeacherProfile, Review, TeacherMessage, EducationalLevel, ForumPost, ForumReply } from "../types";
 import { PHYSICS_TOPICS } from "../constants";
 import { db } from "./firebase";
-
-// Mock Firebase functions to bypass compilation errors when package is missing
-const collection = (db: any, path: string) => null;
-const doc = (db: any, ...args: any[]) => null;
-const getDoc = async (ref: any) => ({ exists: () => false, data: () => ({}) });
-const setDoc = async (ref: any, data: any, options?: any) => {};
-const getDocs = async (query: any) => ({ empty: true, docs: [] });
-const updateDoc = async (ref: any, data: any) => {};
-const deleteDoc = async (ref: any) => {}; // Added deleteDoc mock
-const query = (ref: any, ...args: any[]) => ({});
-const where = (field: string, op: string, val: any) => ({});
-const orderBy = (field: string, dir?: string) => ({});
-const limit = (n: number) => ({});
-const addDoc = async (ref: any, data: any) => {};
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  getDocs, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  addDoc 
+} from "firebase/firestore";
 
 class SyrianScienceCenterDB {
   private static instance: SyrianScienceCenterDB;
   private storageKey = "ssc_ops_db_v1";
   
-  // يحدد ما إذا كنا نستخدم قاعدة بيانات حقيقية أم التخزين المحلي
+  // يحدد ما إذا كنا نستخدم قاعدة بيانات حقيقية (إذا تم تهيئة db بنجاح) أم التخزين المحلي
   private useCloud = !!db; 
 
   public static getInstance(): SyrianScienceCenterDB {
@@ -167,7 +167,6 @@ class SyrianScienceCenterDB {
     }
   }
 
-  // NEW: Delete User capability for full admin control
   async deleteUser(uid: string): Promise<void> {
     if (this.useCloud) {
       await deleteDoc(doc(db, "users", uid));
