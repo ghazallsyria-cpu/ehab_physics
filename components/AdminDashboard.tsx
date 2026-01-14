@@ -135,14 +135,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'overview'
           <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase">غرفة <span className="text-[#fbbf24]">التحكم المركزية</span></h2>
           <p className="text-gray-500 mt-2 font-medium">مراقبة حية للأداء الأكاديمي، المالية، والمحتوى.</p>
         </div>
-        <div className="flex bg-white/5 border border-white/10 rounded-[25px] p-2 backdrop-blur-xl flex-wrap justify-center">
+        <div className="flex bg-white/5 border border-white/10 rounded-[25px] p-2 backdrop-blur-xl flex-wrap justify-center gap-2">
              {(['overview', 'financials', 'questions', 'teachers', 'students', 'resources', 'pwa-kpis', 'settings'] as const).map(tab => (
                <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)} 
-                className={`px-6 py-3 rounded-2xl text-[10px] font-black transition-all uppercase tracking-widest ${activeTab === tab ? 'bg-[#fbbf24] text-black shadow-2xl' : 'text-gray-500 hover:text-white'}`}
+                className={`px-6 py-3 rounded-2xl text-[10px] font-black transition-all uppercase tracking-widest ${activeTab === tab ? 'bg-[#fbbf24] text-black shadow-2xl' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
                >
-                 {tab === 'overview' ? 'المؤشرات الحية' : tab === 'financials' ? 'المالية 💰' : tab === 'questions' ? 'الأسئلة 📝' : tab === 'teachers' ? 'المعلمين 👨‍🏫' : tab === 'students' ? 'الطلاب 👨‍🎓' : tab === 'resources' ? 'المكتبة 📚' : tab === 'pwa-kpis' ? 'أداء PWA' : 'الإعدادات ⚙️'}
+                 {tab === 'overview' ? 'المؤشرات' : tab === 'financials' ? 'المالية 💰' : tab === 'questions' ? 'الأسئلة 📝' : tab === 'teachers' ? 'المعلمين 👨‍🏫' : tab === 'students' ? 'الطلاب 👨‍🎓' : tab === 'resources' ? 'المكتبة 📚' : tab === 'pwa-kpis' ? 'PWA' : 'الإعدادات ⚙️'}
                </button>
              ))}
         </div>

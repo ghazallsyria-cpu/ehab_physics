@@ -175,14 +175,14 @@ const App: React.FC = () => {
         <Sidebar 
           currentView={view} 
           setView={(v) => { setView(v); }} 
-          userRole={user.role} 
+          user={user} 
           onLogout={() => { setUser(null); setView('landing'); }} 
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
         />
       )}
 
-      <div className={`flex-1 flex flex-col ${view !== 'landing' && view !== 'privacy-policy' && user ? 'lg:mr-80' : ''} transition-all duration-500`}>
+      <div className={`flex-1 flex flex-col ${view !== 'landing' && view !== 'privacy-policy' && user ? 'lg:mr-72' : ''} transition-all duration-500`}>
         {view !== 'landing' && view !== 'privacy-policy' && user && (
           <header className="px-6 py-4 md:px-10 md:py-6 flex justify-between items-center glass-panel sticky top-0 z-40 backdrop-blur-xl border-b border-white/5 bg-slate-900/80">
             <div className="flex items-center gap-6">

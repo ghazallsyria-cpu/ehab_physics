@@ -19,19 +19,19 @@
     
     <!-- Using CDN for Tailwind CSS for simplicity in this setup -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
             /* Modern Academic Palette */
             --bg-deep: #0f172a; /* Slate 900 */
-            --bg-card: rgba(30, 41, 59, 0.6); /* Slate 800 glass */
+            --bg-card: rgba(30, 41, 59, 0.7); 
             --primary: #38bdf8; /* Sky 400 */
-            --primary-dim: rgba(56, 189, 248, 0.1);
+            --primary-glow: rgba(56, 189, 248, 0.5);
             --accent: #fbbf24; /* Amber 400 */
             --text-main: #f8fafc; /* Slate 50 */
             --text-muted: #94a3b8; /* Slate 400 */
-            --border-light: rgba(255, 255, 255, 0.08);
         }
+        
         body {
             font-family: 'Tajawal', sans-serif;
             background-color: var(--bg-deep);
@@ -46,89 +46,68 @@
             min-width: 320px;
         }
         
+        /* Premium Background with Noise */
+        .app-bg {
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.05) 0%, transparent 25%),
+                radial-gradient(circle at 0% 100%, rgba(99, 102, 241, 0.05) 0%, transparent 25%),
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+            background-attachment: fixed;
+        }
+
+        /* Refined Glassmorphism */
+        .glass-panel {
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(56, 189, 248, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px -10px rgba(56, 189, 248, 0.1);
+        }
+
         /* Elegant Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        
+        .animate-fadeIn { animation: fadeIn 0.6s ease-out forwards; }
+        .animate-slideUp { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+
+        /* Text Selection */
+        ::selection { background: rgba(56, 189, 248, 0.3); color: white; }
 
         /* Splash Screen */
         #ssc-splash {
             position: fixed;
             inset: 0;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 9999;
             transition: opacity 0.8s ease, transform 0.8s ease;
-        }
-        .splash-logo {
-            width: 140px;
-            height: 140px;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: breathe 3s ease-in-out infinite;
-        }
-        @keyframes breathe {
-            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.3)); }
-            50% { transform: scale(1.05); filter: drop-shadow(0 0 40px rgba(56, 189, 248, 0.5)); }
-        }
-        .splash-text {
-            margin-top: 2.5rem;
-            text-align: center;
-            animation: fade-up 1s ease-out forwards;
-        }
-        @keyframes fade-up {
-            0% { transform: translateY(15px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-        .splash-title {
-            font-weight: 800;
-            color: white;
-            letter-spacing: 0.05em;
-            font-size: 1.8rem;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(to right, #fff, #38bdf8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .splash-slogan {
-            color: #94a3b8;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        /* Modern Background */
-        .app-bg {
-            background-color: #0f172a;
-            background-image: 
-                radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 0% 100%, rgba(99, 102, 241, 0.08) 0%, transparent 40%);
-            background-attachment: fixed;
-        }
-
-        /* Glass Panel Utility */
-        .glass-panel {
-            background: rgba(30, 41, 59, 0.4);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: all 0.3s ease;
-        }
-        .glass-card:hover {
-            background: rgba(255, 255, 255, 0.06);
-            border-color: rgba(56, 189, 248, 0.2);
-            transform: translateY(-2px);
         }
     </style>
 <script type="importmap">
@@ -149,22 +128,16 @@
 }
 </script>
 </head>
-<body class="app-bg">
+<body class="app-bg text-slate-50 antialiased selection:bg-sky-500 selection:text-white">
     <div id="ssc-splash">
-        <div class="splash-logo">
-            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="100" cy="100" r="40" stroke="#38bdf8" stroke-width="8" stroke-opacity="0.2"/>
-                <circle cx="100" cy="100" r="25" stroke="#38bdf8" stroke-width="2"/>
-                <circle cx="100" cy="100" r="8" fill="#fbbf24"/>
-                <path d="M100 20V50 M100 150V180 M20 100H50 M150 100H180" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="160" cy="100" r="4" fill="#38bdf8">
-                    <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="10s" repeatCount="indefinite"/>
-                </circle>
-            </svg>
+        <div class="relative w-32 h-32 flex items-center justify-center">
+            <div class="absolute inset-0 rounded-full border-4 border-sky-500/20 animate-ping"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-t-sky-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+            <span class="text-6xl animate-pulse">⚛️</span>
         </div>
-        <div class="splash-text">
-            <p class="splash-title">SYRIAN SCIENCE CENTER</p>
-            <p class="splash-slogan">المركز السوري للعلوم • 2026</p>
+        <div class="mt-8 text-center">
+            <h1 class="text-2xl font-black tracking-tight text-white mb-2">SYRIAN SCIENCE CENTER</h1>
+            <p class="text-sm font-medium text-slate-400">تحميل منصة المستقبل...</p>
         </div>
     </div>
     <div id="root"></div>
@@ -176,9 +149,9 @@
                 // Wait a bit to ensure React hydrates, then fade out
                 setTimeout(() => {
                     splash.style.opacity = '0';
-                    splash.style.transform = 'scale(1.05)';
+                    splash.style.transform = 'scale(1.02)';
                     setTimeout(() => splash.remove(), 800);
-                }, 1500);
+                }, 1200);
             }
         });
     </script>
