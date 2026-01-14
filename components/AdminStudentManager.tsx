@@ -5,7 +5,7 @@ import { dbService } from '../services/db';
 import { 
   Search, User as UserIcon, Shield, Zap, Trash2, Ban, 
   Save, RefreshCw, GraduationCap, Clock, AlertTriangle,
-  Mail, Phone, School, FileText
+  Mail, Phone, School, FileText, PlusCircle
 } from 'lucide-react';
 
 const AdminStudentManager: React.FC = () => {
@@ -52,24 +52,78 @@ const AdminStudentManager: React.FC = () => {
     setMessage(null);
   };
 
+  const handleCreateNewMode = () => {
+    const newStudentTemplate: User = {
+        uid: 'new_entry', // Placeholder ID
+        name: '',
+        email: '',
+        role: 'student',
+        grade: '12',
+        status: 'active',
+        subscription: 'free',
+        createdAt: new Date().toISOString(),
+        points: 0,
+        completedLessonIds: [],
+        progress: {
+            completedLessonIds: [],
+            quizScores: {},
+            totalStudyHours: 0,
+            currentFatigue: 0,
+            strengths: [],
+            weaknesses: []
+        }
+    };
+    setSelectedStudent(newStudentTemplate);
+    setEditForm(newStudentTemplate);
+    setActiveTab('PROFILE');
+    setMessage(null);
+  };
+
   const handleSave = async () => {
     if (!selectedStudent || !editForm) return;
     
+    // Validation
+    if (!editForm.name || !editForm.email) {
+        setMessage({ text: 'يرجى تعبئة الاسم والبريد الإلكتروني على الأقل', type: 'error' });
+        return;
+    }
+
     setIsLoading(true);
-    // Merge updates
-    const updatedUser = { ...selectedStudent, ...editForm } as User;
     
-    await dbService.saveUser(updatedUser);
+    try {
+        let updatedUser = { ...selectedStudent, ...editForm } as User;
+
+        // Check if creating a new user
+        if (selectedStudent.uid === 'new_entry') {
+            // Generate a real UID
+            updatedUser.uid = `user_${Date.now()}`;
+            // Check email uniqueness (mock check)
+            const exists = students.some(s => s.email === updatedUser.email);
+            if (exists) {
+                setMessage({ text: 'هذا البريد الإلكتروني مسجل مسبقاً', type: 'error' });
+                setIsLoading(false);
+                return;
+            }
+            setMessage({ text: 'تم إنشاء حساب الطالب بنجاح', type: 'success' });
+        } else {
+            setMessage({ text: 'تم تحديث بيانات الطالب بنجاح', type: 'success' });
+        }
+        
+        await dbService.saveUser(updatedUser);
+        
+        await loadStudents(); // Reload list
+        setSelectedStudent(updatedUser); // Update local state to the saved user
+    } catch (e) {
+        console.error(e);
+        setMessage({ text: 'حدث خطأ أثناء الحفظ', type: 'error' });
+    }
     
-    setMessage({ text: 'تم تحديث بيانات الطالب بنجاح', type: 'success' });
-    loadStudents();
-    setSelectedStudent(updatedUser); // Update local state
     setIsLoading(false);
     setTimeout(() => setMessage(null), 3000);
   };
 
   const handleResetProgress = async () => {
-    if (!selectedStudent || !window.confirm('⚠️ تحذير: هل أنت متأكد تماماً؟ \nسيتم تصفير جميع الدرجات، الساعات الدراسية، وسجل الأنشطة.\nلا يمكن التراجع عن هذا الإجراء.')) return;
+    if (!selectedStudent || selectedStudent.uid === 'new_entry' || !window.confirm('⚠️ تحذير: هل أنت متأكد تماماً؟ \nسيتم تصفير جميع الدرجات، الساعات الدراسية، وسجل الأنشطة.\nلا يمكن التراجع عن هذا الإجراء.')) return;
     
     const resetUser = {
         ...selectedStudent,
@@ -93,7 +147,7 @@ const AdminStudentManager: React.FC = () => {
   };
 
   const handleToggleBan = async () => {
-    if (!selectedStudent) return;
+    if (!selectedStudent || selectedStudent.uid === 'new_entry') return;
     const isBanning = selectedStudent.status !== 'banned';
     
     if (isBanning && !window.confirm('سيتم منع الطالب من الدخول للمنصة نهائياً. هل أنت متأكد؟')) return;
@@ -121,15 +175,25 @@ const AdminStudentManager: React.FC = () => {
         {/* List Section */}
         <div className="lg:col-span-4 flex flex-col gap-6 h-[calc(100vh-140px)] sticky top-6">
             <div className="glass-panel p-6 rounded-[30px] border-white/5 bg-[#0a1118]/80 flex flex-col h-full overflow-hidden">
-                <div className="relative mb-6">
-                    <Search className="absolute top-1/2 right-4 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                    <input 
-                        type="text" 
-                        placeholder="بحث سريع..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl pr-12 pl-4 py-4 text-white outline-none focus:border-[#fbbf24] transition-all text-sm font-bold shadow-inner"
-                    />
+                {/* Header & Search */}
+                <div className="space-y-4 mb-6">
+                    <button 
+                        onClick={handleCreateNewMode}
+                        className="w-full py-4 bg-[#fbbf24] text-black rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                        <PlusCircle size={16} /> إضافة طالب جديد
+                    </button>
+                    
+                    <div className="relative">
+                        <Search className="absolute top-1/2 right-4 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                        <input 
+                            type="text" 
+                            placeholder="بحث سريع..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl pr-12 pl-4 py-4 text-white outline-none focus:border-[#fbbf24] transition-all text-sm font-bold shadow-inner"
+                        />
+                    </div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1">
@@ -182,13 +246,19 @@ const AdminStudentManager: React.FC = () => {
                     <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-10 pb-8 border-b border-white/5">
                         <div className="flex items-center gap-6">
                             <div className="w-24 h-24 rounded-[30px] border-2 border-white/10 bg-black/40 p-2 shadow-2xl relative">
-                                <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${selectedStudent.uid}`} alt="avatar" className="w-full h-full" />
-                                <div className="absolute -bottom-3 -right-3 bg-[#fbbf24] text-black text-[10px] font-black px-3 py-1 rounded-full border-4 border-[#0a1118]">
-                                    Level {Math.floor((selectedStudent.points || 0) / 1000) + 1}
-                                </div>
+                                {selectedStudent.uid === 'new_entry' ? (
+                                    <div className="w-full h-full flex items-center justify-center text-4xl">🆕</div>
+                                ) : (
+                                    <>
+                                        <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${selectedStudent.uid}`} alt="avatar" className="w-full h-full" />
+                                        <div className="absolute -bottom-3 -right-3 bg-[#fbbf24] text-black text-[10px] font-black px-3 py-1 rounded-full border-4 border-[#0a1118]">
+                                            Level {Math.floor((selectedStudent.points || 0) / 1000) + 1}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                             <div>
-                                <h2 className="text-3xl font-black text-white mb-2">{selectedStudent.name}</h2>
+                                <h2 className="text-3xl font-black text-white mb-2">{selectedStudent.uid === 'new_entry' ? 'تسجيل طالب جديد' : selectedStudent.name}</h2>
                                 <div className="flex flex-wrap gap-2">
                                     <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${getStatusColor(selectedStudent.status)}`}>
                                         {selectedStudent.status}
@@ -199,20 +269,24 @@ const AdminStudentManager: React.FC = () => {
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-[10px] text-gray-500 font-mono mt-3 opacity-60">UID: {selectedStudent.uid}</p>
+                                <p className="text-[10px] text-gray-500 font-mono mt-3 opacity-60">
+                                    UID: {selectedStudent.uid === 'new_entry' ? 'سيتم التوليد تلقائياً' : selectedStudent.uid}
+                                </p>
                             </div>
                         </div>
                         
-                        <div className="flex gap-3">
-                            <div className="text-center px-6 py-3 bg-white/5 rounded-2xl border border-white/5">
-                                <p className="text-[9px] text-gray-500 uppercase font-black mb-1">النقاط</p>
-                                <p className="text-xl font-black text-[#fbbf24] tabular-nums">{selectedStudent.points || 0}</p>
+                        {selectedStudent.uid !== 'new_entry' && (
+                            <div className="flex gap-3">
+                                <div className="text-center px-6 py-3 bg-white/5 rounded-2xl border border-white/5">
+                                    <p className="text-[9px] text-gray-500 uppercase font-black mb-1">النقاط</p>
+                                    <p className="text-xl font-black text-[#fbbf24] tabular-nums">{selectedStudent.points || 0}</p>
+                                </div>
+                                <div className="text-center px-6 py-3 bg-white/5 rounded-2xl border border-white/5">
+                                    <p className="text-[9px] text-gray-500 uppercase font-black mb-1">الدروس</p>
+                                    <p className="text-xl font-black text-[#00d2ff] tabular-nums">{selectedStudent.completedLessonIds?.length || 0}</p>
+                                </div>
                             </div>
-                            <div className="text-center px-6 py-3 bg-white/5 rounded-2xl border border-white/5">
-                                <p className="text-[9px] text-gray-500 uppercase font-black mb-1">الدروس</p>
-                                <p className="text-xl font-black text-[#00d2ff] tabular-nums">{selectedStudent.completedLessonIds?.length || 0}</p>
-                            </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* Tabs */}
@@ -220,13 +294,17 @@ const AdminStudentManager: React.FC = () => {
                         {[
                             {id: 'PROFILE', label: 'الملف الشخصي', icon: UserIcon},
                             {id: 'SUBSCRIPTION', label: 'الاشتراك', icon: Zap},
-                            {id: 'PROGRESS', label: 'DNA الأكاديمي', icon: GraduationCap},
-                            {id: 'ACTIONS', label: 'منطقة الخطر', icon: AlertTriangle}
+                            {id: 'PROGRESS', label: 'DNA الأكاديمي', icon: GraduationCap, disabled: selectedStudent.uid === 'new_entry'},
+                            {id: 'ACTIONS', label: 'منطقة الخطر', icon: AlertTriangle, disabled: selectedStudent.uid === 'new_entry'}
                         ].map(tab => (
                             <button 
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id as any)}
-                                className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-[#fbbf24] text-black shadow-lg shadow-[#fbbf24]/20' : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                                onClick={() => !tab.disabled && setActiveTab(tab.id as any)}
+                                disabled={tab.disabled}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+                                    tab.disabled ? 'opacity-30 cursor-not-allowed bg-transparent text-gray-600' :
+                                    activeTab === tab.id ? 'bg-[#fbbf24] text-black shadow-lg shadow-[#fbbf24]/20' : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                                }`}
                             >
                                 <tab.icon size={14} />
                                 {tab.label}
@@ -398,8 +476,8 @@ const AdminStudentManager: React.FC = () => {
                             disabled={isLoading}
                             className="bg-[#fbbf24] text-black px-12 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 ml-auto disabled:opacity-50"
                         >
-                            {isLoading ? <RefreshCw className="animate-spin w-4 h-4" /> : <Save className="w-4 h-4" />}
-                            حفظ التعديلات
+                            {isLoading ? <RefreshCw className="animate-spin w-4 h-4" /> : (selectedStudent.uid === 'new_entry' ? <PlusCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />)}
+                            {selectedStudent.uid === 'new_entry' ? 'إنشاء الحساب' : 'حفظ التعديلات'}
                         </button>
                     </div>
                 </div>
@@ -409,7 +487,7 @@ const AdminStudentManager: React.FC = () => {
                         <UserIcon size={48} className="text-gray-500" />
                     </div>
                     <h3 className="text-3xl font-black text-white mb-2">إدارة الطلاب</h3>
-                    <p className="font-medium text-gray-500 max-w-sm">اختر طالباً من القائمة لعرض ملفه الشخصي، تعديل الاشتراك، أو متابعة التقدم.</p>
+                    <p className="font-medium text-gray-500 max-w-sm">اختر طالباً من القائمة لعرض ملفه الشخصي، أو قم بإضافة طالب جديد يدوياً.</p>
                 </div>
             )}
         </div>
