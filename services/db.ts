@@ -10,6 +10,7 @@ const getDoc = async (ref: any) => ({ exists: () => false, data: () => ({}) });
 const setDoc = async (ref: any, data: any, options?: any) => {};
 const getDocs = async (query: any) => ({ empty: true, docs: [] });
 const updateDoc = async (ref: any, data: any) => {};
+const deleteDoc = async (ref: any) => {}; // Added deleteDoc mock
 const query = (ref: any, ...args: any[]) => ({});
 const where = (field: string, op: string, val: any) => ({});
 const orderBy = (field: string, dir?: string) => ({});
@@ -163,6 +164,19 @@ class SyrianScienceCenterDB {
       const data = this.getLocalData();
       data.users[user.uid] = user;
       this.saveLocalData(data);
+    }
+  }
+
+  // NEW: Delete User capability for full admin control
+  async deleteUser(uid: string): Promise<void> {
+    if (this.useCloud) {
+      await deleteDoc(doc(db, "users", uid));
+    } else {
+      const data = this.getLocalData();
+      if (data.users && data.users[uid]) {
+        delete data.users[uid];
+        this.saveLocalData(data);
+      }
     }
   }
 

@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { User } from '../types';
+import { User, EducationalLevel } from '../types';
 import { dbService } from '../services/db';
 import { 
   Search, User as UserIcon, Shield, Zap, Trash2, Ban, 
   Save, RefreshCw, GraduationCap, Clock, AlertTriangle,
-  Mail, Phone, School, FileText, PlusCircle
+  Mail, Phone, School, FileText, PlusCircle, CheckCircle
 } from 'lucide-react';
 
 const AdminStudentManager: React.FC = () => {
@@ -52,13 +52,17 @@ const AdminStudentManager: React.FC = () => {
     setMessage(null);
   };
 
+  // --- New Feature: Manual Student Addition ---
   const handleCreateNewMode = () => {
+    setSearchQuery(''); // Reset search to show clean slate
     const newStudentTemplate: User = {
-        uid: 'new_entry', // Placeholder ID
+        uid: 'new_entry', // Temporary ID
         name: '',
         email: '',
         role: 'student',
         grade: '12',
+        stage: 'secondary',
+        educationalLevel: EducationalLevel.SECONDARY,
         status: 'active',
         subscription: 'free',
         createdAt: new Date().toISOString(),
@@ -97,8 +101,8 @@ const AdminStudentManager: React.FC = () => {
         if (selectedStudent.uid === 'new_entry') {
             // Generate a real UID
             updatedUser.uid = `user_${Date.now()}`;
-            // Check email uniqueness (mock check)
-            const exists = students.some(s => s.email === updatedUser.email);
+            // Check email uniqueness (basic check against loaded list)
+            const exists = students.some(s => s.email.toLowerCase() === updatedUser.email.toLowerCase());
             if (exists) {
                 setMessage({ text: 'هذا البريد الإلكتروني مسجل مسبقاً', type: 'error' });
                 setIsLoading(false);
@@ -111,8 +115,8 @@ const AdminStudentManager: React.FC = () => {
         
         await dbService.saveUser(updatedUser);
         
-        await loadStudents(); // Reload list
-        setSelectedStudent(updatedUser); // Update local state to the saved user
+        await loadStudents(); // Reload list to reflect changes
+        setSelectedStudent(updatedUser); // Update local state
     } catch (e) {
         console.error(e);
         setMessage({ text: 'حدث خطأ أثناء الحفظ', type: 'error' });
@@ -161,6 +165,36 @@ const AdminStudentManager: React.FC = () => {
     setTimeout(() => setMessage(null), 3000);
   };
 
+  // --- New Feature: Delete Student (Full Control) ---
+  const handleDelete = async () => {
+    if (!selectedStudent || selectedStudent.uid === 'new_entry') return;
+    
+    // Strict Safety Check
+    const confirmDelete = window.confirm(
+      `⚠️ تحذير خطير: أنت على وشك حذف الطالب "${selectedStudent.name}" نهائياً.\n\nسيتم فقدان كافة السجلات والدرجات والتقدم الدراسي.\n\nهل أنت متأكد تماماً؟`
+    );
+    
+    if (!confirmDelete) return;
+
+    setIsLoading(true);
+    try {
+        await dbService.deleteUser(selectedStudent.uid);
+        setMessage({ text: 'تم حذف الطالب نهائياً', type: 'success' });
+        
+        // Refresh list
+        const updatedStudents = students.filter(s => s.uid !== selectedStudent.uid);
+        setStudents(updatedStudents);
+        setFilteredStudents(updatedStudents);
+        setSelectedStudent(null);
+        setEditForm({});
+    } catch (e) {
+        console.error(e);
+        setMessage({ text: 'حدث خطأ أثناء الحذف', type: 'error' });
+    }
+    setIsLoading(false);
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   const getStatusColor = (status: string) => {
     switch(status) {
         case 'active': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
@@ -175,7 +209,7 @@ const AdminStudentManager: React.FC = () => {
         {/* List Section */}
         <div className="lg:col-span-4 flex flex-col gap-6 h-[calc(100vh-140px)] sticky top-6">
             <div className="glass-panel p-6 rounded-[30px] border-white/5 bg-[#0a1118]/80 flex flex-col h-full overflow-hidden">
-                {/* Header & Search */}
+                {/* Actions Header */}
                 <div className="space-y-4 mb-6">
                     <button 
                         onClick={handleCreateNewMode}
@@ -188,7 +222,7 @@ const AdminStudentManager: React.FC = () => {
                         <Search className="absolute top-1/2 right-4 -translate-y-1/2 w-5 h-5 text-gray-500" />
                         <input 
                             type="text" 
-                            placeholder="بحث سريع..." 
+                            placeholder="بحث بالاسم، البريد، أو الهاتف..." 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-2xl pr-12 pl-4 py-4 text-white outline-none focus:border-[#fbbf24] transition-all text-sm font-bold shadow-inner"
@@ -320,13 +354,13 @@ const AdminStudentManager: React.FC = () => {
                                     <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest">
                                         <UserIcon size={12}/> الاسم الكامل
                                     </label>
-                                    <input type="text" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium" />
+                                    <input type="text" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium" placeholder="اسم الطالب" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest">
                                         <Mail size={12}/> البريد الإلكتروني
                                     </label>
-                                    <input type="email" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium font-mono text-sm" />
+                                    <input type="email" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium font-mono text-sm" placeholder="student@example.com" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest">
@@ -365,7 +399,7 @@ const AdminStudentManager: React.FC = () => {
                                         <div className="space-y-4">
                                             <h4 className="text-lg font-black text-[#fbbf24] flex items-center gap-2">
                                                 <Zap className="fill-current" />
-                                                إدارة الباقة
+                                                إدارة الباقة والصلاحيات
                                             </h4>
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">نوع الاشتراك</label>
@@ -444,20 +478,30 @@ const AdminStudentManager: React.FC = () => {
                                         placeholder="اكتب ملاحظات خاصة عن سلوك الطالب أو حالته..."
                                     />
                                 </div>
-                                <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row gap-4">
+                                <div className="border-t border-white/10 pt-8 flex flex-col gap-4">
+                                    <div className="flex flex-col md:flex-row gap-4">
+                                        <button 
+                                            onClick={handleToggleBan}
+                                            className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 ${selectedStudent.status === 'banned' ? 'bg-green-600 text-white hover:bg-green-500' : 'bg-orange-600/20 text-orange-500 border border-orange-500/30 hover:bg-orange-600 hover:text-white'}`}
+                                        >
+                                            <Ban size={16} />
+                                            {selectedStudent.status === 'banned' ? 'إلغاء الحظر وتنشيط الحساب' : 'حظر الحساب مؤقتاً'}
+                                        </button>
+                                        
+                                        <button 
+                                            onClick={() => window.print()}
+                                            className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-all"
+                                        >
+                                            تصدير تقرير إداري 📄
+                                        </button>
+                                    </div>
+
                                     <button 
-                                        onClick={handleToggleBan}
-                                        className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 ${selectedStudent.status === 'banned' ? 'bg-green-600 text-white hover:bg-green-500' : 'bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600 hover:text-white'}`}
+                                        onClick={handleDelete}
+                                        className="w-full py-4 bg-red-600/10 border border-red-600/30 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-3 shadow-lg mt-4"
                                     >
-                                        <Ban size={16} />
-                                        {selectedStudent.status === 'banned' ? 'إلغاء الحظر وتنشيط الحساب' : 'حظر الحساب ومنع الدخول'}
-                                    </button>
-                                    
-                                    <button 
-                                        onClick={() => window.print()}
-                                        className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-all"
-                                    >
-                                        تصدير تقرير إداري 📄
+                                        <Trash2 size={16} />
+                                        حذف الحساب نهائياً (Dangerous)
                                     </button>
                                 </div>
                             </div>
