@@ -364,12 +364,13 @@ class SyrianScienceCenterDB {
   }
 
   async deleteTeacher(id: string) {
-      // Implementation omitted for brevity in Cloud mode, assumes deleting doc
-      if (!this.useCloud) {
-          const data = this.getLocalData();
-          data.teachers = data.teachers.filter((t:any) => t.id !== id);
-          this.saveLocalData(data);
-      }
+    if (this.useCloud) {
+        await deleteDoc(doc(db, "teachers", id));
+    } else {
+        const data = this.getLocalData();
+        data.teachers = data.teachers.filter((t:any) => t.id !== id);
+        this.saveLocalData(data);
+    }
   }
 
   async getResources(): Promise<EducationalResource[]> {

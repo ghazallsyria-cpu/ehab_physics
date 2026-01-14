@@ -11,9 +11,9 @@
 const firebaseConfig = {
   // 🔴 استبدل هذه القيم ببيانات مشروعك الحقيقي
   apiKey: "AIzaSyBOKOR48inbN88UtVLKIRtQT7TUWvTktGo",
-  authDomain: "your-project-id.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project-id.appspot.com",
+  authDomain: "physi-kuwait-prod-46032.firebaseapp.com",
+  projectId: "physi-kuwait-prod-46032",
+  storageBucket: "physi-kuwait-prod-46032.appspot.com",
   messagingSenderId: "123456789",
   appId: "1:123456789:web:abcdef123456"
 };
