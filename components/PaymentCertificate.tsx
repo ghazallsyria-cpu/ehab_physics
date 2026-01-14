@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Invoice, User } from '../types';
-import { QRCodeSVG } from 'qrcode.react';
+import QRCode from 'react-qr-code';
 
 interface PaymentCertificateProps {
   user: User;
@@ -13,6 +13,15 @@ const PaymentCertificate: React.FC<PaymentCertificateProps> = ({ user, invoice, 
   const printCertificate = () => {
     window.print();
   };
+
+  // Generate verification data for QR Code
+  const qrData = JSON.stringify({
+    ref: invoice.paymentId,
+    track: invoice.trackId,
+    student: user.name,
+    amount: invoice.amount,
+    date: invoice.date
+  });
 
   return (
     <div className="max-w-4xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white print:bg-white print:text-black">
@@ -59,15 +68,14 @@ const PaymentCertificate: React.FC<PaymentCertificateProps> = ({ user, invoice, 
            </div>
 
            <div className="flex flex-col items-center justify-center bg-black/40 p-10 rounded-[50px] border border-white/5 print:bg-white print:border-black">
-              <div className="bg-white p-6 rounded-[30px] shadow-2xl mb-6 print:p-2">
-                 <QRCodeSVG 
-                    value={`https://syrianscience.test/verify/${invoice.trackId}`} 
-                    size={160}
-                    level="H"
-                    includeMargin={false}
+              <div className="bg-white p-4 rounded-[30px] shadow-2xl mb-6 print:p-2 w-[160px] h-[160px] flex items-center justify-center border-4 border-black/10">
+                 <QRCode
+                    value={qrData}
+                    size={256}
+                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                  />
               </div>
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">امسح الكود للتحقق من صحة الإيصال</p>
+              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">كود التحقق الرقمي</p>
            </div>
         </div>
 

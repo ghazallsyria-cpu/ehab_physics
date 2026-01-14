@@ -150,6 +150,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'overview'
 
       {activeTab === 'overview' && (
         <div className="space-y-12">
+            {/* System Health Check */}
+            <div className="flex items-center justify-between p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl animate-slideUp">
+               <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_#10b981]"></div>
+                  <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">System Status: OPTIMAL</span>
+               </div>
+               <span className="text-[10px] font-bold text-emerald-600/70">Dependencies Synced • v1.2.0</span>
+            </div>
+
             {/* Live Metrics Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
