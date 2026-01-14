@@ -20,7 +20,6 @@
     <!-- Using CDN for Tailwind CSS for simplicity in this setup -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <style>
         :root {
             /* Modern Academic Palette */
@@ -44,6 +43,7 @@
             user-select: none;
             overscroll-behavior-y: contain;
             -webkit-overflow-scrolling: touch;
+            min-width: 320px;
         }
         
         /* Elegant Scrollbar */
@@ -54,7 +54,7 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
 
         /* Splash Screen */
-        #rafid-splash {
+        #ssc-splash {
             position: fixed;
             inset: 0;
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -131,18 +131,18 @@
             transform: translateY(-2px);
         }
     </style>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" integrity="sha384-DbM2ydms9emFergusonLayuiLgYkDdI3rCIrhDkeP27UeKNE5coAPfxB_XQDCg3bL23b" crossorigin="anonymous"></script>
 <script type="importmap">
 {
   "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
     "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
-    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
-    "vite": "https://esm.sh/vite@^7.3.1",
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "vite": "https://esm.sh/vite@^7.3.1",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "katex": "https://esm.sh/katex@^0.16.27",
+    "katex/": "https://esm.sh/katex@^0.16.27/",
     "jszip": "https://esm.sh/jszip@^3.10.1",
     "qrcode.react": "https://esm.sh/qrcode.react@^4.2.0"
   }
@@ -150,7 +150,7 @@
 </script>
 </head>
 <body class="app-bg">
-    <div id="rafid-splash">
+    <div id="ssc-splash">
         <div class="splash-logo">
             <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="100" cy="100" r="40" stroke="#38bdf8" stroke-width="8" stroke-opacity="0.2"/>
@@ -171,13 +171,14 @@
     <script type="module" src="/index.tsx"></script>
     <script>
         window.addEventListener('load', () => {
-            const splash = document.getElementById('rafid-splash');
+            const splash = document.getElementById('ssc-splash');
             if (splash) {
+                // Wait a bit to ensure React hydrates, then fade out
                 setTimeout(() => {
                     splash.style.opacity = '0';
                     splash.style.transform = 'scale(1.05)';
                     setTimeout(() => splash.remove(), 800);
-                }, 2000);
+                }, 1500);
             }
         });
     </script>

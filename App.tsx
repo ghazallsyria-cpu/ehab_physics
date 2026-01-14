@@ -1,4 +1,4 @@
-// edited by Ehab Ghazal
+
 import React, { useState, useEffect } from 'react';
 import { User, ViewState, Invoice, PhysicsExperiment } from './types';
 import { PHYSICS_TOPICS, INITIAL_EXPERIMENTS } from './constants';
@@ -20,6 +20,7 @@ import PhysicsJourneyMap from './components/PhysicsJourneyMap';
 import ResourcesCenter from './components/ResourcesCenter';
 import UniversityBridge from './components/UniversityBridge';
 import TeacherDirectory from './components/TeacherDirectory';
+import Forum from './components/Forum';
 
 // Advanced Features & Tools
 import PhysicsChat from './components/PhysicsChat';
@@ -45,14 +46,16 @@ import { dbService } from './services/db';
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   
-  // Initialize view based on URL to support direct navigation (e.g. from PWA icon)
+  // Initialize view based on URL, defaulting to dashboard
   const [view, setView] = useState<ViewState>(() => {
     const path = window.location.pathname.replace('/', '');
-    // Simple mapping for main routes, default to landing
-    if (path === 'dashboard') return 'dashboard';
+    // Handle specific public routes
+    if (path === 'landing') return 'landing';
     if (path === 'privacy-policy') return 'privacy-policy';
     if (path === 'teacher-join') return 'teacher-join';
-    return 'landing';
+    
+    // Default to dashboard for root or any other path
+    return 'dashboard';
   });
 
   const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
@@ -90,26 +93,6 @@ const App: React.FC = () => {
     }
   }, [view, user, lastInvoice]);
   
-  // Global KaTeX Auto-renderer
-  useEffect(() => {
-    const renderMath = () => {
-      if ((window as any).renderMathInElement) {
-        (window as any).renderMathInElement(document.body, {
-          delimiters: [
-            { left: "$$", right: "$$", display: true },
-            { left: "$", right: "$", display: false },
-            { left: "\\(", right: "\\)", display: false },
-            { left: "\\[", right: "\\]", display: true }
-          ],
-          throwOnError: false
-        });
-      }
-    };
-    // Delay rendering slightly to ensure React has updated the DOM
-    const timer = setTimeout(renderMath, 100);
-    return () => clearTimeout(timer);
-  }, [view, user, activeTopicId, activeExperiment, lastInvoice]);
-
 
   const renderContent = () => {
     // Public Routes
@@ -173,6 +156,7 @@ const App: React.FC = () => {
       case 'study-groups': return <StudyGroups />;
       case 'todo-list': return <TodoList />;
       case 'progress-report': return <ProgressReport user={user} attempts={[]} onBack={() => setView('dashboard')} />;
+      case 'forum': return <Forum user={user} onAskAI={() => {}} />;
 
       // Operational & Admin Views
       case 'bank-digitizer': return <AdminDashboard initialTab='questions' />;

@@ -46,7 +46,7 @@ const ImageGenerator: React.FC = () => {
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-image-preview',
         contents: {
-          parts: [{ text: `Educational, high-quality, cinematic physics visualization, suitable for a Kuwaiti curriculum: ${prompt}` }],
+          parts: [{ text: `Educational, high-quality, cinematic physics visualization, suitable for a Syrian curriculum: ${prompt}` }],
         },
         config: {
           imageConfig: {

@@ -1,23 +1,27 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, Question } from '../types';
 import { dbService } from '../services/db';
+import katex from 'katex';
 
 const MathRenderer: React.FC<{ content: string; isBlock?: boolean }> = ({ content, isBlock }) => {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!containerRef.current || !(window as any).katex) return;
+  const mathHtml = useMemo(() => {
     try {
-      (window as any).katex.render(content, containerRef.current, { 
-        displayMode: isBlock, 
+      return katex.renderToString(content, {
         throwOnError: false,
-        trust: true
+        displayMode: isBlock,
       });
     } catch (e) {
-      containerRef.current.textContent = content;
+      console.warn('KaTeX rendering error:', e);
+      return content; // Fallback to raw content on error
     }
   }, [content, isBlock]);
-  return <div ref={containerRef} className={isBlock ? "math-block-container py-6" : "inline-block text-[#00d2ff] font-bold"} />;
+
+  const className = isBlock 
+    ? "block bg-black/20 p-4 my-4 rounded-xl text-center" 
+    : "inline-block";
+
+  return <span className={className} dangerouslySetInnerHTML={{ __html: mathHtml }} />;
 };
 
 interface QuestionBankProps {
@@ -44,8 +48,8 @@ const QuestionBank: React.FC<QuestionBankProps> = ({ user, onExplainAI }) => {
   return (
     <div className="max-w-5xl mx-auto animate-fadeIn font-['Tajawal'] pb-20">
       <header className="mb-12 border-r-4 border-[#fbbf24] pr-8">
-        <h2 className="text-5xl font-black mb-4 tracking-tighter italic">بنك الأسئلة <span className="text-[#fbbf24]">المعايَر 5B</span></h2>
-        <p className="text-gray-500 text-xl font-medium">أرشيف أسئلة المنهج الكويتي المرقمنة بذكاء اصطناعي تفاعلي.</p>
+        <h2 className="text-5xl font-black mb-4 tracking-tighter italic">بنك الأسئلة <span className="text-[#fbbf24]">المعياري 5B</span></h2>
+        <p className="text-gray-500 text-xl font-medium">أرشيف أسئلة المنهج السوري المرقمنة بذكاء اصطناعي تفاعلي.</p>
         
         <div className="flex gap-4 mt-8 overflow-x-auto no-scrollbar pb-2">
           {['10', '11', '12', 'university'].map(g => (

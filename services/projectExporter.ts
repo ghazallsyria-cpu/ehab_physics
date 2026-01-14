@@ -15,7 +15,7 @@ export const exportFullProject = async () => {
   const url = URL.createObjectURL(content);
   const a = document.createElement('a');
   a.href = url;
-  a.download = "PhysiKuwait_Full_Project.zip";
+  a.download = "SyrianScienceCenter_Project.zip";
   a.click();
   URL.revokeObjectURL(url);
 };

@@ -42,7 +42,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
     // Create a robust demo user with Premium access and existing progress
     const demoUser: User = {
       uid: targetUid,
-      email: role === 'admin' ? 'admin@rafid.test' : 'student.beta@rafid.test',
+      email: role === 'admin' ? 'admin@ssc.test' : 'student.beta@ssc.test',
       name: role === 'admin' ? 'مدير المنصة' : 'طالب تجريبي (Beta)',
       role: role === 'admin' ? 'admin' : 'student',
       grade: '12',
@@ -149,7 +149,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
         if (!email.trim()) throw new Error('MISSING_EMAIL');
         
         // Allow demo accounts to login without typing a password
-        const isDemoUser = ['admin@rafid.test', 'student.beta@rafid.test'].includes(email.toLowerCase());
+        const isDemoUser = ['admin@ssc.test', 'student.beta@ssc.test'].includes(email.toLowerCase());
         if (!password.trim() && !isDemoUser) throw new Error('MISSING_PASSWORD');
 
         const userData = await dbService.getUser(email);

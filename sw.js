@@ -1,12 +1,10 @@
 
-const CACHE_NAME = 'rafid-pwa-v10-w4';
+const CACHE_NAME = 'ssc-pwa-v1';
 
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css',
-  'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js',
   'https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&display=swap',
   'https://cdn-icons-png.flaticon.com/512/3209/3209120.png'
 ];

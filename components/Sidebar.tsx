@@ -40,6 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, userRole, onLog
     { label: 'التفاعل', items: [
       { id: 'live-sessions', label: 'البث المباشر', icon: '📡' },
       { id: 'exam-center', label: 'الاختبارات', icon: '⚡' },
+      { id: 'forum', label: 'منتدى النقاش', icon: '💬' },
       { id: 'todo-list', label: 'مهامي', icon: '✅' },
     ]},
     { label: 'الشخصي', items: [

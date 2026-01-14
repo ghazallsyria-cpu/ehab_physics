@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { solvePhysicsProblem } from '../services/gemini';
 import { AISolverResult } from '../types';
+import katex from 'katex';
 
 interface PhysicsSolverProps {
   initialProblem?: string;
@@ -13,19 +14,6 @@ const PhysicsSolver: React.FC<PhysicsSolverProps> = ({ initialProblem = '' }) =>
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (result && (window as any).katex) {
-      document.querySelectorAll('.math-solver').forEach(el => {
-        try {
-          (window as any).katex.render(el.textContent || '', el, { 
-            throwOnError: false, 
-            displayMode: el.classList.contains('block') 
-          });
-        } catch(e) {}
-      });
-    }
-  }, [result]);
 
   const handleSolve = async () => {
     if (!input.trim()) return;
@@ -43,6 +31,15 @@ const PhysicsSolver: React.FC<PhysicsSolverProps> = ({ initialProblem = '' }) =>
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const renderStep = (stepText: string) => {
+    const html = stepText.replace(/\$(.*?)\$/g, (match, math) => {
+        try {
+            return katex.renderToString(math, { throwOnError: false });
+        } catch(e) { return match; }
+    });
+    return <div dangerouslySetInnerHTML={{ __html: html }} />;
   };
 
   return (
@@ -86,7 +83,7 @@ const PhysicsSolver: React.FC<PhysicsSolverProps> = ({ initialProblem = '' }) =>
            <div className="glass-panel p-12 rounded-[60px] border-[#fbbf24]/20 bg-[#fbbf24]/5">
               <h3 className="text-[12px] font-black text-[#fbbf24] uppercase tracking-widest mb-8 border-b border-[#fbbf24]/20 pb-4">القانون المستخدم</h3>
               <div className="bg-black/60 p-10 rounded-[40px] border border-white/5 text-center">
-                <div className="math-solver block text-3xl text-white">{result.law}</div>
+                <div className="block text-3xl text-white" dangerouslySetInnerHTML={{ __html: katex.renderToString(result.law, { displayMode: true, throwOnError: false }) }} />
               </div>
            </div>
 
@@ -97,11 +94,7 @@ const PhysicsSolver: React.FC<PhysicsSolverProps> = ({ initialProblem = '' }) =>
                   <div key={i} className="flex gap-8 items-start group">
                     <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center font-black text-[#00d2ff] text-sm shrink-0 border border-white/5 group-hover:border-[#00d2ff]/40 transition-all shadow-inner">{i+1}</div>
                     <div className="text-xl text-gray-300 leading-relaxed pt-1">
-                      {step.split(/(\$.*?\$)/g).map((part, idx) => (
-                        part.startsWith('$') 
-                          ? <span key={idx} className="math-solver text-[#00d2ff] font-bold mx-1">{part.slice(1, -1)}</span> 
-                          : part
-                      ))}
+                      {renderStep(step)}
                     </div>
                   </div>
                 ))}
@@ -110,7 +103,7 @@ const PhysicsSolver: React.FC<PhysicsSolverProps> = ({ initialProblem = '' }) =>
 
            <div className="glass-panel p-16 rounded-[70px] border-green-500/20 bg-green-500/5 text-center shadow-[0_30px_100px_rgba(34,197,94,0.1)]">
               <h3 className="text-[12px] font-black text-green-500 uppercase tracking-widest mb-6">الناتج النهائي</h3>
-              <div className="math-solver block text-6xl font-black text-white drop-shadow-2xl">{result.finalResult}</div>
+              <div className="block text-6xl font-black text-white drop-shadow-2xl" dangerouslySetInnerHTML={{ __html: katex.renderToString(result.finalResult, { displayMode: true, throwOnError: false }) }} />
               <div className="mt-12 p-8 bg-black/40 rounded-[40px] border border-white/5">
                  <p className="text-gray-400 italic text-xl leading-relaxed">"{result.explanation}"</p>
               </div>

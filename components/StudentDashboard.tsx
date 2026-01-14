@@ -19,7 +19,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, setView }) =>
 
   // Load preferences on mount
   useEffect(() => {
-    const savedPrefs = localStorage.getItem(`rafid_dashboard_prefs_${user.uid}`);
+    const savedPrefs = localStorage.getItem(`ssc_dashboard_prefs_${user.uid}`);
     if (savedPrefs) {
       try {
         setVisibleModules(JSON.parse(savedPrefs));
@@ -32,7 +32,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, setView }) =>
   const toggleModule = (key: keyof typeof visibleModules) => {
     const newPrefs = { ...visibleModules, [key]: !visibleModules[key] };
     setVisibleModules(newPrefs);
-    localStorage.setItem(`rafid_dashboard_prefs_${user.uid}`, JSON.stringify(newPrefs));
+    localStorage.setItem(`ssc_dashboard_prefs_${user.uid}`, JSON.stringify(newPrefs));
   };
   
   const checkEligibility = (itemId: string): boolean => {

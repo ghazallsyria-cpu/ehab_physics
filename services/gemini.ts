@@ -25,7 +25,7 @@ export const getEducationalRecommendation = async (studentContext: any, history:
       التاريخ الأكاديمي المحدود (آخر 3 محاولات): ${JSON.stringify(history)}. 
       الموضوع الحالي: ${topic}`,
       config: {
-        systemInstruction: `أنت مستشار أكاديمي في منصة رافد. 
+        systemInstruction: `أنت مستشار أكاديمي في منصة المركز السوري للعلوم. 
         القواعد المنطقية:
         1. قدم توصيات تربوية مبنية على البيانات.
         2. لا تعطِ إجابات مباشرة بل تلميحات.
@@ -56,9 +56,9 @@ export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, 
       model: "gemini-3-pro-preview",
       contents: userMsg,
       config: {
-        systemInstruction: `أنت المساعد الذكي في أكاديمية رافد. 
+        systemInstruction: `أنت المساعد الذكي في المركز السوري للعلوم. 
         تحدث بلغة العلم الراقية والداعمة. 
-        استخدم KaTeX للمعادلات دائماً.`,
+        استخدم صيغة LaTeX للمعادلات الرياضية، مثلاً $E=mc^2$ للمعادلات المضمنة و $$F=ma$$ للكتل المنفصلة.`,
         thinkingConfig: { thinkingBudget: 1024 } 
       }
     });
@@ -78,7 +78,7 @@ export const solvePhysicsProblem = async (input: string): Promise<AISolverResult
       model: "gemini-3-pro-preview",
       contents: `حل هذه المسألة الفيزيائية بالتفصيل: ${input}`,
       config: {
-        systemInstruction: "أنت خبير فيزياء متخصص. استخدم g=10 m/s^2 و KaTeX. قدم حلاً بروتوكولياً مقسماً لخطوات.",
+        systemInstruction: "أنت خبير فيزياء متخصص. استخدم g=10 m/s^2. قدم حلاً بروتوكولياً مقسماً لخطوات. اعرض المعادلات بصيغة LaTeX داخل حقول JSON النصية.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -108,185 +108,209 @@ export const getPhysicsExplanation = async (prompt: string, grade: string) => {
     return response.text || "";
   } catch (e) {
     console.error(e);
-    return "خدمة الشرح غير متاحة.";
+    return "";
   }
 };
 
-export const extractBankQuestionsAdvanced = async (rawInput: string, grade: string, subject: SubjectType, unit: string) => {
-  try {
-    const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: `حول هذا النص إلى بنك أسئلة مهيكل لصف ${grade} مادة ${subject} وحدة ${unit}: ${rawInput}`,
-      config: {
-        systemInstruction: `أنت خبير رقمنة المناهج. حول النصوص إلى JSON دقيق مع خطوات حل مبرمجة.`,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            questions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  question_text: { type: Type.STRING },
-                  question_latex: { type: Type.STRING },
-                  category: { type: Type.STRING },
-                  type: { type: Type.STRING },
-                  difficulty: { type: Type.STRING },
-                  correct_answer: { type: Type.STRING },
-                  solution: { type: Type.STRING },
-                  steps_array: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  common_errors: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  choices: {
-                    type: Type.ARRAY,
-                    items: { type: Type.OBJECT, properties: { key: { type: Type.STRING }, text: { type: Type.STRING } } }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    });
-    return JSON.parse(response.text || '{"questions": []}');
-  } catch (e) {
-    console.error(e);
-    throw new Error("Failed to extract questions");
-  }
-};
-
+// FIX: Added missing function `generatePhysicsVisualization`.
 /**
- * دالة الرقمنة البصرية (Multimodal Digitization)
+ * Generates a video visualization of a physics concept using Veo.
  */
-export const digitizeExamPaper = async (base64Image: string, grade: string, subject: string) => {
-  try {
-    const ai = getAI();
-    // إزالة الهيدر إذا وجد لضمان توافق البيانات
-    const cleanBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
-    
-    const imagePart = {
-      inlineData: {
-        mimeType: 'image/jpeg',
-        data: cleanBase64
-      }
-    };
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: {
-        parts: [
-          imagePart,
-          { text: `قم بتحليل صورة ورقة الاختبار هذه لمادة ${subject} صف ${grade}. استخرج جميع الأسئلة وحولها إلى هيكل بيانات JSON. إذا كان السؤال يحتوي على رسم بياني أو صورة توضيحية، اجعل الحقل 'hasDiagram' يساوي true. قم بتوليد حل نموذجي مفصل.` }
-        ]
-      },
-      config: {
-        systemInstruction: "أنت نظام OCR ذكي متخصص في رقمنة الاختبارات الأكاديمية. الدقة في المعادلات الرياضية (LaTeX) أولوية قصوى.",
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            questions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  question_text: { type: Type.STRING },
-                  question_latex: { type: Type.STRING, description: "المعادلات الرياضية بصيغة LaTeX إن وجدت" },
-                  type: { type: Type.STRING, enum: ["mcq", "descriptive"] },
-                  difficulty: { type: Type.STRING, enum: ["Easy", "Medium", "Hard"] },
-                  correct_answer: { type: Type.STRING },
-                  solution: { type: Type.STRING },
-                  hasDiagram: { type: Type.BOOLEAN, description: "هل يعتمد السؤال على صورة/رسم في الورقة الأصلية؟" },
-                  choices: {
-                    type: Type.ARRAY,
-                    items: { type: Type.OBJECT, properties: { key: { type: Type.STRING }, text: { type: Type.STRING } } }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    });
-
-    return JSON.parse(response.text || '{"questions": []}');
-  } catch (e) {
-    console.error("Digitization Error:", e);
-    throw new Error("Failed to digitize exam paper");
-  }
-};
-
-export const generatePhysicsVisualization = async (prompt: string) => {
-  try {
-    const ai = getAI();
-    let operation = await ai.models.generateVideos({
-      model: 'veo-3.1-fast-generate-preview',
-      prompt: `Educational physics visualization: ${prompt}. Scientific focus.`,
-      config: { numberOfVideos: 1, aspectRatio: '16:9' }
-    });
-    
-    // Polling for video completion
-    while (!operation.done) {
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      operation = await ai.operations.getVideosOperation({operation: operation});
+export const generatePhysicsVisualization = async (prompt: string): Promise<string> => {
+  const ai = getAI();
+  let operation = await ai.models.generateVideos({
+    model: 'veo-3.1-fast-generate-preview',
+    prompt: `Cinematic, high-quality, 4k resolution, slow motion visualization of a physics concept: ${prompt}`,
+    config: {
+      numberOfVideos: 1,
+      resolution: '720p', // Use 720p for faster generation in a demo context
+      aspectRatio: '16:9'
     }
-    
-    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-    if (!downloadLink) throw new Error("Video generation returned no URI");
-    
-    // Check if key is available in env to append
-    const apiKey = process.env.API_KEY;
-    return apiKey ? `${downloadLink}&key=${apiKey}` : downloadLink;
-  } catch (e) {
-    console.error("Video Gen Error:", e);
-    throw e;
+  });
+
+  while (!operation.done) {
+    await new Promise(resolve => setTimeout(resolve, 5000)); // Check every 5 seconds
+    operation = await ai.operations.getVideosOperation({ operation: operation });
+  }
+
+  const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+  if (downloadLink) {
+    // The key must be appended to the URI to access the video
+    return `${downloadLink}&key=${process.env.API_KEY}`;
+  } else {
+    const error = operation.error || { message: "Video generation failed to produce a URI." };
+    throw new Error(error.message);
   }
 };
 
+
+// FIX: Added missing function `getPerformanceAnalysis`.
 /**
- * تحليل الأداء الأكاديمي الشامل بناءً على تاريخ المحاولات
+ * Analyzes student performance based on quiz attempts.
  */
-export const getPerformanceAnalysis = async (user: User, attempts: QuizAttempt[]) => {
-  try {
-    const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: `تحليل أداء الطالب ${user.name} بناءً على المحاولات التالية: ${JSON.stringify(attempts)}`,
-      config: {
-        systemInstruction: "أنت خبير تحليل بيانات تعليمية متخصص في الفيزياء. قدم تقريراً تحليلياً مفصلاً باللغة العربية حول نقاط القوة والضعف وتوصيات مخصصة للتحسين بناءً على الأداء.",
-      }
-    });
-    return response.text || "لا يمكن استخلاص تحليل في الوقت الحالي.";
-  } catch (e) {
-    return "خدمة التحليل غير متاحة حالياً.";
-  }
+export const getPerformanceAnalysis = async (user: User, attempts: QuizAttempt[]): Promise<string> => {
+  const ai = getAI();
+  const prompt = `
+    Analyze the performance of student ${user.name} based on their recent quiz attempts.
+    User profile: ${JSON.stringify({ name: user.name, grade: user.grade })}
+    Quiz attempts: ${JSON.stringify(attempts)}
+    
+    Provide a concise, encouraging, and analytical summary in Arabic.
+    Focus on:
+    1. Overall performance trend.
+    2. Strengths (topics where they scored high).
+    3. Weaknesses (topics where they scored low).
+    4. Actionable advice for improvement.
+    
+    Structure your response clearly with markdown.
+  `;
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: prompt,
+    config: {
+      systemInstruction: 'أنت مستشار أكاديمي خبير في منصة المركز السوري للعلوم. مهمتك هي تحليل أداء الطلاب وتقديم رؤى قابلة للتنفيذ باللغة العربية.'
+    }
+  });
+  return response.text || "تعذر إنشاء تحليل في الوقت الحالي.";
 };
 
+// FIX: Added missing function `extractBankQuestionsAdvanced`.
 /**
- * فحص جودة ومصداقية السؤال للرقمنة
+ * Extracts structured questions from raw text.
  */
-export const verifyQuestionQuality = async (question: Question) => {
-  try {
-    const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: `فحص جودة السؤال: ${JSON.stringify(question)}`,
-      config: {
-        systemInstruction: "أنت مدقق جودة تعليمي صارم. افحص السؤال من حيث الدقة العلمية الفيزيائية، الوضوح، وصحة الإجابة النموذجية المرفقة. أعد النتيجة حصراً بتنسيق JSON يوضح الصلاحية والتعليق.",
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            valid: { type: Type.BOOLEAN },
-            feedback: { type: Type.STRING }
-          },
-          required: ["valid", "feedback"]
+export const extractBankQuestionsAdvanced = async (text: string, grade: string, subject: SubjectType, unit: string): Promise<{ questions: Question[] }> => {
+  const ai = getAI();
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: `
+      Extract all questions from the following text.
+      For each question, provide all required fields.
+      
+      Text to analyze:
+      ---
+      ${text}
+      ---
+    `,
+    config: {
+      systemInstruction: `You are an expert system for digitizing educational content for the Syrian curriculum. Your output must be a valid JSON object. The grade is ${grade}, subject is ${subject}, and unit is ${unit}.`,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          questions: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                question_text: { type: Type.STRING },
+                type: { type: Type.STRING, description: "'mcq' or 'descriptive'" },
+                difficulty: { type: Type.STRING, description: "'Easy', 'Medium', or 'Hard'" },
+                correct_answer: { type: Type.STRING },
+                solution: { type: Type.STRING },
+                score: { type: Type.NUMBER },
+                choices: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: { key: { type: Type.STRING }, text: { type: Type.STRING } }
+                  }
+                }
+              }
+            }
+          }
         }
       }
-    });
-    return JSON.parse(response.text || '{"valid": false, "feedback": "خطأ في تحليل الاستجابة"}');
-  } catch (e) {
-    return { valid: false, feedback: "فشل فك تشفير استجابة الذكاء الاصطناعي." };
-  }
+    }
+  });
+  return JSON.parse(response.text || '{"questions": []}');
+};
+
+// FIX: Added missing function `digitizeExamPaper`.
+/**
+ * Extracts structured questions from an image of an exam paper.
+ */
+export const digitizeExamPaper = async (imageBase64: string, grade: string, subject: SubjectType): Promise<{ questions: Question[] }> => {
+  const ai = getAI();
+  const imagePart = {
+    inlineData: {
+      mimeType: imageBase64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg',
+      data: imageBase64.split(',')[1],
+    },
+  };
+
+  const textPart = {
+    text: `Using OCR, extract all questions from this exam paper image. For each question, provide all required fields.`,
+  };
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: { parts: [imagePart, textPart] },
+    config: {
+      systemInstruction: `You are an expert system for digitizing educational content from images. Your output must be a valid JSON object. The grade is ${grade}, subject is ${subject}.`,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          questions: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                question_text: { type: Type.STRING },
+                type: { type: Type.STRING },
+                difficulty: { type: Type.STRING },
+                correct_answer: { type: Type.STRING },
+                solution: { type: Type.STRING },
+                score: { type: Type.NUMBER },
+                choices: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: { key: { type: Type.STRING }, text: { type: Type.STRING } }
+                  }
+                },
+                hasDiagram: { type: Type.BOOLEAN }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+  return JSON.parse(response.text || '{"questions": []}');
+};
+
+// FIX: Added missing function `verifyQuestionQuality`.
+/**
+ * Verifies the quality and correctness of a single question.
+ */
+export const verifyQuestionQuality = async (question: Question): Promise<{ valid: boolean, feedback: string }> => {
+  const ai = getAI();
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: `
+      Analyze this physics question for quality based on Syrian curriculum standards.
+      Question: ${JSON.stringify(question)}
+      
+      Check for:
+      1. Clarity and lack of ambiguity.
+      2. Scientific correctness of the question and solution.
+      3. Relevance to the specified grade and unit.
+      
+      If it's a good question, set valid to true and provide positive feedback.
+      If there are issues, set valid to false and provide specific, constructive feedback.
+    `,
+    config: {
+      systemInstruction: `You are an AI quality assurance agent for educational content. Your output must be a valid JSON object.`,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          valid: { type: Type.BOOLEAN },
+          feedback: { type: Type.STRING }
+        }
+      }
+    }
+  });
+  return JSON.parse(response.text || '{"valid": false, "feedback": "AI analysis failed."}');
 };

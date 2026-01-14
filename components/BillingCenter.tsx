@@ -12,7 +12,7 @@ interface BillingCenterProps {
 }
 
 const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBack, onViewCertificate }) => {
-  const [step, setStep] = useState<'PLANS' | 'KNET_GATEWAY' | 'RESULT'>('PLANS');
+  const [step, setStep] = useState<'PLANS' | 'GATEWAY' | 'RESULT'>('PLANS');
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [finalResult, setFinalResult] = useState<'SUCCESS' | 'FAIL'>('SUCCESS');
@@ -24,11 +24,11 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBac
     setActiveInvoice(invoice);
     setTimeout(() => {
       setIsProcessing(false);
-      setStep('KNET_GATEWAY');
+      setStep('GATEWAY');
     }, 1200);
   };
 
-  const handleKnetSubmit = async (success: boolean) => {
+  const handlePaymentSubmit = async (success: boolean) => {
     if (!activeInvoice) return;
     setIsProcessing(true);
     
@@ -36,10 +36,10 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBac
     let reason = '';
     if (!success) {
         const failureReasons = [
-            'الرصيد غير كافٍ في البطاقة المستخدمة.',
-            'رفض البنك المصدر للبطاقة إتمام العملية.',
-            'انتهت مهلة الجلسة (Time-out). يرجى المحاولة أسرع.',
-            'رقم البطاقة أو تاريخ الانتهاء غير صحيح.'
+            'الرصيد غير كافٍ.',
+            'رفض المصرف إتمام العملية.',
+            'انتهت مهلة الجلسة (Time-out).',
+            'بيانات غير صحيحة.'
         ];
         reason = failureReasons[Math.floor(Math.random() * failureReasons.length)];
     }
@@ -65,15 +65,15 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBac
     }, 1500);
   };
 
-  if (step === 'KNET_GATEWAY' && activeInvoice) {
+  if (step === 'GATEWAY' && activeInvoice) {
     return (
       <div className="min-h-screen fixed inset-0 z-[200] bg-[#f4f4f4] flex items-center justify-center font-['Tajawal'] text-black p-4">
         <div className="w-full max-w-xl bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200 animate-slideUp">
-           <header className="bg-[#005a9c] p-6 flex justify-between items-center text-white">
-              <img src="https://upload.wikimedia.org/wikipedia/en/thumb/5/5a/K-Net_Logo.svg/1200px-K-Net_Logo.svg.png" className="h-8 bg-white p-1 rounded" alt="KNET" />
+           <header className="bg-gray-800 p-6 flex justify-between items-center text-white">
+              <span className="font-black text-lg">Syrian Payments (Sandbox)</span>
               <div className="text-right">
-                 <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest text-white">Merchant: Rafid Academy</p>
-                 <p className="text-sm font-black text-white">Secure Payment Gateway (Sandbox)</p>
+                 <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest text-white">Merchant: Syrian Science Center</p>
+                 <p className="text-sm font-black text-white">Secure Payment Gateway</p>
               </div>
            </header>
 
@@ -81,7 +81,7 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBac
               <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 flex justify-between items-center">
                  <div className="text-right">
                     <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Total Amount</p>
-                    <p className="text-3xl font-black text-[#005a9c]">{activeInvoice.amount}.000 KD</p>
+                    <p className="text-3xl font-black text-gray-800">{activeInvoice.amount.toLocaleString()} ل.س</p>
                  </div>
                  <div className="text-left text-xs text-gray-500 font-mono">
                     <p>Track ID: {activeInvoice.trackId}</p>
@@ -89,28 +89,28 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBac
               </div>
 
               <div className="space-y-4">
-                 <label className="block text-xs font-black text-gray-500 uppercase">Select Bank</label>
-                 <select className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#005a9c] transition-all font-bold bg-white">
-                    <option>National Bank of Kuwait (NBK)</option>
-                    <option>Kuwait Finance House (KFH)</option>
-                    <option>Boubyan Bank</option>
+                 <label className="block text-xs font-black text-gray-500 uppercase">اختر المصرف</label>
+                 <select className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-gray-800 transition-all font-bold bg-white">
+                    <option>المصرف التجاري السوري</option>
+                    <option>بنك بيمو السعودي الفرنسي</option>
+                    <option>بنك سوريا الدولي الإسلامي</option>
                  </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                  <button 
-                  onClick={() => handleKnetSubmit(true)} 
+                  onClick={() => handlePaymentSubmit(true)} 
                   disabled={isProcessing}
-                  className="bg-[#005a9c] text-white py-5 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-[#004a80] transition-all flex items-center justify-center gap-4 shadow-xl"
+                  className="bg-gray-800 text-white py-5 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-4 shadow-xl"
                  >
-                   {isProcessing ? 'Processing...' : 'Confirm (Beta)'}
+                   {isProcessing ? 'Processing...' : 'تأكيد الدفع (تجريبي)'}
                  </button>
                  <button 
-                  onClick={() => handleKnetSubmit(false)}
+                  onClick={() => handlePaymentSubmit(false)}
                   disabled={isProcessing}
                   className="bg-gray-100 text-gray-600 py-5 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-gray-200 transition-all"
                  >
-                   Cancel / Fail
+                   إلغاء / فشل
                  </button>
               </div>
            </div>
@@ -134,7 +134,7 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBac
                 </div>
                 <div className="flex justify-between items-center text-sm">
                    <span className="text-gray-500">المبلغ المدفوع:</span>
-                   <span className="font-black text-[#fbbf24]">{activeInvoice.amount}.000 د.ك</span>
+                   <span className="font-black text-[#fbbf24]">{activeInvoice.amount.toLocaleString()} ل.س</span>
                 </div>
              </div>
            )}
@@ -159,7 +159,7 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBac
                   onClick={() => onViewCertificate(activeInvoice)}
                   className="bg-[#fbbf24] text-black px-12 py-5 rounded-[30px] font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl"
                 >
-                  عرض الشهادة الرقمية 📄
+                  عرض الشهادة الرقمية 📄 
                 </button>
               )}
 
@@ -188,7 +188,7 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBac
         {PRICING_PLANS.map(plan => (
           <div key={plan.id} className="glass-panel group p-12 rounded-[60px] border-white/5 hover:border-[#00d2ff]/30 transition-all duration-700 flex flex-col relative overflow-hidden bg-black/20">
             <h3 className="text-3xl font-black mb-4">{plan.name}</h3>
-            <div className="text-6xl font-black text-[#fbbf24] tracking-tighter mb-10">{plan.price}<span className="text-lg text-gray-500 mr-2">د.ك</span></div>
+            <div className="text-6xl font-black text-[#fbbf24] tracking-tighter mb-10">{plan.price.toLocaleString()}<span className="text-lg text-gray-500 mr-2">ل.س</span></div>
             
             <ul className="space-y-6 flex-1 text-right border-t border-white/5 pt-10 mb-10">
                {plan.features.map((f, i) => (
@@ -208,7 +208,7 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBac
                   : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95 glow-gold'
               }`}
             >
-              {isProcessing ? 'جاري الاتصال...' : user.subscription === plan.tier ? 'أنت مشترك بالفعل' : 'اشترك الآن عبر K-NET'}
+              {isProcessing ? 'جاري الاتصال...' : user.subscription === plan.tier ? 'أنت مشترك بالفعل' : 'اشترك الآن'}
             </button>
           </div>
         ))}

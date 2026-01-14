@@ -1,6 +1,6 @@
 
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
-export type ViewState = 'landing' | 'dashboard' | 'lessons' | 'exams' | 'certificates' | 'billing' | 'physics-journey' | 'course-content' | 'exam-center' | 'course-catalog' | 'question-bank' | 'bank-digitizer' | 'progress-report' | 'live-sessions' | 'performance-analysis' | 'study-groups' | 'todo-list' | 'parent-portal' | 'subscription-plans' | 'beta-feedback' | 'behavioral-insights' | 'audit-center' | 'payment-result' | 'privacy-policy' | 'payment-certificate' | 'teacher-join' | 'university-bridge' | 'library' | 'ai-chat' | 'physics-veo' | 'physics-solver' | 'equation-solver' | 'physics-game' | 'ar-lab' | 'future-labs' | 'virtual-lab' | 'scientific-articles' | 'physics-image-gen' | 'teachers';
+export type ViewState = 'landing' | 'dashboard' | 'lessons' | 'exams' | 'certificates' | 'billing' | 'physics-journey' | 'course-content' | 'exam-center' | 'course-catalog' | 'question-bank' | 'bank-digitizer' | 'progress-report' | 'live-sessions' | 'performance-analysis' | 'study-groups' | 'todo-list' | 'parent-portal' | 'subscription-plans' | 'beta-feedback' | 'behavioral-insights' | 'audit-center' | 'payment-result' | 'privacy-policy' | 'payment-certificate' | 'teacher-join' | 'university-bridge' | 'library' | 'ai-chat' | 'physics-veo' | 'physics-solver' | 'equation-solver' | 'physics-game' | 'ar-lab' | 'future-labs' | 'virtual-lab' | 'scientific-articles' | 'physics-image-gen' | 'teachers' | 'forum';
 
 export type SubjectType = 'Physics' | 'Math' | 'Chemistry' | 'English';
 export type BranchType = 'Scientific' | 'Literary' | 'Foundation';
@@ -287,6 +287,7 @@ export interface ForumPost {
   content: string;
   tags: string[];
   timestamp: string;
+  upvotes: number;
   replies?: ForumReply[];
 }
 
@@ -295,8 +296,9 @@ export interface ForumReply {
   authorEmail: string;
   authorName: string;
   content: string;
-  role: string;
+  role: UserRole;
   timestamp: string;
+  upvotes: number;
 }
 
 export interface LiveSession {

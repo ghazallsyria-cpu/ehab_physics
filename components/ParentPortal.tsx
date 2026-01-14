@@ -83,7 +83,7 @@ const ParentPortal: React.FC<{ user: User }> = ({ user }) => {
                         <div className="text-right">
                            <p className="text-lg font-bold text-white mb-1">{note.title}</p>
                            <p className="text-sm text-gray-400 italic mb-2">"{note.message}"</p>
-                           <span className="text-[9px] font-black text-gray-600 uppercase tabular-nums">{new Date(note.timestamp).toLocaleTimeString('ar-KW')}</span>
+                           <span className="text-[9px] font-black text-gray-600 uppercase tabular-nums">{new Date(note.timestamp).toLocaleTimeString('ar-SY')}</span>
                         </div>
                      </div>
                    )) : (
@@ -110,7 +110,7 @@ const ParentPortal: React.FC<{ user: User }> = ({ user }) => {
                    </div>
                    <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-500">آخر ظهور:</span>
-                      <span className="font-bold text-white">{studentData.progress.lastActivity ? new Date(studentData.progress.lastActivity).toLocaleDateString('ar-KW') : 'قيد الانتظار'}</span>
+                      <span className="font-bold text-white">{studentData.progress.lastActivity ? new Date(studentData.progress.lastActivity).toLocaleDateString('ar-SY') : 'قيد الانتظار'}</span>
                    </div>
                 </div>
                 

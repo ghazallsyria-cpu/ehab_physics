@@ -151,7 +151,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'overview'
       {activeTab === 'overview' && (
         <div className="space-y-12">
             {/* Live Metrics Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
                 { label: 'الطلاب النشطون الآن', value: analytics.activeNow, color: 'text-green-400', icon: '📡', live: true },
                 { label: 'إجمالي المسجلين', value: analytics.totalStudents, color: 'text-blue-400', icon: '👥' },

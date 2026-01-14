@@ -407,7 +407,7 @@ const AdminTeacherManager: React.FC = () => {
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-white">{msg.studentName}</p>
-                                            <p className="text-[9px] text-gray-500 font-mono">{new Date(msg.timestamp).toLocaleString('ar-KW')}</p>
+                                            <p className="text-[9px] text-gray-500 font-mono">{new Date(msg.timestamp).toLocaleString('ar-SY')}</p>
                                         </div>
                                     </div>
                                     {msg.isRedacted && (

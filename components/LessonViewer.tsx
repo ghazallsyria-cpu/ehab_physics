@@ -1,11 +1,17 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { PhysicsTopic, User } from '../types';
 import { dbService } from '../services/db';
 import { INITIAL_EXPERIMENTS } from '../constants';
+import katex from 'katex';
 
 // Interactive Components
 import SimulationCenter from './SimulationCenter';
 import VirtualLab from './VirtualLab';
+import WorkInteractive from './WorkInteractive';
+import EnergyPendulum from './EnergyPendulum';
+import WorkInfographic from './WorkInfographic';
+
 
 // Placeholder for components mentioned in constants.tsx but not provided in the file list
 const PlaceholderComponent: React.FC<{ name: string }> = ({ name }) => (
@@ -37,9 +43,12 @@ const LaunchVRLabButton: React.FC = () => {
 
 
 // --- Constants & Maps ---
-const COMPONENT_MAP: Record<string, React.FC> = {
+const COMPONENT_MAP: Record<string, React.FC<any>> = {
   'SimulationCenter': SimulationCenter,
   'VRLab': LaunchVRLabButton,
+  'WorkInteractive': WorkInteractive,
+  'EnergyPendulum': EnergyPendulum,
+  'WorkInfographic': WorkInfographic,
   'SimulationPlaceholder_UniformMotion': () => <PlaceholderComponent name="UniformMotion" />,
   'SimulationPlaceholder_FreeFall': () => <PlaceholderComponent name="FreeFall" />,
   'InteractiveGraphingTool': () => <PlaceholderComponent name="GraphingTool" />,
@@ -84,7 +93,17 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, topic, onBack, onComp
 
     const flushProse = () => {
       if (currentProse.length > 0) {
-        elements.push(<div key={`prose-${elements.length}`} className="prose prose-invert prose-lg max-w-none text-gray-300 leading-loose mb-8 text-2xl" dangerouslySetInnerHTML={{ __html: currentProse.join('') }} />);
+        const proseHtml = currentProse.join('')
+          .replace(/(\$\$[\s\S]*?\$\$)/g, (match) => {
+            try { return katex.renderToString(match.slice(2, -2), { displayMode: true, throwOnError: false }); }
+            catch (e) { return `<pre class="text-red-400">${match}</pre>`; }
+          })
+          .replace(/(\$.*?\$)/g, (match) => {
+            try { return katex.renderToString(match.slice(1, -1), { displayMode: false, throwOnError: false }); }
+            catch (e) { return `<code class="text-red-400">${match}</code>`; }
+          });
+
+        elements.push(<div key={`prose-${elements.length}`} className="prose prose-invert prose-lg max-w-none text-gray-300 leading-loose mb-8 text-2xl" dangerouslySetInnerHTML={{ __html: proseHtml }} />);
         currentProse = [];
       }
     };
@@ -185,5 +204,4 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, topic, onBack, onComp
   );
 };
 
-// FIX: Add default export to resolve module import error.
 export default LessonViewer;

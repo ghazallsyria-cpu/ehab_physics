@@ -1,12 +1,12 @@
 
 {
-  "name": "Rafid Academy | رافد",
-  "short_name": "رافد",
-  "description": "منصة الفيزياء الرائدة لطلاب دولة الكويت - مرحلة التمكين 10A",
-  "start_url": "/dashboard",
+  "name": "المركز السوري للعلوم",
+  "short_name": "المركز السوري",
+  "description": "المنصة الرائدة لتدريس الفيزياء في سوريا، مدعومة بالذكاء الاصطناعي.",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#010304",
-  "theme_color": "#1D2D86",
+  "theme_color": "#0f172a",
   "orientation": "portrait",
   "categories": ["education", "science"],
   "icons": [

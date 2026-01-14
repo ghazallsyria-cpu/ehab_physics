@@ -12,7 +12,6 @@ const AdminFinancials: React.FC = () => {
     loadFinance();
   }, []);
 
-  // Fix: Added check for 'invRes' and its 'data' property.
   const loadFinance = async () => {
     try {
       const invRes = await dbService.getInvoices();
@@ -38,8 +37,8 @@ const AdminFinancials: React.FC = () => {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {[
-          { l: 'إجمالي الدخل المحصل', v: `${stats.totalRevenue} د.ك`, c: 'text-green-500', i: '💰' },
-          { l: 'مدفوعات قيد التحصيل', v: `${stats.pendingAmount} د.ك`, c: 'text-yellow-500', i: '⏳' },
+          { l: 'إجمالي الدخل المحصل', v: `${stats.totalRevenue.toLocaleString()} ل.س`, c: 'text-green-500', i: '💰' },
+          { l: 'مدفوعات قيد التحصيل', v: `${stats.pendingAmount.toLocaleString()} ل.س`, c: 'text-yellow-500', i: '⏳' },
           { l: 'عدد الفواتير المصدرة', v: stats.totalInvoices, c: 'text-[#00d2ff]', i: '🧾' }
         ].map((s, idx) => (
           <div key={idx} className="glass-panel p-10 rounded-[50px] border-white/5 relative overflow-hidden">
@@ -82,7 +81,7 @@ const AdminFinancials: React.FC = () => {
               <tr key={inv.id} className="hover:bg-white/5 transition-all text-xs">
                 <td className="px-10 py-6 font-bold tabular-nums">#{inv.id}</td>
                 <td className="px-10 py-6 font-bold">{inv.userName}</td>
-                <td className="px-10 py-6 font-black text-[#00d2ff]">{inv.amount} د.ك</td>
+                <td className="px-10 py-6 font-black text-[#00d2ff]">{inv.amount.toLocaleString()} ل.س</td>
                 <td className="px-10 py-6 text-gray-500">{inv.date}</td>
                 <td className="px-10 py-6">
                   <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase ${

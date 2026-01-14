@@ -1,5 +1,5 @@
 
-import { User, Invoice, QuizAttempt, AppNotification, WeeklyReport, EducationalResource, TeacherProfile, Review, TeacherMessage, EducationalLevel } from "../types";
+import { User, Invoice, QuizAttempt, AppNotification, WeeklyReport, EducationalResource, TeacherProfile, Review, TeacherMessage, EducationalLevel, ForumPost, ForumReply } from "../types";
 import { PHYSICS_TOPICS } from "../constants";
 import { db } from "./firebase";
 
@@ -16,16 +16,16 @@ const orderBy = (field: string, dir?: string) => ({});
 const limit = (n: number) => ({});
 const addDoc = async (ref: any, data: any) => {};
 
-class RafidOperationalEngine {
-  private static instance: RafidOperationalEngine;
-  private storageKey = "rafid_ops_db_v11";
+class SyrianScienceCenterDB {
+  private static instance: SyrianScienceCenterDB;
+  private storageKey = "ssc_ops_db_v1";
   
   // يحدد ما إذا كنا نستخدم قاعدة بيانات حقيقية أم التخزين المحلي
   private useCloud = !!db; 
 
-  public static getInstance(): RafidOperationalEngine {
-    if (!RafidOperationalEngine.instance) RafidOperationalEngine.instance = new RafidOperationalEngine();
-    return RafidOperationalEngine.instance;
+  public static getInstance(): SyrianScienceCenterDB {
+    if (!SyrianScienceCenterDB.instance) SyrianScienceCenterDB.instance = new SyrianScienceCenterDB();
+    return SyrianScienceCenterDB.instance;
   }
 
   // --- Local Storage Helpers (Fallback) ---
@@ -49,7 +49,7 @@ class RafidOperationalEngine {
       users: {
         'admin_demo': {
             uid: 'admin_demo',
-            email: 'admin@rafid.test',
+            email: 'admin@ssc.test',
             name: 'مدير المنصة',
             role: 'admin',
             grade: '12',
@@ -64,7 +64,7 @@ class RafidOperationalEngine {
         },
         'beta002': {
             uid: 'beta002',
-            email: 'student.beta@rafid.test',
+            email: 'student.beta@ssc.test',
             name: 'طالب تجريبي (Beta)',
             role: 'student',
             grade: '12',
@@ -78,7 +78,48 @@ class RafidOperationalEngine {
             progress: { completedLessonIds: ['l12-1'], quizScores: {'q-1': 18}, totalStudyHours: 42, currentFatigue: 15 }
         }
       }, 
-      attempts: [], invoices: [], notifications: {}, questions: [], teacher_messages: [], teachers: [], reviews: [], resources: []
+      attempts: [], 
+      invoices: [], 
+      notifications: {}, 
+      questions: [], 
+      teacher_messages: [], 
+      teachers: [], 
+      reviews: [], 
+      resources: [],
+      forum: [
+        {
+          id: 'post_1',
+          authorEmail: 'student.beta@ssc.test',
+          authorName: 'طالب تجريبي (Beta)',
+          title: 'سؤال حول قانون نيوتن الثاني',
+          content: 'لم أفهم تماماً كيف يمكن تطبيق قانون F=ma عندما تكون هناك قوى متعددة تؤثر على الجسم. هل نجمع القوى جبرياً أم اتجاهياً؟',
+          tags: ['ميكانيكا', 'قوانين-نيوتن', 'صف-11'],
+          timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+          upvotes: 12,
+          replies: [
+            {
+              id: 'rep_1',
+              authorEmail: 'teacher@ssc.test',
+              authorName: 'أ. جاسم الكندري',
+              content: 'سؤال ممتاز! يجب جمع القوى اتجاهياً (Vector Sum) للحصول على القوة المحصلة، ثم تطبيق القانون. إذا كانت القوى على نفس المحور، يمكن جمعها جبرياً مع مراعاة الإشارة.',
+              role: 'teacher',
+              timestamp: new Date(Date.now() - 76400000).toISOString(),
+              upvotes: 8,
+            }
+          ]
+        },
+        {
+          id: 'post_2',
+          authorEmail: 'another.student@ssc.test',
+          authorName: 'لمى الحمصي',
+          title: 'ما الفرق بين الانشطار والاندماج النووي؟',
+          content: 'كلاهما ينتج طاقة هائلة، لكن ما هو الفرق الجوهري في آلية العمل؟ وأيهما أكثر كفاءة؟',
+          tags: ['نووية', 'فيزياء-حديثة', 'صف-12'],
+          timestamp: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+          upvotes: 7,
+          replies: []
+        }
+      ]
     };
   }
 
@@ -344,6 +385,78 @@ class RafidOperationalEngine {
       }
   }
 
+  // --- Forum Methods ---
+  async getForumPosts(): Promise<ForumPost[]> {
+    if (this.useCloud) {
+        const snap = await getDocs(query(collection(db, "forum"), orderBy("timestamp", "desc")));
+        return snap.docs.map(d => d.data() as ForumPost);
+    }
+    return (this.getLocalData().forum || []).sort((a: ForumPost, b: ForumPost) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  async createForumPost(post: Omit<ForumPost, 'id' | 'upvotes' | 'replies'>) {
+    const newPost: ForumPost = {
+      ...post,
+      id: `post_${Date.now()}`,
+      upvotes: 0,
+      replies: []
+    };
+    if (this.useCloud) {
+      await setDoc(doc(db, "forum", newPost.id), newPost);
+    } else {
+      const data = this.getLocalData();
+      if (!data.forum) data.forum = [];
+      data.forum.unshift(newPost);
+      this.saveLocalData(data);
+    }
+  }
+
+  async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'upvotes'>) {
+    const newReply: ForumReply = {
+      ...reply,
+      id: `rep_${Date.now()}`,
+      upvotes: 0
+    };
+    if (this.useCloud) {
+      // Cloud implementation would use arrayUnion or a subcollection
+    } else {
+      const data = this.getLocalData();
+      const post = data.forum?.find((p: ForumPost) => p.id === postId);
+      if (post) {
+        if (!post.replies) post.replies = [];
+        post.replies.push(newReply);
+        this.saveLocalData(data);
+      }
+    }
+  }
+
+  async upvotePost(postId: string): Promise<void> {
+    if (this.useCloud) { /* Use Firestore increment */ } 
+    else {
+      const data = this.getLocalData();
+      const post = data.forum?.find((p: ForumPost) => p.id === postId);
+      if (post) {
+        post.upvotes = (post.upvotes || 0) + 1;
+        this.saveLocalData(data);
+      }
+    }
+  }
+  
+  async upvoteReply(postId: string, replyId: string): Promise<void> {
+    if (this.useCloud) { /* ... */ } 
+    else {
+      const data = this.getLocalData();
+      const post = data.forum?.find((p: ForumPost) => p.id === postId);
+      if (post && post.replies) {
+        const reply = post.replies.find(r => r.id === replyId);
+        if (reply) {
+          reply.upvotes = (reply.upvotes || 0) + 1;
+          this.saveLocalData(data);
+        }
+      }
+    }
+  }
+
   // --- Other Methods (Stubs for full compatibility) ---
   async getInvoices() { 
       if (this.useCloud) {
@@ -353,7 +466,7 @@ class RafidOperationalEngine {
       return { data: this.getLocalData().invoices || [] }; 
   }
   async getFinancialStats() { return { totalRevenue: 0, pendingAmount: 0, totalInvoices: 0 }; } // Simplified
-  async getBetaConfig() { return { isActive: true, invitationCode: "RAFID-BETA-2024", studentLimit: 100 }; }
+  async getBetaConfig() { return { isActive: true, invitationCode: "SSC-BETA-2024", studentLimit: 100 }; }
   async getPWAStats() { return { dau_count: 50, offline_minutes: 320 }; }
   async getCompletionRate() { return 72; }
   async getIntroVideo() { return ""; }
@@ -361,9 +474,6 @@ class RafidOperationalEngine {
   async getAllQuestions() { return []; }
   async saveQuestion(q: any) { }
   async updateInvoiceStatus(id: string, s: any) { }
-  async getForumPosts() { return { data: [] }; }
-  async createForumPost(p: any) { }
-  async addForumReply(pid: string, r: any) { }
   async getLessonNote(u: string, l: string) { return ""; }
   async saveLessonNote(u: string, l: string, n: string) { }
   async getStudentProgressForParent(uid: string) { return { user: null, report: null as any }; }
@@ -375,4 +485,4 @@ class RafidOperationalEngine {
   async getAllTeacherMessages(tid?: string) { return []; }
 }
 
-export const dbService = RafidOperationalEngine.getInstance();
+export const dbService = SyrianScienceCenterDB.getInstance();

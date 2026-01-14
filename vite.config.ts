@@ -17,14 +17,8 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 1600,
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom', 'lucide-react'],
-            ai: ['@google/genai'],
-manualChunks: {
-  vendor: ['react', 'react-dom', 'lucide-react'],
-  ai: ['@google/genai']
-}
-          }
+          // The previous manualChunks config was incorrect and caused build failures.
+          // Removing it allows Vite to use its default, smart chunking strategy.
         }
       }
     },

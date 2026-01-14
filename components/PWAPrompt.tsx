@@ -13,7 +13,7 @@ const PWAPrompt: React.FC<{ user: User | null }> = ({ user }) => {
       setDeferredPrompt(e);
       
       // منطق التثبيت المشروط (Week 2): جلستان + درس واحد مكتمل
-      const sessionCount = parseInt(localStorage.getItem('rafid_sessions') || '0');
+      const sessionCount = parseInt(localStorage.getItem('ssc_sessions') || '0');
       const hasCompletedLesson = user?.completedLessonIds && user.completedLessonIds.length > 0;
       
       console.log(`[PWA Debug] Sessions: ${sessionCount}, Lesson Completed: ${hasCompletedLesson}`);
@@ -29,7 +29,7 @@ const PWAPrompt: React.FC<{ user: User | null }> = ({ user }) => {
     window.addEventListener('appinstalled', () => {
       setShowPrompt(false);
       setDeferredPrompt(null);
-      console.log('[PWA] Rafid was installed successfully!');
+      console.log('[PWA] SSC was installed successfully!');
     });
 
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
@@ -52,9 +52,9 @@ const PWAPrompt: React.FC<{ user: User | null }> = ({ user }) => {
       <div className="glass-panel p-10 rounded-[50px] border-[#fbbf24]/40 bg-black/90 backdrop-blur-3xl shadow-[0_40px_120px_rgba(0,0,0,0.8)] flex flex-col items-center text-center border-2">
         <div className="w-24 h-24 bg-[#fbbf24] rounded-[35px] flex items-center justify-center text-6xl mb-8 shadow-[0_0_50px_rgba(251,191,36,0.4)] animate-float">⚛️</div>
         
-        <h3 className="text-3xl font-black text-white mb-4 tracking-tighter italic">تثبيت تطبيق <span className="text-[#fbbf24]">رافد</span></h3>
+        <h3 className="text-3xl font-black text-white mb-4 tracking-tighter italic">تثبيت تطبيق <span className="text-[#fbbf24]">المركز</span></h3>
         <p className="text-gray-400 text-base mb-10 leading-relaxed font-bold italic">
-          بناءً على تقدمك الرائع، نوصيك بتثبيت التطبيق للوصول السريع لدروسك وتنبيهات "سقراط" الفورية.
+          بناءً على تقدمك الرائع، نوصيك بتثبيت التطبيق للوصول السريع لدروسك وتنبيهات المساعد الذكي الفورية.
         </p>
         
         <div className="flex flex-col gap-4 w-full">

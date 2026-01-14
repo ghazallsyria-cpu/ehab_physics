@@ -1,36 +1,47 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, ForumPost, ForumReply } from '../types';
 import { dbService } from '../services/db';
+import { ArrowUp, CheckCircle, MessageSquare } from 'lucide-react';
 
 interface ForumProps {
   user: User | null;
   onAskAI: (text: string) => void;
 }
 
-// المكون الرئيسي للمنتدى - تم إصلاح البتر في الملف وإضافة التصدير الافتراضي
 const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [showAskModal, setShowAskModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<ForumPost | null>(null);
   const [newQuestion, setNewQuestion] = useState({ title: '', content: '', tags: '' });
   const [replyContent, setReplyContent] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<'newest' | 'top'>('newest');
 
   useEffect(() => {
     loadPosts();
   }, []);
 
-  // تحميل المنشورات مع التحقق من وجود البيانات
   const loadPosts = async () => {
+    setIsLoading(true);
     try {
-      const res = await dbService.getForumPosts();
-      if (res && res.data) {
-        setPosts(res.data || []);
-      }
+      const data = await dbService.getForumPosts();
+      setPosts(data);
     } catch (e) {
       console.error("Failed to load forum posts", e);
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const sortedPosts = useMemo(() => {
+    return [...posts].sort((a, b) => {
+      if (sortBy === 'top') {
+        return (b.upvotes || 0) - (a.upvotes || 0);
+      }
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    });
+  }, [posts, sortBy]);
 
   const handleAsk = async () => {
     if (!user) { alert('يجب تسجيل الدخول لطرح سؤال.'); return; }
@@ -41,7 +52,8 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
       authorName: user.name || 'Anonymous',
       title: newQuestion.title,
       content: newQuestion.content,
-      tags: newQuestion.tags.split(',').map(t => t.trim())
+      tags: newQuestion.tags.split(',').map(t => t.trim()).filter(Boolean),
+      timestamp: new Date().toISOString(),
     });
 
     setNewQuestion({ title: '', content: '', tags: '' });
@@ -52,27 +64,52 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
   const handleReply = async () => {
     if (!user || !selectedPost || !replyContent) return;
 
-    await dbService.addForumReply(selectedPost.id, {
-      authorEmail: user.email,
-      authorName: user.name || 'Anonymous',
-      content: replyContent,
-      role: user.role || 'student'
-    });
+    const replyData = {
+        authorEmail: user.email,
+        authorName: user.name || 'Anonymous',
+        content: replyContent,
+        role: user.role,
+        timestamp: new Date().toISOString(),
+    };
+    
+    // Optimistic UI update
+    const tempId = `rep_${Date.now()}`;
+    const newReply: ForumReply = { ...replyData, id: tempId, upvotes: 0 };
+    const updatedReplies = [...(selectedPost.replies || []), newReply];
 
+    setSelectedPost(prev => prev ? { ...prev, replies: updatedReplies } : null);
+    setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, replies: updatedReplies } : p));
     setReplyContent('');
-    loadPosts();
-    try {
-      const updated = await dbService.getForumPosts();
-      if (updated && updated.data) {
-        setSelectedPost(updated.data.find((p: any) => p.id === selectedPost.id) || null);
-      }
-    } catch (e) {
-      console.error("Failed to refresh post after reply", e);
-    }
+    
+    await dbService.addForumReply(selectedPost.id, replyData);
+    // Potentially reload to get permanent ID, but for now optimistic is fine
+  };
+
+  const handleUpvotePost = (postId: string) => {
+    dbService.upvotePost(postId);
+    setPosts(posts.map(p => p.id === postId ? {...p, upvotes: (p.upvotes || 0) + 1} : p));
+  };
+  
+  const handleUpvoteReply = (postId: string, replyId: string) => {
+    dbService.upvoteReply(postId, replyId);
+    setPosts(posts.map(p => {
+        if (p.id === postId) {
+            const updatedReplies = p.replies?.map(r => r.id === replyId ? {...r, upvotes: (r.upvotes || 0) + 1} : r);
+            return {...p, replies: updatedReplies};
+        }
+        return p;
+    }));
+    setSelectedPost(posts.find(p => p.id === postId) || null);
+  };
+  
+  const getRoleBadge = (role: User['role']) => {
+    if (role === 'teacher') return <span className="text-[8px] font-black bg-[#fbbf24]/20 text-[#fbbf24] px-2 py-0.5 rounded border border-[#fbbf24]/30">معلم معتمد</span>;
+    if (role === 'admin') return <span className="text-[8px] font-black bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30">مشرف</span>;
+    return null;
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal']">
+    <div className="max-w-7xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal']">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-8">
         <div>
           <h2 className="text-4xl font-black text-white mb-2">منتدى <span className="text-[#00d2ff]">الفيزياء</span></h2>
@@ -85,73 +122,94 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
           + طرح سؤال جديد
         </button>
       </header>
+      
+      <div className="mb-8 flex justify-between items-center">
+        <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/10">
+          <button onClick={() => setSortBy('newest')} className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${sortBy === 'newest' ? 'bg-white text-black' : 'text-gray-400'}`}>الأحدث</button>
+          <button onClick={() => setSortBy('top')} className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${sortBy === 'top' ? 'bg-white text-black' : 'text-gray-400'}`}>الأكثر تصويتاً</button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {/* قائمة الأسئلة */}
         <div className="lg:col-span-8 space-y-6">
-          {posts.map(post => (
-            <div 
-              key={post.id} 
-              onClick={() => setSelectedPost(post)}
-              className={`glass-panel p-8 rounded-[40px] border-white/5 hover:border-[#00d2ff]/30 transition-all cursor-pointer group relative overflow-hidden ${selectedPost?.id === post.id ? 'border-[#00d2ff]/50 bg-[#00d2ff]/5' : ''}`}
-            >
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex gap-2">
-                  {post.tags.map(tag => (
-                    <span key={tag} className="text-[8px] font-black bg-white/5 text-gray-400 px-3 py-1 rounded-lg uppercase tracking-widest border border-white/5 group-hover:border-[#00d2ff]/20 transition-all">#{tag}</span>
-                  ))}
+          {isLoading ? (
+            <div className="text-center py-20 text-gray-500">جاري تحميل النقاشات...</div>
+          ) : sortedPosts.length > 0 ? (
+            sortedPosts.map(post => (
+              <div 
+                key={post.id} 
+                className={`glass-panel p-8 rounded-[40px] border-2 hover:border-[#00d2ff]/30 transition-all cursor-pointer group relative flex gap-6 ${selectedPost?.id === post.id ? 'border-[#00d2ff]/50 bg-[#00d2ff]/5' : 'border-transparent'}`}
+                onClick={() => setSelectedPost(post)}
+              >
+                <div className="flex flex-col items-center gap-1">
+                    <button onClick={(e) => { e.stopPropagation(); handleUpvotePost(post.id); }} className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"><ArrowUp size={16}/></button>
+                    <span className="font-black text-sm text-white">{post.upvotes || 0}</span>
                 </div>
-                <span className="text-[9px] font-bold text-gray-600 tabular-nums">{new Date(post.timestamp).toLocaleDateString('ar-KW')}</span>
+                <div className="flex-1">
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="flex gap-2 flex-wrap">
+                            {post.tags.map(tag => (
+                            <span key={tag} className="text-[8px] font-black bg-white/5 text-gray-400 px-3 py-1 rounded-lg uppercase tracking-widest border border-white/5 group-hover:border-[#00d2ff]/20 transition-all">#{tag}</span>
+                            ))}
+                        </div>
+                    </div>
+                    <h3 className="text-xl font-black mb-2 group-hover:text-[#00d2ff] transition-colors">{post.title}</h3>
+                    
+                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-500">
+                        <span>بواسطة: {post.authorName}</span>
+                        <div className="flex items-center gap-4">
+                            <span>{new Date(post.timestamp).toLocaleDateString('ar-SY')}</span>
+                            <span className="flex items-center gap-2"><MessageSquare size={12}/> {post.replies?.length || 0}</span>
+                        </div>
+                    </div>
+                </div>
               </div>
-              <h3 className="text-xl font-black mb-4 group-hover:text-[#00d2ff] transition-colors">{post.title}</h3>
-              <p className="text-gray-400 text-sm line-clamp-2 leading-relaxed">{post.content}</p>
-              
-              <div className="mt-6 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-500">
-                <span>بواسطة: {post.authorName}</span>
-                <span>{post.replies?.length || 0} ردود</span>
-              </div>
-            </div>
-          ))}
-          
-          {posts.length === 0 && (
-            <div className="py-20 text-center opacity-30">
+            ))
+          ) : (
+            <div className="py-20 text-center opacity-30 glass-panel rounded-[50px]">
                <span className="text-6xl mb-6 block">💬</span>
                <p className="font-black text-xs uppercase tracking-widest">لا توجد مواضيع نقاش حالياً</p>
             </div>
           )}
         </div>
 
-        {/* تفاصيل المنشور المختار */}
         <div className="lg:col-span-4">
            {selectedPost ? (
-             <div className="glass-panel p-10 rounded-[50px] border-[#00d2ff]/30 bg-[#00d2ff]/5 space-y-8 sticky top-24">
-                <button onClick={() => setSelectedPost(null)} className="text-[10px] font-black text-gray-500 hover:text-white mb-4">✕ إغلاق التفاصيل</button>
+             <div className="glass-panel p-8 rounded-[50px] border-[#00d2ff]/30 bg-[#00d2ff]/5 space-y-6 sticky top-24 max-h-[80vh] flex flex-col">
+                <button onClick={() => setSelectedPost(null)} className="text-[10px] font-black text-gray-500 hover:text-white mb-2 self-start">✕ إغلاق التفاصيل</button>
                 <h3 className="text-2xl font-black text-white">{selectedPost.title}</h3>
-                <p className="text-gray-300 leading-relaxed italic text-sm">{selectedPost.content}</p>
+                <p className="text-gray-300 leading-relaxed italic text-sm pb-4 border-b border-white/10">{selectedPost.content}</p>
                 
-                <div className="space-y-4 pt-8 border-t border-white/10">
-                   <h4 className="text-xs font-black text-[#00d2ff] uppercase tracking-widest">الردود المباشرة</h4>
-                   <div className="space-y-4 max-h-60 overflow-y-auto no-scrollbar">
-                      {selectedPost.replies?.map(reply => (
-                        <div key={reply.id} className="bg-black/40 p-4 rounded-2xl border border-white/5">
-                           <p className="text-xs text-white mb-2">{reply.content}</p>
-                           <span className="text-[8px] text-gray-500 font-bold uppercase">{reply.authorName} • {reply.role}</span>
+                <div className="flex-1 space-y-4 overflow-y-auto no-scrollbar pr-2">
+                   <h4 className="text-xs font-black text-[#00d2ff] uppercase tracking-widest">الردود ({selectedPost.replies?.length || 0})</h4>
+                   {selectedPost.replies?.sort((a,b) => (b.upvotes || 0) - (a.upvotes || 0)).map(reply => (
+                    <div key={reply.id} className="bg-black/40 p-4 rounded-2xl border border-white/5 flex gap-4">
+                        <div className="flex flex-col items-center gap-1">
+                            <button onClick={(e) => { e.stopPropagation(); handleUpvoteReply(selectedPost.id, reply.id); }} className="p-1 rounded-md text-gray-500 hover:text-white hover:bg-white/10"><ArrowUp size={12}/></button>
+                            <span className="font-bold text-xs text-gray-300">{reply.upvotes || 0}</span>
                         </div>
-                      ))}
-                      {(!selectedPost.replies || selectedPost.replies.length === 0) && (
-                        <p className="text-[10px] text-gray-600 italic">كن أول من يضيف رداً...</p>
-                      )}
-                   </div>
+                        <div className="flex-1">
+                           <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs text-white font-bold">{reply.authorName}</span>
+                              {getRoleBadge(reply.role)}
+                           </div>
+                           <p className="text-xs text-gray-300">{reply.content}</p>
+                        </div>
+                    </div>
+                   ))}
+                   {(!selectedPost.replies || selectedPost.replies.length === 0) && (
+                    <p className="text-[10px] text-gray-600 italic text-center py-4">كن أول من يضيف رداً...</p>
+                   )}
                 </div>
 
-                <div className="pt-6">
+                <div className="pt-4 border-t border-white/10">
                    <textarea 
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
                     placeholder="أضف ردك هنا..."
-                    className="w-full h-32 bg-black/40 border border-white/10 rounded-2xl p-4 text-xs outline-none focus:border-[#00d2ff] text-white"
+                    className="w-full h-20 bg-black/40 border border-white/10 rounded-2xl p-4 text-xs outline-none focus:border-[#00d2ff] text-white"
                    />
-                   <button onClick={handleReply} className="w-full mt-4 bg-[#00d2ff] text-black py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest">إرسال الرد</button>
+                   <button onClick={handleReply} disabled={!replyContent.trim()} className="w-full mt-2 bg-[#00d2ff] text-black py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-50">إرسال الرد</button>
                 </div>
              </div>
            ) : (
@@ -164,7 +222,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
       </div>
 
       {showAskModal && (
-        <div className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
            <div className="glass-panel w-full max-w-2xl p-12 rounded-[60px] border-white/10 relative shadow-3xl">
               <button onClick={() => setShowAskModal(false)} className="absolute top-8 left-8 text-white/40 hover:text-white text-xl">✕</button>
               <h3 className="text-3xl font-black mb-8 text-white">طرح سؤال جديد في المجتمع</h3>

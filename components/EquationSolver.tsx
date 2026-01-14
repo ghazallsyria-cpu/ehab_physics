@@ -1,23 +1,24 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { MOCK_EQUATIONS } from '../constants';
 import { PhysicsEquation } from '../types';
 import { getPhysicsExplanation } from '../services/gemini';
+import katex from 'katex';
 
 const MathRenderer: React.FC<{ content: string; isBlock?: boolean }> = ({ content, isBlock }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current || !(window as any).katex) return;
-    const katex = (window as any).katex;
+  const mathHtml = useMemo(() => {
     try {
-      katex.render(content, containerRef.current, { displayMode: isBlock, throwOnError: false });
+      return katex.renderToString(content, {
+        throwOnError: false,
+        displayMode: isBlock,
+      });
     } catch (e) {
-      containerRef.current.textContent = content;
+      console.warn('KaTeX rendering error:', e);
+      return content; // Fallback to raw content on error
     }
   }, [content, isBlock]);
 
-  return <div ref={containerRef} className={isBlock ? "math-block-container py-10" : "inline-block text-[#00d2ff] font-bold"} />;
+  return <span className={isBlock ? 'block text-2xl' : ''} dangerouslySetInnerHTML={{ __html: mathHtml }} />;
 };
 
 const EquationSolver: React.FC = () => {

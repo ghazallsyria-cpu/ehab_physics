@@ -6,37 +6,19 @@ import { Article } from '../types';
 const MathRenderer: React.FC<{ content: string }> = ({ content }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!containerRef.current || !(window as any).katex) return;
-    const katex = (window as any).katex;
+    if (!containerRef.current) return;
     const parts = content.split(/(\$\$[\s\S]*?\$\$|\$.*?\$)/g);
     containerRef.current.innerHTML = '';
     parts.forEach(part => {
       if (!part) return;
+      const span = document.createElement('span');
       if (part.startsWith('$$')) {
-        const el = document.createElement('div');
-        el.className = 'math-block-container py-8 my-10 relative group';
-        try { 
-          katex.render(part.slice(2, -2).trim(), el, { displayMode: true, throwOnError: false }); 
-          const badge = document.createElement('div');
-          badge.className = 'absolute top-4 left-6 text-[8px] font-black text-[#00d2ff] uppercase tracking-widest opacity-40 group-hover:opacity-100 transition-opacity';
-          badge.innerText = 'معادلة فيزيائية';
-          el.appendChild(badge);
-        } catch(e) { 
-          el.textContent = part; 
-        }
-        containerRef.current?.appendChild(el);
+        span.className = 'block bg-black/20 p-4 my-4 rounded-xl font-mono text-center text-cyan-300';
+        span.textContent = part.slice(2, -2).trim();
       } else if (part.startsWith('$')) {
-        const el = document.createElement('span');
-        el.className = 'math-inline-container text-[#00d2ff] font-bold mx-1.5 px-2 bg-white/5 rounded-md border border-white/5';
-        try { 
-          katex.render(part.slice(1, -1).trim(), el, { displayMode: false, throwOnError: false }); 
-        } catch(e) { 
-          el.textContent = part; 
-        }
-        containerRef.current?.appendChild(el);
+        span.className = 'inline-block text-[#00d2ff] font-bold font-mono bg-white/5 px-2 rounded mx-1';
+        span.textContent = part.slice(1, -1).trim();
       } else {
-        const span = document.createElement('span');
-        // Handle markdown-like syntax for bold and headers without using caret literals
         let text = part.split('\n').map(line => {
           if (line.startsWith('### ')) {
             return `<h3 class="text-3xl font-black text-white mt-12 mb-6 tracking-tighter">${line.slice(4)}</h3>`;
@@ -48,8 +30,8 @@ const MathRenderer: React.FC<{ content: string }> = ({ content }) => {
                    .replace(/\*\*(.*?)\*\*/g, '<b class="text-[#00d2ff]">$1</b>');
                    
         span.innerHTML = text;
-        containerRef.current?.appendChild(span);
       }
+      containerRef.current?.appendChild(span);
     });
   }, [content]);
 
@@ -118,7 +100,7 @@ const ScientificArticles: React.FC = () => {
                  <div className="flex flex-col md:flex-row items-center justify-between gap-12">
                     <div className="text-right">
                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">ارتباط بالمنهج</p>
-                       <p className="text-xl font-bold text-[#00d2ff]">منهج الفيزياء - دولة الكويت</p>
+                       <p className="text-xl font-bold text-[#00d2ff]">المنهج السوري - الفيزياء</p>
                     </div>
                     <div className="flex gap-6">
                        <button className="bg-white/5 hover:bg-white/10 p-6 rounded-[30px] transition-all border border-white/5 group">
