@@ -1,4 +1,5 @@
 
+
 import { User, Invoice, QuizAttempt, AppNotification, WeeklyReport, EducationalResource, TeacherProfile, Review, TeacherMessage, EducationalLevel, ForumPost, ForumReply } from "../types";
 import { PHYSICS_TOPICS } from "../constants";
 import { db } from "./firebase";
