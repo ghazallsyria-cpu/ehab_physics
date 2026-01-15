@@ -27,8 +27,9 @@ const PhysicsChat: React.FC<{ grade: string }> = ({ grade }) => {
     setIsLoading(true);
 
     try {
-      const { text, thinking } = await getAdvancedPhysicsInsight(userMsg, grade);
-      setMessages(prev => [...prev, { role: 'assistant', content: text, thinking, timestamp: new Date() }]);
+      // FIX: The 'thinking' property is not returned from getAdvancedPhysicsInsight.
+      const { text } = await getAdvancedPhysicsInsight(userMsg, grade);
+      setMessages(prev => [...prev, { role: 'assistant', content: text, timestamp: new Date() }]);
     } catch (e) {
       setMessages(prev => [...prev, { role: 'assistant', content: "عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.", timestamp: new Date() }]);
     } finally {

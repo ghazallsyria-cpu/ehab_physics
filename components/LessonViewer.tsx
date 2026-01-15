@@ -1,205 +1,242 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { PhysicsTopic, User } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Lesson, User, ContentBlock } from '../types';
 import { dbService } from '../services/db';
-import { INITIAL_EXPERIMENTS } from '../constants';
 import katex from 'katex';
-
-// Interactive Components
-import SimulationCenter from './SimulationCenter';
-import VirtualLab from './VirtualLab';
-import WorkInteractive from './WorkInteractive';
-import EnergyPendulum from './EnergyPendulum';
-import WorkInfographic from './WorkInfographic';
-
-
-// Placeholder for components mentioned in constants.tsx but not provided in the file list
-const PlaceholderComponent: React.FC<{ name: string }> = ({ name }) => (
-    <div className="p-8 bg-black/40 rounded-3xl border border-dashed border-white/10 text-center">
-        <p className="font-bold text-gray-500">Interactive Component Placeholder</p>
-        <p className="text-sm font-mono text-gray-600">{name}</p>
-    </div>
-);
-
-// Launcher for full-screen components like VirtualLab
-const LaunchVRLabButton: React.FC = () => {
-    const launch = () => {
-        // App.tsx listens for this event to change view
-        window.dispatchEvent(new CustomEvent('change-view', { 
-            detail: { view: 'virtual-lab' } 
-        }));
-    };
-    return (
-        <div className="p-8 bg-black/40 rounded-3xl border border-[#7000ff]/30 text-center space-y-4">
-            <span className="text-4xl">🧪</span>
-            <h4 className="text-lg font-bold text-white">مختبر الواقع الافتراضي</h4>
-            <p className="text-xs text-gray-500">هذه التجربة تتطلب الدخول في وضع ملء الشاشة.</p>
-            <button onClick={launch} className="w-full bg-[#7000ff] text-white py-3 rounded-xl font-bold text-xs uppercase">
-                الدخول للمختبر
-            </button>
-        </div>
-    );
-};
-
-
-// --- Constants & Maps ---
-const COMPONENT_MAP: Record<string, React.FC<any>> = {
-  'SimulationCenter': SimulationCenter,
-  'VRLab': LaunchVRLabButton,
-  'WorkInteractive': WorkInteractive,
-  'EnergyPendulum': EnergyPendulum,
-  'WorkInfographic': WorkInfographic,
-  'SimulationPlaceholder_UniformMotion': () => <PlaceholderComponent name="UniformMotion" />,
-  'SimulationPlaceholder_FreeFall': () => <PlaceholderComponent name="FreeFall" />,
-  'InteractiveGraphingTool': () => <PlaceholderComponent name="GraphingTool" />,
-};
-
-// --- Main Component ---
+import YouTubePlayer from './YouTubePlayer';
+import { Share2, Copy, Send, Twitter, Mail, X, Check } from 'lucide-react';
 
 interface LessonViewerProps {
-  user: User | null;
-  topic: PhysicsTopic;
-  onBack: () => void;
-  onComplete: (lessonId: string) => void;
+  user: User;
+  lesson: Lesson;
 }
 
-const LessonViewer: React.FC<LessonViewerProps> = ({ user, topic, onBack, onComplete }) => {
-  const [activeLessonIndex, setActiveLessonIndex] = useState(0);
-  const [notes, setNotes] = useState('');
-  const [isSavingNote, setIsSavingNote] = useState(false);
-
-  const activeLesson = topic.lessonDetails ? topic.lessonDetails[activeLessonIndex] : null;
+const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
-    if (user && activeLesson) {
-      dbService.getLessonNote(user.uid, activeLesson.id).then(setNotes);
-    }
-  }, [user, activeLesson]);
+    setIsCompleted((user.progress.completedLessonIds || []).includes(lesson.id));
+  }, [user, lesson]);
 
-
-  const handleNoteSave = async () => {
-    if (user && activeLesson) {
-      setIsSavingNote(true);
-      await dbService.saveLessonNote(user.uid, activeLesson.id, notes);
-      setTimeout(() => setIsSavingNote(false), 1000);
-    }
+  const handleToggleComplete = () => {
+    dbService.toggleLessonComplete(user.uid, lesson.id);
+    setIsCompleted(!isCompleted);
   };
   
-  const renderDynamicContent = (content: string) => {
-    const rawParts = content.split(/(\[COMPONENT:.*?\]|###.*?\n|---)/g);
-    
-    const elements: React.ReactNode[] = [];
-    let currentProse: string[] = [];
-
-    const flushProse = () => {
-      if (currentProse.length > 0) {
-        const proseHtml = currentProse.join('')
-          .replace(/(\$\$[\s\S]*?\$\$)/g, (match) => {
-            try { return katex.renderToString(match.slice(2, -2), { displayMode: true, throwOnError: false }); }
-            catch (e) { return `<pre class="text-red-400">${match}</pre>`; }
-          })
-          .replace(/(\$.*?\$)/g, (match) => {
-            try { return katex.renderToString(match.slice(1, -1), { displayMode: false, throwOnError: false }); }
-            catch (e) { return `<code class="text-red-400">${match}</code>`; }
-          });
-
-        elements.push(<div key={`prose-${elements.length}`} className="prose prose-invert prose-lg max-w-none text-gray-300 leading-loose mb-8 text-2xl" dangerouslySetInnerHTML={{ __html: proseHtml }} />);
-        currentProse = [];
-      }
-    };
-
-    rawParts.forEach((part, index) => {
-      if (!part || part.trim() === '') return;
-
-      if (part.startsWith('###')) {
-        flushProse();
-        elements.push(<h3 key={index} className="text-4xl font-black text-white mt-16 mb-8 tracking-tighter border-r-4 border-[#00d2ff] pr-6">{part.replace('###', '').trim()}</h3>);
-      } else if (part.startsWith('---')) {
-        flushProse();
-        elements.push(<hr key={index} className="my-12 border-white/5" />);
-      } else if (part.startsWith('[COMPONENT:')) {
-        flushProse();
-        const componentName = part.replace('[COMPONENT:', '').replace(']', '').trim();
-        const InteractiveComponent = COMPONENT_MAP[componentName];
-        
-        if (InteractiveComponent) {
-          elements.push(
-            <div key={index} className="my-16 animate-fadeIn">
-              <div className="relative group">
-                <div className="absolute -inset-2 bg-gradient-to-r from-[#00d2ff]/20 to-[#fbbf24]/20 rounded-[55px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                <InteractiveComponent />
-              </div>
-            </div>
-          );
-        } else {
-            currentProse.push(`<div class="p-4 bg-red-900/50 border border-red-500 rounded-xl">Error: Component <code>${componentName}</code> not found.</div>`);
-        }
-      } else {
-        currentProse.push(part);
-      }
+  const handleCopyLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
     });
-
-    flushProse();
-    return <>{elements}</>;
   };
 
-  if (!activeLesson) {
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `درس: ${lesson.title} - المركز السوري للعلوم`,
+          text: `شاهد درس "${lesson.title}" على منصة المركز السوري للعلوم.`,
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.log('Share failed:', err);
+      }
+    }
+  };
+
+  const shareLinks = {
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(`درس: ${lesson.title} - المركز السوري للعلوم \n ${window.location.href}`)}`,
+    twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`أدرس الآن درس "${lesson.title}" على منصة المركز السوري للعلوم ⚛️`)}&url=${encodeURIComponent(window.location.href)}`,
+    email: `mailto:?subject=${encodeURIComponent(`درس فيزياء: ${lesson.title}`)}&body=${encodeURIComponent(`مرحباً، \n\nأود مشاركة هذا الدرس معك من المركز السوري للعلوم: \n\n${lesson.title} \n\nالرابط: ${window.location.href}`)}`
+  };
+  
+  const renderTextBlock = (content: string) => {
+    const html = content
+      .replace(/(\$\$[\s\S]*?\$\$)/g, (match) => katex.renderToString(match.slice(2, -2), { displayMode: true, throwOnError: false }))
+      .replace(/(\$.*?\$)/g, (match) => katex.renderToString(match.slice(1, -1), { throwOnError: false }));
+      
+    return <div className="prose prose-invert prose-lg max-w-none text-gray-300 leading-loose text-xl md:text-2xl" dangerouslySetInnerHTML={{ __html: html }} />;
+  };
+
+  const renderVideoBlock = (url: string) => {
+    let videoId: string | null = null;
+    try {
+      const urlObj = new URL(url);
+      if (urlObj.hostname.includes('youtube.com')) {
+        videoId = urlObj.searchParams.get('v');
+      } else if (urlObj.hostname.includes('youtu.be')) {
+        videoId = urlObj.pathname.slice(1);
+      }
+    } catch (e) { console.warn("Invalid video URL", e); }
+
+    if (videoId) {
+        return (
+            <div className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-lg">
+                <YouTubePlayer videoId={videoId} />
+            </div>
+        );
+    }
+
+    // Fallback for non-youtube videos or invalid URLs
     return (
-        <div className="text-center p-20 text-white">
-            <h2 className="text-2xl font-bold">خطأ</h2>
-            <p>لم يتم العثور على الدرس المطلوب.</p>
-            <button onClick={onBack} className="mt-4 text-[#fbbf24]">العودة للخريطة</button>
-        </div>
+      <div className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-lg">
+        <iframe
+          width="100%"
+          height="100%"
+          src={url}
+          title="Video player"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        ></iframe>
+      </div>
     );
-  }
+  };
+
+  const renderContentBlock = (block: ContentBlock, index: number) => {
+    switch (block.type) {
+      case 'text':
+        return renderTextBlock(block.content);
+      case 'image':
+        return (
+          <figure className="my-10">
+            <img src={block.content} alt={block.caption || `Lesson image ${index + 1}`} className="w-full h-auto rounded-[30px] border border-white/10" />
+            {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
+          </figure>
+        );
+      case 'video':
+      case 'youtube':
+        return (
+           <figure className="my-10">
+            {renderVideoBlock(block.content)}
+            {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
+          </figure>
+        );
+      case 'pdf':
+        return (
+          <figure className="my-10">
+            <div className="aspect-[4/5] bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-lg">
+              <iframe src={block.content} width="100%" height="100%" title={block.caption || `PDF Document ${index+1}`}></iframe>
+            </div>
+             {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
+          </figure>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        {/* Main Content */}
-        <div className="lg:col-span-8 space-y-8 animate-fadeIn">
-            <div className="glass-panel p-10 md:p-16 rounded-[60px] border-white/5 bg-black/40">
-                <h2 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter">{activeLesson.title}</h2>
-                <div className="flex items-center gap-4 mb-10">
-                    <span className="px-4 py-1 bg-[#00d2ff]/10 text-[#00d2ff] rounded-full text-[10px] font-bold border border-[#00d2ff]/20">{activeLesson.type}</span>
-                    {activeLesson.bookReference && <span className="text-xs text-gray-500 font-bold">{activeLesson.bookReference}</span>}
+    <div className="max-w-4xl mx-auto animate-fadeIn font-['Tajawal']">
+        <div className="glass-panel p-10 md:p-16 rounded-[60px] border-white/5 bg-black/40 relative">
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">{lesson.title}</h2>
+            <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-4">
+                  <span className="px-4 py-1 bg-[#00d2ff]/10 text-[#00d2ff] rounded-full text-[10px] font-bold border border-[#00d2ff]/20">{lesson.type}</span>
                 </div>
-                <div>{renderDynamicContent(activeLesson.content)}</div>
+                <button 
+                  onClick={() => setIsShareModalOpen(true)}
+                  className="p-3 bg-white/5 border border-white/10 rounded-2xl text-gray-400 hover:text-[#00d2ff] hover:bg-[#00d2ff]/5 transition-all flex items-center gap-2 group"
+                >
+                  <Share2 size={18} className="group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">مشاركة</span>
+                </button>
+            </div>
+            <div className="space-y-8">
+              {(lesson.content || []).map(renderContentBlock)}
+            </div>
+
+            <div className="mt-16 pt-10 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-6">
+              <button onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'curriculum' } }))} className="text-gray-500 font-bold text-sm hover:text-white transition-colors">← العودة للمنهج</button>
+              <div className="flex items-center gap-4">
+                <button onClick={() => setIsShareModalOpen(true)} className="px-8 py-4 rounded-2xl font-bold text-xs uppercase bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all flex items-center gap-2">
+                   <Share2 size={14} /> مشاركة الدرس
+                </button>
+                <button onClick={handleToggleComplete} className={`px-8 py-4 rounded-2xl font-bold text-xs uppercase transition-all flex items-center gap-2 shadow-xl ${isCompleted ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95'}`}>
+                  {isCompleted ? '✓ مكتمل' : 'إكمال الدرس'}
+                </button>
+              </div>
             </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="lg:col-span-4 space-y-6 animate-slideUp">
-            <div className="glass-panel p-8 rounded-[40px] border-white/5 sticky top-28">
-                <h3 className="text-xl font-black mb-4">ملاحظاتي الخاصة 📝</h3>
-                <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="اكتب ملاحظاتك هنا..."
-                    className="w-full h-48 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-[#fbbf24] no-scrollbar"
-                />
-                <button
-                    onClick={handleNoteSave}
-                    className="w-full mt-4 bg-[#fbbf24] text-black py-3 rounded-xl font-bold text-xs uppercase"
-                >
-                    {isSavingNote ? 'جاري الحفظ...' : 'حفظ الملاحظات'}
-                </button>
-            </div>
-            <div className="glass-panel p-8 rounded-[40px] border-white/5">
-                <h3 className="text-xl font-black mb-4">التنقل بين الدروس</h3>
-                <div className="space-y-2">
-                    {topic.lessonDetails?.map((lesson, index) => (
-                        <button
-                            key={lesson.id}
-                            onClick={() => setActiveLessonIndex(index)}
-                            className={`w-full text-right p-4 rounded-xl transition-all ${activeLessonIndex === index ? 'bg-[#00d2ff] text-black' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
-                        >
-                            <span className="font-bold text-sm">{index + 1}. {lesson.title}</span>
-                        </button>
-                    ))}
+        {/* Share Modal */}
+        {isShareModalOpen && (
+          <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 animate-fadeIn" onClick={() => setIsShareModalOpen(false)}>
+            <div 
+              className="glass-panel w-full max-w-md p-10 rounded-[50px] border-white/10 relative shadow-3xl bg-[#0a1118]"
+              onClick={e => e.stopPropagation()}
+            >
+              <button onClick={() => setIsShareModalOpen(false)} className="absolute top-6 left-6 text-gray-500 hover:text-white p-2 bg-white/5 rounded-full">
+                <X size={18} />
+              </button>
+              
+              <div className="text-center mb-10">
+                <div className="w-16 h-16 bg-[#00d2ff]/10 text-[#00d2ff] rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <Share2 size={32} />
                 </div>
+                <h3 className="text-2xl font-black text-white">مشاركة الدرس</h3>
+                <p className="text-gray-500 text-sm mt-2">شارك الفائدة مع زملائك في الدراسة</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 p-4 bg-black/40 border border-white/10 rounded-2xl">
+                   <input 
+                    type="text" 
+                    readOnly 
+                    value={window.location.href} 
+                    className="flex-1 bg-transparent text-[10px] text-gray-500 outline-none truncate font-mono"
+                   />
+                   <button 
+                    onClick={handleCopyLink}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${copySuccess ? 'bg-green-500 text-white' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
+                   >
+                     {copySuccess ? <><Check size={12}/> تم النسخ</> : <><Copy size={12}/> نسخ</>}
+                   </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                   <a 
+                    href={shareLinks.whatsapp} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="flex flex-col items-center justify-center gap-3 p-6 bg-green-500/10 border border-green-500/20 rounded-3xl text-green-500 hover:bg-green-500 hover:text-black transition-all group"
+                   >
+                      <Send size={24} className="group-hover:scale-110 transition-transform" />
+                      <span className="text-[9px] font-black uppercase tracking-widest">WhatsApp</span>
+                   </a>
+                   <a 
+                    href={shareLinks.twitter} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="flex flex-col items-center justify-center gap-3 p-6 bg-sky-500/10 border border-sky-500/20 rounded-3xl text-sky-400 hover:bg-sky-500 hover:text-black transition-all group"
+                   >
+                      <Twitter size={24} className="group-hover:scale-110 transition-transform" />
+                      <span className="text-[9px] font-black uppercase tracking-widest">Twitter</span>
+                   </a>
+                   <a 
+                    href={shareLinks.email} 
+                    className="flex flex-col items-center justify-center gap-3 p-6 bg-purple-500/10 border border-purple-500/20 rounded-3xl text-purple-400 hover:bg-purple-500 hover:text-black transition-all group"
+                   >
+                      <Mail size={24} className="group-hover:scale-110 transition-transform" />
+                      <span className="text-[9px] font-black uppercase tracking-widest">Email</span>
+                   </a>
+                </div>
+
+                {navigator.share && (
+                  <button 
+                    onClick={handleNativeShare}
+                    className="w-full mt-4 py-4 bg-[#00d2ff] text-black rounded-[25px] font-black text-xs uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    مشاركة عبر النظام
+                  </button>
+                )}
+              </div>
             </div>
-            <button onClick={onBack} className="w-full text-center py-3 text-gray-500 font-bold text-sm hover:text-white transition-colors">← العودة للخريطة</button>
-        </div>
+          </div>
+        )}
     </div>
   );
 };

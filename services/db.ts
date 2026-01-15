@@ -1,65 +1,30 @@
 
-import { User, Invoice, QuizAttempt, AppNotification, WeeklyReport, EducationalResource, TeacherProfile, Review, TeacherMessage, EducationalLevel, ForumPost, ForumReply } from "../types";
-import { PHYSICS_TOPICS } from "../constants";
+import { User, Curriculum, Quiz, Question, Answer, StudentQuizAttempt, Discussion, Comment, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, UserProgress, Lesson, Unit } from "../types";
+import { CURRICULUM_DATA, QUIZZES_DB, QUESTIONS_DB, ANSWERS_DB, CHALLENGES_DB, LEADERBOARD_DATA, STUDY_GOALS_DB } from '../constants';
 import { db, auth } from "./firebase";
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  getDocs, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  addDoc 
-} from "firebase/firestore";
+import { doc, getDoc, setDoc, getDocs, collection, deleteDoc } from "firebase/firestore";
 
 class SyrianScienceCenterDB {
   private static instance: SyrianScienceCenterDB;
-  private storageKey = "ssc_ops_db_v1";
+  private storageKey = "ssc_db_v2";
   
   public static getInstance(): SyrianScienceCenterDB {
     if (!SyrianScienceCenterDB.instance) SyrianScienceCenterDB.instance = new SyrianScienceCenterDB();
     return SyrianScienceCenterDB.instance;
   }
 
-  /**
-   * Determines whether to use Cloud (Firebase) or Local Storage.
-   * - Returns TRUE only if Firebase is initialized AND a user is authenticated via Firebase Auth.
-   * - This ensures 'Demo' users (who are not auth'd in Firebase) use Local Storage, preventing permission errors.
-   */
   private get useCloud(): boolean {
     return !!db && !!auth && !!auth.currentUser;
   }
 
-  // --- Local Storage Helpers (Fallback) ---
   private getLocalData() {
     try {
       const raw = localStorage.getItem(this.storageKey);
-      const defaults = this.getDefaultData();
-      
-      if (!raw) return defaults;
-      
-      const stored = JSON.parse(raw);
-      
-      // Smart Merge: Ensure essential arrays/objects exist by merging defaults with stored data.
-      // This fixes the issue where old local storage data (missing 'teachers' array) caused empty lists.
-      return {
-        ...defaults,
-        ...stored,
-        // Merge users deeply to preserve defaults like admin_demo while keeping new users
-        users: { ...defaults.users, ...(stored.users || {}) },
-        // Ensure arrays exist and fallback to defaults if missing in stored data
-        teachers: (stored.teachers && stored.teachers.length > 0) ? stored.teachers : defaults.teachers,
-        attempts: stored.attempts || defaults.attempts,
-        invoices: stored.invoices || defaults.invoices,
-        forum: stored.forum || defaults.forum,
-      };
+      if (!raw) return this.getDefaultData();
+      const data = JSON.parse(raw);
+      // Ensure all default keys exist
+      return { ...this.getDefaultData(), ...data };
     } catch (e) {
-      console.warn("DB Parse Error, resetting to defaults:", e);
       return this.getDefaultData();
     }
   }
@@ -69,564 +34,365 @@ class SyrianScienceCenterDB {
   }
 
   private getDefaultData() {
-    // البيانات الافتراضية للوضع المحلي (Demo Mode)
     return { 
       users: {
-        'admin_demo': {
-            uid: 'admin_demo',
-            email: 'admin@ssc.test',
-            name: 'مدير المنصة',
-            role: 'admin',
-            grade: '12',
-            stage: 'secondary',
-            educationalLevel: EducationalLevel.SECONDARY,
-            status: 'active',
-            subscription: 'premium',
-            points: 9999,
-            createdAt: new Date().toISOString(),
-            completedLessonIds: [],
-            progress: { completedLessonIds: [], quizScores: {}, totalStudyHours: 0, currentFatigue: 0 }
-        },
-        'beta002': {
-            uid: 'beta002',
-            email: 'student.beta@ssc.test',
-            name: 'طالب تجريبي (Beta)',
-            role: 'student',
-            grade: '12',
-            stage: 'secondary',
-            educationalLevel: EducationalLevel.SECONDARY,
-            status: 'active',
-            subscription: 'premium',
-            points: 1250,
-            createdAt: new Date().toISOString(),
-            completedLessonIds: ['l12-1', 'l12-2'], 
-            progress: { completedLessonIds: ['l12-1'], quizScores: {'q-1': 18}, totalStudyHours: 42, currentFatigue: 15 }
-        },
-        'student_sample_1': {
-            uid: 'student_sample_1',
-            email: 'ahmed@ssc.test',
-            name: 'أحمد الصالح',
-            role: 'student',
-            grade: '11',
-            stage: 'secondary',
-            educationalLevel: EducationalLevel.SECONDARY,
-            status: 'active',
-            subscription: 'free',
-            points: 450,
-            createdAt: new Date().toISOString(),
-            completedLessonIds: [],
-            progress: { completedLessonIds: [], quizScores: {}, totalStudyHours: 5, currentFatigue: 0 }
-        }
-      }, 
-      teachers: [
-        {
-          id: 't_1',
-          name: 'أ. جاسم الكندري',
-          specialization: 'فيزياء',
-          bio: 'مدرس أول للفيزياء بخبرة 15 عاماً في المناهج السورية.',
-          avatar: '👨‍🏫',
-          yearsExperience: 15,
-          grades: ['12'],
-          status: 'active',
-          permissions: ['create_content', 'reply_messages', 'view_analytics']
-        },
-        {
-          id: 't_2',
-          name: 'د. سارة العتيبي',
-          specialization: 'فيزياء نووية',
-          bio: 'دكتوراه في الفيزياء النووية، متخصصة في تدريس منهاج الجامعة.',
-          avatar: '👩‍🔬',
-          yearsExperience: 8,
-          grades: ['12', 'uni'],
-          status: 'active',
-          permissions: ['create_content', 'manage_exams']
-        }
+        'student_demo': { uid: 'student_demo', email: 'student@ssc.test', name: 'طالب تجريبي', role: 'student', grade: '12', subscription: 'free', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 7500 } },
+        'admin_demo': { uid: 'admin_demo', email: 'admin@ssc.test', name: 'مدير المنصة', role: 'admin', grade: '12', subscription: 'premium', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 999 } },
+        'teacher_demo': { uid: 'teacher_demo', email: 'teacher@ssc.test', name: 'معلم تجريبي', role: 'teacher', grade: '12', subscription: 'premium', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 0 }, specialization: 'فيزياء', yearsExperience: 10, bio: 'مدرس فيزياء بخبرة طويلة.', avatar: '👨‍🏫', gradesTaught: ['12'], permissions: ['create_content', 'reply_messages'] },
+      },
+      curriculum: CURRICULUM_DATA,
+      quizzes: QUIZZES_DB,
+      questions: QUESTIONS_DB,
+      answers: ANSWERS_DB,
+      attempts: [],
+      discussions: [
+        { id: 'd1', title: 'سؤال حول قانون فاراداي', content: 'لم أفهم كيف يؤثر عدد اللفات على القوة الدافعة الحثية؟', authorName: 'أحمد', timestamp: new Date().toISOString(), comments: [], upvotes: 5 }
       ],
-      attempts: [], 
-      invoices: [], 
-      notifications: {}, 
-      questions: [], 
-      teacher_messages: [], 
-      reviews: [], 
+      challenges: CHALLENGES_DB,
+      leaderboard: LEADERBOARD_DATA,
+      studyGoals: STUDY_GOALS_DB,
       resources: [],
-      forum: [
-        {
-          id: 'post_1',
-          authorEmail: 'student.beta@ssc.test',
-          authorName: 'طالب تجريبي (Beta)',
-          title: 'سؤال حول قانون نيوتن الثاني',
-          content: 'لم أفهم تماماً كيف يمكن تطبيق قانون F=ma عندما تكون هناك قوى متعددة تؤثر على الجسم. هل نجمع القوى جبرياً أم اتجاهياً؟',
-          tags: ['ميكانيكا', 'قوانين-نيوتن', 'صف-11'],
-          timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-          upvotes: 12,
-          replies: [
-            {
-              id: 'rep_1',
-              authorEmail: 'teacher@ssc.test',
-              authorName: 'أ. جاسم الكندري',
-              content: 'سؤال ممتاز! يجب جمع القوى اتجاهياً (Vector Sum) للحصول على القوة المحصلة، ثم تطبيق القانون. إذا كانت القوى على نفس المحور، يمكن جمعها جبرياً مع مراعاة الإشارة.',
-              role: 'teacher',
-              timestamp: new Date(Date.now() - 76400000).toISOString(),
-              upvotes: 8,
-            }
-          ]
-        },
-        {
-          id: 'post_2',
-          authorEmail: 'another.student@ssc.test',
-          authorName: 'لمى الحمصي',
-          title: 'ما الفرق بين الانشطار والاندماج النووي؟',
-          content: 'كلاهما ينتج طاقة هائلة، لكن ما هو الفرق الجوهري في آلية العمل؟ وأيهما أكثر كفاءة؟',
-          tags: ['نووية', 'فيزياء-حديثة', 'صف-12'],
-          timestamp: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-          upvotes: 7,
-          replies: []
-        }
-      ]
+      invoices: [],
+      notifications: {},
+      forumPosts: [],
+      reviews: [],
+      teacherMessages: [],
+      todos: {},
     };
   }
 
-  // --- Users ---
-
+  // --- User Management ---
   async getUser(identifier: string): Promise<User | null> {
-    if (this.useCloud) {
-      try {
-        // If identifier is an email, query by the 'email' field.
-        if (identifier.includes('@')) {
-          const q = query(collection(db, "users"), where("email", "==", identifier));
-          const querySnap = await getDocs(q);
-          if (!querySnap.empty) {
-            return querySnap.docs[0].data() as User;
-          }
-        } else {
-          // Otherwise, assume it's a UID and get the document directly.
-          const docRef = doc(db, "users", identifier);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            return docSnap.data() as User;
-          }
-        }
-      } catch (e) {
-        console.error("Firestore Error in getUser:", e);
-      }
-      return null;
-    } else {
-      const data = this.getLocalData();
-      return data.users[identifier] || Object.values(data.users).find((u: any) => u.email === identifier) || null;
-    }
+    const data = this.getLocalData();
+    return data.users[identifier] || Object.values(data.users).find((u: any) => u.email === identifier) || null;
   }
 
   async saveUser(user: User): Promise<void> {
-    if (this.useCloud) {
-      await setDoc(doc(db, "users", user.uid), user, { merge: true });
-    } else {
-      const data = this.getLocalData();
-      if (!data.users) data.users = {};
-      data.users[user.uid] = user;
-      this.saveLocalData(data);
-    }
+    const data = this.getLocalData();
+    data.users[user.uid] = user;
+    this.saveLocalData(data);
   }
 
-  async deleteUser(uid: string): Promise<void> {
-    if (this.useCloud) {
-      await deleteDoc(doc(db, "users", uid));
-    } else {
-      const data = this.getLocalData();
-      if (data.users && data.users[uid]) {
-        delete data.users[uid];
-        this.saveLocalData(data);
-      }
-    }
+  async deleteUser(userId: string): Promise<void> {
+    const data = this.getLocalData();
+    delete data.users[userId];
+    this.saveLocalData(data);
   }
 
   async getAllStudents(): Promise<User[]> {
-    if (this.useCloud) {
-      const q = query(collection(db, "users"), where("role", "==", "student"));
-      const snap = await getDocs(q);
-      return snap.docs.map((d: any) => d.data() as User);
-    } else {
-      const data = this.getLocalData();
-      // Ensure data.users exists before trying to access values
-      const users = data.users || {};
-      return Object.values(users as Record<string, User>).filter((u) => u.role === 'student');
-    }
+    const data = this.getLocalData();
+    // FIX: Cast return type to User[] to satisfy Promise<User[]>
+    return Object.values(data.users).filter((u: any) => u.role === 'student') as User[];
   }
 
-  // --- Analytics & Attempts ---
+  async getTeachers(): Promise<User[]> {
+    const data = this.getLocalData();
+    // FIX: Cast return type to User[] to satisfy Promise<User[]>
+    return Object.values(data.users).filter((u: any) => u.role === 'teacher') as User[];
+  }
 
-  async saveAttempt(attempt: QuizAttempt) {
-    if (this.useCloud) {
-      // حفظ في مجموعة attempts
-      await addDoc(collection(db, "attempts"), attempt);
-      
-      // تحديث تقدم الطالب مباشرة
-      const userRef = doc(db, "users", attempt.userId);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-         const userData = userSnap.data() as User;
-         const updatedScores = { ...userData.progress.quizScores, [attempt.quizId]: attempt.score };
-         await updateDoc(userRef, {
-            "progress.quizScores": updatedScores,
-            "progress.lastActivity": new Date().toISOString(),
-            "points": (userData.points || 0) + attempt.score
-         });
+  // --- Curriculum ---
+  getCurriculum(): Curriculum[] {
+    return this.getLocalData().curriculum;
+  }
+
+  async saveLesson(unitId: string, lesson: Lesson): Promise<void> {
+    const data = this.getLocalData();
+    const curriculum: Curriculum[] = data.curriculum;
+    for (const topic of curriculum) {
+      const unit = topic.units.find(u => u.id === unitId);
+      if (unit) {
+        const lessonIndex = unit.lessons.findIndex(l => l.id === lesson.id);
+        if (lessonIndex > -1) {
+          // Update existing lesson
+          unit.lessons[lessonIndex] = lesson;
+        } else {
+          // Add new lesson
+          unit.lessons.push(lesson);
+        }
+        break;
       }
+    }
+    this.saveLocalData(data);
+  }
+
+  async deleteLesson(unitId: string, lessonId: string): Promise<void> {
+    const data = this.getLocalData();
+    const curriculum: Curriculum[] = data.curriculum;
+    for (const topic of curriculum) {
+        const unit = topic.units.find(u => u.id === unitId);
+        if (unit) {
+            unit.lessons = unit.lessons.filter(l => l.id !== lessonId);
+            break;
+        }
+    }
+    this.saveLocalData(data);
+  }
+  
+  toggleLessonComplete(userId: string, lessonId: string) {
+    const data = this.getLocalData();
+    const user = data.users[userId];
+    if (!user) return;
+    
+    if(!user.progress.completedLessonIds) user.progress.completedLessonIds = [];
+    const completed = user.progress.completedLessonIds;
+    if (completed.includes(lessonId)) {
+        user.progress.completedLessonIds = completed.filter((id: string) => id !== lessonId);
     } else {
+        completed.push(lessonId);
+        user.progress.points = (user.progress.points || 0) + 10;
+    }
+    this.saveLocalData(data);
+  }
+
+  // --- Quizzes ---
+  getQuizzes(): Quiz[] {
+    return this.getLocalData().quizzes;
+  }
+
+  getQuestionsForQuiz(quizId: string): Question[] {
+    const data = this.getLocalData();
+    const quiz = data.quizzes.find((q: Quiz) => q.id === quizId);
+    if (!quiz) return [];
+    return data.questions.filter((q: Question) => quiz.questionIds.includes(q.id));
+  }
+  
+  async getAllQuestions(): Promise<Question[]> {
+      return this.getLocalData().questions;
+  }
+
+  async saveQuestion(question: Partial<Question>): Promise<void> {
       const data = this.getLocalData();
-      if (!data.attempts) data.attempts = [];
-      data.attempts.push(attempt);
+      data.questions.push({ ...question, id: `q_${Date.now()}` });
       this.saveLocalData(data);
-    }
   }
 
-  async getUserAttempts(userId: string, quizId?: string) {
-    if (this.useCloud) {
-      let q = query(collection(db, "attempts"), where("userId", "==", userId));
-      if (quizId) {
-        q = query(q, where("quizId", "==", quizId));
+  saveAttempt(attempt: StudentQuizAttempt) {
+    const data = this.getLocalData();
+    data.attempts.push(attempt);
+    const user = data.users[attempt.studentId];
+    if (user) {
+        user.progress.points = (user.progress.points || 0) + attempt.score * 5;
+    }
+    this.saveLocalData(data);
+  }
+
+  async getUserAttempts(userId: string, quizId?: string): Promise<StudentQuizAttempt[]> {
+    const data = this.getLocalData();
+    let userAttempts = (data.attempts || []).filter((a: StudentQuizAttempt) => a.studentId === userId);
+    if (quizId) {
+      userAttempts = userAttempts.filter((a: StudentQuizAttempt) => a.quizId === quizId);
+    }
+    return userAttempts;
+  }
+  
+  // --- Discussions / Forum ---
+  getDiscussions(): Discussion[] {
+    return this.getLocalData().discussions;
+  }
+
+  async getForumPosts(): Promise<ForumPost[]> {
+      return this.getLocalData().forumPosts;
+  }
+  async createForumPost(post: Omit<ForumPost, 'id'>): Promise<void> {
+      const data = this.getLocalData();
+      data.forumPosts.push({ ...post, id: `post_${Date.now()}`, upvotes: 0, replies: [] });
+      this.saveLocalData(data);
+  }
+  async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'upvotes'>): Promise<void> {
+      const data = this.getLocalData();
+      const post = data.forumPosts.find((p: ForumPost) => p.id === postId);
+      if (post) {
+          if (!post.replies) post.replies = [];
+          post.replies.push({ ...reply, id: `rep_${Date.now()}`, upvotes: 0 });
+          this.saveLocalData(data);
       }
-      const snap = await getDocs(q);
-      return snap.docs.map((d: any) => d.data() as QuizAttempt);
-    } else {
+  }
+  async upvotePost(postId: string): Promise<void> {
       const data = this.getLocalData();
-      return (data.attempts || []).filter((a: any) => a.userId === userId && (!quizId || a.quizId === quizId));
-    }
+      const post = data.forumPosts.find((p: ForumPost) => p.id === postId);
+      if (post) {
+          post.upvotes = (post.upvotes || 0) + 1;
+          this.saveLocalData(data);
+      }
+  }
+  async upvoteReply(postId: string, replyId: string): Promise<void> {
+      const data = this.getLocalData();
+      const post = data.forumPosts.find((p: ForumPost) => p.id === postId);
+      if (post && post.replies) {
+          const reply = post.replies.find(r => r.id === replyId);
+          if (reply) {
+              reply.upvotes = (reply.upvotes || 0) + 1;
+              this.saveLocalData(data);
+          }
+      }
   }
 
-  // --- Financials ---
+  // --- Gamification ---
+  getChallenges(): Challenge[] {
+    return this.getLocalData().challenges;
+  }
 
+  getLeaderboard(): LeaderboardEntry[] {
+    return this.getLocalData().leaderboard;
+  }
+
+  // --- Social Learning ---
+  getStudyGoals(): StudyGoal[] {
+    return this.getLocalData().studyGoals;
+  }
+  
+  // --- AI Recommendations ---
+  async getAIRecommendations(user: User): Promise<AIRecommendation[]> {
+    // Mocked for now, in a real app this would call Gemini
+    return Promise.resolve([
+      { id: 'rec-1', title: 'مراجعة قانون فاراداي', reason: 'لاحظنا أنك تواجه صعوبة في مسائل الحث الكهرومغناطيسي.', type: 'lesson', targetId: 'l12-1-1', urgency: 'high' },
+      { id: 'rec-2', title: 'تحدي جديد!', reason: 'بناءً على تفوقك في الوحدة الأولى، نعتقد أنك جاهز لهذا التحدي.', type: 'challenge', targetId: 'ch-1', urgency: 'medium' },
+      { id: 'rec-3', title: 'شارك في النقاش', reason: 'سؤال تم طرحه يتعلق بموضوع درسته مؤخراً. قد تتمكن من المساعدة!', type: 'discussion', targetId: 'd1', urgency: 'low' }
+    ]);
+  }
+
+  // --- Resources ---
+  async getResources(): Promise<EducationalResource[]> {
+      return this.getLocalData().resources;
+  }
+
+  // --- Financial ---
   async initiatePayment(userId: string, planId: string, amount: number): Promise<Invoice> {
-    const invoice: Invoice = {
-      id: `inv_${Date.now()}`,
-      userId,
-      amount,
-      status: 'PENDING',
-      date: new Date().toISOString(),
-      trackId: `TRK_${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      planId
-    };
-
-    if (this.useCloud) {
-      await setDoc(doc(db, "invoices", invoice.id), invoice);
-    } else {
       const data = this.getLocalData();
-      if (!data.invoices) data.invoices = [];
+      const user = data.users[userId];
+      const invoice: Invoice = {
+          id: `inv_${Date.now()}`,
+          userId,
+          userName: user?.name || 'N/A',
+          planId,
+          amount,
+          date: new Date().toISOString(),
+          status: 'PENDING',
+          trackId: `track_${Math.random().toString(36).substr(2, 9)}`,
+      };
       data.invoices.push(invoice);
       this.saveLocalData(data);
-    }
-    return invoice;
-  }
-
-  async completePayment(trackId: string, result: 'SUCCESS' | 'FAIL'): Promise<Invoice | null> {
-    if (this.useCloud) {
-      const q = query(collection(db, "invoices"), where("trackId", "==", trackId));
-      const snap = await getDocs(q);
-      if (snap.empty) return null;
-      
-      const invDoc = snap.docs[0];
-      const invoice = invDoc.data() as Invoice;
-      
-      const updates: any = {
-        status: result === 'SUCCESS' ? 'PAID' : 'FAILED',
-        paymentId: `PAY_${Date.now()}`,
-        authCode: `AUTH_${Math.floor(Math.random() * 1000000)}`
-      };
-      
-      await updateDoc(doc(db, "invoices", invDoc.id), updates);
-
-      if (result === 'SUCCESS') {
-        // تحديث حالة المستخدم
-        const userRef = doc(db, "users", invoice.userId);
-        await updateDoc(userRef, {
-            subscription: invoice.planId === 'p2' ? 'university' : 'premium',
-            subscriptionExpiry: new Date(Date.now() + 30*24*60*60*1000).toISOString()
-        });
-      }
-      return { ...invoice, ...updates };
-
-    } else {
-      const data = this.getLocalData();
-      const invoice = data.invoices.find((i: Invoice) => i.trackId === trackId);
-      if (!invoice) return null;
-      
-      invoice.status = result === 'SUCCESS' ? 'PAID' : 'FAILED';
-      invoice.paymentId = `PAY_${Date.now()}`;
-      invoice.authCode = `AUTH_${Math.floor(Math.random() * 1000000)}`;
-      
-      if (result === 'SUCCESS') {
-        const user = data.users[invoice.userId];
-        if (user) {
-            user.subscription = invoice.planId === 'p2' ? 'university' : 'premium';
-        }
-      }
-      this.saveLocalData(data);
       return invoice;
-    }
   }
-
-  async getUserLatestPaidInvoice(userId: string): Promise<Invoice | null> {
-    if (this.useCloud) {
-        const q = query(collection(db, "invoices"), where("userId", "==", userId), where("status", "==", "PAID"), orderBy("date", "desc"), limit(1));
-        const snap = await getDocs(q);
-        return snap.empty ? null : snap.docs[0].data() as Invoice;
-    } else {
-        const data = this.getLocalData();
-        return (data.invoices || []).filter((i: Invoice) => i.userId === userId && i.status === 'PAID').pop() || null;
-    }
+  async completePayment(trackId: string, result: 'SUCCESS' | 'FAIL'): Promise<Invoice | null> {
+      const data = this.getLocalData();
+      const invoice = data.invoices.find((inv: Invoice) => inv.trackId === trackId);
+      if (invoice) {
+          invoice.status = result === 'SUCCESS' ? 'PAID' : 'FAIL';
+          if (result === 'SUCCESS') {
+              invoice.paymentId = `pay_${Date.now()}`;
+              invoice.authCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+              const user = data.users[invoice.userId];
+              if (user) user.subscription = 'premium';
+          }
+          this.saveLocalData(data);
+          return invoice;
+      }
+      return null;
   }
-
-  // --- Real Time Analytics (Simplified) ---
-  async getRealTimeAnalytics() {
-    const students = await this.getAllStudents();
-    let invoices: Invoice[] = [];
-    
-    if (this.useCloud) {
-        const invSnap = await getDocs(query(collection(db, "invoices"), where("status", "==", "PAID")));
-        invoices = invSnap.docs.map((d: any) => d.data() as Invoice);
-    } else {
-        invoices = (this.getLocalData().invoices || []).filter((i:any) => i.status === 'PAID');
-    }
-
-    const activeNow = Math.floor(students.length * 0.4) + 1; // Mock calculation for now
-    const totalRevenue = invoices.reduce((acc, curr) => acc + curr.amount, 0);
-    const avgStudyHours = "12.5"; // Mock
-
-    return {
-        activeNow,
-        totalStudents: students.length,
-        avgCompletion: 45,
-        avgStudyHours,
-        engagementDistribution: [5, 15, 40, 40],
-        totalRevenue
-    };
+  async getInvoices(): Promise<{ data: Invoice[] }> {
+      return { data: this.getLocalData().invoices };
   }
-
-  // --- Teachers & Resources (Generic Implementation) ---
-  
-  async getTeachers(): Promise<TeacherProfile[]> {
-    if (this.useCloud) {
-        const snap = await getDocs(collection(db, "teachers"));
-        return snap.docs.map((d: any) => d.data() as TeacherProfile);
-    }
-    return this.getLocalData().teachers || [];
+  async getFinancialStats(): Promise<{ totalRevenue: number, pendingAmount: number, totalInvoices: number }> {
+      const invoices = this.getLocalData().invoices;
+      return {
+          totalRevenue: invoices.filter((i: Invoice) => i.status === 'PAID').reduce((sum: number, i: Invoice) => sum + i.amount, 0),
+          pendingAmount: invoices.filter((i: Invoice) => i.status === 'PENDING').reduce((sum: number, i: Invoice) => sum + i.amount, 0),
+          totalInvoices: invoices.length,
+      };
   }
-
-  async saveTeacher(teacher: TeacherProfile) {
-    if (this.useCloud) {
-        await setDoc(doc(db, "teachers", teacher.id), teacher);
-    } else {
-        const data = this.getLocalData();
-        if (!data.teachers) data.teachers = [];
-        const idx = data.teachers.findIndex((t: any) => t.id === teacher.id);
-        if (idx >= 0) data.teachers[idx] = teacher; else data.teachers.push(teacher);
-        this.saveLocalData(data);
-    }
-  }
-
-  async deleteTeacher(id: string) {
-    if (this.useCloud) {
-        await deleteDoc(doc(db, "teachers", id));
-    } else {
-        const data = this.getLocalData();
-        data.teachers = (data.teachers || []).filter((t:any) => t.id !== id);
-        this.saveLocalData(data);
-    }
-  }
-
-  async getResources(): Promise<EducationalResource[]> {
-    if (this.useCloud) {
-        const snap = await getDocs(collection(db, "resources"));
-        return snap.docs.map((d: any) => d.data() as EducationalResource);
-    }
-    return this.getLocalData().resources || [];
-  }
-
-  async saveResource(res: EducationalResource) {
-    if (this.useCloud) {
-        await setDoc(doc(db, "resources", res.id), res);
-    } else {
-        const data = this.getLocalData();
-        if(!data.resources) data.resources = [];
-        data.resources.push(res);
-        this.saveLocalData(data);
-    }
-  }
-
-  async deleteResource(id: string) {
-      if(!this.useCloud) {
-          const data = this.getLocalData();
-          data.resources = (data.resources || []).filter((r:any) => r.id !== id);
+  async updateInvoiceStatus(id: string, status: PaymentStatus): Promise<void> {
+      const data = this.getLocalData();
+      const invoice = data.invoices.find((i: Invoice) => i.id === id);
+      if (invoice) {
+          invoice.status = status;
           this.saveLocalData(data);
       }
   }
 
-  // --- Forum Methods ---
-  async getForumPosts(): Promise<ForumPost[]> {
-    if (this.useCloud) {
-        const snap = await getDocs(query(collection(db, "forum"), orderBy("timestamp", "desc")));
-        return snap.docs.map(d => d.data() as ForumPost);
-    }
-    return (this.getLocalData().forum || []).sort((a: ForumPost, b: ForumPost) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }
-
-  async createForumPost(post: Omit<ForumPost, 'id' | 'upvotes' | 'replies'>) {
-    const newPost: ForumPost = {
-      ...post,
-      id: `post_${Date.now()}`,
-      upvotes: 0,
-      replies: []
-    };
-    if (this.useCloud) {
-      await setDoc(doc(db, "forum", newPost.id), newPost);
-    } else {
+  // --- Notifications ---
+  async addNotification(userId: string, notification: AppNotification): Promise<void> {
       const data = this.getLocalData();
-      if (!data.forum) data.forum = [];
-      data.forum.unshift(newPost);
+      if (!data.notifications[userId]) data.notifications[userId] = [];
+      data.notifications[userId].push(notification);
       this.saveLocalData(data);
-    }
+  }
+  async getNotifications(userId: string): Promise<AppNotification[]> {
+      const data = this.getLocalData();
+      return data.notifications[userId] || [];
   }
 
-  async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'upvotes'>) {
-    const newReply: ForumReply = {
-      ...reply,
-      id: `rep_${Date.now()}`,
-      upvotes: 0
-    };
-    if (this.useCloud) {
-      // For brevity, using array update if possible or fetch-update-save
-      // Ideally use arrayUnion
-      const postRef = doc(db, "forum", postId);
-      const postSnap = await getDoc(postRef);
-      if (postSnap.exists()) {
-          const post = postSnap.data() as ForumPost;
-          const replies = [...(post.replies || []), newReply];
-          await updateDoc(postRef, { replies });
-      }
-    } else {
-      const data = this.getLocalData();
-      const post = data.forum?.find((p: ForumPost) => p.id === postId);
-      if (post) {
-        if (!post.replies) post.replies = [];
-        post.replies.push(newReply);
-        this.saveLocalData(data);
-      }
-    }
+  // --- Parent Portal ---
+  async getStudentProgressForParent(studentUid: string): Promise<{ user: User | null, report: WeeklyReport | null }> {
+      const user = await this.getUser(studentUid);
+      // Mock report
+      const report: WeeklyReport = { week: 'Current', scoreAverage: 85, hoursSpent: 8.5, completedUnits: 2, improvementAreas: [], parentNote: "أداء ممتاز هذا الأسبوع، نلاحظ تحسناً في مهارات حل المسائل." };
+      return { user, report };
   }
 
-  async upvotePost(postId: string): Promise<void> {
-    if (this.useCloud) {
-        const postRef = doc(db, "forum", postId);
-        const postSnap = await getDoc(postRef);
-        if (postSnap.exists()) {
-            await updateDoc(postRef, { upvotes: (postSnap.data().upvotes || 0) + 1 });
-        }
-    } else {
-      const data = this.getLocalData();
-      const post = data.forum?.find((p: ForumPost) => p.id === postId);
-      if (post) {
-        post.upvotes = (post.upvotes || 0) + 1;
-        this.saveLocalData(data);
-      }
-    }
-  }
-  
-  async upvoteReply(postId: string, replyId: string): Promise<void> {
-    if (this.useCloud) { 
-        // Logic for nested update omitted for brevity, would require read-modify-write
-    } else {
-      const data = this.getLocalData();
-      const post = data.forum?.find((p: ForumPost) => p.id === postId);
-      if (post && post.replies) {
-        const reply = post.replies.find(r => r.id === replyId);
-        if (reply) {
-          reply.upvotes = (reply.upvotes || 0) + 1;
-          this.saveLocalData(data);
-        }
-      }
-    }
-  }
-
-  // --- Reviews Methods ---
+  // --- Teacher System ---
   async getTeacherReviews(teacherId: string): Promise<Review[]> {
-    if (this.useCloud) {
-        try {
-            const q = query(collection(db, "reviews"), where("teacherId", "==", teacherId), orderBy("timestamp", "desc"));
-            const snap = await getDocs(q);
-            return snap.docs.map(d => d.data() as Review);
-        } catch (e) {
-            console.error("Error fetching reviews:", e);
-            return [];
+      const data = this.getLocalData();
+      return (data.reviews || []).filter((r: Review) => r.teacherId === teacherId);
+  }
+  async addReview(review: Review): Promise<void> {
+      const data = this.getLocalData();
+      if (!data.reviews) data.reviews = [];
+      data.reviews.push(review);
+      this.saveLocalData(data);
+  }
+  // FIX: Implemented saveTeacherMessage and getAllTeacherMessages
+  async saveTeacherMessage(message: TeacherMessage): Promise<void> {
+    const data = this.getLocalData();
+    if (!data.teacherMessages) {
+        data.teacherMessages = [];
+    }
+    data.teacherMessages.push(message);
+    this.saveLocalData(data);
+  }
+  async getAllTeacherMessages(teacherId: string): Promise<TeacherMessage[]> {
+    const data = this.getLocalData();
+    return (data.teacherMessages || []).filter((m: TeacherMessage) => m.teacherId === teacherId);
+  }
+
+  // FIX: Added missing Todo list methods
+  async getTodos(userId: string): Promise<Todo[]> {
+    const data = this.getLocalData();
+    return data.todos[userId] || [];
+  }
+
+  async saveTodo(userId: string, todoData: Omit<Todo, 'id'>): Promise<string> {
+    const data = this.getLocalData();
+    if (!data.todos[userId]) {
+        data.todos[userId] = [];
+    }
+    const newId = `todo_${Date.now()}`;
+    const newTodo: Todo = { ...todoData, id: newId };
+    data.todos[userId].unshift(newTodo);
+    this.saveLocalData(data);
+    return newId;
+  }
+
+  async updateTodo(userId: string, todoId: string, updates: Partial<Todo>): Promise<void> {
+    const data = this.getLocalData();
+    if (data.todos[userId]) {
+        const todoIndex = data.todos[userId].findIndex((t: Todo) => t.id === todoId);
+        if (todoIndex > -1) {
+            data.todos[userId][todoIndex] = { ...data.todos[userId][todoIndex], ...updates };
+            this.saveLocalData(data);
         }
-    } else {
-        const data = this.getLocalData();
-        return (data.reviews || []).filter((r: Review) => r.teacherId === teacherId).sort((a: Review, b: Review) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }
   }
 
-  async addReview(review: Review) {
-    if (this.useCloud) {
-        await setDoc(doc(db, "reviews", review.id), review);
-    } else {
-        const data = this.getLocalData();
-        if (!data.reviews) data.reviews = [];
-        data.reviews.push(review);
+  async deleteTodo(userId: string, todoId: string): Promise<void> {
+    const data = this.getLocalData();
+    if (data.todos[userId]) {
+        data.todos[userId] = data.todos[userId].filter((t: Todo) => t.id !== todoId);
         this.saveLocalData(data);
     }
-  }
-
-  // --- Other Methods (Stubs for full compatibility) ---
-  async getInvoices() { 
-      if (this.useCloud) {
-          const snap = await getDocs(collection(db, "invoices"));
-          return { data: snap.docs.map((d: any) => d.data()) };
-      }
-      return { data: this.getLocalData().invoices || [] }; 
-  }
-  async getFinancialStats() { return { totalRevenue: 0, pendingAmount: 0, totalInvoices: 0 }; } 
-  async getBetaConfig() { return { isActive: true, invitationCode: "SSC-BETA-2024", studentLimit: 100 }; }
-  async getPWAStats() { return { dau_count: 50, offline_minutes: 320 }; }
-  async getCompletionRate() { return 72; }
-  async getIntroVideo() { return ""; }
-  async saveIntroVideo(url: string) { }
-  async getAllQuestions() { 
-      if(this.useCloud) {
-          const snap = await getDocs(collection(db, "questions"));
-          return snap.docs.map(d => d.data());
-      }
-      return this.getLocalData().questions || []; 
-  }
-  async saveQuestion(q: any) { 
-      if(this.useCloud) await setDoc(doc(db, "questions", q.id), q);
-      else {
-          const data = this.getLocalData();
-          if(!data.questions) data.questions = [];
-          data.questions.push(q);
-          this.saveLocalData(data);
-      }
-  }
-  async updateInvoiceStatus(id: string, s: any) { }
-  async getLessonNote(u: string, l: string) { return ""; }
-  async saveLessonNote(u: string, l: string, n: string) { }
-  async getStudentProgressForParent(uid: string) { return { user: null, report: null as any }; }
-  async getNotifications(uid: string) { return []; }
-  async addNotification(uid: string, n: any) { }
-  async saveTeacherMessage(m: TeacherMessage) { 
-      if(this.useCloud) await setDoc(doc(db, "teacher_messages", m.id), m);
-      else {
-          const data = this.getLocalData();
-          if(!data.teacher_messages) data.teacher_messages = [];
-          data.teacher_messages.push(m);
-          this.saveLocalData(data);
-      }
-  }
-  async getAllTeacherMessages(tid?: string) { 
-      if(this.useCloud) {
-          const q = query(collection(db, "teacher_messages"), where("teacherId", "==", tid));
-          const snap = await getDocs(q);
-          return snap.docs.map(d => d.data() as TeacherMessage);
-      }
-      return (this.getLocalData().teacher_messages || []).filter((m: any) => m.teacherId === tid);
   }
 }
 
+// FIX: Export the singleton instance of the DB service
 export const dbService = SyrianScienceCenterDB.getInstance();

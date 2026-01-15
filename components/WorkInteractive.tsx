@@ -9,7 +9,7 @@ const WorkInteractive: React.FC = () => {
   const isMoving = work > 10;
 
   return (
-    <div className="glass-panel p-10 rounded-[50px] border-[#00d2ff]/20 space-y-10 relative overflow-hidden group">
+    <div className="glass-panel p-8 md:p-10 rounded-[50px] border-[#00d2ff]/20 space-y-10 relative overflow-hidden group">
       <style>{`
         @keyframes jiggle {
           0% { transform: translate(0, 0) rotate(0deg); }
@@ -29,13 +29,13 @@ const WorkInteractive: React.FC = () => {
           <h4 className="text-2xl font-black text-[#00d2ff] text-glow-cyan">تجربة: تحليل الشغل 📐</h4>
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">غير الزاوية وشاهد النتيجة</p>
         </div>
-        <div className="bg-[#00d2ff]/10 border border-[#00d2ff]/30 px-5 py-2 rounded-xl text-[#00d2ff] font-mono text-xs">
-          W = F · d · cos(θ)
+        <div className="bg-[#00d2ff]/10 border border-[#00d2ff]/30 px-5 py-2 rounded-xl text-[#00d2ff] font-mono text-xs hidden sm:block">
+          W = F·d·cos(θ)
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-12">
-        <div className="flex-1 bg-black/80 rounded-[40px] p-10 border border-white/5 relative h-80 flex items-end justify-center overflow-hidden">
+      <div className="flex flex-col lg:flex-row gap-8 md:gap-12">
+        <div className="flex-1 bg-black/80 rounded-[40px] p-6 md:p-10 border border-white/5 relative h-80 flex items-end justify-center overflow-hidden">
           {/* Ground */}
           <div className="absolute bottom-16 left-10 right-10 h-0.5 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
           
@@ -58,7 +58,6 @@ const WorkInteractive: React.FC = () => {
               style={{ 
                 width: '160px', 
                 transform: `rotate(-${angle}deg)`,
-                // Smoother bezier curve for the arrow animation
                 transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' 
               }}
             >

@@ -70,7 +70,7 @@ const PhysicsVeo: React.FC = () => {
           <div className="py-10 animate-slideUp">
              <h3 className="text-xl font-black mb-4">تنشيط محرك الفيديو</h3>
              <p className="text-sm text-gray-500 mb-8 max-w-md mx-auto">
-               يجب اختيار مفتاح API مفعل للدفع من مشروع GCP لاستخدام نماذج Veو المتطورة.
+               يجب اختيار مفتاح API مفعل للدفع من مشروع GCP لاستخدام نماذج Veo المتطورة.
                <br />
                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-[#00d2ff] hover:underline font-bold mt-2 inline-block">
                  راجع تعليمات الفوترة والأسعار

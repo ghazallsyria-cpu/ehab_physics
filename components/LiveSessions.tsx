@@ -73,22 +73,22 @@ const LiveSessions: React.FC = () => {
     return (
       <div className="fixed inset-0 z-[100] bg-[#0a1118] flex flex-col font-['Tajawal'] text-white overflow-hidden">
         {/* Header */}
-        <header className="px-6 py-4 bg-[#010304] border-b border-white/10 flex justify-between items-center">
-           <div className="flex items-center gap-6">
+        <header className="px-6 py-4 bg-[#010304] border-b border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
+           <div className="flex items-center gap-4">
               <button onClick={() => setActiveSession(null)} className="text-gray-500 hover:text-white transition-all text-xl bg-white/5 p-2 rounded-full">✕</button>
               <div>
-                 <h1 className="text-lg font-black text-white flex items-center gap-2">
+                 <h1 className="text-base md:text-lg font-black text-white flex items-center gap-2">
                     <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
                     {activeSession.title}
                  </h1>
-                 <p className="text-[10px] text-gray-400">الفصل الافتراضي الذكي • {activeSession.teacherName}</p>
+                 <p className="text-[10px] text-gray-400">الفصل الافتراضي • {activeSession.teacherName}</p>
               </div>
            </div>
            
-           <div className="flex bg-white/5 rounded-xl p-1 border border-white/10">
-              <button onClick={() => setViewMode('WHITEBOARD')} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${viewMode === 'WHITEBOARD' ? 'bg-[#00d2ff] text-black' : 'text-gray-400 hover:text-white'}`}>السبورة التفاعلية</button>
-              <button onClick={() => setViewMode('MEDIA')} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${viewMode === 'MEDIA' ? 'bg-[#fbbf24] text-black' : 'text-gray-400 hover:text-white'}`}>الوسائل التعليمية</button>
-              <button onClick={() => setViewMode('CAM')} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${viewMode === 'CAM' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}>كاميرا المعلم</button>
+           <div className="flex flex-wrap justify-center gap-1 bg-white/5 rounded-xl p-1 border border-white/10">
+              <button onClick={() => setViewMode('WHITEBOARD')} className={`px-4 md:px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${viewMode === 'WHITEBOARD' ? 'bg-[#00d2ff] text-black' : 'text-gray-400 hover:text-white'}`}>السبورة</button>
+              <button onClick={() => setViewMode('MEDIA')} className={`px-4 md:px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${viewMode === 'MEDIA' ? 'bg-[#fbbf24] text-black' : 'text-gray-400 hover:text-white'}`}>الوسائط</button>
+              <button onClick={() => setViewMode('CAM')} className={`px-4 md:px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${viewMode === 'CAM' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}>الكاميرا</button>
            </div>
         </header>
 
@@ -97,7 +97,7 @@ const LiveSessions: React.FC = () => {
            <div className="flex-1 bg-[#050505] relative flex flex-col">
               
               {/* Content Area */}
-              <div className="flex-1 relative m-4 rounded-[30px] border border-white/10 overflow-hidden bg-[#1a1a1a] shadow-2xl">
+              <div className="flex-1 relative m-2 md:m-4 rounded-[30px] border border-white/10 overflow-hidden bg-[#1a1a1a] shadow-2xl">
                  {viewMode === 'WHITEBOARD' && (
                     <div className="w-full h-full relative cursor-crosshair">
                         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/black-scales.png')] opacity-20"></div>
@@ -110,7 +110,7 @@ const LiveSessions: React.FC = () => {
                  )}
 
                  {viewMode === 'MEDIA' && (
-                    <div className="w-full h-full flex items-center justify-center bg-black">
+                    <div className="w-full h-full flex items-center justify-center bg-black p-4">
                         <div className="text-center">
                             <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
                                 <span className="text-4xl">🎬</span>
@@ -127,15 +127,15 @@ const LiveSessions: React.FC = () => {
               </div>
 
               {/* System Info Bar */}
-              <div className="px-8 py-4 bg-[#0a1118] border-t border-white/5 text-center">
-                 <p className="text-xs text-gray-400 leading-relaxed font-medium max-w-4xl mx-auto">
+              <div className="px-4 md:px-8 py-4 bg-[#0a1118] border-t border-white/5 text-center">
+                 <p className="text-[10px] md:text-xs text-gray-400 leading-relaxed font-medium max-w-4xl mx-auto">
                    "من خلال هذا النظام يمكن للطالب مشاهدة كل ما أقوم به من كتابة على <span className="text-[#00d2ff] font-bold">السبورة الإفتراضية</span> الخاصة بي من خلال جهازه الخاص، وأيضاً المحادثة الفورية معي. وبذلك أصبح الطالب <span className="text-[#fbbf24] font-bold">مشاركاً في الدرس</span> وليس متلقياً فقط للمعلومة."
                  </p>
               </div>
            </div>
 
            {/* Interactive Sidebar */}
-           <div className="w-full lg:w-96 bg-[#010304] border-r border-white/5 flex flex-col">
+           <div className="w-full lg:w-96 bg-[#010304] border-t lg:border-t-0 lg:border-r border-white/5 flex flex-col h-96 lg:h-auto">
               <div className="p-6 border-b border-white/5 bg-white/[0.02]">
                  <h4 className="text-[10px] font-black text-[#00d2ff] uppercase tracking-widest mb-4">أدوات المشاركة</h4>
                  <div className="flex gap-2">

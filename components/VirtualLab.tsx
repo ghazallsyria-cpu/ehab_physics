@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { PhysicsExperiment, SavedExperiment } from '../types';
+import { RefreshCw } from 'lucide-react';
 
 interface VirtualLabProps {
   experiment: PhysicsExperiment;
@@ -17,11 +18,39 @@ const VirtualLab: React.FC<VirtualLabProps> = ({ experiment, onBack, onSaveResul
   const [displayVal, setDisplayVal] = useState(0);
   const [isChanging, setIsChanging] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showStateLoaded, setShowStateLoaded] = useState(false);
   const [flashState, setFlashState] = useState<'none' | 'success' | 'alert'>('none');
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const graphRef = useRef<HTMLCanvasElement>(null);
   const changeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const storageKey = `ssc_vlab_state_${experiment.id}`;
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    const savedStateRaw = localStorage.getItem(storageKey);
+    if (savedStateRaw) {
+        try {
+            const savedState = JSON.parse(savedStateRaw);
+            setParams(savedState.params);
+            setEnvMode(savedState.envMode);
+            setShowStateLoaded(true);
+            setTimeout(() => setShowStateLoaded(false), 3000);
+        } catch (e) {
+            console.error("Failed to parse saved lab state", e);
+        }
+    }
+  }, [experiment.id]);
+
+  // Save state to localStorage on change
+  useEffect(() => {
+    try {
+        localStorage.setItem(storageKey, JSON.stringify({ params, envMode }));
+    } catch (e) {
+        console.warn("Could not save lab state to localStorage:", e);
+    }
+  }, [params, envMode]);
 
   const calculateResult = () => {
     if (experiment.id === 'exp-ohm') {
@@ -38,7 +67,6 @@ const VirtualLab: React.FC<VirtualLabProps> = ({ experiment, onBack, onSaveResul
     setParams(prev => ({ ...prev, [id]: value }));
     setIsChanging(true);
     
-    // التغذية الراجعة اللمسية (البصرية) للموبايل
     if (value >= experiment.parameters.find(p => p.id === id)!.max * 0.9) {
         setFlashState('alert');
         setTimeout(() => setFlashState('none'), 300);
@@ -46,6 +74,13 @@ const VirtualLab: React.FC<VirtualLabProps> = ({ experiment, onBack, onSaveResul
 
     if (changeTimeoutRef.current) clearTimeout(changeTimeoutRef.current);
     changeTimeoutRef.current = setTimeout(() => setIsChanging(false), 400);
+  };
+  
+  const handleReset = () => {
+    localStorage.removeItem(storageKey);
+    setParams(Object.fromEntries(experiment.parameters.map(p => [p.id, p.defaultValue])));
+    setEnvMode('Standard');
+    setHistory([]);
   };
 
   useEffect(() => {
@@ -184,14 +219,23 @@ const VirtualLab: React.FC<VirtualLabProps> = ({ experiment, onBack, onSaveResul
   return (
     <div className={`fixed inset-0 z-[100] bg-[#010304] flex flex-col lg:flex-row overflow-hidden font-['Tajawal'] text-white transition-colors duration-300 ${flashState === 'alert' ? 'bg-red-900/20' : ''}`}>
       
-      {/* Visual Haptic Layer */}
       {flashState === 'alert' && <div className="fixed inset-0 z-[1000] border-[10px] border-red-500/50 pointer-events-none animate-pulse"></div>}
       {showSuccess && <div className="fixed inset-0 z-[1000] border-[10px] border-[#fbbf24]/50 pointer-events-none animate-ping"></div>}
+      {showStateLoaded && (
+          <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[1001] bg-blue-500/20 border border-blue-500/40 text-blue-300 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest animate-fadeIn">
+              ✓ تم تحميل جلستك السابقة
+          </div>
+      )}
 
       <div className={`w-full lg:w-[420px] bg-[#0a1118]/95 border-b lg:border-r border-white/10 p-8 md:p-12 flex flex-col gap-8 md:gap-12 backdrop-blur-3xl z-20 transition-all duration-500 ${isChanging ? 'border-[#00d2ff]/40' : ''}`}>
-        <button onClick={onBack} className="text-[11px] font-black text-gray-500 hover:text-[#00d2ff] uppercase tracking-[0.4em] transition-all flex items-center gap-4 group active:opacity-50 touch-target">
-           <span className="text-xl group-hover:-translate-x-2 transition-transform">←</span> Exit Lab
-        </button>
+        <div className="flex justify-between items-center">
+            <button onClick={onBack} className="text-[11px] font-black text-gray-500 hover:text-[#00d2ff] uppercase tracking-[0.4em] transition-all flex items-center gap-4 group active:opacity-50 touch-target">
+               <span className="text-xl group-hover:-translate-x-2 transition-transform">←</span> Exit Lab
+            </button>
+            <button onClick={handleReset} className="p-3 bg-white/5 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-all" title="Reset to Defaults">
+                <RefreshCw size={14} />
+            </button>
+        </div>
         
         <div className="text-right">
           <div className="flex items-center gap-3 mb-4 justify-end">

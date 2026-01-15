@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
+// FIX: Import GenerateContentResponse to provide explicit type annotation
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
 type ImageSize = "1K" | "2K" | "4K";
 
@@ -43,7 +43,8 @@ const ImageGenerator: React.FC = () => {
       // Create new instance to use the latest key from the dialog
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-      const response = await ai.models.generateContent({
+      // FIX: Add explicit type annotation for the response
+      const response: GenerateContentResponse = await ai.models.generateContent({
         model: 'gemini-3-pro-image-preview',
         contents: {
           parts: [{ text: `Educational, high-quality, cinematic physics visualization, suitable for a Syrian curriculum: ${prompt}` }],
@@ -57,7 +58,8 @@ const ImageGenerator: React.FC = () => {
       });
 
       let foundImage = false;
-      for (const part of response.candidates[0].content.parts) {
+      // FIX: Ensure candidates exist before accessing them
+      for (const part of response.candidates?.[0]?.content.parts || []) {
         if (part.inlineData) {
           setImageUrl(`data:image/png;base64,${part.inlineData.data}`);
           foundImage = true;
@@ -163,7 +165,7 @@ const ImageGenerator: React.FC = () => {
                      download={`physics-image-${Date.now()}.png`}
                      className="absolute bottom-6 right-6 bg-black/60 backdrop-blur-md px-6 py-3 rounded-2xl text-xs font-black text-white hover:bg-white hover:text-black transition-all opacity-0 group-hover:opacity-100"
                    >
-                     تحميل الصورة 📥
+                     تحميل الصورة 📥 
                    </a>
                 </div>
               </div>

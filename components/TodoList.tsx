@@ -1,65 +1,88 @@
 
 import React, { useState, useEffect } from 'react';
+import { User, Todo } from '../types';
+import { dbService } from '../services/db';
 import { Trash2, Check, Plus, Calendar, ListFilter, Trophy } from 'lucide-react';
 
-interface Todo {
-  id: string;
-  text: string;
-  completed: boolean;
-  category: 'Study' | 'Exam' | 'Lab' | 'Review';
-  createdAt: number;
+interface TodoListProps {
+  user: User;
 }
 
-const TodoList: React.FC = () => {
+const TodoList: React.FC<TodoListProps> = ({ user }) => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [input, setInput] = useState('');
   const [category, setCategory] = useState<Todo['category']>('Study');
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load from local storage
   useEffect(() => {
-    const saved = localStorage.getItem('ssc_todos_v2');
-    if (saved) {
-      try {
-        setTodos(JSON.parse(saved));
-      } catch (e) {
-        console.error("Error parsing todos", e);
-      }
-    } else {
-      // Initial Defaults for new users
-      setTodos([
-        { id: '1', text: 'مراجعة قوانين نيوتن للحركة', completed: false, category: 'Study', createdAt: Date.now() },
-        { id: '2', text: 'إتمام تجربة مختبر قانون أوم', completed: true, category: 'Lab', createdAt: Date.now() - 86400000 },
-        { id: '3', text: 'حل اختبار تجريبي للفصل الأول', completed: false, category: 'Exam', createdAt: Date.now() - 172800000 }
-      ]);
-    }
-  }, []);
+    if (!user) return;
 
-  // Save to local storage
-  useEffect(() => {
-    localStorage.setItem('ssc_todos_v2', JSON.stringify(todos));
-  }, [todos]);
+    const loadTodos = async () => {
+      setIsLoading(true);
+      const cloudTodos = await dbService.getTodos(user.uid);
+      setTodos(cloudTodos);
+      setIsLoading(false);
+    };
 
-  const addTodo = (e: React.FormEvent) => {
+    loadTodos();
+  }, [user]);
+
+
+  const addTodo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    const newTodo: Todo = {
-      id: Date.now().toString(),
+    if (!input.trim() || !user) return;
+    
+    const newTodoData: Omit<Todo, 'id'> = {
       text: input,
       completed: false,
       category,
       createdAt: Date.now()
     };
-    setTodos([newTodo, ...todos]);
+
+    // Optimistic update
+    const tempId = `temp_${Date.now()}`;
+    setTodos([{ ...newTodoData, id: tempId }, ...todos]);
     setInput('');
+
+    try {
+      const newId = await dbService.saveTodo(user.uid, newTodoData);
+      // Replace temp ID with real ID
+      setTodos(prev => prev.map(t => t.id === tempId ? { ...t, id: newId } : t));
+    } catch (e) {
+      console.error("Failed to save todo", e);
+      // Revert if save fails
+      setTodos(prev => prev.filter(t => t.id !== tempId));
+    }
   };
 
-  const toggleTodo = (id: string) => {
-    setTodos(todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  const toggleTodo = async (id: string) => {
+    const todo = todos.find(t => t.id === id);
+    if (!todo || !user) return;
+
+    const newCompletedState = !todo.completed;
+    // Optimistic update
+    setTodos(todos.map(t => t.id === id ? { ...t, completed: newCompletedState } : t));
+
+    try {
+      await dbService.updateTodo(user.uid, id, { completed: newCompletedState });
+    } catch (e) {
+      console.error("Failed to update todo", e);
+      // Revert on failure
+      setTodos(todos.map(t => t.id === id ? { ...t, completed: !newCompletedState } : t));
+    }
   };
 
-  const deleteTodo = (id: string) => {
+  const deleteTodo = async (id: string) => {
+    if (!user) return;
+    const originalTodos = [...todos];
     setTodos(todos.filter(t => t.id !== id));
+    try {
+      await dbService.deleteTodo(user.uid, id);
+    } catch (e) {
+      console.error("Failed to delete todo", e);
+      setTodos(originalTodos);
+    }
   };
 
   const completedCount = todos.filter(t => t.completed).length;
@@ -77,6 +100,7 @@ const TodoList: React.FC = () => {
       case 'Exam': return { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20', icon: '📝' };
       case 'Lab': return { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/20', icon: '🧪' };
       case 'Review': return { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20', icon: '🔄' };
+      case 'Homework': return { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20', icon: '📓' };
     }
   };
 
@@ -132,6 +156,7 @@ const TodoList: React.FC = () => {
                   className="bg-black/40 border border-white/10 rounded-[24px] px-6 py-4 text-white outline-none focus:border-[#00d2ff] font-bold text-sm appearance-none cursor-pointer hover:bg-black/60 transition-all"
                 >
                   <option value="Study">📚 دراسة</option>
+                  <option value="Homework">📓 واجب</option>
                   <option value="Exam">📝 اختبار</option>
                   <option value="Lab">🧪 مختبر</option>
                   <option value="Review">🔄 مراجعة</option>
@@ -173,7 +198,9 @@ const TodoList: React.FC = () => {
 
         {/* Todo List */}
         <div className="space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pr-1">
-          {filteredTodos.length > 0 ? filteredTodos.map(todo => {
+          {isLoading ? (
+            <div className="text-center py-20 text-gray-500 animate-pulse">جاري تحميل المهام...</div>
+          ) : filteredTodos.length > 0 ? filteredTodos.map(todo => {
             const style = getCategoryStyles(todo.category);
             return (
               <div 

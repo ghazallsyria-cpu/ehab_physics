@@ -24,7 +24,7 @@ const EnergyPendulum: React.FC = () => {
   const ke = 100 - pe;
 
   return (
-    <div className="glass-panel p-10 rounded-[50px] border-[#00d2ff]/20 space-y-10 relative overflow-hidden">
+    <div className="glass-panel p-8 md:p-10 rounded-[50px] border-[#00d2ff]/20 space-y-10 relative overflow-hidden">
       <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-purple-500/5 rounded-full blur-[80px]"></div>
 
       <div className="flex justify-between items-center border-b border-white/5 pb-6">
@@ -32,12 +32,12 @@ const EnergyPendulum: React.FC = () => {
           <h4 className="text-2xl font-black text-white text-glow-cyan">حفظ الطاقة الميكانيكية ⏳</h4>
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">تجربة البندول البسيط</p>
         </div>
-        <div className="bg-purple-500/10 border border-purple-500/30 px-5 py-2 rounded-xl text-purple-400 font-black text-xs">
-          $ME = PE + KE$
+        <div className="bg-purple-500/10 border border-purple-500/30 px-5 py-2 rounded-xl text-purple-400 font-black text-xs hidden sm:block">
+          ME = PE + KE
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-12 items-center">
+      <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center">
         <div className="flex-1 h-80 w-full flex justify-center bg-black/80 rounded-[40px] border border-white/5 relative overflow-hidden shadow-inner">
            <svg width="100%" height="100%" viewBox="0 0 400 350" className="relative z-10">
              {/* Support Bar */}
