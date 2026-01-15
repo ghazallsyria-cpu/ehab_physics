@@ -36,7 +36,7 @@ class SyrianScienceCenterDB {
   private getDefaultData() {
     return { 
       users: {
-        'student_demo': { uid: 'student_demo', email: 'student@ssc.test', name: 'طالب تجريبي', role: 'student', grade: '12', subscription: 'free', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 7500 } },
+        'student_demo': { uid: 'student_demo', email: 'student@ssc.test', name: 'طالب تجريبي', role: 'student', grade: '12', subscription: 'free', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 7500, quizScores: {} } },
         'admin_demo': { uid: 'admin_demo', email: 'admin@ssc.test', name: 'مدير المنصة', role: 'admin', grade: '12', subscription: 'premium', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 999 } },
         'teacher_demo': { uid: 'teacher_demo', email: 'teacher@ssc.test', name: 'معلم تجريبي', role: 'teacher', grade: '12', subscription: 'premium', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 0 }, specialization: 'فيزياء', yearsExperience: 10, bio: 'مدرس فيزياء بخبرة طويلة.', avatar: '👨‍🏫', gradesTaught: ['12'], permissions: ['create_content', 'reply_messages'] },
       },
@@ -173,6 +173,14 @@ class SyrianScienceCenterDB {
     const user = data.users[attempt.studentId];
     if (user) {
         user.progress.points = (user.progress.points || 0) + attempt.score * 5;
+        if (!user.progress.quizScores) {
+            user.progress.quizScores = {};
+        }
+        // Save the highest score for the quiz
+        const existingScore = user.progress.quizScores[attempt.quizId] || 0;
+        if (attempt.score > existingScore) {
+            user.progress.quizScores[attempt.quizId] = attempt.score;
+        }
     }
     this.saveLocalData(data);
   }
@@ -244,12 +252,37 @@ class SyrianScienceCenterDB {
   
   // --- AI Recommendations ---
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> {
-    // Mocked for now, in a real app this would call Gemini
-    return Promise.resolve([
+    // Mocked recommendations. In a real app, this would involve a call to Gemini.
+    const allRecommendations: AIRecommendation[] = [
       { id: 'rec-1', title: 'مراجعة قانون فاراداي', reason: 'لاحظنا أنك تواجه صعوبة في مسائل الحث الكهرومغناطيسي.', type: 'lesson', targetId: 'l12-1-1', urgency: 'high' },
-      { id: 'rec-2', title: 'تحدي جديد!', reason: 'بناءً على تفوقك في الوحدة الأولى، نعتقد أنك جاهز لهذا التحدي.', type: 'challenge', targetId: 'ch-1', urgency: 'medium' },
-      { id: 'rec-3', title: 'شارك في النقاش', reason: 'سؤال تم طرحه يتعلق بموضوع درسته مؤخراً. قد تتمكن من المساعدة!', type: 'discussion', targetId: 'd1', urgency: 'low' }
-    ]);
+      { id: 'rec-2', title: 'تحدي جديد: ماراثون الكهرومغناطيسية', reason: 'بناءً على تفوقك في الوحدة الأولى، نعتقد أنك جاهز لهذا التحدي.', type: 'challenge', targetId: 'ch-1', urgency: 'medium' },
+      { id: 'rec-3', title: 'شارك في النقاش', reason: 'سؤال تم طرحه يتعلق بموضوع درسته مؤخراً. قد تتمكن من المساعدة!', type: 'discussion', targetId: 'd1', urgency: 'low' },
+      { id: 'rec-4', title: 'اختبر نفسك في الفيزياء الحديثة', reason: 'يبدو أنك مستعد لاختبار معلوماتك في هذا المجال المتقدم.', type: 'quiz', targetId: 'quiz-2', urgency: 'medium' },
+      { id: 'rec-5', title: 'تعمق في النسبية الخاصة', reason: 'نوصي بهذا الدرس لتوسيع فهمك لمفاهيم أينشتاين.', type: 'lesson', targetId: 'l12-2-1', urgency: 'low' },
+    ];
+    
+    // Filter out recommendations for content the user has already completed.
+    const completedLessonIds = user.progress.completedLessonIds || [];
+    const attemptedQuizIds = Object.keys(user.progress.quizScores || {});
+    // Challenges are stored in `achievements` upon completion.
+    const completedChallengeIds = user.progress.achievements || [];
+
+    const filteredRecommendations = allRecommendations.filter(rec => {
+      switch (rec.type) {
+        case 'lesson':
+          return !completedLessonIds.includes(rec.targetId);
+        case 'quiz':
+          return !attemptedQuizIds.includes(rec.targetId);
+        case 'challenge':
+          return !completedChallengeIds.includes(rec.targetId);
+        case 'discussion':
+          return true; // Discussions can always be recommended
+        default:
+          return true;
+      }
+    });
+
+    return Promise.resolve(filteredRecommendations);
   }
 
   // --- Resources ---

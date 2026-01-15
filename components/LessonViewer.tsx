@@ -33,6 +33,24 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
     });
   };
 
+  const extractYoutubeId = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      if (urlObj.hostname.includes('youtube.com')) {
+        if (urlObj.pathname.includes('/shorts/')) return urlObj.pathname.split('/shorts/')[1].split(/[?#]/)[0];
+        if (urlObj.pathname.includes('/embed/')) return urlObj.pathname.split('/embed/')[1].split(/[?#]/)[0];
+        return urlObj.searchParams.get('v');
+      } else if (urlObj.hostname.includes('youtu.be')) {
+        return urlObj.pathname.slice(1).split(/[?#]/)[0];
+      }
+    } catch (e) {
+      const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(regExp);
+      return (match && match[2].length === 11) ? match[2] : null;
+    }
+    return null;
+  };
+
   const handleNativeShare = async () => {
     if (navigator.share) {
       try {
@@ -62,15 +80,7 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
   };
 
   const renderVideoBlock = (url: string) => {
-    let videoId: string | null = null;
-    try {
-      const urlObj = new URL(url);
-      if (urlObj.hostname.includes('youtube.com')) {
-        videoId = urlObj.searchParams.get('v');
-      } else if (urlObj.hostname.includes('youtu.be')) {
-        videoId = urlObj.pathname.slice(1);
-      }
-    } catch (e) { console.warn("Invalid video URL", e); }
+    const videoId = extractYoutubeId(url);
 
     if (videoId) {
         return (
@@ -80,7 +90,7 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
         );
     }
 
-    // Fallback for non-youtube videos or invalid URLs
+    // Fallback for non-youtube generic video links
     return (
       <div className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-lg">
         <iframe
@@ -108,11 +118,28 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
           </figure>
         );
       case 'video':
-      case 'youtube':
         return (
            <figure className="my-10">
             {renderVideoBlock(block.content)}
             {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
+          </figure>
+        );
+      case 'youtube':
+        const ytId = extractYoutubeId(block.content);
+        return (
+          <figure className="my-10">
+            <div className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-lg">
+               {ytId ? (
+                 <YouTubePlayer videoId={ytId} />
+               ) : (
+                 <div className="w-full h-full flex flex-col items-center justify-center p-10 text-center bg-white/5">
+                    <span className="text-4xl mb-4">⚠️</span>
+                    <p className="text-sm font-bold text-red-400">رابط يوتيوب غير صالح</p>
+                    <p className="text-[10px] text-gray-500 mt-2">يرجى التحقق من الرابط في محرر الدروس</p>
+                 </div>
+               )}
+            </div>
+             {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
           </figure>
         );
       case 'pdf':

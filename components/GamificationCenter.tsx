@@ -17,14 +17,21 @@ const GamificationCenter: React.FC<GamificationCenterProps> = ({ user, onUpdateU
 
   useEffect(() => {
     const loadData = async () => {
-      setChallenges(dbService.getChallenges());
+      const dbChallenges = dbService.getChallenges();
+      // Mark challenges as completed based on user progress
+      const userAchievements = user.progress.achievements || [];
+      const updatedChallenges = dbChallenges.map(c => ({
+          ...c,
+          isCompleted: userAchievements.includes(c.id)
+      }));
+      setChallenges(updatedChallenges);
       setLeaderboard(dbService.getLeaderboard());
       setStudyGoals(dbService.getStudyGoals());
     };
     loadData();
-  }, []);
+  }, [user]);
 
-  const handleCompleteChallenge = (challengeId: string) => {
+  const handleCompleteChallenge = async (challengeId: string) => {
     const challenge = challenges.find(c => c.id === challengeId);
     if (!challenge || challenge.isCompleted) return;
 
@@ -33,15 +40,18 @@ const GamificationCenter: React.FC<GamificationCenterProps> = ({ user, onUpdateU
         prev.map(c => c.id === challengeId ? { ...c, isCompleted: true } : c)
     );
 
-    // Update user points and call parent updater
+    // Update user points and achievements, then call parent updater
     const updatedUser: User = {
         ...user,
         progress: {
             ...user.progress,
             points: (user.progress.points || 0) + challenge.reward,
+            achievements: [...(user.progress.achievements || []), challenge.id],
         },
         points: (user.points || 0) + challenge.reward, // Also update top-level points
     };
+    
+    await dbService.saveUser(updatedUser); // Persist changes
     onUpdateUser(updatedUser);
 
     // Show success feedback

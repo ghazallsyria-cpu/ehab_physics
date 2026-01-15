@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'ssc-pwa-v1';
+const CACHE_NAME = 'ssc-pwa-v2';
 
 const ASSETS_TO_CACHE = [
   './',
