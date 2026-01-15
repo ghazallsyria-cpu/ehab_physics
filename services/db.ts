@@ -1,5 +1,4 @@
 
-
 import { User, Invoice, QuizAttempt, AppNotification, WeeklyReport, EducationalResource, TeacherProfile, Review, TeacherMessage, EducationalLevel, ForumPost, ForumReply } from "../types";
 import { PHYSICS_TOPICS } from "../constants";
 import { db } from "./firebase";
@@ -127,34 +126,42 @@ class SyrianScienceCenterDB {
 
   // --- Users ---
 
-  async getUser(uid: string): Promise<User | null> {
+  async getUser(identifier: string): Promise<User | null> {
     if (this.useCloud) {
       try {
-        const docRef = doc(db, "users", uid);
-        const docSnap = await getDoc(docRef);
-        
-        // البحث بالبريد الإلكتروني إذا لم نجد المعرف (لأغراض تسجيل الدخول القديم)
-        if (!docSnap.exists() && uid.includes('@')) {
-            const q = query(collection(db, "users"), where("email", "==", uid));
-            const querySnap = await getDocs(q);
-            if (!querySnap.empty) return querySnap.docs[0].data() as User;
+        // If identifier is an email, query by the 'email' field.
+        if (identifier.includes('@')) {
+          const q = query(collection(db, "users"), where("email", "==", identifier));
+          const querySnap = await getDocs(q);
+          if (!querySnap.empty) {
+            return querySnap.docs[0].data() as User;
+          }
+        } else {
+          // Otherwise, assume it's a UID and get the document directly.
+          const docRef = doc(db, "users", identifier);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            return docSnap.data() as User;
+          }
         }
-
-        if (docSnap.exists()) return docSnap.data() as User;
         
-        // إنشاء مستخدمين افتراضيين في الكلاود لأول مرة
-        if (uid === 'admin_demo') {
-            const admin = this.getDefaultData().users['admin_demo'] as User;
-            await this.saveUser(admin);
-            return admin;
+        // Special case to create admin_demo user on first-time lookup if it doesn't exist
+        if (identifier === 'admin_demo') {
+            const docRef = doc(db, "users", "admin_demo");
+            const docSnap = await getDoc(docRef);
+            if (!docSnap.exists()) {
+                const admin = this.getDefaultData().users['admin_demo'] as User;
+                await this.saveUser(admin);
+                return admin;
+            }
         }
       } catch (e) {
-        console.error("Firestore Error:", e);
+        console.error("Firestore Error in getUser:", e);
       }
       return null;
     } else {
       const data = this.getLocalData();
-      return data.users[uid] || Object.values(data.users).find((u: any) => u.email === uid) || null;
+      return data.users[identifier] || Object.values(data.users).find((u: any) => u.email === identifier) || null;
     }
   }
 
@@ -472,6 +479,34 @@ class SyrianScienceCenterDB {
     }
   }
 
+  // --- Reviews Methods ---
+  async getTeacherReviews(teacherId: string): Promise<Review[]> {
+    if (this.useCloud) {
+        try {
+            const q = query(collection(db, "reviews"), where("teacherId", "==", teacherId), orderBy("timestamp", "desc"));
+            const snap = await getDocs(q);
+            return snap.docs.map(d => d.data() as Review);
+        } catch (e) {
+            console.error("Error fetching reviews:", e);
+            return [];
+        }
+    } else {
+        const data = this.getLocalData();
+        return (data.reviews || []).filter((r: Review) => r.teacherId === teacherId).sort((a: Review, b: Review) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+  }
+
+  async addReview(review: Review) {
+    if (this.useCloud) {
+        await setDoc(doc(db, "reviews", review.id), review);
+    } else {
+        const data = this.getLocalData();
+        if (!data.reviews) data.reviews = [];
+        data.reviews.push(review);
+        this.saveLocalData(data);
+    }
+  }
+
   // --- Other Methods (Stubs for full compatibility) ---
   async getInvoices() { 
       if (this.useCloud) {
@@ -494,8 +529,6 @@ class SyrianScienceCenterDB {
   async getStudentProgressForParent(uid: string) { return { user: null, report: null as any }; }
   async getNotifications(uid: string) { return []; }
   async addNotification(uid: string, n: any) { }
-  async getTeacherReviews(tid: string) { return []; }
-  async addReview(r: Review) { }
   async saveTeacherMessage(m: TeacherMessage) { }
   async getAllTeacherMessages(tid?: string) { return []; }
 }

@@ -66,19 +66,17 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
       }
     };
 
+    // Demo login should always work, even if the database is offline/misconfigured.
+    // Try to save the user, but don't block login if it fails.
     try {
-      // Await save to ensure data exists before Dashboard mounts
       await dbService.saveUser(demoUser);
-      
-      // Small artificial delay for better UX feeling
-      await new Promise(r => setTimeout(r, 800));
-      
-      onLogin(demoUser);
     } catch (e) {
-      console.error("Login Error", e);
-      setIsLoading(false);
-      setMessage({ text: 'تعذر تهيئة الحساب التجريبي. يرجى المحاولة مرة أخرى.', type: 'error' });
+      console.warn("DB save for demo user failed (this is expected if Firebase is not fully configured). Proceeding with login...", e);
     }
+
+    // Always log in with the hardcoded demo data.
+    await new Promise(r => setTimeout(r, 800)); // UX delay
+    onLogin(demoUser);
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

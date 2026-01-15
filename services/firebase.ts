@@ -1,5 +1,4 @@
 
-
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
@@ -22,7 +21,7 @@ let db: any = null;
 let auth: any = null;
 
 try {
-  // محاولة تهيئة Firebase
+  // تهيئة Firebase بطريقة قياسية
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
   auth = getAuth(app);
@@ -30,6 +29,9 @@ try {
 } catch (e) {
   console.warn("Firebase initialization failed (Check config):", e);
   console.log("App falling back to LocalStorage mode.");
+  // Ensure db is null so db.ts logic switches to local storage
+  db = null;
+  auth = null;
 }
 
 export { db, auth };
