@@ -39,9 +39,27 @@ class SyrianScienceCenterDB {
   private getLocalData() {
     try {
       const raw = localStorage.getItem(this.storageKey);
-      if (!raw) return this.getDefaultData();
-      return JSON.parse(raw);
+      const defaults = this.getDefaultData();
+      
+      if (!raw) return defaults;
+      
+      const stored = JSON.parse(raw);
+      
+      // Smart Merge: Ensure essential arrays/objects exist by merging defaults with stored data.
+      // This fixes the issue where old local storage data (missing 'teachers' array) caused empty lists.
+      return {
+        ...defaults,
+        ...stored,
+        // Merge users deeply to preserve defaults like admin_demo while keeping new users
+        users: { ...defaults.users, ...(stored.users || {}) },
+        // Ensure arrays exist and fallback to defaults if missing in stored data
+        teachers: (stored.teachers && stored.teachers.length > 0) ? stored.teachers : defaults.teachers,
+        attempts: stored.attempts || defaults.attempts,
+        invoices: stored.invoices || defaults.invoices,
+        forum: stored.forum || defaults.forum,
+      };
     } catch (e) {
+      console.warn("DB Parse Error, resetting to defaults:", e);
       return this.getDefaultData();
     }
   }
@@ -83,14 +101,52 @@ class SyrianScienceCenterDB {
             createdAt: new Date().toISOString(),
             completedLessonIds: ['l12-1', 'l12-2'], 
             progress: { completedLessonIds: ['l12-1'], quizScores: {'q-1': 18}, totalStudyHours: 42, currentFatigue: 15 }
+        },
+        'student_sample_1': {
+            uid: 'student_sample_1',
+            email: 'ahmed@ssc.test',
+            name: 'أحمد الصالح',
+            role: 'student',
+            grade: '11',
+            stage: 'secondary',
+            educationalLevel: EducationalLevel.SECONDARY,
+            status: 'active',
+            subscription: 'free',
+            points: 450,
+            createdAt: new Date().toISOString(),
+            completedLessonIds: [],
+            progress: { completedLessonIds: [], quizScores: {}, totalStudyHours: 5, currentFatigue: 0 }
         }
       }, 
+      teachers: [
+        {
+          id: 't_1',
+          name: 'أ. جاسم الكندري',
+          specialization: 'فيزياء',
+          bio: 'مدرس أول للفيزياء بخبرة 15 عاماً في المناهج السورية.',
+          avatar: '👨‍🏫',
+          yearsExperience: 15,
+          grades: ['12'],
+          status: 'active',
+          permissions: ['create_content', 'reply_messages', 'view_analytics']
+        },
+        {
+          id: 't_2',
+          name: 'د. سارة العتيبي',
+          specialization: 'فيزياء نووية',
+          bio: 'دكتوراه في الفيزياء النووية، متخصصة في تدريس منهاج الجامعة.',
+          avatar: '👩‍🔬',
+          yearsExperience: 8,
+          grades: ['12', 'uni'],
+          status: 'active',
+          permissions: ['create_content', 'manage_exams']
+        }
+      ],
       attempts: [], 
       invoices: [], 
       notifications: {}, 
       questions: [], 
       teacher_messages: [], 
-      teachers: [], 
       reviews: [], 
       resources: [],
       forum: [
@@ -190,7 +246,9 @@ class SyrianScienceCenterDB {
       return snap.docs.map((d: any) => d.data() as User);
     } else {
       const data = this.getLocalData();
-      return Object.values(data.users as Record<string, User>).filter((u) => u.role === 'student');
+      // Ensure data.users exists before trying to access values
+      const users = data.users || {};
+      return Object.values(users as Record<string, User>).filter((u) => u.role === 'student');
     }
   }
 
