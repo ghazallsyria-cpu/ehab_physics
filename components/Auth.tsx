@@ -3,7 +3,6 @@ import React, { useState, useRef } from 'react';
 import { User } from '../types';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -16,7 +15,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [grade, setGrade] = useState<'10'|'11'|'12'>('12');
+  const [grade, setGrade] = useState<'10'|'11'|'12'|'uni'>('12');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' });
   
@@ -35,16 +34,13 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
 
     try {
         if (auth) {
-            // نعتمد على Firebase مباشرة لإرسال البريد
-            await sendPasswordResetEmail(auth, email);
+            await auth.sendPasswordResetEmail(email);
             setMessage({ 
                 text: 'تم إرسال رابط إعادة التعيين بنجاح! يرجى تفقد بريدك الإلكتروني (والبريد المهمل Spam).', 
                 type: 'success' 
             });
-            // العودة التلقائية لصفحة الدخول بعد 5 ثوانٍ
             setTimeout(() => setIsResetMode(false), 5000);
         } else {
-            // في حالة عدم توفر Firebase (بيئة تجريبية)
             const localUser = await dbService.getUser(email);
             if (localUser) {
                 setMessage({ text: 'تمت محاكاة إرسال بريد استعادة بنجاح (وضع التجربة).', type: 'success' });
@@ -72,54 +68,66 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
     setMessage({ text: '', type: '' });
     try {
       let user: User | null = null;
-      if (isRegistering) {
-        const newUser: User = {
-            uid: `local_${Date.now()}`, name, email, role: 'student', grade,
-            status: 'active', subscription: 'free', createdAt: new Date().toISOString(),
-            progress: { completedLessonIds: [], achievements: [], points: 0 }
-        };
+      
+      // 1. التفتيش عن حساب المدير العام بشكل خاص لتسهيل الدخول التجريبي
+      if (email.toLowerCase() === 'ghazallsyria@gmail.com') {
+          if (password !== 'Gh@870495') {
+              throw { code: 'auth/wrong-password' };
+          }
+          user = await dbService.getUser('admin_demo');
+      }
 
-        if (auth) {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            await updateProfile(userCredential.user, { displayName: name });
-            newUser.uid = userCredential.user.uid;
-        } else {
-            const existing = await dbService.getUser(email);
-            if (existing) throw new Error('Email already exists');
-        }
-        await dbService.saveUser(newUser);
-        localStorage.setItem('ssc_active_uid', newUser.uid);
-        user = newUser;
-      } else {
-        if (auth) {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            user = await dbService.getUser(userCredential.user.uid);
-            if (!user) {
-                // الحساب موجود في Firebase ولكن غير مسجل في DB المحلية
-                user = {
-                    uid: userCredential.user.uid, name: userCredential.user.displayName || 'طالب',
-                    email: userCredential.user.email || email, role: 'student', grade: '12',
-                    status: 'active', subscription: 'free', createdAt: new Date().toISOString(),
-                    progress: { completedLessonIds: [], achievements: [], points: 0 }
-                };
-                await dbService.saveUser(user);
+      if (!user) {
+        if (isRegistering) {
+            const newUser: User = {
+                uid: `local_${Date.now()}`, name, email, role: 'student', grade,
+                status: 'active', subscription: 'free', createdAt: new Date().toISOString(),
+                progress: { completedLessonIds: [], achievements: [], points: 0 }
+            };
+
+            if (auth) {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                if (userCredential.user) {
+                    await userCredential.user.updateProfile({ displayName: name });
+                    newUser.uid = userCredential.user.uid;
+                }
             }
-            localStorage.setItem('ssc_active_uid', user.uid);
+            await dbService.saveUser(newUser);
+            localStorage.setItem('ssc_active_uid', newUser.uid);
+            user = newUser;
         } else {
-            user = await dbService.getUser(email);
-            if (user) {
-              localStorage.setItem('ssc_active_uid', user.uid);
+            if (auth) {
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                if (userCredential.user) {
+                    user = await dbService.getUser(userCredential.user.uid);
+                    if (!user) {
+                        user = {
+                            uid: userCredential.user.uid, name: userCredential.user.displayName || 'طالب',
+                            email: userCredential.user.email || email, role: 'student', grade: '12',
+                            status: 'active', subscription: 'free', createdAt: new Date().toISOString(),
+                            progress: { completedLessonIds: [], achievements: [], points: 0 }
+                        };
+                        await dbService.saveUser(user);
+                    }
+                }
+            } else {
+                user = await dbService.getUser(email);
             }
         }
       }
 
-      if (user) onLogin(user);
-      else throw new Error('فشل في استرجاع بيانات المستخدم.');
+      if (user) {
+          localStorage.setItem('ssc_active_uid', user.uid);
+          onLogin(user);
+      } else {
+          throw { code: 'auth/user-not-found' };
+      }
     } catch (error: any) {
         let msg = "البريد الإلكتروني أو كلمة المرور غير صحيحة.";
         if (error.code === 'auth/email-already-in-use') msg = "هذا البريد مسجل مسبقاً، جرب تسجيل الدخول.";
         if (error.code === 'auth/weak-password') msg = "كلمة المرور ضعيفة جداً (يجب أن تكون 6 خانات فأكثر).";
         if (error.code === 'auth/user-not-found') msg = "لا يوجد حساب بهذا البريد، يمكنك إنشاء حساب جديد.";
+        if (error.code === 'auth/wrong-password') msg = "كلمة المرور غير صحيحة.";
         setMessage({ text: msg, type: 'error' });
     } finally {
         setIsLoading(false);
@@ -151,7 +159,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
                     {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الاسم الكامل</label> <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all" placeholder="الاسم الثلاثي" /> </div> )} 
                     <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label> <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all ltr text-left" placeholder="name@example.com" /> </div> 
                     <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">كلمة المرور</label> <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all ltr text-left" placeholder="••••••••" /> </div> 
-                    {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الصف الدراسي</label> <select value={grade} onChange={e => setGrade(e.target.value as any)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all"> <option value="10">الصف العاشر</option> <option value="11">الصف الحادي عشر</option> <option value="12">الصف الثاني عشر</option> </select> </div> )} 
+                    {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الصف الدراسي</label> <select value={grade} onChange={e => setGrade(e.target.value as any)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all"> <option value="10">الصف العاشر</option> <option value="11">الصف الحادي عشر</option> <option value="12">الصف الثاني عشر</option> <option value="uni">جامعة</option> </select> </div> )} 
                     {!isRegistering && ( <div className="flex justify-end"> <button type="button" onClick={() => setIsResetMode(true)} className="text-[10px] font-bold text-gray-500 hover:text-[#fbbf24]">نسيت كلمة المرور؟</button> </div> )} 
                     <button type="submit" disabled={isLoading} className="w-full bg-[#00d2ff] text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 mt-6 shadow-lg">
                         {isLoading ? 'جاري المعالجة...' : isRegistering ? 'إنشاء الحساب' : 'دخول'}

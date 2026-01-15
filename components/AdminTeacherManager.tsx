@@ -1,11 +1,11 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User, TeacherMessage, TeacherPermission } from '../types';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   Search, User as UserIcon, Shield, MessageSquare, Trash2, Save, 
-  PlusCircle, UserPlus, Briefcase, GraduationCap, CheckCircle,
+  UserPlus, Briefcase, GraduationCap, CheckCircle,
   FileText, Lock, RefreshCw, KeyRound
 } from 'lucide-react';
 
@@ -64,7 +64,7 @@ const AdminTeacherManager: React.FC = () => {
 
   const handleCreateNewMode = () => {
     setSearchQuery('');
-    // FIX: Add missing properties 'grade', 'subscription', and 'progress' to match User type
+    // Fix: Add missing properties 'grade', 'subscription', and 'progress' to match User type
     const newTeacherTemplate: User = {
         uid: 'new_entry', name: '', email: '', role: 'teacher',
         grade: '12',
@@ -114,12 +114,16 @@ const AdminTeacherManager: React.FC = () => {
         
         if (selectedTeacher?.uid === 'new_entry') {
             if (!password || password.length < 6) {
-                setMessage({ text: 'يرجى إدخال كلمة مرور مؤقتة (6 أحرف على الأقل)', type: 'error' });
+                setMessage({ text: 'يرجى إدخل كلمة مرور مؤقتة (6 أحرف على الأقل)', type: 'error' });
                 setIsLoading(false); return;
             }
-            // Create Firebase Auth user first
-            const userCredential = await createUserWithEmailAndPassword(auth, teacherToSave.email, password);
-            teacherToSave.uid = userCredential.user.uid;
+            // Fix: Use namespaced auth instance for account creation
+            if (auth) {
+                const userCredential = await auth.createUserWithEmailAndPassword(teacherToSave.email, password);
+                if (userCredential.user) {
+                  teacherToSave.uid = userCredential.user.uid;
+                }
+            }
             setMessage({ text: 'تم إنشاء حساب المعلم بنجاح', type: 'success' });
             setPassword('');
         } else {

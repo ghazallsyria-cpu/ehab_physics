@@ -2,7 +2,6 @@
 import { User, Curriculum, Quiz, Question, Answer, StudentQuizAttempt, Discussion, Comment, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, UserProgress, Lesson, Unit } from "../types";
 import { CURRICULUM_DATA, QUIZZES_DB, QUESTIONS_DB, ANSWERS_DB, CHALLENGES_DB, LEADERBOARD_DATA, STUDY_GOALS_DB } from '../constants';
 import { db, auth } from "./firebase";
-import { doc, getDoc, setDoc, getDocs, collection, deleteDoc } from "firebase/firestore";
 
 class SyrianScienceCenterDB {
   private static instance: SyrianScienceCenterDB;
@@ -22,7 +21,6 @@ class SyrianScienceCenterDB {
       const raw = localStorage.getItem(this.storageKey);
       if (!raw) return this.getDefaultData();
       const data = JSON.parse(raw);
-      // Ensure all default keys exist
       return { ...this.getDefaultData(), ...data };
     } catch (e) {
       return this.getDefaultData();
@@ -37,7 +35,7 @@ class SyrianScienceCenterDB {
     return { 
       users: {
         'student_demo': { uid: 'student_demo', email: 'student@ssc.test', name: 'طالب تجريبي', role: 'student', grade: '12', subscription: 'free', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 7500, quizScores: {} } },
-        'admin_demo': { uid: 'admin_demo', email: 'admin@ssc.test', name: 'مدير المنصة', role: 'admin', grade: '12', subscription: 'premium', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 999 } },
+        'admin_demo': { uid: 'admin_demo', email: 'ghazallsyria@gmail.com', name: 'أ. ايهاب غزال (المدير العام)', role: 'admin', grade: '12', subscription: 'premium', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 999 } },
         'teacher_demo': { uid: 'teacher_demo', email: 'teacher@ssc.test', name: 'معلم تجريبي', role: 'teacher', grade: '12', subscription: 'premium', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 0 }, specialization: 'فيزياء', yearsExperience: 10, bio: 'مدرس فيزياء بخبرة طويلة.', avatar: '👨‍🏫', gradesTaught: ['12'], permissions: ['create_content', 'reply_messages'] },
       },
       curriculum: CURRICULUM_DATA,
@@ -81,13 +79,11 @@ class SyrianScienceCenterDB {
 
   async getAllStudents(): Promise<User[]> {
     const data = this.getLocalData();
-    // FIX: Cast return type to User[] to satisfy Promise<User[]>
     return Object.values(data.users).filter((u: any) => u.role === 'student') as User[];
   }
 
   async getTeachers(): Promise<User[]> {
     const data = this.getLocalData();
-    // FIX: Cast return type to User[] to satisfy Promise<User[]>
     return Object.values(data.users).filter((u: any) => u.role === 'teacher') as User[];
   }
 
@@ -104,10 +100,8 @@ class SyrianScienceCenterDB {
       if (unit) {
         const lessonIndex = unit.lessons.findIndex(l => l.id === lesson.id);
         if (lessonIndex > -1) {
-          // Update existing lesson
           unit.lessons[lessonIndex] = lesson;
         } else {
-          // Add new lesson
           unit.lessons.push(lesson);
         }
         break;
@@ -176,7 +170,6 @@ class SyrianScienceCenterDB {
         if (!user.progress.quizScores) {
             user.progress.quizScores = {};
         }
-        // Save the highest score for the quiz
         const existingScore = user.progress.quizScores[attempt.quizId] || 0;
         if (attempt.score > existingScore) {
             user.progress.quizScores[attempt.quizId] = attempt.score;
@@ -252,7 +245,6 @@ class SyrianScienceCenterDB {
   
   // --- AI Recommendations ---
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> {
-    // Mocked recommendations. In a real app, this would involve a call to Gemini.
     const allRecommendations: AIRecommendation[] = [
       { id: 'rec-1', title: 'مراجعة قانون فاراداي', reason: 'لاحظنا أنك تواجه صعوبة في مسائل الحث الكهرومغناطيسي.', type: 'lesson', targetId: 'l12-1-1', urgency: 'high' },
       { id: 'rec-2', title: 'تحدي جديد: ماراثون الكهرومغناطيسية', reason: 'بناءً على تفوقك في الوحدة الأولى، نعتقد أنك جاهز لهذا التحدي.', type: 'challenge', targetId: 'ch-1', urgency: 'medium' },
@@ -261,10 +253,8 @@ class SyrianScienceCenterDB {
       { id: 'rec-5', title: 'تعمق في النسبية الخاصة', reason: 'نوصي بهذا الدرس لتوسيع فهمك لمفاهيم أينشتاين.', type: 'lesson', targetId: 'l12-2-1', urgency: 'low' },
     ];
     
-    // Filter out recommendations for content the user has already completed.
     const completedLessonIds = user.progress.completedLessonIds || [];
     const attemptedQuizIds = Object.keys(user.progress.quizScores || {});
-    // Challenges are stored in `achievements` upon completion.
     const completedChallengeIds = user.progress.achievements || [];
 
     const filteredRecommendations = allRecommendations.filter(rec => {
@@ -276,7 +266,7 @@ class SyrianScienceCenterDB {
         case 'challenge':
           return !completedChallengeIds.includes(rec.targetId);
         case 'discussion':
-          return true; // Discussions can always be recommended
+          return true; 
         default:
           return true;
       }
@@ -359,7 +349,6 @@ class SyrianScienceCenterDB {
   // --- Parent Portal ---
   async getStudentProgressForParent(studentUid: string): Promise<{ user: User | null, report: WeeklyReport | null }> {
       const user = await this.getUser(studentUid);
-      // Mock report
       const report: WeeklyReport = { week: 'Current', scoreAverage: 85, hoursSpent: 8.5, completedUnits: 2, improvementAreas: [], parentNote: "أداء ممتاز هذا الأسبوع، نلاحظ تحسناً في مهارات حل المسائل." };
       return { user, report };
   }
@@ -375,7 +364,6 @@ class SyrianScienceCenterDB {
       data.reviews.push(review);
       this.saveLocalData(data);
   }
-  // FIX: Implemented saveTeacherMessage and getAllTeacherMessages
   async saveTeacherMessage(message: TeacherMessage): Promise<void> {
     const data = this.getLocalData();
     if (!data.teacherMessages) {
@@ -389,7 +377,6 @@ class SyrianScienceCenterDB {
     return (data.teacherMessages || []).filter((m: TeacherMessage) => m.teacherId === teacherId);
   }
 
-  // FIX: Added missing Todo list methods
   async getTodos(userId: string): Promise<Todo[]> {
     const data = this.getLocalData();
     return data.todos[userId] || [];
@@ -427,5 +414,4 @@ class SyrianScienceCenterDB {
   }
 }
 
-// FIX: Export the singleton instance of the DB service
 export const dbService = SyrianScienceCenterDB.getInstance();

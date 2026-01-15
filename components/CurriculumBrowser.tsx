@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { CURRICULUM_DATA } from '../constants';
 import { User, Unit, Lesson } from '../types';
 
 const CurriculumBrowser: React.FC<{ user: User }> = ({ user }) => {
-  const [activeGrade, setActiveGrade] = useState<'10' | '11' | '12'>(user.grade);
+  // Fix: Expand activeGrade state type to include 'uni'
+  const [activeGrade, setActiveGrade] = useState<'10' | '11' | '12' | 'uni'>(user.grade);
   const [expandedUnitId, setExpandedUnitId] = useState<string | null>(null);
 
   const activeTopic = CURRICULUM_DATA.find(t => t.grade === activeGrade);
@@ -25,6 +27,7 @@ const CurriculumBrowser: React.FC<{ user: User }> = ({ user }) => {
 
       <div className="flex justify-center mb-12">
         <div className="bg-white/5 p-2 rounded-[25px] flex gap-2 border border-white/10 backdrop-blur-xl">
+          {/* Fix: Ensure 'uni' can be selected if needed, though it's not in tabs currently */}
           {(['12', '11', '10'] as const).map(grade => (
             <button
               key={grade}

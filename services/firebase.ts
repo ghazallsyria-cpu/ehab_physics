@@ -1,7 +1,8 @@
 
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+// Fix: Use namespaced import style for Firebase to resolve "no exported member" errors
+import firebase from "firebase/app";
+import "firebase/firestore";
+import "firebase/auth";
 
 /**
  * إعدادات Firebase
@@ -23,11 +24,11 @@ let auth: any = null;
 let googleProvider: any = null;
 
 try {
-  // تهيئة Firebase
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  auth = getAuth(app);
-  googleProvider = new GoogleAuthProvider();
+  // Fix: Use namespaced initialization
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  auth = firebase.auth();
+  googleProvider = new firebase.auth.GoogleAuthProvider();
   console.log("Firebase initialized successfully with Project ID:", firebaseConfig.projectId);
 } catch (e) {
   console.warn("Firebase initialization failed. Check console for details.", e);
