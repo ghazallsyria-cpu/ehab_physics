@@ -25,26 +25,41 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
-        setMessage({ text: 'يرجى إدخال البريد الإلكتروني.', type: 'error' });
+        setMessage({ text: 'يرجى إدخال البريد الإلكتروني أولاً.', type: 'error' });
         setTimeout(() => emailRef.current?.focus(), 100);
         return;
     }
+    
     setIsLoading(true);
     setMessage({ text: '', type: '' });
+
     try {
-        const existingUser = await dbService.getUser(email);
-        if (!existingUser) throw new Error('USER_NOT_FOUND_IN_DB');
         if (auth) {
+            // نعتمد على Firebase مباشرة لإرسال البريد
             await sendPasswordResetEmail(auth, email);
-            setMessage({ text: 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.', type: 'success' });
+            setMessage({ 
+                text: 'تم إرسال رابط إعادة التعيين بنجاح! يرجى تفقد بريدك الإلكتروني (والبريد المهمل Spam).', 
+                type: 'success' 
+            });
+            // العودة التلقائية لصفحة الدخول بعد 5 ثوانٍ
             setTimeout(() => setIsResetMode(false), 5000);
         } else {
-            setMessage({ text: 'تم إرسال رابط إعادة تعيين (محاكاة) إلى بريدك.', type: 'success' });
-            setTimeout(() => setIsResetMode(false), 5000);
+            // في حالة عدم توفر Firebase (بيئة تجريبية)
+            const localUser = await dbService.getUser(email);
+            if (localUser) {
+                setMessage({ text: 'تمت محاكاة إرسال بريد استعادة بنجاح (وضع التجربة).', type: 'success' });
+                setTimeout(() => setIsResetMode(false), 5000);
+            } else {
+                throw { code: 'auth/user-not-found' };
+            }
         }
     } catch (error: any) {
-        let errorMsg = 'حدث خطأ أثناء محاولة إرسال البريد.';
-        if (error.message === 'USER_NOT_FOUND_IN_DB') errorMsg = 'لا يوجد حساب مسجل بهذا البريد.';
+        console.error("Reset Error:", error);
+        let errorMsg = 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً.';
+        if (error.code === 'auth/user-not-found') errorMsg = 'هذا البريد الإلكتروني غير مسجل في نظامنا.';
+        if (error.code === 'auth/invalid-email') errorMsg = 'تنسيق البريد الإلكتروني غير صحيح.';
+        if (error.code === 'auth/too-many-requests') errorMsg = 'تم إرسال الكثير من الطلبات. يرجى الانتظار قليلاً.';
+        
         setMessage({ text: errorMsg, type: 'error' });
     } finally {
         setIsLoading(false);
@@ -58,7 +73,6 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
     try {
       let user: User | null = null;
       if (isRegistering) {
-        // Register
         const newUser: User = {
             uid: `local_${Date.now()}`, name, email, role: 'student', grade,
             status: 'active', subscription: 'free', createdAt: new Date().toISOString(),
@@ -77,13 +91,20 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
         localStorage.setItem('ssc_active_uid', newUser.uid);
         user = newUser;
       } else {
-        // Login
         if (auth) {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             user = await dbService.getUser(userCredential.user.uid);
-            if (user) {
-              localStorage.setItem('ssc_active_uid', user.uid);
+            if (!user) {
+                // الحساب موجود في Firebase ولكن غير مسجل في DB المحلية
+                user = {
+                    uid: userCredential.user.uid, name: userCredential.user.displayName || 'طالب',
+                    email: userCredential.user.email || email, role: 'student', grade: '12',
+                    status: 'active', subscription: 'free', createdAt: new Date().toISOString(),
+                    progress: { completedLessonIds: [], achievements: [], points: 0 }
+                };
+                await dbService.saveUser(user);
             }
+            localStorage.setItem('ssc_active_uid', user.uid);
         } else {
             user = await dbService.getUser(email);
             if (user) {
@@ -96,8 +117,9 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
       else throw new Error('فشل في استرجاع بيانات المستخدم.');
     } catch (error: any) {
         let msg = "البريد الإلكتروني أو كلمة المرور غير صحيحة.";
-        if (error.code === 'auth/email-already-in-use' || error.message === 'Email already exists') msg = "البريد الإلكتروني مسجل مسبقاً.";
-        if (error.code === 'auth/weak-password') msg = "كلمة المرور ضعيفة (6 أحرف على الأقل).";
+        if (error.code === 'auth/email-already-in-use') msg = "هذا البريد مسجل مسبقاً، جرب تسجيل الدخول.";
+        if (error.code === 'auth/weak-password') msg = "كلمة المرور ضعيفة جداً (يجب أن تكون 6 خانات فأكثر).";
+        if (error.code === 'auth/user-not-found') msg = "لا يوجد حساب بهذا البريد، يمكنك إنشاء حساب جديد.";
         setMessage({ text: msg, type: 'error' });
     } finally {
         setIsLoading(false);
@@ -113,7 +135,32 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
                 <p className="text-gray-500 text-sm">بوابة المركز السوري للعلوم</p>
             </div>
             {message.text && (<div className={`mb-6 p-4 rounded-2xl text-xs font-bold text-center ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>{message.text}</div>)}
-            {isResetMode ? ( <form onSubmit={handlePasswordReset} className="space-y-4"> <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label> <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all ltr text-left" placeholder="name@example.com" /> </div> <button type="submit" disabled={isLoading} className="w-full bg-[#fbbf24] text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50">{isLoading ? 'جاري الإرسال...' : 'إرسال رابط الاستعادة'}</button> <button type="button" onClick={() => setIsResetMode(false)} className="w-full text-gray-500 text-xs font-bold hover:text-white mt-4">العودة لتسجيل الدخول</button> </form> ) : ( <form onSubmit={handleAuth} className="space-y-4"> {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الاسم الكامل</label> <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all" placeholder="الاسم الثلاثي" /> </div> )} <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label> <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all ltr text-left" placeholder="name@example.com" /> </div> <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">كلمة المرور</label> <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all ltr text-left" placeholder="••••••••" /> </div> {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الصف الدراسي</label> <select value={grade} onChange={e => setGrade(e.target.value as any)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all"> <option value="10">الصف العاشر</option> <option value="11">الصف الحادي عشر</option> <option value="12">الصف الثاني عشر</option> </select> </div> )} {!isRegistering && ( <div className="flex justify-end"> <button type="button" onClick={() => setIsResetMode(true)} className="text-[10px] font-bold text-gray-500 hover:text-[#fbbf24]">نسيت كلمة المرور؟</button> </div> )} <button type="submit" disabled={isLoading} className="w-full bg-[#00d2ff] text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 mt-6 shadow-lg">{isLoading ? 'جاري المعالجة...' : isRegistering ? 'إنشاء الحساب' : 'دخول'}</button> <div className="pt-6 border-t border-white/5 text-center"> <button type="button" onClick={() => setIsRegistering(!isRegistering)} className="text-xs font-bold text-white">{isRegistering ? 'لديك حساب بالفعل؟ تسجيل الدخول' : 'ليس لديك حساب؟ إنشاء حساب جديد'}</button> </div> </form> )}
+            {isResetMode ? ( 
+                <form onSubmit={handlePasswordReset} className="space-y-4"> 
+                    <div> 
+                        <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني المسجل</label> 
+                        <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all ltr text-left" placeholder="name@example.com" /> 
+                    </div> 
+                    <button type="submit" disabled={isLoading} className="w-full bg-[#fbbf24] text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50">
+                        {isLoading ? 'جاري الإرسال...' : 'إرسال رابط الاستعادة'}
+                    </button> 
+                    <button type="button" onClick={() => setIsResetMode(false)} className="w-full text-gray-500 text-xs font-bold hover:text-white mt-4">العودة لتسجيل الدخول</button> 
+                </form> 
+            ) : ( 
+                <form onSubmit={handleAuth} className="space-y-4"> 
+                    {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الاسم الكامل</label> <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all" placeholder="الاسم الثلاثي" /> </div> )} 
+                    <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label> <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all ltr text-left" placeholder="name@example.com" /> </div> 
+                    <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">كلمة المرور</label> <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all ltr text-left" placeholder="••••••••" /> </div> 
+                    {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الصف الدراسي</label> <select value={grade} onChange={e => setGrade(e.target.value as any)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all"> <option value="10">الصف العاشر</option> <option value="11">الصف الحادي عشر</option> <option value="12">الصف الثاني عشر</option> </select> </div> )} 
+                    {!isRegistering && ( <div className="flex justify-end"> <button type="button" onClick={() => setIsResetMode(true)} className="text-[10px] font-bold text-gray-500 hover:text-[#fbbf24]">نسيت كلمة المرور؟</button> </div> )} 
+                    <button type="submit" disabled={isLoading} className="w-full bg-[#00d2ff] text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 mt-6 shadow-lg">
+                        {isLoading ? 'جاري المعالجة...' : isRegistering ? 'إنشاء الحساب' : 'دخول'}
+                    </button> 
+                    <div className="pt-6 border-t border-white/5 text-center"> 
+                        <button type="button" onClick={() => setIsRegistering(!isRegistering)} className="text-xs font-bold text-white">{isRegistering ? 'لديك حساب بالفعل؟ تسجيل الدخول' : 'ليس لديك حساب؟ إنشاء حساب جديد'}</button> 
+                    </div> 
+                </form> 
+            )}
         </div>
     </div>
   );
