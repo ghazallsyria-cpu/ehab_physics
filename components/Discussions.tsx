@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Discussion, Comment } from '../types';
+import { User, Discussion, Comment, ForumPost, ForumReply } from '../types';
 import { dbService } from '../services/db';
 import { ArrowUp, MessageSquare } from 'lucide-react';
 
@@ -9,10 +9,35 @@ const Discussions: React.FC<{ user: User }> = ({ user }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setIsLoading(true);
-    const data = dbService.getDiscussions();
-    setPosts(data);
-    setIsLoading(false);
+    // FIX: The `getDiscussions` method does not exist. Replaced with `getForumPosts` and mapped the result to the `Discussion` type. Also made the effect asynchronous.
+    const loadPosts = async () => {
+      setIsLoading(true);
+      try {
+        const forumPosts: ForumPost[] = await dbService.getForumPosts();
+        const mappedDiscussions: Discussion[] = forumPosts.map(post => ({
+          id: post.id,
+          title: post.title,
+          content: post.content,
+          authorName: post.authorName,
+          timestamp: post.timestamp,
+          upvotes: post.upvotes || 0,
+          comments: (post.replies || []).map((reply: ForumReply) => ({
+            id: reply.id,
+            authorName: reply.authorName,
+            content: reply.content,
+            timestamp: reply.timestamp,
+          })),
+        }));
+        setPosts(mappedDiscussions);
+      } catch (error) {
+        console.error("Failed to load discussions", error);
+        setPosts([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPosts();
   }, []);
   
   return (

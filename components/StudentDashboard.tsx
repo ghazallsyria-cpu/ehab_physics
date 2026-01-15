@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, StudyGoal, LeaderboardEntry } from '../types';
 import { dbService } from '../services/db';
 import { ArrowRight } from 'lucide-react';
+import { CURRICULUM_DATA } from '../constants';
 
 const CommunityGoals: React.FC = () => {
     const [goals, setGoals] = useState<StudyGoal[]>([]);
@@ -57,7 +58,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
     window.dispatchEvent(new CustomEvent('change-view', { detail: { view } }));
   };
 
-  const progressPercent = Math.min(Math.round(((user.progress.completedLessonIds || []).length / 25) * 100), 100); // Assume 25 total lessons for now
+  const userCurriculum = CURRICULUM_DATA.find(c => c.grade === user.grade);
+  const totalLessons = userCurriculum?.units.reduce((acc, unit) => acc + unit.lessons.length, 0) || 1;
+  const completedLessonsCount = (user.progress.completedLessonIds || []).length;
+  const progressPercent = totalLessons > 0 ? Math.min(Math.round((completedLessonsCount / totalLessons) * 100), 100) : 0;
 
   return (
     <div className="space-y-10 animate-fadeIn font-['Tajawal'] pb-24 text-right" dir="rtl">
@@ -116,7 +120,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
                  </div>
                  <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-400 font-bold">الدروس المنجزة:</span>
-                    <span className="text-xl font-black text-white tabular-nums">{(user.progress.completedLessonIds || []).length}</span>
+                    <span className="text-xl font-black text-white tabular-nums">{completedLessonsCount}</span>
                  </div>
               </div>
            </div>

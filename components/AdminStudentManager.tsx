@@ -3,10 +3,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, EducationalLevel } from '../types';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
-  Search, User as UserIcon, Zap, Trash2,
-  Save, RefreshCw, GraduationCap, AlertTriangle,
-  Mail, Phone, School, PlusCircle, X, KeyRound
+  Search, User as UserIcon, Shield, Zap, Trash2, Ban, 
+  Save, RefreshCw, GraduationCap, Clock, AlertTriangle,
+  Mail, Phone, School, FileText, PlusCircle, CheckCircle, KeyRound, X
 } from 'lucide-react';
 
 const AdminStudentManager: React.FC = () => {
@@ -99,13 +100,8 @@ const AdminStudentManager: React.FC = () => {
                 setMessage({ text: 'يرجى إدخال كلمة مرور مؤقتة (6 أحرف على الأقل)', type: 'error' });
                 setIsLoading(false); return;
             }
-            // Fix: Use namespaced auth instance for account creation
-            if (auth) {
-                const userCredential = await auth.createUserWithEmailAndPassword(updatedUser.email, password);
-                if (userCredential.user) {
-                  updatedUser.uid = userCredential.user.uid;
-                }
-            }
+            const userCredential = await createUserWithEmailAndPassword(auth, updatedUser.email, password);
+            updatedUser.uid = userCredential.user.uid;
             
             setMessage({ text: 'تم إنشاء حساب الطالب بنجاح', type: 'success' });
             setPassword('');
@@ -132,15 +128,13 @@ const AdminStudentManager: React.FC = () => {
   const handleResetProgress = async () => {
     if (!selectedStudent || selectedStudent.uid === 'new_entry' || !window.confirm('⚠️ تحذير: هل أنت متأكد تماماً؟ \nسيتم تصفير جميع الدرجات، الساعات الدراسية، وسجل الأنشطة.\nلا يمكن التراجع عن هذا الإجراء.')) return;
     
-    // Fix: Ensure 'points' is present in UserProgress object
-    const resetUser: User = {
+    const resetUser = {
         ...selectedStudent,
         points: 0,
         completedLessonIds: [],
         progress: {
             completedLessonIds: [],
             quizScores: {},
-            points: 0, // Corrected: added missing points property
             totalStudyHours: 0,
             currentFatigue: 0,
             strengths: [],
@@ -148,8 +142,8 @@ const AdminStudentManager: React.FC = () => {
         }
     };
     
-    await dbService.saveUser(resetUser);
-    setSelectedStudent(resetUser);
+    await dbService.saveUser(resetUser as User);
+    setSelectedStudent(resetUser as User);
     setEditForm(resetUser);
     setMessage({ text: 'تم تصفير التقدم الأكاديمي', type: 'success' });
     setTimeout(() => setMessage(null), 3000);
@@ -161,10 +155,10 @@ const AdminStudentManager: React.FC = () => {
     
     if (isBanning && !window.confirm('سيتم منع الطالب من الدخول للمنصة نهائياً. هل أنت متأكد؟')) return;
 
-    const updatedUser = { ...selectedStudent, status: isBanning ? 'banned' : 'active' } as User;
-    await dbService.saveUser(updatedUser);
-    setSelectedStudent(updatedUser);
-    setEditForm(updatedUser);
+    const updatedUser = { ...selectedStudent, status: isBanning ? 'banned' : 'active' };
+    await dbService.saveUser(updatedUser as User);
+    setSelectedStudent(updatedUser as User);
+    setEditForm(updatedUser as User);
     loadStudents();
     setMessage({ text: isBanning ? 'تم حظر الطالب' : 'تم تفعيل الحساب', type: isBanning ? 'error' : 'success' });
     setTimeout(() => setMessage(null), 3000);
@@ -235,9 +229,7 @@ const AdminStudentManager: React.FC = () => {
                       {selectedStudent.uid === 'new_entry' && <div className="space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <KeyRound size={12}/> كلمة المرور المؤقتة </label> <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-red-500/50 transition-all font-medium" /> </div>}
                       <div className="space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <Phone size={12}/> رقم الهاتف </label> <input type="text" value={editForm.phone || ''} onChange={e => setEditForm({...editForm, phone: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium font-mono text-sm" placeholder="+963..." /> </div>
                       <div className="space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <School size={12}/> المدرسة </label> <input type="text" value={editForm.school || ''} onChange={e => setEditForm({...editForm, school: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium" placeholder="اسم المدرسة..." /> </div>
-                      <div className="space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <GraduationCap size={12}/> الصف الدراسي </label> <div className="relative"> 
-                        {/* Fix: Cast e.target.value as any to avoid type error with 'uni' */}
-                        <select value={editForm.grade || '12'} onChange={e => setEditForm({...editForm, grade: e.target.value as any})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium appearance-none"> <option value="10">الصف 10</option> <option value="11">الصف 11</option> <option value="12">الصف 12</option> <option value="uni">جامعة (Foundation)</option> </select> <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">▼</div> </div> </div>
+                      <div className="space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <GraduationCap size={12}/> الصف الدراسي </label> <div className="relative"> <select value={editForm.grade || '12'} onChange={e => setEditForm({...editForm, grade: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium appearance-none"> <option value="10">الصف 10</option> <option value="11">الصف 11</option> <option value="12">الصف 12</option> <option value="uni">جامعة (Foundation)</option> </select> <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">▼</div> </div> </div>
                   </div> )}
                   {activeTab === 'SUBSCRIPTION' && ( <div className="space-y-6 animate-slideUp"> {/* ... content ... */} </div> )}
                   {activeTab === 'PROGRESS' && ( <div className="space-y-6 animate-slideUp"> {/* ... content ... */} </div> )}

@@ -39,7 +39,8 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
       if (sortBy === 'top') {
         return (b.upvotes || 0) - (a.upvotes || 0);
       }
-      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      // The default query from dbService already sorts by newest timestamp
+      return 1;
     });
   }, [posts, sortBy]);
 
@@ -53,12 +54,11 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
       title: newQuestion.title,
       content: newQuestion.content,
       tags: newQuestion.tags.split(',').map(t => t.trim()).filter(Boolean),
-      timestamp: new Date().toISOString(),
     });
 
     setNewQuestion({ title: '', content: '', tags: '' });
     setShowAskModal(false);
-    loadPosts();
+    await loadPosts();
   };
 
   const handleReply = async () => {
@@ -69,37 +69,35 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
         authorName: user.name || 'Anonymous',
         content: replyContent,
         role: user.role,
-        timestamp: new Date().toISOString(),
     };
     
-    // Optimistic UI update
-    const tempId = `rep_${Date.now()}`;
-    const newReply: ForumReply = { ...replyData, id: tempId, upvotes: 0 };
-    const updatedReplies = [...(selectedPost.replies || []), newReply];
-
-    setSelectedPost(prev => prev ? { ...prev, replies: updatedReplies } : null);
-    setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, replies: updatedReplies } : p));
     setReplyContent('');
     
     await dbService.addForumReply(selectedPost.id, replyData);
-    // Potentially reload to get permanent ID, but for now optimistic is fine
+    
+    const updatedPosts = await dbService.getForumPosts();
+    setPosts(updatedPosts);
+    
+    const updatedSelectedPost = updatedPosts.find(p => p.id === selectedPost.id);
+    setSelectedPost(updatedSelectedPost || null);
   };
 
-  const handleUpvotePost = (postId: string) => {
-    dbService.upvotePost(postId);
-    setPosts(posts.map(p => p.id === postId ? {...p, upvotes: (p.upvotes || 0) + 1} : p));
+  const handleUpvotePost = async (postId: string) => {
+    await dbService.upvotePost(postId);
+    const updatedPosts = await dbService.getForumPosts();
+    setPosts(updatedPosts);
+    if(selectedPost?.id === postId) {
+      const updatedSelected = updatedPosts.find(p => p.id === postId);
+      setSelectedPost(updatedSelected || null);
+    }
   };
   
-  const handleUpvoteReply = (postId: string, replyId: string) => {
-    dbService.upvoteReply(postId, replyId);
-    setPosts(posts.map(p => {
-        if (p.id === postId) {
-            const updatedReplies = p.replies?.map(r => r.id === replyId ? {...r, upvotes: (r.upvotes || 0) + 1} : r);
-            return {...p, replies: updatedReplies};
-        }
-        return p;
-    }));
-    setSelectedPost(posts.find(p => p.id === postId) || null);
+  const handleUpvoteReply = async (postId: string, replyId: string) => {
+    await dbService.upvoteReply(postId, replyId);
+    const updatedPosts = await dbService.getForumPosts();
+    setPosts(updatedPosts);
+    const updatedSelected = updatedPosts.find(p => p.id === postId);
+    setSelectedPost(updatedSelected || null);
   };
   
   const getRoleBadge = (role: User['role']) => {

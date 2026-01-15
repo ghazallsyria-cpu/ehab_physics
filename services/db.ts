@@ -1,249 +1,234 @@
 
-import { User, Curriculum, Quiz, Question, Answer, StudentQuizAttempt, Discussion, Comment, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, UserProgress, Lesson, Unit } from "../types";
-import { CURRICULUM_DATA, QUIZZES_DB, QUESTIONS_DB, ANSWERS_DB, CHALLENGES_DB, LEADERBOARD_DATA, STUDY_GOALS_DB } from '../constants';
-import { db, auth } from "./firebase";
+import { User, Curriculum, Quiz, Question, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, Lesson } from "../types";
+import { db } from "./firebase";
+import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, documentId, writeBatch, orderBy } from "firebase/firestore";
 
 class SyrianScienceCenterDB {
   private static instance: SyrianScienceCenterDB;
-  private storageKey = "ssc_db_v2";
   
   public static getInstance(): SyrianScienceCenterDB {
     if (!SyrianScienceCenterDB.instance) SyrianScienceCenterDB.instance = new SyrianScienceCenterDB();
     return SyrianScienceCenterDB.instance;
   }
 
-  private get useCloud(): boolean {
-    return !!db && !!auth && !!auth.currentUser;
-  }
-
-  private getLocalData() {
-    try {
-      const raw = localStorage.getItem(this.storageKey);
-      if (!raw) return this.getDefaultData();
-      const data = JSON.parse(raw);
-      return { ...this.getDefaultData(), ...data };
-    } catch (e) {
-      return this.getDefaultData();
-    }
-  }
-
-  private saveLocalData(data: any) {
-    localStorage.setItem(this.storageKey, JSON.stringify(data));
-  }
-
-  private getDefaultData() {
-    return { 
-      users: {
-        'student_demo': { uid: 'student_demo', email: 'student@ssc.test', name: 'طالب تجريبي', role: 'student', grade: '12', subscription: 'free', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 7500, quizScores: {} } },
-        'admin_demo': { uid: 'admin_demo', email: 'ghazallsyria@gmail.com', name: 'أ. ايهاب غزال (المدير العام)', role: 'admin', grade: '12', subscription: 'premium', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 999 } },
-        'teacher_demo': { uid: 'teacher_demo', email: 'teacher@ssc.test', name: 'معلم تجريبي', role: 'teacher', grade: '12', subscription: 'premium', createdAt: new Date().toISOString(), progress: { completedLessonIds: [], achievements: [], points: 0 }, specialization: 'فيزياء', yearsExperience: 10, bio: 'مدرس فيزياء بخبرة طويلة.', avatar: '👨‍🏫', gradesTaught: ['12'], permissions: ['create_content', 'reply_messages'] },
-      },
-      curriculum: CURRICULUM_DATA,
-      quizzes: QUIZZES_DB,
-      questions: QUESTIONS_DB,
-      answers: ANSWERS_DB,
-      attempts: [],
-      discussions: [
-        { id: 'd1', title: 'سؤال حول قانون فاراداي', content: 'لم أفهم كيف يؤثر عدد اللفات على القوة الدافعة الحثية؟', authorName: 'أحمد', timestamp: new Date().toISOString(), comments: [], upvotes: 5 }
-      ],
-      challenges: CHALLENGES_DB,
-      leaderboard: LEADERBOARD_DATA,
-      studyGoals: STUDY_GOALS_DB,
-      resources: [],
-      invoices: [],
-      notifications: {},
-      forumPosts: [],
-      reviews: [],
-      teacherMessages: [],
-      todos: {},
-    };
-  }
-
   // --- User Management ---
   async getUser(identifier: string): Promise<User | null> {
-    const data = this.getLocalData();
-    return data.users[identifier] || Object.values(data.users).find((u: any) => u.email === identifier) || null;
+    if (!db) return null;
+    const userDocRef = doc(db, "users", identifier);
+    const userSnap = await getDoc(userDocRef);
+    if (userSnap.exists()) {
+        return userSnap.data() as User;
+    }
+    const q = query(collection(db, "users"), where("email", "==", identifier));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+        return querySnapshot.docs[0].data() as User;
+    }
+    return null;
   }
 
   async saveUser(user: User): Promise<void> {
-    const data = this.getLocalData();
-    data.users[user.uid] = user;
-    this.saveLocalData(data);
+    if (!db) return;
+    const userDocRef = doc(db, "users", user.uid);
+    await setDoc(userDocRef, user, { merge: true });
   }
 
   async deleteUser(userId: string): Promise<void> {
-    const data = this.getLocalData();
-    delete data.users[userId];
-    this.saveLocalData(data);
+    if (!db) return;
+    await deleteDoc(doc(db, "users", userId));
   }
 
   async getAllStudents(): Promise<User[]> {
-    const data = this.getLocalData();
-    return Object.values(data.users).filter((u: any) => u.role === 'student') as User[];
+    if (!db) return [];
+    const q = query(collection(db, "users"), where("role", "==", "student"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as User);
   }
 
   async getTeachers(): Promise<User[]> {
-    const data = this.getLocalData();
-    return Object.values(data.users).filter((u: any) => u.role === 'teacher') as User[];
+    if (!db) return [];
+    const q = query(collection(db, "users"), where("role", "==", "teacher"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as User);
   }
 
   // --- Curriculum ---
-  getCurriculum(): Curriculum[] {
-    return this.getLocalData().curriculum;
+  async getCurriculum(): Promise<Curriculum[]> {
+    if (!db) return [];
+    const snapshot = await getDocs(collection(db, 'curriculum'));
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as Curriculum);
   }
 
   async saveLesson(unitId: string, lesson: Lesson): Promise<void> {
-    const data = this.getLocalData();
-    const curriculum: Curriculum[] = data.curriculum;
-    for (const topic of curriculum) {
-      const unit = topic.units.find(u => u.id === unitId);
-      if (unit) {
-        const lessonIndex = unit.lessons.findIndex(l => l.id === lesson.id);
-        if (lessonIndex > -1) {
-          unit.lessons[lessonIndex] = lesson;
-        } else {
-          unit.lessons.push(lesson);
+    if (!db) return;
+    const curriculumSnapshot = await getDocs(collection(db, 'curriculum'));
+    for (const docSnap of curriculumSnapshot.docs) {
+        const curriculumData = docSnap.data() as Curriculum;
+        const unit = curriculumData.units.find(u => u.id === unitId);
+        if (unit) {
+            const lessonIndex = unit.lessons.findIndex(l => l.id === lesson.id);
+            if (lessonIndex > -1) unit.lessons[lessonIndex] = lesson;
+            else unit.lessons.push(lesson);
+            await setDoc(docSnap.ref, curriculumData);
+            return;
         }
-        break;
-      }
     }
-    this.saveLocalData(data);
   }
 
   async deleteLesson(unitId: string, lessonId: string): Promise<void> {
-    const data = this.getLocalData();
-    const curriculum: Curriculum[] = data.curriculum;
-    for (const topic of curriculum) {
-        const unit = topic.units.find(u => u.id === unitId);
+    if (!db) return;
+    const curriculumSnapshot = await getDocs(collection(db, 'curriculum'));
+    for (const docSnap of curriculumSnapshot.docs) {
+        const curriculumData = docSnap.data() as Curriculum;
+        const unit = curriculumData.units.find(u => u.id === unitId);
         if (unit) {
             unit.lessons = unit.lessons.filter(l => l.id !== lessonId);
-            break;
+            await setDoc(docSnap.ref, curriculumData);
+            return;
         }
     }
-    this.saveLocalData(data);
   }
   
-  toggleLessonComplete(userId: string, lessonId: string) {
-    const data = this.getLocalData();
-    const user = data.users[userId];
-    if (!user) return;
-    
-    if(!user.progress.completedLessonIds) user.progress.completedLessonIds = [];
-    const completed = user.progress.completedLessonIds;
+  async toggleLessonComplete(userId: string, lessonId: string) {
+    if (!db) return;
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) return;
+
+    const completed = userSnap.data().progress?.completedLessonIds || [];
     if (completed.includes(lessonId)) {
-        user.progress.completedLessonIds = completed.filter((id: string) => id !== lessonId);
+        await updateDoc(userRef, { 'progress.completedLessonIds': arrayRemove(lessonId) });
     } else {
-        completed.push(lessonId);
-        user.progress.points = (user.progress.points || 0) + 10;
+        await updateDoc(userRef, { 'progress.completedLessonIds': arrayUnion(lessonId), 'progress.points': increment(10) });
     }
-    this.saveLocalData(data);
   }
 
   // --- Quizzes ---
-  getQuizzes(): Quiz[] {
-    return this.getLocalData().quizzes;
+  async getQuizzes(): Promise<Quiz[]> {
+    if (!db) return [];
+    const snapshot = await getDocs(collection(db, 'quizzes'));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Quiz);
   }
 
-  getQuestionsForQuiz(quizId: string): Question[] {
-    const data = this.getLocalData();
-    const quiz = data.quizzes.find((q: Quiz) => q.id === quizId);
-    if (!quiz) return [];
-    return data.questions.filter((q: Question) => quiz.questionIds.includes(q.id));
+  async getQuestionsForQuiz(quizId: string): Promise<Question[]> {
+    if (!db) return [];
+    const quizSnap = await getDoc(doc(db, 'quizzes', quizId));
+    if (!quizSnap.exists()) return [];
+    const questionIds = quizSnap.data().questionIds as string[];
+    if (!questionIds || questionIds.length === 0) return [];
+
+    const q = query(collection(db, 'questions'), where(documentId(), 'in', questionIds));
+    const questionsSnapshot = await getDocs(q);
+    return questionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Question);
   }
   
   async getAllQuestions(): Promise<Question[]> {
-      return this.getLocalData().questions;
+      if (!db) return [];
+      const snapshot = await getDocs(collection(db, 'questions'));
+      return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as Question);
   }
 
   async saveQuestion(question: Partial<Question>): Promise<void> {
-      const data = this.getLocalData();
-      data.questions.push({ ...question, id: `q_${Date.now()}` });
-      this.saveLocalData(data);
+      if (!db) return;
+      await addDoc(collection(db, 'questions'), question);
   }
 
-  saveAttempt(attempt: StudentQuizAttempt) {
-    const data = this.getLocalData();
-    data.attempts.push(attempt);
-    const user = data.users[attempt.studentId];
-    if (user) {
-        user.progress.points = (user.progress.points || 0) + attempt.score * 5;
-        if (!user.progress.quizScores) {
-            user.progress.quizScores = {};
-        }
-        const existingScore = user.progress.quizScores[attempt.quizId] || 0;
+  async saveAttempt(attempt: StudentQuizAttempt) {
+    if (!db) return;
+    const batch = writeBatch(db);
+    const attemptRef = doc(collection(db, 'attempts'));
+    batch.set(attemptRef, attempt);
+
+    const userRef = doc(db, 'users', attempt.studentId);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+        const user = userSnap.data() as User;
+        batch.update(userRef, { 'progress.points': increment(attempt.score * 5) });
+        const existingScore = user.progress.quizScores?.[attempt.quizId] || 0;
         if (attempt.score > existingScore) {
-            user.progress.quizScores[attempt.quizId] = attempt.score;
+            batch.update(userRef, { [`progress.quizScores.${attempt.quizId}`]: attempt.score });
         }
     }
-    this.saveLocalData(data);
+    await batch.commit();
   }
 
   async getUserAttempts(userId: string, quizId?: string): Promise<StudentQuizAttempt[]> {
-    const data = this.getLocalData();
-    let userAttempts = (data.attempts || []).filter((a: StudentQuizAttempt) => a.studentId === userId);
-    if (quizId) {
-      userAttempts = userAttempts.filter((a: StudentQuizAttempt) => a.quizId === quizId);
-    }
-    return userAttempts;
+    if (!db) return [];
+    let q = query(collection(db, "attempts"), where("studentId", "==", userId));
+    if(quizId) q = query(q, where("quizId", "==", quizId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as StudentQuizAttempt);
   }
   
   // --- Discussions / Forum ---
-  getDiscussions(): Discussion[] {
-    return this.getLocalData().discussions;
+  async getForumPosts(): Promise<ForumPost[]> {
+      if (!db) return [];
+      const q = query(collection(db, 'forumPosts'), orderBy('timestamp', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ForumPost);
   }
 
-  async getForumPosts(): Promise<ForumPost[]> {
-      return this.getLocalData().forumPosts;
+  async createForumPost(post: Omit<ForumPost, 'id' | 'timestamp'>): Promise<void> {
+      if (!db) return;
+      const postWithDefaults = { ...post, upvotes: 0, replies: [], timestamp: new Date().toISOString() };
+      await addDoc(collection(db, 'forumPosts'), postWithDefaults);
   }
-  async createForumPost(post: Omit<ForumPost, 'id'>): Promise<void> {
-      const data = this.getLocalData();
-      data.forumPosts.push({ ...post, id: `post_${Date.now()}`, upvotes: 0, replies: [] });
-      this.saveLocalData(data);
+
+  async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'upvotes' | 'timestamp'>): Promise<void> {
+      if (!db) return;
+      const postRef = doc(db, 'forumPosts', postId);
+      const newReply: Omit<ForumReply, 'id'> = { ...reply, upvotes: 0, timestamp: new Date().toISOString() };
+      await updateDoc(postRef, { replies: arrayUnion(newReply) });
   }
-  async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'upvotes'>): Promise<void> {
-      const data = this.getLocalData();
-      const post = data.forumPosts.find((p: ForumPost) => p.id === postId);
-      if (post) {
-          if (!post.replies) post.replies = [];
-          post.replies.push({ ...reply, id: `rep_${Date.now()}`, upvotes: 0 });
-          this.saveLocalData(data);
-      }
-  }
+
   async upvotePost(postId: string): Promise<void> {
-      const data = this.getLocalData();
-      const post = data.forumPosts.find((p: ForumPost) => p.id === postId);
-      if (post) {
-          post.upvotes = (post.upvotes || 0) + 1;
-          this.saveLocalData(data);
-      }
+      if (!db) return;
+      await updateDoc(doc(db, 'forumPosts', postId), { upvotes: increment(1) });
   }
+
   async upvoteReply(postId: string, replyId: string): Promise<void> {
-      const data = this.getLocalData();
-      const post = data.forumPosts.find((p: ForumPost) => p.id === postId);
-      if (post && post.replies) {
-          const reply = post.replies.find(r => r.id === replyId);
-          if (reply) {
-              reply.upvotes = (reply.upvotes || 0) + 1;
-              this.saveLocalData(data);
-          }
+      if (!db) return;
+      const postRef = doc(db, 'forumPosts', postId);
+      const postSnap = await getDoc(postRef);
+      if (postSnap.exists()) {
+          const post = postSnap.data() as ForumPost;
+          const updatedReplies = (post.replies || []).map(r => 
+              r.id === replyId ? { ...r, upvotes: (r.upvotes || 0) + 1 } : r
+          );
+          await updateDoc(postRef, { replies: updatedReplies });
       }
   }
 
   // --- Gamification ---
-  getChallenges(): Challenge[] {
-    return this.getLocalData().challenges;
+  async getChallenges(): Promise<Challenge[]> {
+    if (!db) return [];
+    const snapshot = await getDocs(collection(db, 'challenges'));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Challenge);
   }
 
-  getLeaderboard(): LeaderboardEntry[] {
-    return this.getLocalData().leaderboard;
+  async getLeaderboard(): Promise<LeaderboardEntry[]> {
+    if (!db) return [];
+    const q = query(collection(db, 'users'), where('role', '==', 'student'), orderBy('progress.points', 'desc'), where('progress.points', '>', 0));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc, index) => {
+        const user = doc.data() as User;
+        return {
+            rank: index + 1,
+            name: user.name,
+            points: user.progress.points,
+            isCurrentUser: false // This needs to be set in the component
+        };
+    });
   }
 
   // --- Social Learning ---
-  getStudyGoals(): StudyGoal[] {
-    return this.getLocalData().studyGoals;
+  async getStudyGoals(): Promise<StudyGoal[]> {
+    if (!db) return [];
+    const snapshot = await getDocs(collection(db, 'studyGoals'));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as StudyGoal);
   }
   
-  // --- AI Recommendations ---
+  // --- AI Recommendations (Logic is local, but depends on live user data) ---
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> {
     const allRecommendations: AIRecommendation[] = [
       { id: 'rec-1', title: 'مراجعة قانون فاراداي', reason: 'لاحظنا أنك تواجه صعوبة في مسائل الحث الكهرومغناطيسي.', type: 'lesson', targetId: 'l12-1-1', urgency: 'high' },
@@ -257,160 +242,113 @@ class SyrianScienceCenterDB {
     const attemptedQuizIds = Object.keys(user.progress.quizScores || {});
     const completedChallengeIds = user.progress.achievements || [];
 
-    const filteredRecommendations = allRecommendations.filter(rec => {
+    return allRecommendations.filter(rec => {
       switch (rec.type) {
-        case 'lesson':
-          return !completedLessonIds.includes(rec.targetId);
-        case 'quiz':
-          return !attemptedQuizIds.includes(rec.targetId);
-        case 'challenge':
-          return !completedChallengeIds.includes(rec.targetId);
-        case 'discussion':
-          return true; 
-        default:
-          return true;
+        case 'lesson': return !completedLessonIds.includes(rec.targetId);
+        case 'quiz': return !attemptedQuizIds.includes(rec.targetId);
+        case 'challenge': return !completedChallengeIds.includes(rec.targetId);
+        default: return true;
       }
     });
-
-    return Promise.resolve(filteredRecommendations);
   }
 
-  // --- Resources ---
+  // --- Resources, Financials, Notifications, etc. ---
   async getResources(): Promise<EducationalResource[]> {
-      return this.getLocalData().resources;
+      if(!db) return [];
+      const snapshot = await getDocs(collection(db, 'resources'));
+      return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as EducationalResource);
   }
-
-  // --- Financial ---
   async initiatePayment(userId: string, planId: string, amount: number): Promise<Invoice> {
-      const data = this.getLocalData();
-      const user = data.users[userId];
-      const invoice: Invoice = {
-          id: `inv_${Date.now()}`,
-          userId,
-          userName: user?.name || 'N/A',
-          planId,
-          amount,
-          date: new Date().toISOString(),
-          status: 'PENDING',
+      const user = await this.getUser(userId);
+      const invoiceData = {
+          userId, userName: user?.name || 'N/A', planId, amount,
+          date: new Date().toISOString(), status: 'PENDING' as PaymentStatus,
           trackId: `track_${Math.random().toString(36).substr(2, 9)}`,
       };
-      data.invoices.push(invoice);
-      this.saveLocalData(data);
-      return invoice;
+      const docRef = await addDoc(collection(db, 'invoices'), invoiceData);
+      return { ...invoiceData, id: docRef.id };
   }
   async completePayment(trackId: string, result: 'SUCCESS' | 'FAIL'): Promise<Invoice | null> {
-      const data = this.getLocalData();
-      const invoice = data.invoices.find((inv: Invoice) => inv.trackId === trackId);
-      if (invoice) {
-          invoice.status = result === 'SUCCESS' ? 'PAID' : 'FAIL';
-          if (result === 'SUCCESS') {
-              invoice.paymentId = `pay_${Date.now()}`;
-              invoice.authCode = Math.random().toString(36).substr(2, 6).toUpperCase();
-              const user = data.users[invoice.userId];
-              if (user) user.subscription = 'premium';
-          }
-          this.saveLocalData(data);
-          return invoice;
+      const q = query(collection(db, 'invoices'), where('trackId', '==', trackId));
+      const snapshot = await getDocs(q);
+      if(snapshot.empty) return null;
+
+      const invoiceDoc = snapshot.docs[0];
+      const status = result === 'SUCCESS' ? 'PAID' : 'FAIL';
+      const paymentId = result === 'SUCCESS' ? `pay_${Date.now()}` : undefined;
+      
+      await updateDoc(invoiceDoc.ref, { status, paymentId });
+      
+      if(result === 'SUCCESS') {
+          const userId = invoiceDoc.data().userId;
+          await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
       }
-      return null;
+      return { ...invoiceDoc.data(), id: invoiceDoc.id, status, paymentId } as Invoice;
   }
   async getInvoices(): Promise<{ data: Invoice[] }> {
-      return { data: this.getLocalData().invoices };
-  }
-  async getFinancialStats(): Promise<{ totalRevenue: number, pendingAmount: number, totalInvoices: number }> {
-      const invoices = this.getLocalData().invoices;
-      return {
-          totalRevenue: invoices.filter((i: Invoice) => i.status === 'PAID').reduce((sum: number, i: Invoice) => sum + i.amount, 0),
-          pendingAmount: invoices.filter((i: Invoice) => i.status === 'PENDING').reduce((sum: number, i: Invoice) => sum + i.amount, 0),
-          totalInvoices: invoices.length,
-      };
+      if(!db) return { data: [] };
+      const snapshot = await getDocs(collection(db, 'invoices'));
+      return { data: snapshot.docs.map(d => ({id: d.id, ...d.data()}) as Invoice) };
   }
   async updateInvoiceStatus(id: string, status: PaymentStatus): Promise<void> {
-      const data = this.getLocalData();
-      const invoice = data.invoices.find((i: Invoice) => i.id === id);
-      if (invoice) {
-          invoice.status = status;
-          this.saveLocalData(data);
-      }
+      if(!db) return;
+      await updateDoc(doc(db, 'invoices', id), { status });
   }
 
-  // --- Notifications ---
-  async addNotification(userId: string, notification: AppNotification): Promise<void> {
-      const data = this.getLocalData();
-      if (!data.notifications[userId]) data.notifications[userId] = [];
-      data.notifications[userId].push(notification);
-      this.saveLocalData(data);
+  async addNotification(userId: string, notification: Omit<AppNotification, 'id'>): Promise<void> {
+      if(!db) return;
+      await addDoc(collection(db, 'users', userId, 'notifications'), notification);
   }
   async getNotifications(userId: string): Promise<AppNotification[]> {
-      const data = this.getLocalData();
-      return data.notifications[userId] || [];
+      if(!db) return [];
+      const snapshot = await getDocs(collection(db, 'users', userId, 'notifications'));
+      return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as AppNotification);
   }
 
-  // --- Parent Portal ---
   async getStudentProgressForParent(studentUid: string): Promise<{ user: User | null, report: WeeklyReport | null }> {
       const user = await this.getUser(studentUid);
       const report: WeeklyReport = { week: 'Current', scoreAverage: 85, hoursSpent: 8.5, completedUnits: 2, improvementAreas: [], parentNote: "أداء ممتاز هذا الأسبوع، نلاحظ تحسناً في مهارات حل المسائل." };
       return { user, report };
   }
 
-  // --- Teacher System ---
   async getTeacherReviews(teacherId: string): Promise<Review[]> {
-      const data = this.getLocalData();
-      return (data.reviews || []).filter((r: Review) => r.teacherId === teacherId);
+      if(!db) return [];
+      const q = query(collection(db, 'reviews'), where('teacherId', '==', teacherId));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as Review);
   }
-  async addReview(review: Review): Promise<void> {
-      const data = this.getLocalData();
-      if (!data.reviews) data.reviews = [];
-      data.reviews.push(review);
-      this.saveLocalData(data);
+  async addReview(review: Omit<Review, 'id'>): Promise<void> {
+      if(!db) return;
+      await addDoc(collection(db, 'reviews'), review);
   }
-  async saveTeacherMessage(message: TeacherMessage): Promise<void> {
-    const data = this.getLocalData();
-    if (!data.teacherMessages) {
-        data.teacherMessages = [];
-    }
-    data.teacherMessages.push(message);
-    this.saveLocalData(data);
+  async saveTeacherMessage(message: Omit<TeacherMessage, 'id'>): Promise<void> {
+    if(!db) return;
+    await addDoc(collection(db, 'teacherMessages'), message);
   }
   async getAllTeacherMessages(teacherId: string): Promise<TeacherMessage[]> {
-    const data = this.getLocalData();
-    return (data.teacherMessages || []).filter((m: TeacherMessage) => m.teacherId === teacherId);
+    if(!db) return [];
+    const q = query(collection(db, 'teacherMessages'), where('teacherId', '==', teacherId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as TeacherMessage);
   }
 
   async getTodos(userId: string): Promise<Todo[]> {
-    const data = this.getLocalData();
-    return data.todos[userId] || [];
+    if(!db) return [];
+    const snapshot = await getDocs(collection(db, 'users', userId, 'todos'));
+    return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as Todo);
   }
-
   async saveTodo(userId: string, todoData: Omit<Todo, 'id'>): Promise<string> {
-    const data = this.getLocalData();
-    if (!data.todos[userId]) {
-        data.todos[userId] = [];
-    }
-    const newId = `todo_${Date.now()}`;
-    const newTodo: Todo = { ...todoData, id: newId };
-    data.todos[userId].unshift(newTodo);
-    this.saveLocalData(data);
-    return newId;
+    if(!db) return '';
+    const docRef = await addDoc(collection(db, 'users', userId, 'todos'), todoData);
+    return docRef.id;
   }
-
   async updateTodo(userId: string, todoId: string, updates: Partial<Todo>): Promise<void> {
-    const data = this.getLocalData();
-    if (data.todos[userId]) {
-        const todoIndex = data.todos[userId].findIndex((t: Todo) => t.id === todoId);
-        if (todoIndex > -1) {
-            data.todos[userId][todoIndex] = { ...data.todos[userId][todoIndex], ...updates };
-            this.saveLocalData(data);
-        }
-    }
+    if(!db) return;
+    await updateDoc(doc(db, 'users', userId, 'todos', todoId), updates);
   }
-
   async deleteTodo(userId: string, todoId: string): Promise<void> {
-    const data = this.getLocalData();
-    if (data.todos[userId]) {
-        data.todos[userId] = data.todos[userId].filter((t: Todo) => t.id !== todoId);
-        this.saveLocalData(data);
-    }
+    if(!db) return;
+    await deleteDoc(doc(db, 'users', userId, 'todos', todoId));
   }
 }
 

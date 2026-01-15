@@ -20,8 +20,8 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
     setIsCompleted((user.progress.completedLessonIds || []).includes(lesson.id));
   }, [user, lesson]);
 
-  const handleToggleComplete = () => {
-    dbService.toggleLessonComplete(user.uid, lesson.id);
+  const handleToggleComplete = async () => {
+    await dbService.toggleLessonComplete(user.uid, lesson.id);
     setIsCompleted(!isCompleted);
   };
   

@@ -4,6 +4,7 @@ import { User, ViewState, Lesson, QuizAttempt } from './types';
 import { dbService } from './services/db';
 import { Bell } from 'lucide-react';
 import { auth } from './services/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 // Core Components
 import Sidebar from './components/Sidebar';
@@ -29,16 +30,12 @@ import LiveSessions from './components/LiveSessions';
 import ProgressReport from './components/ProgressReport';
 import HelpCenter from './components/HelpCenter';
 import AdminCurriculumManager from './components/AdminCurriculumManager';
-import AdminStudentManager from './components/AdminStudentManager';
-import AdminTeacherManager from './components/AdminTeacherManager';
-import AdminFinancials from './components/AdminFinancials';
-import AdminQuestionManager from './components/AdminQuestionManager';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   
-  const [view, setView] = useState<ViewState | string>(() => {
+  const [view, setView] = useState<ViewState>(() => {
     const path = window.location.pathname.replace('/', '');
     if (['landing', 'privacy-policy'].includes(path)) return path as ViewState;
     return 'dashboard';
@@ -53,36 +50,32 @@ const App: React.FC = () => {
     let unsubscribe: Function | undefined;
 
     const checkSession = async () => {
-        const localUid = localStorage.getItem('ssc_active_uid');
-        if (localUid) {
-            const localUser = await dbService.getUser(localUid);
-            if (localUser) {
-                setUser(localUser);
-                setIsAuthLoading(false);
-            }
-        }
-
         if (auth) {
-            unsubscribe = auth.onAuthStateChanged(async (firebaseUser: any) => {
+            unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
                 if (firebaseUser) {
                     const appUser = await dbService.getUser(firebaseUser.uid);
                     if (appUser) {
                         setUser(appUser);
-                        localStorage.setItem('ssc_active_uid', appUser.uid);
                     } else {
-                        await auth.signOut();
-                        localStorage.removeItem('ssc_active_uid');
+                        // User exists in Firebase but not our DB, force log out
+                        await signOut(auth);
                         setUser(null);
                     }
-                } else if (!localStorage.getItem('ssc_active_uid')) {
+                } else {
                     setUser(null);
                 }
                 setIsAuthLoading(false);
             });
         } else {
-            if (!localStorage.getItem('ssc_active_uid')) {
-                setIsAuthLoading(false);
+            // Fallback for local dev without Firebase
+            const localUid = sessionStorage.getItem('ssc_active_uid');
+            if (localUid) {
+                const localUser = await dbService.getUser(localUid);
+                if (localUser) {
+                    setUser(localUser);
+                }
             }
+            setIsAuthLoading(false);
         }
     };
 
@@ -95,6 +88,7 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Global Event Listener for View Changes
   useEffect(() => {
     const handleChangeView = (e: any) => {
       if (e.detail.view) setView(e.detail.view);
@@ -109,14 +103,15 @@ const App: React.FC = () => {
   
   const handleLogout = () => {
     if (auth) {
-        auth.signOut().catch((error: any) => console.error('Sign out error', error));
+        signOut(auth).catch(error => console.error('Sign out error', error));
     }
-    localStorage.removeItem('ssc_active_uid');
+    sessionStorage.removeItem('ssc_active_uid');
     setUser(null);
     setView('landing');
   };
 
   const renderContent = () => {
+    // Auth loading state
     if (isAuthLoading) {
       return (
         <div className="w-full h-full flex items-center justify-center">
@@ -125,11 +120,14 @@ const App: React.FC = () => {
       );
     }
     
+    // Public Views
     if (view === 'landing') return <LandingPage onStart={() => setView('dashboard')} />;
-    if (view === 'privacy-policy') { return <div className="text-white p-8 font-['Tajawal']" dir="rtl"> <h2 className="text-3xl font-black mb-6">سياسة الخصوصية</h2> <p>نحن نحترم خصوصية جميع الطلاب والمدرسين...</p> <button onClick={() => setView('landing')} className="mt-10 bg-white/5 p-4 rounded-xl">العودة</button> </div>; }
+    if (view === 'privacy-policy') { return <div className="text-white p-8">Privacy Policy... <button onClick={() => setView('landing')}>Back</button></div>; }
 
+    // Auth Wall
     if (!user) return <Auth onLogin={(u) => { setUser(u); setView('dashboard'); }} onBack={() => setView('landing')} />;
 
+    // Authenticated Views
     switch (view) {
       case 'dashboard':
         if (user.role === 'admin') return <AdminDashboard />;
@@ -138,23 +136,26 @@ const App: React.FC = () => {
       
       case 'curriculum': return <CurriculumBrowser user={user} />;
       case 'lesson': return activeLesson ? <LessonViewer user={user} lesson={activeLesson} /> : <CurriculumBrowser user={user} />;
+      
       case 'quiz_center': return <QuizCenter user={user} />;
-      case 'discussions': return <Forum user={user} onAskAI={(q) => { setView('ai-chat'); }} />;
+
+      case 'discussions': return <Forum user={user} onAskAI={(q) => { setView('ai-chat'); /* pass question */ }} />;
+      
       case 'subscription': return <SubscriptionCenter user={user} onUpdateUser={setUser} />;
+      
       case 'ai-chat': return <PhysicsChat grade={user.grade || '12'} />;
+      
       case 'gamification': return <GamificationCenter user={user} onUpdateUser={setUser} />;
       case 'recommendations': return <Recommendations user={user} />;
+
       case 'virtual-lab': return <LabHub user={user} />;
       case 'live-sessions': return <LiveSessions />;
       case 'reports': return <ProgressReport user={user} attempts={[]} onBack={() => setView('dashboard')} />;
+      
       case 'help-center': return <HelpCenter />;
 
       // Admin specific views
       case 'admin-curriculum': return <AdminCurriculumManager />;
-      case 'admin-students': return <AdminStudentManager />;
-      case 'admin-teachers': return <AdminTeacherManager />;
-      case 'admin-financials': return <AdminFinancials />;
-      case 'admin-questions': return <AdminQuestionManager />;
       
       default: return <StudentDashboard user={user} />;
     }
@@ -164,7 +165,7 @@ const App: React.FC = () => {
     <div className="min-h-screen flex relative overflow-hidden bg-[#0f172a]">
       {view !== 'landing' && view !== 'privacy-policy' && user && (
         <Sidebar 
-          currentView={view as any} 
+          currentView={view} 
           setView={(v) => { setView(v); }} 
           user={user} 
           onLogout={handleLogout} 
@@ -181,7 +182,7 @@ const App: React.FC = () => {
               </button>
               <h2 className="text-base md:text-lg font-bold uppercase tracking-tight text-white flex items-center gap-3">
                 <span className="text-sky-400">⚛️</span> 
-                <span className="hidden md:inline font-['Tajawal'] font-black">المركز السوري للعلوم</span>
+                <span className="hidden md:inline">المركز السوري للعلوم</span>
                 <span className="md:hidden">SSC</span>
               </h2>
             </div>
@@ -197,7 +198,7 @@ const App: React.FC = () => {
             </div>
           </header>
         )}
-        <main className={`flex-1 ${view === 'landing' ? '' : 'p-4 md:p-10'} pb-safe overflow-x-hidden`}>
+        <main className={`flex-1 ${view === 'landing' ? '' : 'p-4 md:p-10'} pb-safe`}>
           {renderContent()}
         </main>
       </div>

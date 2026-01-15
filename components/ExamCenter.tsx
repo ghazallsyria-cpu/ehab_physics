@@ -102,8 +102,8 @@ const ExamCenter: React.FC<{ user: User; onBack: () => void }> = ({ user, onBack
     await dbService.saveAttempt(attempt);
     
     if (user.uid && (score / (currentQuiz.totalScore || 1) > 0.9)) {
+// FIX: The 'addNotification' function expects an object without an 'id' property, as the database service assigns it automatically. The 'id' property has been removed.
       await dbService.addNotification(user.uid, {
-        id: `notif_${Date.now()}`,
         userId: user.uid,
         isRead: false,
         timestamp: new Date().toISOString(),

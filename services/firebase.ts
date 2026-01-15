@@ -1,13 +1,8 @@
 
-// Fix: Use namespaced import style for Firebase to resolve "no exported member" errors
-import firebase from "firebase/app";
-import "firebase/firestore";
-import "firebase/auth";
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-/**
- * إعدادات Firebase
- * تم تحديث الإعدادات لربط المنصة بمشروعك الحقيقي.
- */
 const firebaseConfig = {
   apiKey: "AIzaSyAwbn6xMl8RZ52cWk571CS_hI4Qo9Kh1VY",
   authDomain: "physi-kuwait-prod-46032.firebaseapp.com",
@@ -18,21 +13,8 @@ const firebaseConfig = {
   measurementId: "G-7WBG5PBVC2"
 };
 
-let app: any;
-let db: any = null;
-let auth: any = null;
-let googleProvider: any = null;
+const app = initializeApp(firebaseConfig);
 
-try {
-  // Fix: Use namespaced initialization
-  firebase.initializeApp(firebaseConfig);
-  db = firebase.firestore();
-  auth = firebase.auth();
-  googleProvider = new firebase.auth.GoogleAuthProvider();
-  console.log("Firebase initialized successfully with Project ID:", firebaseConfig.projectId);
-} catch (e) {
-  console.warn("Firebase initialization failed. Check console for details.", e);
-  console.log("App falling back to LocalStorage mode where applicable.");
-}
-
-export { db, auth, googleProvider };
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();

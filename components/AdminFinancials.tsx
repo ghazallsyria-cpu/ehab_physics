@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Invoice, PaymentStatus, CloudLog } from '../types';
 import { dbService } from '../services/db';
@@ -15,12 +14,19 @@ const AdminFinancials: React.FC = () => {
   const loadFinance = async () => {
     try {
       const invRes = await dbService.getInvoices();
-      const statsRes = await dbService.getFinancialStats();
+      // FIX: The method 'getFinancialStats' does not exist. Financial statistics are now calculated manually from the fetched invoices.
       if (invRes && invRes.data) {
-        setInvoices(invRes.data);
-      }
-      if (statsRes) {
-        setStats(statsRes);
+        const invoicesData = invRes.data;
+        setInvoices(invoicesData);
+
+        const totalRevenue = invoicesData
+          .filter(i => i.status === 'PAID')
+          .reduce((sum, i) => sum + i.amount, 0);
+        const pendingAmount = invoicesData
+          .filter(i => i.status === 'PENDING')
+          .reduce((sum, i) => sum + i.amount, 0);
+        const totalInvoices = invoicesData.length;
+        setStats({ totalRevenue, pendingAmount, totalInvoices });
       }
     } catch (e) {
       console.error("Failed to load finance data", e);
