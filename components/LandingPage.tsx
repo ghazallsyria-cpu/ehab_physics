@@ -54,8 +54,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
       </section>
       
       <footer className="py-12 px-6 border-t border-white/5 bg-[#0b1120] relative z-30">
-         <div className="max-w-7xl mx-auto pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-xs text-slate-500 font-bold uppercase">© 2026 المركز السوري للعلوم. جميع الحقوق محفوظة.</p>
+         <div className="max-w-7xl mx-auto pt-8 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+                <p className="text-xs text-slate-500 font-bold uppercase">© 2026 المركز السوري للعلوم. جميع الحقوق محفوظة.</p>
+                <div className="hidden md:block w-px h-4 bg-white/10"></div>
+                <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse"></span>
+                    <p className="text-xs font-bold text-slate-300">المدير العام: <span className="text-sky-400">أ. ايهاب غزال</span></p>
+                </div>
+            </div>
             <div className="flex gap-6 text-xs text-slate-500 font-bold">
                <a href="#" className="hover:text-white transition-colors">سياسة الخصوصية</a>
                <a href="#" className="hover:text-white transition-colors">الشروط والأحكام</a>
