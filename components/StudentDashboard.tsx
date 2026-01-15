@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, ViewState } from '../types';
-import { Settings, Eye, Layout, X, Check, ArrowRight } from 'lucide-react';
+import { Settings, Eye, Layout, X, Check, ArrowRight, RotateCcw } from 'lucide-react';
 
 interface StudentDashboardProps {
   user: User;
@@ -33,6 +33,17 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, setView }) =>
     const newPrefs = { ...visibleModules, [key]: !visibleModules[key] };
     setVisibleModules(newPrefs);
     localStorage.setItem(`ssc_dashboard_prefs_${user.uid}`, JSON.stringify(newPrefs));
+  };
+
+  const resetDefaults = () => {
+    const defaults = {
+      journey: true,
+      tools: true,
+      premium: true,
+      stats: true
+    };
+    setVisibleModules(defaults);
+    localStorage.setItem(`ssc_dashboard_prefs_${user.uid}`, JSON.stringify(defaults));
   };
   
   const checkEligibility = (itemId: string): boolean => {
@@ -139,12 +150,21 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, setView }) =>
               ))}
             </div>
 
-            <button 
-              onClick={() => setIsCustomizeOpen(false)}
-              className="w-full mt-8 py-4 bg-white text-slate-900 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-sky-50 transition-all shadow-lg"
-            >
-              حفظ التغييرات
-            </button>
+            <div className="flex gap-4 mt-8">
+                <button 
+                  onClick={resetDefaults}
+                  className="flex-1 py-4 bg-white/5 border border-white/10 text-gray-400 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  استعادة الافتراضي
+                </button>
+                <button 
+                  onClick={() => setIsCustomizeOpen(false)}
+                  className="flex-[2] py-4 bg-white text-slate-900 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-sky-50 transition-all shadow-lg"
+                >
+                  حفظ وإغلاق
+                </button>
+            </div>
           </div>
         </div>
       )}
