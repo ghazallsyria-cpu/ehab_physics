@@ -85,7 +85,12 @@ const VRLab: React.FC<VRLabProps> = ({ experiment, onBack }) => {
                </div>
                <div className="space-y-2 max-h-32 md:max-h-48 overflow-hidden font-mono">
                   {telemetry.map((t, i) => (
-                    <p key={i} className="text-[9px] md:text-[11px] font-bold text-[#00d2ff] opacity-60 truncate animate-slideUp">>> {t}</p>
+<p
+  key={i}
+  className="text-[9px] md:text-[11px] font-bold text-[#00d2ff] opacity-60 truncate animate-slideUp"
+>
+  {'>>> '} {t}
+</p>
                   ))}
                </div>
             </div>
