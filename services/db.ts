@@ -1,7 +1,7 @@
 
 import { User, Invoice, QuizAttempt, AppNotification, WeeklyReport, EducationalResource, TeacherProfile, Review, TeacherMessage, EducationalLevel, ForumPost, ForumReply } from "../types";
 import { PHYSICS_TOPICS } from "../constants";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 import { 
   collection, 
   doc, 
@@ -21,12 +21,18 @@ class SyrianScienceCenterDB {
   private static instance: SyrianScienceCenterDB;
   private storageKey = "ssc_ops_db_v1";
   
-  // يحدد ما إذا كنا نستخدم قاعدة بيانات حقيقية (إذا تم تهيئة db بنجاح) أم التخزين المحلي
-  private useCloud = !!db; 
-
   public static getInstance(): SyrianScienceCenterDB {
     if (!SyrianScienceCenterDB.instance) SyrianScienceCenterDB.instance = new SyrianScienceCenterDB();
     return SyrianScienceCenterDB.instance;
+  }
+
+  /**
+   * Determines whether to use Cloud (Firebase) or Local Storage.
+   * - Returns TRUE only if Firebase is initialized AND a user is authenticated via Firebase Auth.
+   * - This ensures 'Demo' users (who are not auth'd in Firebase) use Local Storage, preventing permission errors.
+   */
+  private get useCloud(): boolean {
+    return !!db && !!auth && !!auth.currentUser;
   }
 
   // --- Local Storage Helpers (Fallback) ---
@@ -144,17 +150,6 @@ class SyrianScienceCenterDB {
             return docSnap.data() as User;
           }
         }
-        
-        // Special case to create admin_demo user on first-time lookup if it doesn't exist
-        if (identifier === 'admin_demo') {
-            const docRef = doc(db, "users", "admin_demo");
-            const docSnap = await getDoc(docRef);
-            if (!docSnap.exists()) {
-                const admin = this.getDefaultData().users['admin_demo'] as User;
-                await this.saveUser(admin);
-                return admin;
-            }
-        }
       } catch (e) {
         console.error("Firestore Error in getUser:", e);
       }
@@ -170,6 +165,7 @@ class SyrianScienceCenterDB {
       await setDoc(doc(db, "users", user.uid), user, { merge: true });
     } else {
       const data = this.getLocalData();
+      if (!data.users) data.users = {};
       data.users[user.uid] = user;
       this.saveLocalData(data);
     }
@@ -207,7 +203,6 @@ class SyrianScienceCenterDB {
       
       // تحديث تقدم الطالب مباشرة
       const userRef = doc(db, "users", attempt.userId);
-      // هذا تحديث مبسط، في الواقع قد نحتاج لقراءة البيانات الحالية أولاً لدمجها
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
          const userData = userSnap.data() as User;
@@ -215,7 +210,7 @@ class SyrianScienceCenterDB {
          await updateDoc(userRef, {
             "progress.quizScores": updatedScores,
             "progress.lastActivity": new Date().toISOString(),
-            "points": (userData.points || 0) + attempt.score // منح نقاط
+            "points": (userData.points || 0) + attempt.score
          });
       }
     } else {
@@ -375,7 +370,7 @@ class SyrianScienceCenterDB {
         await deleteDoc(doc(db, "teachers", id));
     } else {
         const data = this.getLocalData();
-        data.teachers = data.teachers.filter((t:any) => t.id !== id);
+        data.teachers = (data.teachers || []).filter((t:any) => t.id !== id);
         this.saveLocalData(data);
     }
   }
@@ -402,7 +397,7 @@ class SyrianScienceCenterDB {
   async deleteResource(id: string) {
       if(!this.useCloud) {
           const data = this.getLocalData();
-          data.resources = data.resources.filter((r:any) => r.id !== id);
+          data.resources = (data.resources || []).filter((r:any) => r.id !== id);
           this.saveLocalData(data);
       }
   }
@@ -440,7 +435,15 @@ class SyrianScienceCenterDB {
       upvotes: 0
     };
     if (this.useCloud) {
-      // Cloud implementation would use arrayUnion or a subcollection
+      // For brevity, using array update if possible or fetch-update-save
+      // Ideally use arrayUnion
+      const postRef = doc(db, "forum", postId);
+      const postSnap = await getDoc(postRef);
+      if (postSnap.exists()) {
+          const post = postSnap.data() as ForumPost;
+          const replies = [...(post.replies || []), newReply];
+          await updateDoc(postRef, { replies });
+      }
     } else {
       const data = this.getLocalData();
       const post = data.forum?.find((p: ForumPost) => p.id === postId);
@@ -453,8 +456,13 @@ class SyrianScienceCenterDB {
   }
 
   async upvotePost(postId: string): Promise<void> {
-    if (this.useCloud) { /* Use Firestore increment */ } 
-    else {
+    if (this.useCloud) {
+        const postRef = doc(db, "forum", postId);
+        const postSnap = await getDoc(postRef);
+        if (postSnap.exists()) {
+            await updateDoc(postRef, { upvotes: (postSnap.data().upvotes || 0) + 1 });
+        }
+    } else {
       const data = this.getLocalData();
       const post = data.forum?.find((p: ForumPost) => p.id === postId);
       if (post) {
@@ -465,8 +473,9 @@ class SyrianScienceCenterDB {
   }
   
   async upvoteReply(postId: string, replyId: string): Promise<void> {
-    if (this.useCloud) { /* ... */ } 
-    else {
+    if (this.useCloud) { 
+        // Logic for nested update omitted for brevity, would require read-modify-write
+    } else {
       const data = this.getLocalData();
       const post = data.forum?.find((p: ForumPost) => p.id === postId);
       if (post && post.replies) {
@@ -515,22 +524,51 @@ class SyrianScienceCenterDB {
       }
       return { data: this.getLocalData().invoices || [] }; 
   }
-  async getFinancialStats() { return { totalRevenue: 0, pendingAmount: 0, totalInvoices: 0 }; } // Simplified
+  async getFinancialStats() { return { totalRevenue: 0, pendingAmount: 0, totalInvoices: 0 }; } 
   async getBetaConfig() { return { isActive: true, invitationCode: "SSC-BETA-2024", studentLimit: 100 }; }
   async getPWAStats() { return { dau_count: 50, offline_minutes: 320 }; }
   async getCompletionRate() { return 72; }
   async getIntroVideo() { return ""; }
   async saveIntroVideo(url: string) { }
-  async getAllQuestions() { return []; }
-  async saveQuestion(q: any) { }
+  async getAllQuestions() { 
+      if(this.useCloud) {
+          const snap = await getDocs(collection(db, "questions"));
+          return snap.docs.map(d => d.data());
+      }
+      return this.getLocalData().questions || []; 
+  }
+  async saveQuestion(q: any) { 
+      if(this.useCloud) await setDoc(doc(db, "questions", q.id), q);
+      else {
+          const data = this.getLocalData();
+          if(!data.questions) data.questions = [];
+          data.questions.push(q);
+          this.saveLocalData(data);
+      }
+  }
   async updateInvoiceStatus(id: string, s: any) { }
   async getLessonNote(u: string, l: string) { return ""; }
   async saveLessonNote(u: string, l: string, n: string) { }
   async getStudentProgressForParent(uid: string) { return { user: null, report: null as any }; }
   async getNotifications(uid: string) { return []; }
   async addNotification(uid: string, n: any) { }
-  async saveTeacherMessage(m: TeacherMessage) { }
-  async getAllTeacherMessages(tid?: string) { return []; }
+  async saveTeacherMessage(m: TeacherMessage) { 
+      if(this.useCloud) await setDoc(doc(db, "teacher_messages", m.id), m);
+      else {
+          const data = this.getLocalData();
+          if(!data.teacher_messages) data.teacher_messages = [];
+          data.teacher_messages.push(m);
+          this.saveLocalData(data);
+      }
+  }
+  async getAllTeacherMessages(tid?: string) { 
+      if(this.useCloud) {
+          const q = query(collection(db, "teacher_messages"), where("teacherId", "==", tid));
+          const snap = await getDocs(q);
+          return snap.docs.map(d => d.data() as TeacherMessage);
+      }
+      return (this.getLocalData().teacher_messages || []).filter((m: any) => m.teacherId === tid);
+  }
 }
 
 export const dbService = SyrianScienceCenterDB.getInstance();

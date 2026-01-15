@@ -3,8 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, EducationalLevel, BetaConfig } from '../types';
 import { dbService } from '../services/db';
 import { auth, googleProvider } from '../services/firebase';
-import { signInWithPopup } from "firebase/auth";
-import { Mail, Lock, User as UserIcon, Phone, Camera, School, Key, ArrowRight, ShieldCheck, Sparkles, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { signInWithPopup, sendPasswordResetEmail } from "firebase/auth";
+import { Mail, Lock, User as UserIcon, Phone, Camera, School, Key, ArrowRight, ShieldCheck, Sparkles, AlertCircle, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react';
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -21,6 +21,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
   const [level, setLevel] = useState<EducationalLevel>(EducationalLevel.SECONDARY);
   const [betaCode, setBetaCode] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [betaInfo, setBetaInfo] = useState<BetaConfig | null>(null);
@@ -134,7 +135,6 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
       
       let errorMsg = 'فشل تسجيل الدخول عبر Google.';
       
-      // Detailed Error Handling for better debugging
       if (error.code === 'auth/popup-closed-by-user') {
         errorMsg = 'تم إغلاق النافذة قبل اكتمال التسجيل.';
       } else if (error.code === 'auth/network-request-failed') {
@@ -144,7 +144,6 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
       } else if (error.code === 'auth/operation-not-allowed') {
         errorMsg = 'تسجيل الدخول عبر Google غير مفعل في Firebase Console.';
       } else if (error.message) {
-        // Show the raw message if it helps debug configuration issues
         errorMsg = `خطأ في الإعدادات: ${error.message}`;
       }
 
@@ -154,14 +153,30 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
     }
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoURL(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+        setMessage({ text: 'يرجى إدخال البريد الإلكتروني.', type: 'error' });
+        setTimeout(() => emailRef.current?.focus(), 100);
+        return;
+    }
+
+    setIsLoading(true);
+    setMessage({ text: '', type: '' });
+
+    try {
+        if (!auth) throw new Error('Firebase Auth not initialized');
+        await sendPasswordResetEmail(auth, email);
+        setMessage({ text: 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.', type: 'success' });
+        setTimeout(() => setIsResetMode(false), 5000); // Auto go back after 5s
+    } catch (error: any) {
+        console.error("Reset Password Error:", error);
+        let errorMsg = 'حدث خطأ أثناء محاولة إرسال البريد.';
+        if (error.code === 'auth/user-not-found') errorMsg = 'لا يوجد حساب مسجل بهذا البريد.';
+        if (error.code === 'auth/invalid-email') errorMsg = 'البريد الإلكتروني غير صحيح.';
+        setMessage({ text: errorMsg, type: 'error' });
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -171,11 +186,9 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
     setIsLoading(true);
 
     try {
-      // Small delay for UX on normal login only
       await new Promise(r => setTimeout(r, 500));
 
       if (isSignUp) {
-        // Strict validation for Sign Up
         if (!name.trim()) throw new Error('MISSING_NAME');
         if (!email.trim()) throw new Error('MISSING_EMAIL');
         if (!email.includes('@')) throw new Error('INVALID_EMAIL_FORMAT');
@@ -218,23 +231,19 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
         await dbService.saveUser(newUser);
         onLogin(newUser);
       } else {
-        // Strict validation for Login
         if (!email.trim()) throw new Error('MISSING_EMAIL');
         
-        // Allow demo accounts to login without typing a password
         const isDemoUser = ['admin@ssc.test', 'student.beta@ssc.test'].includes(email.toLowerCase());
         if (!password.trim() && !isDemoUser) throw new Error('MISSING_PASSWORD');
 
         const userData = await dbService.getUser(email);
         if (userData) {
-          // In a real app, we would verify password hash here
           onLogin(userData);
         } else {
           throw new Error('USER_NOT_FOUND');
         }
       }
     } catch (err: any) {
-      // Don't log known validation errors to console to keep it clean
       const knownErrors = ['MISSING_NAME', 'MISSING_EMAIL', 'INVALID_EMAIL_FORMAT', 'MISSING_PASSWORD', 'WEAK_PASSWORD', 'INVALID_BETA_CODE', 'EMAIL_EXISTS', 'USER_NOT_FOUND'];
       if (!knownErrors.includes(err.message)) {
         console.error("Auth Error:", err);
@@ -353,134 +362,194 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
 
           {/* Left Panel (Form) */}
           <div className="p-10 lg:p-16 flex flex-col justify-center bg-white/[0.01]">
-             <div className="mb-8">
-               <h2 className="text-3xl font-black text-white mb-2">{isSignUp ? 'حساب جديد' : 'تسجيل الدخول'}</h2>
-               <p className="text-gray-500 text-sm">
-                 {isSignUp ? 'انضم لنخبة طلاب العلوم.' : 'مرحباً بعودتك إلى مساحتك التعليمية.'}
-               </p>
-             </div>
+             
+             {isResetMode ? (
+               // --- PASSWORD RESET VIEW ---
+               <div className="animate-fadeIn">
+                  <div className="mb-8">
+                    <button onClick={() => { setIsResetMode(false); setMessage({text:'', type:''}); }} className="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-colors">
+                       <ArrowRight className="w-4 h-4" /> العودة لتسجيل الدخول
+                    </button>
+                    <h2 className="text-3xl font-black text-white mb-2">استعادة كلمة المرور</h2>
+                    <p className="text-gray-500 text-sm">أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.</p>
+                  </div>
 
-             {message.text && (
-                <div className={`p-4 mb-6 rounded-2xl text-xs font-bold flex items-start gap-3 animate-fadeIn transition-all ${message.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
-                  {message.type === 'error' ? <XCircle className="w-5 h-5 shrink-0" /> : <CheckCircle2 className="w-5 h-5 shrink-0" />}
-                  <span className="leading-5">{message.text}</span>
-                </div>
-             )}
+                  {message.text && (
+                    <div className={`p-4 mb-6 rounded-2xl text-xs font-bold flex items-start gap-3 animate-fadeIn transition-all ${message.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
+                      {message.type === 'error' ? <XCircle className="w-5 h-5 shrink-0" /> : <CheckCircle2 className="w-5 h-5 shrink-0" />}
+                      <span className="leading-5">{message.text}</span>
+                    </div>
+                  )}
 
-             <div className="mb-6">
-                <button 
-                  onClick={handleGoogleLogin}
-                  className="w-full py-4 bg-white text-black rounded-xl font-bold text-sm transition-all hover:bg-gray-100 flex items-center justify-center gap-3 shadow-lg"
-                  type="button"
-                >
-                  <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-                  تسجيل الدخول عبر Google
-                </button>
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
-                  <div className="relative flex justify-center text-xs"><span className="bg-[#050505] px-2 text-gray-500 font-bold uppercase">أو عبر البريد</span></div>
-                </div>
-             </div>
+                  <form onSubmit={handlePasswordReset} className="space-y-6">
+                    <div className="relative group">
+                      <Mail className="absolute top-1/2 right-4 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#fbbf24] transition-colors" />
+                      <input 
+                        ref={emailRef}
+                        type="email" 
+                        value={email} 
+                        onChange={e => setEmail(e.target.value)} 
+                        className={`w-full bg-black/20 border rounded-xl pr-12 pl-4 py-4 text-white outline-none transition-all text-sm font-bold placeholder-gray-700 ${message.type === 'error' ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#fbbf24]'}`}
+                        placeholder="البريد الإلكتروني المسجل"
+                      />
+                    </div>
 
-             <form onSubmit={handleSubmit} className="space-y-4">
-               {isSignUp && (
-                 <>
+                    <button 
+                      type="submit" 
+                      disabled={isLoading}
+                      className="w-full py-4 bg-[#00d2ff] hover:bg-[#00c2ee] text-black rounded-xl font-black text-sm uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(0,210,255,0.3)] hover:shadow-[0_0_50px_rgba(0,210,255,0.5)] hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isLoading ? (
+                          <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      ) : 'إرسال رابط الاستعادة'}
+                    </button>
+                  </form>
+               </div>
+             ) : (
+               // --- LOGIN / SIGNUP VIEW ---
+               <div className="animate-fadeIn">
+                 <div className="mb-8">
+                   <h2 className="text-3xl font-black text-white mb-2">{isSignUp ? 'حساب جديد' : 'تسجيل الدخول'}</h2>
+                   <p className="text-gray-500 text-sm">
+                     {isSignUp ? 'انضم لنخبة طلاب العلوم.' : 'مرحباً بعودتك إلى مساحتك التعليمية.'}
+                   </p>
+                 </div>
+
+                 {message.text && (
+                    <div className={`p-4 mb-6 rounded-2xl text-xs font-bold flex items-start gap-3 animate-fadeIn transition-all ${message.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
+                      {message.type === 'error' ? <XCircle className="w-5 h-5 shrink-0" /> : <CheckCircle2 className="w-5 h-5 shrink-0" />}
+                      <span className="leading-5">{message.text}</span>
+                    </div>
+                 )}
+
+                 <div className="mb-6">
+                    <button 
+                      onClick={handleGoogleLogin}
+                      className="w-full py-4 bg-white text-black rounded-xl font-bold text-sm transition-all hover:bg-gray-100 flex items-center justify-center gap-3 shadow-lg"
+                      type="button"
+                    >
+                      <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+                      تسجيل الدخول عبر Google
+                    </button>
+                    <div className="relative my-6">
+                      <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+                      <div className="relative flex justify-center text-xs"><span className="bg-[#050505] px-2 text-gray-500 font-bold uppercase">أو عبر البريد</span></div>
+                    </div>
+                 </div>
+
+                 <form onSubmit={handleSubmit} className="space-y-4">
+                   {isSignUp && (
+                     <>
+                       <div className="relative group">
+                         <UserIcon className="absolute top-1/2 right-4 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#fbbf24] transition-colors" />
+                         <input 
+                           ref={nameRef}
+                           type="text" 
+                           value={name} 
+                           onChange={e => setName(e.target.value)} 
+                           className={`w-full bg-black/20 border rounded-xl pr-12 pl-4 py-4 text-white outline-none transition-all text-sm font-bold placeholder-gray-700 ${message.type === 'error' && message.text.includes('الاسم') ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#fbbf24]'}`}
+                           placeholder="الاسم الكامل"
+                         />
+                       </div>
+                       
+                       <div className="grid grid-cols-2 gap-4">
+                         <div className="relative group">
+                           <School className="absolute top-1/2 right-4 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#fbbf24] transition-colors" />
+                           <select 
+                              value={grade} 
+                              onChange={e => setGrade(e.target.value)}
+                              className="w-full bg-black/20 border border-white/10 rounded-xl pr-12 pl-4 py-4 text-white outline-none focus:border-[#fbbf24] transition-all text-sm font-bold appearance-none"
+                            >
+                              <option value="10" className="bg-black">الصف 10</option>
+                              <option value="11" className="bg-black">الصف 11</option>
+                              <option value="12" className="bg-black">الصف 12</option>
+                            </select>
+                         </div>
+                         <div className="relative group">
+                           <Key className="absolute top-1/2 right-4 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#fbbf24] transition-colors" />
+                           <input 
+                             ref={betaCodeRef}
+                             type="text" 
+                             value={betaCode} 
+                             onChange={e => setBetaCode(e.target.value)} 
+                             className={`w-full bg-black/20 border rounded-xl pr-12 pl-4 py-4 text-[#fbbf24] outline-none transition-all text-sm font-bold placeholder-gray-700 ${message.type === 'error' && message.text.includes('كود') ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#fbbf24]'}`}
+                             placeholder="كود الدعوة"
+                           />
+                         </div>
+                       </div>
+                     </>
+                   )}
+
                    <div className="relative group">
-                     <UserIcon className="absolute top-1/2 right-4 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#fbbf24] transition-colors" />
+                     <Mail className="absolute top-1/2 right-4 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#fbbf24] transition-colors" />
                      <input 
-                       ref={nameRef}
-                       type="text" 
-                       value={name} 
-                       onChange={e => setName(e.target.value)} 
-                       className={`w-full bg-black/20 border rounded-xl pr-12 pl-4 py-4 text-white outline-none transition-all text-sm font-bold placeholder-gray-700 ${message.type === 'error' && message.text.includes('الاسم') ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#fbbf24]'}`}
-                       placeholder="الاسم الكامل"
+                       ref={emailRef}
+                       type="email" 
+                       value={email} 
+                       onChange={e => setEmail(e.target.value)} 
+                       className={`w-full bg-black/20 border rounded-xl pr-12 pl-4 py-4 text-white outline-none transition-all text-sm font-bold placeholder-gray-700 ${message.type === 'error' && message.text.includes('البريد') ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#fbbf24]'}`}
+                       placeholder="البريد الإلكتروني"
+                       autoComplete="email"
                      />
                    </div>
-                   
-                   <div className="grid grid-cols-2 gap-4">
-                     <div className="relative group">
-                       <School className="absolute top-1/2 right-4 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#fbbf24] transition-colors" />
-                       <select 
-                          value={grade} 
-                          onChange={e => setGrade(e.target.value)}
-                          className="w-full bg-black/20 border border-white/10 rounded-xl pr-12 pl-4 py-4 text-white outline-none focus:border-[#fbbf24] transition-all text-sm font-bold appearance-none"
-                        >
-                          <option value="10" className="bg-black">الصف 10</option>
-                          <option value="11" className="bg-black">الصف 11</option>
-                          <option value="12" className="bg-black">الصف 12</option>
-                        </select>
-                     </div>
-                     <div className="relative group">
-                       <Key className="absolute top-1/2 right-4 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#fbbf24] transition-colors" />
-                       <input 
-                         ref={betaCodeRef}
-                         type="text" 
-                         value={betaCode} 
-                         onChange={e => setBetaCode(e.target.value)} 
-                         className={`w-full bg-black/20 border rounded-xl pr-12 pl-4 py-4 text-[#fbbf24] outline-none transition-all text-sm font-bold placeholder-gray-700 ${message.type === 'error' && message.text.includes('كود') ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#fbbf24]'}`}
-                         placeholder="كود الدعوة"
-                       />
-                     </div>
+
+                   <div className="relative group">
+                     <Lock className="absolute top-1/2 right-4 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#fbbf24] transition-colors" />
+                     <input 
+                       ref={passwordRef}
+                       type="password" 
+                       value={password} 
+                       onChange={e => setPassword(e.target.value)} 
+                       className={`w-full bg-black/20 border rounded-xl pr-12 pl-4 py-4 text-white outline-none transition-all text-sm font-bold placeholder-gray-700 ${message.type === 'error' && message.text.includes('كلمة المرور') ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#fbbf24]'}`}
+                       placeholder="كلمة المرور"
+                     />
                    </div>
-                 </>
-               )}
 
-               <div className="relative group">
-                 <Mail className="absolute top-1/2 right-4 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#fbbf24] transition-colors" />
-                 <input 
-                   ref={emailRef}
-                   type="email" 
-                   value={email} 
-                   onChange={e => setEmail(e.target.value)} 
-                   className={`w-full bg-black/20 border rounded-xl pr-12 pl-4 py-4 text-white outline-none transition-all text-sm font-bold placeholder-gray-700 ${message.type === 'error' && message.text.includes('البريد') ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#fbbf24]'}`}
-                   placeholder="البريد الإلكتروني"
-                   autoComplete="email"
-                 />
+                   {!isSignUp && (
+                     <div className="text-left">
+                       <button 
+                         type="button" 
+                         onClick={() => { setIsResetMode(true); setMessage({text:'', type:''}); }}
+                         className="text-[10px] font-bold text-gray-500 hover:text-[#fbbf24] transition-colors"
+                       >
+                         هل نسيت كلمة المرور؟
+                       </button>
+                     </div>
+                   )}
+
+                   <button 
+                     type="submit" 
+                     disabled={isLoading}
+                     className="w-full py-4 mt-6 bg-[#fbbf24] hover:bg-[#f59e0b] text-black rounded-xl font-black text-sm uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(251,191,36,0.3)] hover:shadow-[0_0_50px_rgba(251,191,36,0.5)] hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                   >
+                     {isLoading ? (
+                        <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                     ) : (
+                        <>
+                          {isSignUp ? 'إنشاء الحساب' : 'الدخول للمنصة'}
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                     )}
+                   </button>
+                 </form>
+
+                 <div className="mt-8 pt-8 border-t border-white/5 flex flex-col items-center gap-4">
+                   <p className="text-xs text-gray-500">
+                     {isSignUp ? 'لديك حساب بالفعل؟' : 'ليس لديك حساب؟'}
+                     <button 
+                       onClick={() => { setIsSignUp(!isSignUp); setMessage({text:'', type:''}); }}
+                       className="text-[#fbbf24] font-bold mx-2 hover:underline underline-offset-4"
+                     >
+                       {isSignUp ? 'تسجيل الدخول' : 'إنشاء حساب جديد'}
+                     </button>
+                   </p>
+                   
+                   <button onClick={onBack} className="text-[10px] font-black text-gray-600 hover:text-white uppercase tracking-widest transition-colors">
+                      العودة للرئيسية
+                   </button>
+                 </div>
                </div>
-
-               <div className="relative group">
-                 <Lock className="absolute top-1/2 right-4 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#fbbf24] transition-colors" />
-                 <input 
-                   ref={passwordRef}
-                   type="password" 
-                   value={password} 
-                   onChange={e => setPassword(e.target.value)} 
-                   className={`w-full bg-black/20 border rounded-xl pr-12 pl-4 py-4 text-white outline-none transition-all text-sm font-bold placeholder-gray-700 ${message.type === 'error' && message.text.includes('كلمة المرور') ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#fbbf24]'}`}
-                   placeholder="كلمة المرور"
-                 />
-               </div>
-
-               <button 
-                 type="submit" 
-                 disabled={isLoading}
-                 className="w-full py-4 mt-6 bg-[#fbbf24] hover:bg-[#f59e0b] text-black rounded-xl font-black text-sm uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(251,191,36,0.3)] hover:shadow-[0_0_50px_rgba(251,191,36,0.5)] hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-               >
-                 {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                 ) : (
-                    <>
-                      {isSignUp ? 'إنشاء الحساب' : 'الدخول للمنصة'}
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                 )}
-               </button>
-             </form>
-
-             <div className="mt-8 pt-8 border-t border-white/5 flex flex-col items-center gap-4">
-               <p className="text-xs text-gray-500">
-                 {isSignUp ? 'لديك حساب بالفعل؟' : 'ليس لديك حساب؟'}
-                 <button 
-                   onClick={() => { setIsSignUp(!isSignUp); setMessage({text:'', type:''}); }}
-                   className="text-[#fbbf24] font-bold mx-2 hover:underline underline-offset-4"
-                 >
-                   {isSignUp ? 'تسجيل الدخول' : 'إنشاء حساب جديد'}
-                 </button>
-               </p>
-               
-               <button onClick={onBack} className="text-[10px] font-black text-gray-600 hover:text-white uppercase tracking-widest transition-colors">
-                  العودة للرئيسية
-               </button>
-             </div>
+             )}
           </div>
        </div>
     </div>

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { User, Question } from '../types';
 import { dbService } from '../services/db';
 import katex from 'katex';
+import { ShieldCheck, AlertTriangle } from 'lucide-react';
 
 const MathRenderer: React.FC<{ content: string; isBlock?: boolean }> = ({ content, isBlock }) => {
   const mathHtml = useMemo(() => {
@@ -78,6 +79,19 @@ const QuestionBank: React.FC<QuestionBankProps> = ({ user, onExplainAI }) => {
                  }`}>{q.difficulty}</span>
               </div>
               <div className="flex items-center gap-3">
+                 {/* Verification Indicator */}
+                 {q.isVerified ? (
+                    <div className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-full" title="تم التحقق من الجودة بواسطة AI">
+                      <ShieldCheck className="w-3 h-3 text-green-500" />
+                      <span className="text-[8px] font-bold text-green-500 uppercase tracking-wider">AI Verified</span>
+                    </div>
+                 ) : (
+                    <div className="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 rounded-full" title="يحتاج للمراجعة">
+                      <AlertTriangle className="w-3 h-3 text-yellow-500" />
+                      <span className="text-[8px] font-bold text-yellow-500 uppercase tracking-wider">Review Needed</span>
+                    </div>
+                 )}
+                 <div className="w-1 h-1 bg-gray-800 rounded-full"></div>
                  <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{q.unit}</span>
                  <div className="w-1 h-1 bg-gray-800 rounded-full"></div>
                  <span className="text-[10px] font-black text-[#00d2ff] uppercase tracking-widest">{q.category}</span>

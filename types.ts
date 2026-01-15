@@ -141,6 +141,7 @@ export interface Question {
   branch?: BranchType;
   imageUrl?: string;
   hasDiagram?: boolean;
+  isVerified?: boolean; // Field to track if question is verified by AI or Admin
 }
 
 export interface Quiz {
