@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.35.0",
+    "@google/genai": "^1.36.0",
     "firebase": "^10.8.0",
     "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
