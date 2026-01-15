@@ -50,32 +50,43 @@ const App: React.FC = () => {
     let unsubscribe: Function | undefined;
 
     const checkSession = async () => {
+        // 1. Check Local Persistence First
+        const localUid = localStorage.getItem('ssc_active_uid');
+        if (localUid) {
+            const localUser = await dbService.getUser(localUid);
+            if (localUser) {
+                setUser(localUser);
+                setIsAuthLoading(false);
+                // We found a valid local session, so we don't strictly need to wait for Firebase 
+                // but we should still set up the listener for external changes.
+            }
+        }
+
+        // 2. Setup Firebase Listener
         if (auth) {
             unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
                 if (firebaseUser) {
                     const appUser = await dbService.getUser(firebaseUser.uid);
                     if (appUser) {
                         setUser(appUser);
+                        localStorage.setItem('ssc_active_uid', appUser.uid);
                     } else {
-                        // User exists in Firebase but not our DB, force log out
+                        // User exists in Firebase but not our DB, sync issue
                         await signOut(auth);
+                        localStorage.removeItem('ssc_active_uid');
                         setUser(null);
                     }
-                } else {
+                } else if (!localStorage.getItem('ssc_active_uid')) {
+                    // Only clear user if no local session exists either
                     setUser(null);
                 }
                 setIsAuthLoading(false);
             });
         } else {
-            // Fallback for local dev without Firebase
-            const localUid = sessionStorage.getItem('ssc_active_uid');
-            if (localUid) {
-                const localUser = await dbService.getUser(localUid);
-                if (localUser) {
-                    setUser(localUser);
-                }
+            // No Firebase, if we didn't find local user, loading is done
+            if (!localStorage.getItem('ssc_active_uid')) {
+                setIsAuthLoading(false);
             }
-            setIsAuthLoading(false);
         }
     };
 
@@ -105,7 +116,7 @@ const App: React.FC = () => {
     if (auth) {
         signOut(auth).catch(error => console.error('Sign out error', error));
     }
-    sessionStorage.removeItem('ssc_active_uid');
+    localStorage.removeItem('ssc_active_uid');
     setUser(null);
     setView('landing');
   };

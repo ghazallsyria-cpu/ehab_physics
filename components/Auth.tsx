@@ -74,19 +74,20 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
             if (existing) throw new Error('Email already exists');
         }
         await dbService.saveUser(newUser);
-        if (!auth) {
-          sessionStorage.setItem('ssc_active_uid', newUser.uid);
-        }
+        localStorage.setItem('ssc_active_uid', newUser.uid);
         user = newUser;
       } else {
         // Login
         if (auth) {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             user = await dbService.getUser(userCredential.user.uid);
+            if (user) {
+              localStorage.setItem('ssc_active_uid', user.uid);
+            }
         } else {
             user = await dbService.getUser(email);
             if (user) {
-              sessionStorage.setItem('ssc_active_uid', user.uid);
+              localStorage.setItem('ssc_active_uid', user.uid);
             }
         }
       }
