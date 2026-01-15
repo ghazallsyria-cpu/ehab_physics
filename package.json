@@ -16,8 +16,8 @@
     "jszip": "^3.10.1",
     "katex": "^0.16.21",
     "lucide-react": "^0.475.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+"react": "^18.2.0",
+"react-dom": "^18.2.0",
     "react-qr-code": "^2.0.15"
   },
   "devDependencies": {
