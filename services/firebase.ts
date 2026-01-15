@@ -1,7 +1,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 /**
  * إعدادات Firebase
@@ -19,12 +19,14 @@ const firebaseConfig = {
 let app: any;
 let db: any = null;
 let auth: any = null;
+let googleProvider: any = null;
 
 try {
   // تهيئة Firebase بطريقة قياسية
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
   auth = getAuth(app);
+  googleProvider = new GoogleAuthProvider();
   console.log("Firebase initialized successfully");
 } catch (e) {
   console.warn("Firebase initialization failed (Check config):", e);
@@ -32,6 +34,7 @@ try {
   // Ensure db is null so db.ts logic switches to local storage
   db = null;
   auth = null;
+  googleProvider = null;
 }
 
-export { db, auth };
+export { db, auth, googleProvider };

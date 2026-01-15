@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, EducationalLevel, BetaConfig } from '../types';
 import { dbService } from '../services/db';
+import { auth, googleProvider } from '../services/firebase';
+import { signInWithPopup } from "firebase/auth";
 import { Mail, Lock, User as UserIcon, Phone, Camera, School, Key, ArrowRight, ShieldCheck, Sparkles, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 
 interface AuthProps {
@@ -77,6 +79,65 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
     // Always log in with the hardcoded demo data.
     await new Promise(r => setTimeout(r, 800)); // UX delay
     onLogin(demoUser);
+  };
+
+  const handleGoogleLogin = async () => {
+    if (!auth || !googleProvider) {
+      setMessage({ text: 'خدمة Google غير متوفرة حالياً (تأكد من إعدادات Firebase).', type: 'error' });
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage({ text: '', type: '' });
+
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const fbUser = result.user;
+      
+      // Check if user exists in our DB
+      let userProfile = await dbService.getUser(fbUser.email || '');
+
+      if (!userProfile) {
+        // Create new user profile from Google data
+        const newUser: User = {
+          uid: fbUser.uid,
+          email: fbUser.email || '',
+          name: fbUser.displayName || 'مستخدم Google',
+          phone: fbUser.phoneNumber || '',
+          photoURL: fbUser.photoURL || '',
+          role: 'student',
+          stage: 'secondary',
+          educationalLevel: EducationalLevel.SECONDARY,
+          grade: '10', // Default grade, user can change later
+          status: 'active',
+          subscription: 'free',
+          points: 50,
+          createdAt: new Date().toISOString(),
+          completedLessonIds: [],
+          progress: {
+            completedLessonIds: [],
+            quizScores: {},
+            totalStudyHours: 0,
+            strengths: [],
+            weaknesses: [],
+            currentFatigue: 0
+          }
+        };
+        await dbService.saveUser(newUser);
+        userProfile = newUser;
+      }
+
+      onLogin(userProfile);
+
+    } catch (error: any) {
+      console.error("Google Auth Error:", error);
+      let errorMsg = 'فشل تسجيل الدخول عبر Google.';
+      if (error.code === 'auth/popup-closed-by-user') errorMsg = 'تم إلغاء عملية تسجيل الدخول.';
+      if (error.code === 'auth/network-request-failed') errorMsg = 'تحقق من اتصال الإنترنت.';
+      setMessage({ text: errorMsg, type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -291,6 +352,21 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
                   <span className="leading-5">{message.text}</span>
                 </div>
              )}
+
+             <div className="mb-6">
+                <button 
+                  onClick={handleGoogleLogin}
+                  className="w-full py-4 bg-white text-black rounded-xl font-bold text-sm transition-all hover:bg-gray-100 flex items-center justify-center gap-3 shadow-lg"
+                  type="button"
+                >
+                  <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+                  تسجيل الدخول عبر Google
+                </button>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+                  <div className="relative flex justify-center text-xs"><span className="bg-[#050505] px-2 text-gray-500 font-bold uppercase">أو عبر البريد</span></div>
+                </div>
+             </div>
 
              <form onSubmit={handleSubmit} className="space-y-4">
                {isSignUp && (
