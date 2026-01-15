@@ -7,13 +7,16 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
  * إعدادات Firebase
  * تم تفعيل الإعدادات. يرجى التأكد من أن مفاتيح API أدناه صحيحة وتطابق مشروعك في Firebase Console.
  */
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyBOKOR48inbN88UtVLKIRtQT7TUWvTktGo",
+  apiKey: "AIzaSyAwbn6xMl8RZ52cWk571CS_hI4Qo9Kh1VY",
   authDomain: "physi-kuwait-prod-46032.firebaseapp.com",
   projectId: "physi-kuwait-prod-46032",
-  storageBucket: "physi-kuwait-prod-46032.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef123456"
+  storageBucket: "physi-kuwait-prod-46032.firebasestorage.app",
+  messagingSenderId: "27783754762",
+  appId: "1:27783754762:web:fa0065227eed7e52081bf3",
+  measurementId: "G-7WBG5PBVC2"
 };
 
 let app: any;
