@@ -213,7 +213,7 @@ export interface PricingPlan {
   name: string;
   price: number;
   features: string[];
-  tier: 'free' | 'monthly' | 'term' | 'yearly';
+  tier: 'free' | 'monthly' | 'term' | 'yearly' | 'premium' | 'university';
   discount?: string;
   recommended?: boolean;
 }

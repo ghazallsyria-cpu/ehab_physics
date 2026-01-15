@@ -83,7 +83,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
 
   const handleGoogleLogin = async () => {
     if (!auth || !googleProvider) {
-      setMessage({ text: 'خدمة Google غير متوفرة حالياً (تأكد من إعدادات Firebase).', type: 'error' });
+      setMessage({ text: 'لم يتم تهيئة Firebase بشكل صحيح. تأكد من ملف services/firebase.ts', type: 'error' });
       return;
     }
 
@@ -130,10 +130,24 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
       onLogin(userProfile);
 
     } catch (error: any) {
-      console.error("Google Auth Error:", error);
+      console.error("Google Auth Full Error:", error);
+      
       let errorMsg = 'فشل تسجيل الدخول عبر Google.';
-      if (error.code === 'auth/popup-closed-by-user') errorMsg = 'تم إلغاء عملية تسجيل الدخول.';
-      if (error.code === 'auth/network-request-failed') errorMsg = 'تحقق من اتصال الإنترنت.';
+      
+      // Detailed Error Handling for better debugging
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMsg = 'تم إغلاق النافذة قبل اكتمال التسجيل.';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMsg = 'تحقق من اتصال الإنترنت.';
+      } else if (error.code === 'auth/unauthorized-domain') {
+        errorMsg = 'النطاق (Domain) غير مصرح به في Firebase Console.';
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMsg = 'تسجيل الدخول عبر Google غير مفعل في Firebase Console.';
+      } else if (error.message) {
+        // Show the raw message if it helps debug configuration issues
+        errorMsg = `خطأ في الإعدادات: ${error.message}`;
+      }
+
       setMessage({ text: errorMsg, type: 'error' });
     } finally {
       setIsLoading(false);
