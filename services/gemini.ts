@@ -2,18 +2,11 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AISolverResult, User, StudentQuizAttempt, Question, Curriculum } from "../types";
 
-// Helper to safely get the AI instance
-const getAI = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.error("CRITICAL: API Key is missing. Please check Vercel Environment Variables (API_KEY).");
-  }
-  return new GoogleGenAI({ apiKey: apiKey || 'dummy-key' });
-};
-
+// Always create a new instance right before use to ensure the latest API key is used.
+// Guidelines: Must use named parameter { apiKey: process.env.API_KEY }.
 export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, subject: 'Physics' | 'Chemistry') => {
   try {
-    const ai = getAI();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
@@ -25,7 +18,6 @@ export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, 
         thinkingConfig: { thinkingBudget: 1024 } 
       }
     });
-    // FIX: Add 'thinking' property to the return object to match expectations in PhysicsChat.tsx
     return { text: response.text || "", thinking: null };
   } catch (e: any) {
     console.error("Chat Error:", e);
@@ -37,7 +29,7 @@ export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, 
 
 export const getPhysicsExplanation = async (prompt: string, grade: string) => {
   try {
-    const ai = getAI();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `اشرح لصف ${grade}: ${prompt}`,
@@ -50,10 +42,8 @@ export const getPhysicsExplanation = async (prompt: string, grade: string) => {
   }
 };
 
-// --- Added Functions ---
-
 export const solvePhysicsProblem = async (problem: string): Promise<AISolverResult> => {
-  const ai = getAI();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
     contents: `حل المسألة الفيزيائية التالية: ${problem}`,
@@ -77,7 +67,7 @@ export const solvePhysicsProblem = async (problem: string): Promise<AISolverResu
 };
 
 export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAttempt[]): Promise<string> => {
-  const ai = getAI();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `
     حلل أداء الطالب ${user.name} بناءً على نتائج اختباراته:
     ${JSON.stringify(attempts, null, 2)}
@@ -88,7 +78,6 @@ export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAt
 };
 
 export const generatePhysicsVisualization = async (prompt: string): Promise<string> => {
-    // Create a new instance right before the call to ensure the latest API key is used
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     let operation = await ai.models.generateVideos({
@@ -117,7 +106,7 @@ export const generatePhysicsVisualization = async (prompt: string): Promise<stri
 };
 
 export const extractBankQuestionsAdvanced = async (text: string, grade: string, subject: string, unit: string): Promise<{ questions: Partial<Question>[] }> => {
-    const ai = getAI();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
         model: "gemini-3-pro-preview",
         contents: `استخرج الأسئلة من النص التالي وحولها إلى صيغة JSON. النص من مادة ${subject} للصف ${grade} وحدة ${unit}:\n\n${text}`,
@@ -149,7 +138,7 @@ export const extractBankQuestionsAdvanced = async (text: string, grade: string, 
 };
 
 export const verifyQuestionQuality = async (question: Question): Promise<{ valid: boolean, feedback: string }> => {
-    const ai = getAI();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `تحقق من جودة السؤال الفيزيائي التالي من الناحية العلمية واللغوية: ${JSON.stringify(question)}. هل هو صالح؟ قدم ملاحظاتك.`,
@@ -169,18 +158,38 @@ export const verifyQuestionQuality = async (question: Question): Promise<{ valid
 };
 
 export const digitizeExamPaper = async (imageUrl: string, grade: string, subject: string): Promise<{ questions: Partial<Question>[] }> => {
-    const ai = getAI();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const base64Data = imageUrl.split(',')[1];
     const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Data } };
     const textPart = { text: `قم برقمنة ورقة الامتحان هذه لمادة ${subject} الصف ${grade}. استخرج كل سؤال وحوله لصيغة JSON.` };
     
     const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview', // Vision capabilities needed
+        model: 'gemini-3-pro-preview', 
         contents: { parts: [imagePart, textPart] },
-        config: { /* schema similar to extractBankQuestionsAdvanced */ }
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    questions: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                question_text: { type: Type.STRING },
+                                type: { type: Type.STRING, enum: ['mcq', 'short_answer'] },
+                                difficulty: { type: Type.STRING, enum: ['Easy', 'Medium', 'Hard'] },
+                                choices: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { key: { type: Type.STRING }, text: { type: Type.STRING } } } },
+                                correct_answer: { type: Type.STRING },
+                                solution: { type: Type.STRING }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     });
 
-    // Simplified for brevity, a full implementation would need the schema from extractBankQuestionsAdvanced
-    const jsonText = (response.text?.trim() || '{"questions":[]}').replace(/```json|```/g, '');
+    const jsonText = response.text?.trim() || '{"questions":[]}';
     return JSON.parse(jsonText);
 };
