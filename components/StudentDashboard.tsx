@@ -7,7 +7,13 @@ import { CURRICULUM_DATA } from '../constants';
 
 const CommunityGoals: React.FC = () => {
     const [goals, setGoals] = useState<StudyGoal[]>([]);
-    useEffect(() => { setGoals(dbService.getStudyGoals()); }, []);
+    useEffect(() => {
+      const loadGoals = async () => {
+        const data = await dbService.getStudyGoals();
+        setGoals(data);
+      };
+      loadGoals();
+    }, []);
     
     if (goals.length === 0) return <div className="text-center py-10 text-gray-500 italic">لا توجد أهداف حالية.</div>;
 
@@ -28,9 +34,17 @@ const CommunityGoals: React.FC = () => {
     );
 };
 
-const Leaderboard: React.FC<{ user: User }> = () => {
+const Leaderboard: React.FC<{ user: User }> = ({ user }) => {
     const [data, setData] = useState<LeaderboardEntry[]>([]);
-    useEffect(() => { setData(dbService.getLeaderboard()); }, []);
+    useEffect(() => {
+      const loadLeaderboard = async () => {
+        let leaderboardData = await dbService.getLeaderboard();
+        // Manually set isCurrentUser for display
+        leaderboardData = leaderboardData.map(entry => ({...entry, isCurrentUser: entry.name === user.name})); // Simplified logic
+        setData(leaderboardData);
+      };
+      loadLeaderboard();
+    }, [user]);
 
     if (data.length === 0) return <div className="text-center py-10 text-gray-500 italic">لا توجد بيانات حالياً.</div>;
 
