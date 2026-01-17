@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Lesson, User, ContentBlock } from '../types';
 import { dbService } from '../services/db';
 import katex from 'katex';
 import YouTubePlayer from './YouTubePlayer';
-import { Share2, Copy, Send, Twitter, Mail, X, Check } from 'lucide-react';
+import { Share2, Copy, Send, Twitter, Mail, X, Check, Eye, EyeOff } from 'lucide-react';
 
 interface LessonViewerProps {
   user: User;
@@ -15,6 +14,7 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [isContentVisible, setIsContentVisible] = useState(true);
 
   useEffect(() => {
     setIsCompleted((user.progress.completedLessonIds || []).includes(lesson.id));
@@ -37,13 +37,6 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
     if (!url) {
         return null;
     }
-    // This regex covers:
-    // - youtu.be/VIDEO_ID
-    // - youtube.com/watch?v=VIDEO_ID
-    // - youtube.com/embed/VIDEO_ID
-    // - youtube.com/v/VIDEO_ID
-    // - youtube.com/shorts/VIDEO_ID
-    // - And variations with or without http(s), www, and with other query parameters.
     const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]{11}).*/;
     const match = url.match(regExp);
 
@@ -89,7 +82,6 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
         );
     }
 
-    // Fallback for non-youtube generic video links
     return (
       <div className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-lg">
         <iframe
@@ -170,17 +162,44 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
                 <div className="flex items-center gap-4">
                   <span className="px-4 py-1 bg-[#00d2ff]/10 text-[#00d2ff] rounded-full text-[10px] font-bold border border-[#00d2ff]/20">{lesson.type}</span>
                 </div>
-                <button 
-                  onClick={() => setIsShareModalOpen(true)}
-                  className="p-3 bg-white/5 border border-white/10 rounded-2xl text-gray-400 hover:text-[#00d2ff] hover:bg-[#00d2ff]/5 transition-all flex items-center gap-2 group"
-                >
-                  <Share2 size={18} className="group-hover:scale-110 transition-transform" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">مشاركة</span>
-                </button>
+                <div className="flex items-center gap-3">
+                    <button 
+                    onClick={() => setIsContentVisible(!isContentVisible)}
+                    className="p-3 bg-white/5 border border-white/10 rounded-2xl text-gray-400 hover:text-white transition-all flex items-center gap-2 group"
+                    >
+                    {isContentVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                    <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">
+                        {isContentVisible ? 'إخفاء المحتوى' : 'إظهار المحتوى'}
+                    </span>
+                    </button>
+                    <button 
+                    onClick={() => setIsShareModalOpen(true)}
+                    className="p-3 bg-white/5 border border-white/10 rounded-2xl text-gray-400 hover:text-[#00d2ff] hover:bg-[#00d2ff]/5 transition-all flex items-center gap-2 group"
+                    >
+                    <Share2 size={18} className="group-hover:scale-110 transition-transform" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">مشاركة</span>
+                    </button>
+                </div>
             </div>
-            <div className="space-y-8">
-              {(lesson.content || []).map(renderContentBlock)}
+            
+            <div className={`transition-all duration-700 ease-in-out grid ${isContentVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                <div className="overflow-hidden">
+                    <div className="space-y-8 pt-2">
+                        {(lesson.content || []).map(renderContentBlock)}
+                    </div>
+                </div>
             </div>
+
+            {!isContentVisible && (
+                <div className="text-center py-20 bg-black/20 rounded-[30px] border-2 border-dashed border-white/10 animate-fadeIn mt-8">
+                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10">
+                        <EyeOff className="text-gray-500" size={32} />
+                    </div>
+                    <p className="font-bold text-gray-400">المحتوى مخفي</p>
+                    <p className="text-xs text-gray-600 mt-1">اضغط على زر "إظهار المحتوى" لعرض التفاصيل.</p>
+                </div>
+            )}
+
 
             <div className="mt-16 pt-10 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-6">
               <button onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'curriculum' } }))} className="text-gray-500 font-bold text-sm hover:text-white transition-colors">← العودة للمنهج</button>
@@ -195,7 +214,6 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
             </div>
         </div>
 
-        {/* Share Modal */}
         {isShareModalOpen && (
           <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 animate-fadeIn" onClick={() => setIsShareModalOpen(false)}>
             <div 

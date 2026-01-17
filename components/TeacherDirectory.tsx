@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Review, User, TeacherMessage } from '../types';
 import { dbService } from '../services/db';
@@ -101,7 +100,7 @@ const TeacherDirectory: React.FC<TeacherDirectoryProps> = ({ user }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {teachers.map(teacher => (
-          <div key={teacher.uid} className="glass-panel p-8 rounded-[40px] border-white/5 hover:border-[#00d2ff]/30 transition-all group relative overflow-hidden flex flex-col items-center text-center">
+          <div key={teacher.uid} className="glass-panel p-8 rounded-[40px] border border-white/5 hover:border-[#00d2ff]/30 transition-all group relative overflow-hidden flex flex-col items-center text-center">
              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-[#00d2ff]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
              <div className="flex-1 w-full flex flex-col items-center">
                 <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shadow-2xl group-hover:scale-110 transition-transform relative z-10 mb-6">

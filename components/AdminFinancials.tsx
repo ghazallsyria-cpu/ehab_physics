@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Invoice, PaymentStatus, PaymentSettings, SubscriptionCode } from '../types';
 import { dbService } from '../services/db';
-import { Copy, Plus, Power, PowerOff } from 'lucide-react';
+import { Copy, Plus, Power, PowerOff, RefreshCw } from 'lucide-react';
 
 const AdminFinancials: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -10,6 +10,9 @@ const AdminFinancials: React.FC = () => {
   const [filter, setFilter] = useState<PaymentStatus | 'ALL'>('ALL');
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [codes, setCodes] = useState<SubscriptionCode[]>([]);
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [isToggling, setIsToggling] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     loadFinanceData();
@@ -34,6 +37,7 @@ const AdminFinancials: React.FC = () => {
 
     } catch (e) {
       console.error("Failed to load finance data", e);
+      setMessage({ text: 'فشل تحميل البيانات المالية. يرجى تحديث الصفحة.', type: 'error' });
     }
   };
 
@@ -44,24 +48,53 @@ const AdminFinancials: React.FC = () => {
 
   const handleTogglePaymentGateway = async () => {
     if (paymentSettings) {
-        const newState = !paymentSettings.isOnlinePaymentEnabled;
-        await dbService.setPaymentSettings(newState);
-        setPaymentSettings({ isOnlinePaymentEnabled: newState });
+        setIsToggling(true);
+        setMessage(null);
+        try {
+            const newState = !paymentSettings.isOnlinePaymentEnabled;
+            await dbService.setPaymentSettings(newState);
+            setPaymentSettings({ isOnlinePaymentEnabled: newState });
+            setMessage({ text: 'تم تحديث حالة بوابة الدفع بنجاح.', type: 'success' });
+        } catch (e) {
+            setMessage({ text: 'فشل تحديث حالة البوابة.', type: 'error' });
+            console.error(e);
+        } finally {
+            setIsToggling(false);
+            setTimeout(() => setMessage(null), 4000);
+        }
     }
   };
 
   const handleGenerateCode = async () => {
-    await dbService.createSubscriptionCode('premium');
-    loadFinanceData(); // Refresh codes list
+    setIsGenerating(true);
+    setMessage(null);
+    try {
+        await dbService.createSubscriptionCode('premium');
+        await loadFinanceData(); // Refresh codes list
+        setMessage({ text: 'تم إنشاء كود جديد بنجاح.', type: 'success' });
+    } catch (e) {
+        setMessage({ text: 'فشل في إنشاء كود جديد.', type: 'error' });
+        console.error(e);
+    } finally {
+        setIsGenerating(false);
+        setTimeout(() => setMessage(null), 4000);
+    }
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    // You can add a toast notification here for better UX
+    setMessage({ text: 'تم نسخ الكود!', type: 'success' });
+    setTimeout(() => setMessage(null), 2000);
   };
 
   return (
     <div className="space-y-12 animate-fadeIn">
+      {message && (
+        <div className={`p-4 rounded-2xl text-sm font-bold text-center mb-8 ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+            {message.text}
+        </div>
+      )}
+      
       {/* Payment Gateway Control */}
       <div className="glass-panel p-8 rounded-[40px] border-white/5 flex flex-col sm:flex-row justify-between items-center gap-6">
         <div>
@@ -70,9 +103,11 @@ const AdminFinancials: React.FC = () => {
         </div>
         <button
             onClick={handleTogglePaymentGateway}
-            className={`px-8 py-5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 transition-all ${paymentSettings?.isOnlinePaymentEnabled ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}
+            disabled={isToggling}
+            className={`px-8 py-5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 transition-all disabled:opacity-50 ${paymentSettings?.isOnlinePaymentEnabled ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}
         >
-            {paymentSettings?.isOnlinePaymentEnabled ? <><Power size={16}/> مفعل</> : <><PowerOff size={16}/> متوقف</>}
+            {isToggling ? <RefreshCw className="animate-spin" size={16}/> : paymentSettings?.isOnlinePaymentEnabled ? <Power size={16}/> : <PowerOff size={16}/>}
+            {isToggling ? 'جاري التحديث...' : paymentSettings?.isOnlinePaymentEnabled ? 'مفعل' : 'متوقف'}
         </button>
       </div>
 
@@ -95,8 +130,9 @@ const AdminFinancials: React.FC = () => {
       <div className="glass-panel p-8 rounded-[40px] border-white/5">
         <div className="flex justify-between items-center mb-6">
             <h4 className="text-lg font-black uppercase tracking-widest">أكواد الاشتراك اليدوي</h4>
-            <button onClick={handleGenerateCode} className="flex items-center gap-2 px-4 py-2 bg-green-500/10 text-green-400 rounded-lg text-xs font-bold border border-green-500/20">
-                <Plus size={14}/> إنشاء كود جديد
+            <button onClick={handleGenerateCode} disabled={isGenerating} className="flex items-center gap-2 px-4 py-2 bg-green-500/10 text-green-400 rounded-lg text-xs font-bold border border-green-500/20 disabled:opacity-50">
+                {isGenerating ? <RefreshCw className="animate-spin" size={14}/> : <Plus size={14}/>}
+                {isGenerating ? 'جاري...' : 'إنشاء كود جديد'}
             </button>
         </div>
         <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar pr-1">

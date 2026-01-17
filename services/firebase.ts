@@ -2,6 +2,14 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
+// SECURITY NOTE:
+// This application utilizes Firebase Authentication, a secure, managed authentication service from Google.
+// All user password handling, including hashing and storage, is managed by Firebase on their servers.
+// Passwords are sent over HTTPS and are hashed using industry-standard, salted algorithms (e.g., scrypt).
+// We do not store passwords or password hashes in our own database. This is a security best practice
+// that delegates credential management to a specialized, highly secure service.
+// Therefore, no client-side hashing is implemented, as it is unnecessary and not recommended.
+
 const firebaseConfig = {
   apiKey: "AIzaSyAwbn6xMl8RZ52cWk571CS_hI4Qo9Kh1VY",
   authDomain: "physi-kuwait-prod-46032.firebaseapp.com",
