@@ -12,7 +12,7 @@ import {
     getRedirectResult 
 } from 'firebase/auth';
 import { hashPassword, validatePasswordStrength } from '../services/security';
-import { ShieldCheck, AlertCircle, RefreshCcw, ExternalLink } from 'lucide-react';
+import { ShieldCheck, AlertCircle, RefreshCcw, ExternalLink, Eye, EyeOff } from 'lucide-react';
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -24,6 +24,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
   const [isResetMode, setIsResetMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [grade, setGrade] = useState<'10'|'11'|'12'>('12');
   const [isLoading, setIsLoading] = useState(false);
@@ -199,7 +200,22 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
                     </div> 
                     <div>
                         <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 mr-2">كلمة المرور (تشفير AES-256 🔐)</label>
-                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-sky-400 transition-all text-left" placeholder="••••••••" />
+                        <div className="relative">
+                            <input 
+                                type={showPassword ? 'text' : 'password'} 
+                                value={password} 
+                                onChange={e => setPassword(e.target.value)} 
+                                className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 pl-14 text-white outline-none focus:border-sky-400 transition-all text-left" 
+                                placeholder="••••••••" 
+                            />
+                            <button 
+                                type="button" 
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-sky-400 transition-colors"
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
                     </div> 
                     {isRegistering && (
                         <div>
