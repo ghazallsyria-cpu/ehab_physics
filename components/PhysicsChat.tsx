@@ -4,11 +4,16 @@ import { getAdvancedPhysicsInsight } from '../services/gemini';
 import { Message } from '../types';
 import katex from 'katex';
 
-const PhysicsChat: React.FC<{ grade: string }> = ({ grade }) => {
+interface AiTutorProps {
+  grade: string;
+  subject: 'Physics' | 'Chemistry';
+}
+
+const AiTutor: React.FC<AiTutorProps> = ({ grade, subject }) => {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'assistant', 
-      content: `مرحباً بك! أنا مساعدك الذكي لمادة الفيزياء. اسألني عن أي قانون، تعريف، أو مسألة تواجه صعوبة فيها، وسأقوم بتبسيطها لك.`, 
+      content: `مرحباً بك! أنا مساعدك الذكي لمادة ${subject === 'Physics' ? 'الفيزياء' : 'الكيمياء'}. اسألني عن أي قانون، تعريف، أو مسألة تواجه صعوبة فيها، وسأقوم بتبسيطها لك.`, 
       timestamp: new Date() 
     }
   ]);
@@ -27,8 +32,7 @@ const PhysicsChat: React.FC<{ grade: string }> = ({ grade }) => {
     setIsLoading(true);
 
     try {
-      // FIX: The 'thinking' property is not returned from getAdvancedPhysicsInsight.
-      const { text } = await getAdvancedPhysicsInsight(userMsg, grade);
+      const { text } = await getAdvancedPhysicsInsight(userMsg, grade, subject);
       setMessages(prev => [...prev, { role: 'assistant', content: text, timestamp: new Date() }]);
     } catch (e) {
       setMessages(prev => [...prev, { role: 'assistant', content: "عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.", timestamp: new Date() }]);
@@ -55,7 +59,7 @@ const PhysicsChat: React.FC<{ grade: string }> = ({ grade }) => {
           <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-[18px] sm:rounded-[25px] bg-[#fbbf24] text-black flex items-center justify-center text-3xl sm:text-4xl shadow-lg animate-float">🤖</div>
           <div>
             <h3 className="text-xl sm:text-2xl font-black">المساعد <span className="text-[#fbbf24]">الذكي</span></h3>
-            <p className="text-[10px] text-[#00d2ff] font-black uppercase tracking-widest">مساعدك في الفيزياء</p>
+            <p className="text-[10px] text-[#00d2ff] font-black uppercase tracking-widest">مساعدك في {subject === 'Physics' ? 'الفيزياء' : 'الكيمياء'}</p>
           </div>
         </div>
         <button onClick={() => setShowThinking(!showThinking)} className={`px-4 py-2 sm:px-6 sm:py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest border transition-all ${showThinking ? 'bg-[#00d2ff]/20 border-[#00d2ff] text-[#00d2ff]' : 'bg-white/5 border-white/10 text-gray-500'}`}>
@@ -117,4 +121,4 @@ const PhysicsChat: React.FC<{ grade: string }> = ({ grade }) => {
   );
 };
 
-export default PhysicsChat;
+export default AiTutor;

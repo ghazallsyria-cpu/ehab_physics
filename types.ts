@@ -1,6 +1,6 @@
 
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
-export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum';
+export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-questions' | 'admin-financials' | 'quiz-performance';
 
 // --- 0. AI & Chat ---
 export interface Message {
@@ -27,7 +27,7 @@ export interface AIRecommendation {
 }
 
 // --- 1. Educational Content ---
-export type ContentBlockType = 'text' | 'image' | 'video' | 'pdf' | 'youtube';
+export type ContentBlockType = 'text' | 'image' | 'video' | 'pdf' | 'youtube' | 'audio';
 
 export interface ContentBlock {
   type: ContentBlockType;
@@ -54,6 +54,7 @@ export interface Lesson {
 export interface Curriculum {
   id?: string; // Added for journey map
   grade: '10' | '11' | '12';
+  subject: 'Physics' | 'Chemistry';
   title: string;
   description: string;
   icon: string;
@@ -166,6 +167,20 @@ export interface Invoice {
   trackId: string;
   paymentId?: string;
   authCode?: string;
+}
+
+export interface PaymentSettings {
+  isOnlinePaymentEnabled: boolean;
+}
+
+export interface SubscriptionCode {
+  id: string;
+  code: string;
+  planId: string;
+  isUsed: boolean;
+  userId: string | null;
+  createdAt: string;
+  activatedAt: string | null;
 }
 
 

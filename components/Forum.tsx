@@ -156,7 +156,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
                     <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-500">
                         <span>بواسطة: {post.authorName}</span>
                         <div className="flex items-center gap-4">
-                            <span>{new Date(post.timestamp).toLocaleDateString('ar-SY')}</span>
+                            <span>{new Date(post.timestamp).toLocaleDateString('ar-KW')}</span>
                             <span className="flex items-center gap-2"><MessageSquare size={12}/> {post.replies?.length || 0}</span>
                         </div>
                     </div>

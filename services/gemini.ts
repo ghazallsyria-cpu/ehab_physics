@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { AISolverResult, User, StudentQuizAttempt, Question } from "../types";
+import { AISolverResult, User, StudentQuizAttempt, Question, Curriculum } from "../types";
 
 // Helper to safely get the AI instance
 const getAI = () => {
@@ -11,14 +11,15 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey: apiKey || 'dummy-key' });
 };
 
-export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string) => {
+export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, subject: 'Physics' | 'Chemistry') => {
   try {
     const ai = getAI();
+    const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: userMsg,
       config: {
-        systemInstruction: `أنت المساعد الذكي في المركز السوري للعلوم. 
+        systemInstruction: `أنت المساعد الذكي في المركز السوري للعلوم لمادة ${subjectName}. 
         تحدث بلغة العلم الراقية والداعمة. 
         استخدم صيغة LaTeX للمعادلات الرياضية، مثلاً $E=mc^2$ للمعادلات المضمنة و $$F=ma$$ للكتل المنفصلة.`,
         thinkingConfig: { thinkingBudget: 1024 } 

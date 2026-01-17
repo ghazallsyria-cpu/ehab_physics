@@ -6,7 +6,7 @@ const UniversityBridge: React.FC = () => {
     <div className="max-w-6xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white">
       <div className="mb-12 border-r-4 border-[#fbbf24] pr-6">
         <h2 className="text-5xl font-black mb-4 tracking-tighter uppercase italic">برنامج <span className="text-[#fbbf24] text-glow">الجسر الأكاديمي</span></h2>
-        <p className="text-gray-400 text-xl">سد الفجوة اللغوية والرياضية للطلبة المقبلين على الدراسة الجامعية في سوريا.</p>
+        <p className="text-gray-400 text-xl">سد الفجوة اللغوية والرياضية للطلبة المقبلين على الدراسة الجامعية في الكويت.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">

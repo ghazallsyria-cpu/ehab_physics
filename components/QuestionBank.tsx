@@ -49,8 +49,8 @@ const QuestionBank: React.FC<QuestionBankProps> = ({ user, onExplainAI }) => {
   return (
     <div className="max-w-5xl mx-auto animate-fadeIn font-['Tajawal'] pb-20">
       <header className="mb-12 border-r-4 border-[#fbbf24] pr-8">
-        <h2 className="text-5xl font-black mb-4 tracking-tighter italic">بنك الأسئلة <span className="text-[#fbbf24]">المعياري 5B</span></h2>
-        <p className="text-gray-500 text-xl font-medium">أرشيف أسئلة المنهج السوري المرقمنة بذكاء اصطناعي تفاعلي.</p>
+        <h2 className="text-5xl font-black mb-4 tracking-tighter italic">بنك الأسئلة <span className="text-[#fbbf24]">الكويتي</span></h2>
+        <p className="text-gray-500 text-xl font-medium">أرشيف أسئلة المنهج الكويتي المرقمنة بذكاء اصطناعي تفاعلي.</p>
         
         <div className="flex gap-4 mt-8 overflow-x-auto no-scrollbar pb-2">
           {['10', '11', '12', 'university'].map(g => (

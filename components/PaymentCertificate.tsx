@@ -47,7 +47,7 @@ const PaymentCertificate: React.FC<PaymentCertificateProps> = ({ user, invoice, 
            <div className="text-center md:text-left space-y-2">
               <p className="text-xs font-black uppercase text-gray-500">Track ID</p>
               <p className="text-xl font-mono font-black text-[#fbbf24] print:text-black">{invoice.trackId}</p>
-              <p className="text-[10px] text-gray-600 tabular-nums">{new Date(invoice.date).toLocaleString('ar-SY')}</p>
+              <p className="text-[10px] text-gray-600 tabular-nums">{new Date(invoice.date).toLocaleString('ar-KW')}</p>
            </div>
         </header>
 
@@ -82,7 +82,7 @@ const PaymentCertificate: React.FC<PaymentCertificateProps> = ({ user, invoice, 
         <div className="bg-white/[0.03] p-10 rounded-[40px] border border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 print:border-black print:bg-white">
            <div className="text-center md:text-right">
               <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">المبلغ الإجمالي المدفوع</p>
-              <h3 className="text-5xl font-black text-[#fbbf24] print:text-black">{invoice.amount.toLocaleString()} <span className="text-xl">ل.س</span></h3>
+              <h3 className="text-5xl font-black text-[#fbbf24] print:text-black">{invoice.amount.toLocaleString()} <span className="text-xl">د.ك</span></h3>
            </div>
            <div className="text-center md:text-left space-y-1">
               <p className="text-[9px] font-black text-green-500 uppercase tracking-widest bg-green-500/10 px-4 py-1 rounded-full mb-3 inline-block">PAID / مكتمل</p>

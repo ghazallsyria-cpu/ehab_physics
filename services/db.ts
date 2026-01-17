@@ -1,7 +1,7 @@
 
-import { User, Curriculum, Quiz, Question, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, Lesson } from "../types";
+import { User, Curriculum, Quiz, Question, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, Lesson, Unit, PaymentSettings, SubscriptionCode } from "../types";
 import { db } from "./firebase";
-import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, documentId, writeBatch, orderBy } from "firebase/firestore";
+import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, documentId, writeBatch, orderBy, limit } from "firebase/firestore";
 
 class SyrianScienceCenterDB {
   private static instance: SyrianScienceCenterDB;
@@ -53,38 +53,100 @@ class SyrianScienceCenterDB {
   }
 
   // --- Curriculum ---
+  private async _getCurriculumDocRef(grade: '10' | '11' | '12', subject: 'Physics' | 'Chemistry') {
+    if (!db) return null;
+    const q = query(collection(db, 'curriculum'), where("grade", "==", grade), where("subject", "==", subject));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+        return snapshot.docs[0].ref;
+    }
+    return null;
+  }
+
   async getCurriculum(): Promise<Curriculum[]> {
     if (!db) return [];
     const snapshot = await getDocs(collection(db, 'curriculum'));
     return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as Curriculum);
   }
 
-  async saveLesson(unitId: string, lesson: Lesson): Promise<void> {
+  async saveUnit(grade: '10' | '11' | '12', subject: 'Physics' | 'Chemistry', unit: Unit): Promise<void> {
     if (!db) return;
-    const curriculumSnapshot = await getDocs(collection(db, 'curriculum'));
-    for (const docSnap of curriculumSnapshot.docs) {
-        const curriculumData = docSnap.data() as Curriculum;
+    const docRef = await this._getCurriculumDocRef(grade, subject);
+    if (!docRef) {
+        console.error(`Curriculum for grade ${grade} and subject ${subject} not found.`);
+        return;
+    }
+
+    const curriculumSnap = await getDoc(docRef);
+    if (curriculumSnap.exists()) {
+        const curriculumData = curriculumSnap.data() as Curriculum;
+        const units = curriculumData.units || [];
+        const unitIndex = units.findIndex(u => u.id === unit.id);
+
+        if (unitIndex > -1) {
+            units[unitIndex] = unit;
+        } else {
+            units.push(unit);
+        }
+        await updateDoc(docRef, { units });
+    }
+  }
+  
+  async deleteUnit(grade: '10' | '11' | '12', subject: 'Physics' | 'Chemistry', unitId: string): Promise<void> {
+    if (!db) return;
+    const docRef = await this._getCurriculumDocRef(grade, subject);
+    if (!docRef) {
+        console.error(`Curriculum for grade ${grade} and subject ${subject} not found.`);
+        return;
+    }
+
+    const curriculumSnap = await getDoc(docRef);
+    if (curriculumSnap.exists()) {
+        const curriculumData = curriculumSnap.data() as Curriculum;
+        const updatedUnits = (curriculumData.units || []).filter(u => u.id !== unitId);
+        await updateDoc(docRef, { units: updatedUnits });
+    }
+  }
+
+  async saveLesson(grade: '10' | '11' | '12', subject: 'Physics' | 'Chemistry', unitId: string, lesson: Lesson): Promise<void> {
+    if (!db) return;
+    const docRef = await this._getCurriculumDocRef(grade, subject);
+    if (!docRef) {
+        console.error(`Curriculum for grade ${grade} and subject ${subject} not found.`);
+        return;
+    }
+
+    const curriculumSnap = await getDoc(docRef);
+    if (curriculumSnap.exists()) {
+        const curriculumData = curriculumSnap.data() as Curriculum;
         const unit = curriculumData.units.find(u => u.id === unitId);
         if (unit) {
             const lessonIndex = unit.lessons.findIndex(l => l.id === lesson.id);
-            if (lessonIndex > -1) unit.lessons[lessonIndex] = lesson;
-            else unit.lessons.push(lesson);
-            await setDoc(docSnap.ref, curriculumData);
-            return;
+            if (lessonIndex > -1) {
+                unit.lessons[lessonIndex] = lesson;
+            } else {
+                unit.lessons.push(lesson);
+            }
+            await setDoc(docRef, curriculumData);
         }
     }
   }
 
-  async deleteLesson(unitId: string, lessonId: string): Promise<void> {
+  async deleteLesson(grade: '10' | '11' | '12', subject: 'Physics' | 'Chemistry', unitId: string, lessonId: string): Promise<void> {
     if (!db) return;
-    const curriculumSnapshot = await getDocs(collection(db, 'curriculum'));
-    for (const docSnap of curriculumSnapshot.docs) {
-        const curriculumData = docSnap.data() as Curriculum;
+    const docRef = await this._getCurriculumDocRef(grade, subject);
+    if (!docRef) {
+        console.error(`Curriculum for grade ${grade} and subject ${subject} not found.`);
+        return;
+    }
+
+    const curriculumSnap = await getDoc(docRef);
+    if (curriculumSnap.exists()) {
+        const curriculumData = curriculumSnap.data() as Curriculum;
         const unit = curriculumData.units.find(u => u.id === unitId);
         if (unit) {
             unit.lessons = unit.lessons.filter(l => l.id !== lessonId);
-            await setDoc(docSnap.ref, curriculumData);
-            return;
+            await setDoc(docRef, curriculumData);
         }
     }
   }
@@ -295,6 +357,81 @@ class SyrianScienceCenterDB {
       await updateDoc(doc(db, 'invoices', id), { status });
   }
 
+  // --- Payment Settings & Codes ---
+  async getPaymentSettings(): Promise<PaymentSettings> {
+    if (!db) return { isOnlinePaymentEnabled: true };
+    const docRef = doc(db, "settings", "payment");
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return docSnap.data() as PaymentSettings;
+    }
+    // Default to enabled if not set
+    return { isOnlinePaymentEnabled: true };
+  }
+
+  async setPaymentSettings(isEnabled: boolean): Promise<void> {
+    if (!db) return;
+    const docRef = doc(db, "settings", "payment");
+    await setDoc(docRef, { isOnlinePaymentEnabled: isEnabled });
+  }
+
+  async createSubscriptionCode(planId: string = 'premium'): Promise<SubscriptionCode> {
+    if (!db) throw new Error("Database not connected");
+    const code = `SSC-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+    const newCode: Omit<SubscriptionCode, 'id'> = {
+        code, planId, isUsed: false, userId: null,
+        createdAt: new Date().toISOString(), activatedAt: null,
+    };
+    const docRef = await addDoc(collection(db, 'subscription_codes'), newCode);
+    return { id: docRef.id, ...newCode };
+  }
+  
+  async getUnusedSubscriptionCodes(): Promise<SubscriptionCode[]> {
+    if (!db) return [];
+    const q = query(collection(db, 'subscription_codes'), where('isUsed', '==', false), limit(20));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as SubscriptionCode);
+  }
+
+  async activateSubscriptionWithCode(code: string, userId: string): Promise<{success: boolean, message: string}> {
+    if (!db) return { success: false, message: 'Database error.' };
+    
+    const q = query(collection(db, 'subscription_codes'), where('code', '==', code));
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+        return { success: false, message: 'الكود غير صحيح.' };
+    }
+    
+    const codeDoc = snapshot.docs[0];
+    const codeData = codeDoc.data() as SubscriptionCode;
+
+    if (codeData.isUsed) {
+        return { success: false, message: 'هذا الكود تم استخدامه مسبقاً.' };
+    }
+
+    const batch = writeBatch(db);
+    
+    // Update user subscription
+    const userRef = doc(db, 'users', userId);
+    batch.update(userRef, { subscription: 'premium' });
+
+    // Mark code as used
+    batch.update(codeDoc.ref, {
+        isUsed: true,
+        userId: userId,
+        activatedAt: new Date().toISOString()
+    });
+
+    try {
+        await batch.commit();
+        return { success: true, message: 'تم تفعيل الاشتراك بنجاح!' };
+    } catch (e) {
+        return { success: false, message: 'حدث خطأ أثناء تفعيل الكود.' };
+    }
+  }
+
+  // --- Other Services ---
   async addNotification(userId: string, notification: Omit<AppNotification, 'id'>): Promise<void> {
       if(!db) return;
       await addDoc(collection(db, 'users', userId, 'notifications'), notification);

@@ -8,7 +8,7 @@ const StudyGroups: React.FC = () => {
       <div className="mb-16 flex justify-between items-end">
         <div>
            <h2 className="text-5xl font-black mb-4 tracking-tighter">خلايا <span className="text-[#00d2ff]">الدراسة</span> الافتراضية</h2>
-           <p className="text-gray-500">انضم لزملائك في سوريا لحل مسائل الفيزياء وتجاوز التحديات الأسبوعية.</p>
+           <p className="text-gray-500">انضم لزملائك في الكويت لحل مسائل الفيزياء وتجاوز التحديات الأسبوعية.</p>
         </div>
         <button className="bg-[#00d2ff] text-black px-10 py-4 rounded-3xl font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all">+ إنشاء خلية جديدة</button>
       </div>

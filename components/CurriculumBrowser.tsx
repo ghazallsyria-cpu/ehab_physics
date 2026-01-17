@@ -1,12 +1,20 @@
+
 import React, { useState } from 'react';
 import { CURRICULUM_DATA } from '../constants';
-import { User, Unit, Lesson } from '../types';
+import { User, Unit, Lesson, Curriculum } from '../types';
 
-const CurriculumBrowser: React.FC<{ user: User }> = ({ user }) => {
+interface CurriculumBrowserProps {
+  user: User;
+  subject: 'Physics' | 'Chemistry';
+}
+
+const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) => {
   const [activeGrade, setActiveGrade] = useState<'10' | '11' | '12'>(user.grade);
   const [expandedUnitId, setExpandedUnitId] = useState<string | null>(null);
 
-  const activeTopic = CURRICULUM_DATA.find(t => t.grade === activeGrade);
+  const activeTopic = CURRICULUM_DATA.find(t => t.grade === activeGrade && t.subject === subject);
+  const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
+  const subjectColor = subject === 'Physics' ? 'text-[#00d2ff]' : 'text-green-400';
 
   const navigateToLesson = (lesson: Lesson) => {
     window.dispatchEvent(new CustomEvent('change-view', { 
@@ -17,9 +25,9 @@ const CurriculumBrowser: React.FC<{ user: User }> = ({ user }) => {
   return (
     <div className="max-w-7xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white">
       <div className="mb-16 text-center">
-        <h2 className="text-5xl font-black mb-4 tracking-tighter">منهج <span className="text-[#00d2ff] text-glow">الفيزياء</span> السوري</h2>
+        <h2 className="text-5xl font-black mb-4 tracking-tighter">منهج <span className={`${subjectColor} text-glow`}>{subjectName}</span> الكويتي</h2>
         <p className="text-gray-500 max-w-2xl mx-auto text-lg">
-          توزيع المنهج المعتمد لطلاب المرحلة الثانوية - سوريا.
+          توزيع المنهج المعتمد لطلاب المرحلة الثانوية - الكويت.
         </p>
       </div>
 
@@ -77,7 +85,7 @@ const CurriculumBrowser: React.FC<{ user: User }> = ({ user }) => {
       ) : (
         <div className="py-32 text-center opacity-40">
           <span className="text-6xl mb-6 block">🚧</span>
-          <p className="font-black text-sm uppercase tracking-[0.4em]">محتوى هذا الصف قيد الإعداد</p>
+          <p className="font-black text-sm uppercase tracking-[0.4em]">محتوى هذا الصف وهذه المادة قيد الإعداد</p>
         </div>
       )}
     </div>

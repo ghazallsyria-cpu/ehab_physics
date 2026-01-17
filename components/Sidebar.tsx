@@ -4,7 +4,7 @@ import { ViewState, User } from '../types';
 
 interface SidebarProps {
   currentView: ViewState;
-  setView: (view: ViewState) => void;
+  setView: (view: ViewState, subject?: 'Physics' | 'Chemistry') => void;
   user: User;
   onLogout: () => void;
   isOpen?: boolean;
@@ -13,13 +13,23 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout, isOpen, onClose }) => {
   
+  const navigate = (view: ViewState, subject?: 'Physics' | 'Chemistry') => {
+    const detail: { view: ViewState, subject?: 'Physics' | 'Chemistry' } = { view };
+    if (subject) detail.subject = subject;
+    window.dispatchEvent(new CustomEvent('change-view', { detail }));
+    if (window.innerWidth < 1024) onClose?.();
+  };
+  
   const getNavItems = () => {
     switch (user.role) {
       case 'student':
         return [
           { label: 'الرئيسية', items: [
             { id: 'dashboard', label: 'لوحة التحكم', icon: '🏠' },
-            { id: 'curriculum', label: 'المنهج الدراسي', icon: '🚀' },
+          ]},
+          { label: 'المناهج', items: [
+            { id: 'curriculum', subject: 'Physics', label: 'الفيزياء', icon: '⚛️' },
+            { id: 'curriculum', subject: 'Chemistry', label: 'الكيمياء', icon: '🧪' },
           ]},
           { label: 'الأدوات', items: [
             { id: 'quiz_center', label: 'مركز الاختبارات', icon: '⚡' },
@@ -31,11 +41,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
             { id: 'gamification', label: 'التحديات', icon: '🏆' },
           ]},
           { label: 'التجارب المتقدمة', items: [
-            { id: 'virtual-lab', label: 'المختبر التفاعلي', icon: '🧪' },
+            { id: 'virtual-lab', label: 'المختبر التفاعلي', icon: '🔬' },
             { id: 'live-sessions', label: 'الجلسات المباشرة', icon: '🎥' },
           ]},
           { label: 'المتابعة', items: [
             { id: 'reports', label: 'تقارير الأداء', icon: '📈' },
+            { id: 'quiz-performance', label: 'تحليل الاختبارات', icon: '📊' },
           ]},
           { label: 'الدعم', items: [
             { id: 'help-center', label: 'دليل الاستخدام', icon: '❓' },
@@ -52,8 +63,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
         ];
       case 'admin':
         return [
-          { label: 'الإدارة', items: [
+          { label: 'الإدارة الشاملة', items: [
+            { id: 'dashboard', label: 'لوحة التحكم الرئيسية', icon: '📊' },
+            { id: 'admin-students', label: 'إدارة الطلاب', icon: '🎓' },
+            { id: 'admin-teachers', label: 'إدارة المعلمين', icon: '👨‍🏫' },
             { id: 'admin-curriculum', label: 'إدارة المناهج', icon: '📚' },
+            { id: 'admin-questions', label: 'بنك الأسئلة', icon: '🧠' },
+            { id: 'admin-financials', label: 'الأمور المالية', icon: '💰' },
           ]}
         ];
       default:
@@ -91,15 +107,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
             <div key={idx} className="animate-slideUp" style={{animationDelay: `${idx * 0.05}s`}}>
               <p className="px-4 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 opacity-80">{group.label}</p>
               <div className="space-y-1">
-                {group.items.map(item => (
+                {group.items.map((item: any) => (
                   <button
-                    key={item.id}
-                    onClick={() => { setView(item.id as ViewState); if (window.innerWidth < 1024) onClose?.(); }}
-                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden ${currentView === item.id ? 'bg-gradient-to-r from-sky-500/20 to-blue-600/5 text-sky-400 border border-sky-500/10' : 'text-slate-400 hover:bg-white/[0.03] hover:text-white border border-transparent'}`}
+                    key={item.id + (item.subject || '')}
+                    onClick={() => navigate(item.id as ViewState, item.subject)}
+                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden ${currentView === item.id && (!item.subject || item.subject === 'Physics') ? 'bg-gradient-to-r from-sky-500/20 to-blue-600/5 text-sky-400 border border-sky-500/10' : 'text-slate-400 hover:bg-white/[0.03] hover:text-white border border-transparent'}`}
                   >
                     <span className={`text-lg transition-transform duration-300 ${currentView === item.id ? 'scale-110 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]' : 'group-hover:scale-110'}`}>{item.icon}</span>
                     <span className="font-bold text-[13px] tracking-wide">{item.label}</span>
-                    {currentView === item.id && ( <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-sky-400 shadow-[0_0_15px_#38bdf8]"></div> )}
+                    {currentView === item.id && (!item.subject || item.subject === 'Physics') && ( <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-sky-400 shadow-[0_0_15px_#38bdf8]"></div> )}
                   </button>
                 ))}
               </div>

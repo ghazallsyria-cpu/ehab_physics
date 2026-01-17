@@ -15,7 +15,7 @@ const TeacherJoin: React.FC = () => {
       <div className="text-center mb-16">
         <span className="text-[#00d2ff] font-black uppercase tracking-[0.4em] text-[10px]">Work with us</span>
         <h2 className="text-5xl font-black mt-4 mb-6">انضم إلى الفريق <span className="text-[#00d2ff]">الأكاديمي</span></h2>
-        <p className="text-gray-500 text-lg max-w-2xl mx-auto">نبحث عن أفضل معلمي الفيزياء في سوريا لنصنع مستقبلاً تعليمياً مختلفاً مدعوماً بالذكاء الاصطناعي.</p>
+        <p className="text-gray-500 text-lg max-w-2xl mx-auto">نبحث عن أفضل معلمي الفيزياء في الكويت لنصنع مستقبلاً تعليمياً مختلفاً مدعوماً بالذكاء الاصطناعي.</p>
       </div>
 
       {submitted ? (

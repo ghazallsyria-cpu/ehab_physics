@@ -20,9 +20,9 @@ const CurriculumMap: React.FC = () => {
     <div className="max-w-7xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white">
       {/* Header */}
       <div className="mb-16 text-center">
-        <h2 className="text-5xl font-black mb-4 tracking-tighter">منهج <span className="text-[#00d2ff] text-glow">الفيزياء</span> السوري</h2>
+        <h2 className="text-5xl font-black mb-4 tracking-tighter">منهج <span className="text-[#00d2ff] text-glow">الفيزياء</span> الكويتي</h2>
         <p className="text-gray-500 max-w-2xl mx-auto text-lg">
-          توزيع المنهج المعتمد لطلاب المرحلة الثانوية - سوريا.
+          توزيع المنهج المعتمد لطلاب المرحلة الثانوية - الكويت.
         </p>
       </div>
 

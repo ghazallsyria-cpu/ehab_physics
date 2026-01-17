@@ -1,16 +1,18 @@
 
 import React, { useState } from 'react';
-import { Lesson, ContentBlock, ContentBlockType } from '../types';
-import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube } from 'lucide-react';
+import { Lesson, ContentBlock, ContentBlockType, Curriculum } from '../types';
+import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio } from 'lucide-react';
 
 interface LessonEditorProps {
   lessonData: Partial<Lesson>;
   unitId: string;
-  onSave: (lesson: Lesson, unitId: string) => void;
+  grade: '10' | '11' | '12';
+  subject: 'Physics' | 'Chemistry';
+  onSave: (lesson: Lesson, unitId: string, grade: '10' | '11' | '12', subject: 'Physics' | 'Chemistry') => void;
   onCancel: () => void;
 }
 
-const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, onSave, onCancel }) => {
+const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, subject, onSave, onCancel }) => {
   const [lesson, setLesson] = useState<Partial<Lesson>>(lessonData);
 
   const updateField = (field: keyof Lesson, value: any) => {
@@ -46,7 +48,7 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, onSave,
       alert("يرجى ملء عنوان الدرس وإضافة محتوى واحد على الأقل.");
       return;
     }
-    onSave(lesson as Lesson, unitId);
+    onSave(lesson as Lesson, unitId, grade, subject);
   };
 
   return (
@@ -86,6 +88,7 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, onSave,
                     {block.type === 'video' && <Video size={12}/>}
                     {block.type === 'youtube' && <Youtube size={12}/>}
                     {block.type === 'pdf' && <FileText size={12}/>}
+                    {block.type === 'audio' && <FileAudio size={12}/>}
                     {block.type} Content
                 </label>
                 {block.type === 'text' ? (
@@ -112,6 +115,7 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, onSave,
             <button onClick={() => addBlock('video')} className="flex items-center gap-2 text-xs font-bold px-4 py-2 bg-white/5 rounded-lg border border-white/10"><Video size={14}/> إضافة فيديو (عام)</button>
             <button onClick={() => addBlock('youtube')} className="flex items-center gap-2 text-xs font-bold px-4 py-2 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20"><Youtube size={14}/> إضافة فيديو يوتيوب</button>
             <button onClick={() => addBlock('pdf')} className="flex items-center gap-2 text-xs font-bold px-4 py-2 bg-white/5 rounded-lg border border-white/10"><FileText size={14}/> إضافة PDF</button>
+            <button onClick={() => addBlock('audio')} className="flex items-center gap-2 text-xs font-bold px-4 py-2 bg-purple-500/10 text-purple-400 rounded-lg border border-purple-500/20"><FileAudio size={14}/> إضافة صوت</button>
         </div>
       </div>
     </div>

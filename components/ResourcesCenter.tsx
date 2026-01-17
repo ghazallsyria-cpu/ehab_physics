@@ -55,7 +55,7 @@ const ResourcesCenter: React.FC<{ user: User | null }> = ({ user }) => {
     <div className="max-w-6xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white">
       <header className="mb-12 border-r-4 border-[#00d2ff] pr-8">
         <h2 className="text-5xl font-black mb-4 tracking-tighter">المكتبة <span className="text-[#00d2ff]">الرقمية</span></h2>
-        <p className="text-gray-500 text-xl font-medium">مذكرات، اختبارات سابقة، وملفات PDF المعتمدة للمنهج السوري.</p>
+        <p className="text-gray-500 text-xl font-medium">مذكرات، اختبارات سابقة، وملفات PDF المعتمدة للمنهج الكويتي.</p>
       </header>
 
       {/* Grade Tabs */}

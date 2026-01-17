@@ -58,7 +58,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
     window.dispatchEvent(new CustomEvent('change-view', { detail: { view } }));
   };
 
-  const userCurriculum = CURRICULUM_DATA.find(c => c.grade === user.grade);
+  const userCurriculum = CURRICULUM_DATA.find(c => c.grade === user.grade && c.subject === 'Physics'); // Default to Physics for main progress
   const totalLessons = userCurriculum?.units.reduce((acc, unit) => acc + unit.lessons.length, 0) || 1;
   const completedLessonsCount = (user.progress.completedLessonIds || []).length;
   const progressPercent = totalLessons > 0 ? Math.min(Math.round((completedLessonsCount / totalLessons) * 100), 100) : 0;
@@ -90,10 +90,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
          >
            <div className="relative z-10">
               <span className="px-3 py-1 bg-sky-500/20 text-sky-400 text-[10px] font-bold rounded-full uppercase tracking-widest mb-4 inline-block border border-sky-500/20">المنهج الدراسي</span>
-              <h3 className="text-2xl font-bold text-white mb-2">تابع رحلتك في الفيزياء</h3>
-              <p className="text-sm text-slate-400 font-medium max-w-md">تصفح الوحدات والفصول الدراسية وفق المنهج السوري المعتمد.</p>
+              <h3 className="text-2xl font-bold text-white mb-2">تابع رحلتك الدراسية</h3>
+              <p className="text-sm text-slate-400 font-medium max-w-md">تصفح الوحدات والفصول الدراسية للمواد المتاحة وفق المنهج الكويتي.</p>
               <div className="mt-6 flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-widest group-hover:gap-4 transition-all">
-                 <span>اذهب إلى المنهج</span>
+                 <span>اذهب إلى المناهج</span>
                  <ArrowRight className="w-4 h-4" />
               </div>
            </div>

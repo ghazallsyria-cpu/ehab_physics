@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 // FIX: Import GenerateContentResponse to provide explicit type annotation
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
@@ -47,7 +48,7 @@ const ImageGenerator: React.FC = () => {
       const response: GenerateContentResponse = await ai.models.generateContent({
         model: 'gemini-3-pro-image-preview',
         contents: {
-          parts: [{ text: `Educational, high-quality, cinematic physics visualization, suitable for a Syrian curriculum: ${prompt}` }],
+          parts: [{ text: `Educational, high-quality, cinematic physics visualization, suitable for a Kuwaiti curriculum: ${prompt}` }],
         },
         config: {
           imageConfig: {

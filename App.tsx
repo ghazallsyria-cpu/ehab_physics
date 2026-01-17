@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, ViewState, Lesson, QuizAttempt } from './types';
+import { User, ViewState, Lesson, QuizAttempt, Curriculum } from './types';
 import { dbService } from './services/db';
 import { Bell } from 'lucide-react';
 import { auth } from './services/firebase';
@@ -13,7 +13,7 @@ import Auth from './components/Auth';
 import StudentDashboard from './components/StudentDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import TeacherDashboard from './components/TeacherDashboard';
-import PhysicsChat from './components/PhysicsChat';
+import AiTutor from './components/PhysicsChat';
 import PWAPrompt from './components/PWAPrompt';
 import NotificationPanel from './components/NotificationPanel';
 
@@ -30,6 +30,11 @@ import LiveSessions from './components/LiveSessions';
 import ProgressReport from './components/ProgressReport';
 import HelpCenter from './components/HelpCenter';
 import AdminCurriculumManager from './components/AdminCurriculumManager';
+import AdminStudentManager from './components/AdminStudentManager';
+import AdminTeacherManager from './components/AdminTeacherManager';
+import AdminQuestionManager from './components/AdminQuestionManager';
+import AdminFinancials from './components/AdminFinancials';
+import QuizPerformance from './components/QuizPerformance';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -40,7 +45,8 @@ const App: React.FC = () => {
     if (['landing', 'privacy-policy'].includes(path)) return path as ViewState;
     return 'dashboard';
   });
-
+  
+  const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -92,6 +98,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleChangeView = (e: any) => {
       if (e.detail.view) setView(e.detail.view);
+      if (e.detail.subject) setActiveSubject(e.detail.subject);
       if (e.detail.lesson) setActiveLesson(e.detail.lesson);
       
       setIsSidebarOpen(false);
@@ -134,8 +141,8 @@ const App: React.FC = () => {
         if (user.role === 'teacher') return <TeacherDashboard user={user} />;
         return <StudentDashboard user={user} />;
       
-      case 'curriculum': return <CurriculumBrowser user={user} />;
-      case 'lesson': return activeLesson ? <LessonViewer user={user} lesson={activeLesson} /> : <CurriculumBrowser user={user} />;
+      case 'curriculum': return <CurriculumBrowser user={user} subject={activeSubject} />;
+      case 'lesson': return activeLesson ? <LessonViewer user={user} lesson={activeLesson} /> : <CurriculumBrowser user={user} subject={activeSubject} />;
       
       case 'quiz_center': return <QuizCenter user={user} />;
 
@@ -143,7 +150,7 @@ const App: React.FC = () => {
       
       case 'subscription': return <SubscriptionCenter user={user} onUpdateUser={setUser} />;
       
-      case 'ai-chat': return <PhysicsChat grade={user.grade || '12'} />;
+      case 'ai-chat': return <AiTutor grade={user.grade || '12'} subject={activeSubject} />;
       
       case 'gamification': return <GamificationCenter user={user} onUpdateUser={setUser} />;
       case 'recommendations': return <Recommendations user={user} />;
@@ -151,11 +158,16 @@ const App: React.FC = () => {
       case 'virtual-lab': return <LabHub user={user} />;
       case 'live-sessions': return <LiveSessions />;
       case 'reports': return <ProgressReport user={user} attempts={[]} onBack={() => setView('dashboard')} />;
+      case 'quiz-performance': return <QuizPerformance user={user} />;
       
       case 'help-center': return <HelpCenter />;
 
       // Admin specific views
       case 'admin-curriculum': return <AdminCurriculumManager />;
+      case 'admin-students': return <AdminStudentManager />;
+      case 'admin-teachers': return <AdminTeacherManager />;
+      case 'admin-questions': return <AdminQuestionManager />;
+      case 'admin-financials': return <AdminFinancials />;
       
       default: return <StudentDashboard user={user} />;
     }
@@ -166,7 +178,7 @@ const App: React.FC = () => {
       {view !== 'landing' && view !== 'privacy-policy' && user && (
         <Sidebar 
           currentView={view} 
-          setView={(v) => { setView(v); }} 
+          setView={(v, s) => { setView(v); if(s) setActiveSubject(s); }} 
           user={user} 
           onLogout={handleLogout} 
           isOpen={isSidebarOpen}

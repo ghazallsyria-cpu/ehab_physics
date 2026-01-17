@@ -33,22 +33,21 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
     });
   };
 
-  const extractYoutubeId = (url: string) => {
-    try {
-      const urlObj = new URL(url);
-      if (urlObj.hostname.includes('youtube.com')) {
-        if (urlObj.pathname.includes('/shorts/')) return urlObj.pathname.split('/shorts/')[1].split(/[?#]/)[0];
-        if (urlObj.pathname.includes('/embed/')) return urlObj.pathname.split('/embed/')[1].split(/[?#]/)[0];
-        return urlObj.searchParams.get('v');
-      } else if (urlObj.hostname.includes('youtu.be')) {
-        return urlObj.pathname.slice(1).split(/[?#]/)[0];
-      }
-    } catch (e) {
-      const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-      const match = url.match(regExp);
-      return (match && match[2].length === 11) ? match[2] : null;
+  const extractYoutubeId = (url: string): string | null => {
+    if (!url) {
+        return null;
     }
-    return null;
+    // This regex covers:
+    // - youtu.be/VIDEO_ID
+    // - youtube.com/watch?v=VIDEO_ID
+    // - youtube.com/embed/VIDEO_ID
+    // - youtube.com/v/VIDEO_ID
+    // - youtube.com/shorts/VIDEO_ID
+    // - And variations with or without http(s), www, and with other query parameters.
+    const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]{11}).*/;
+    const match = url.match(regExp);
+
+    return (match && match[1]) ? match[1] : null;
   };
 
   const handleNativeShare = async () => {
@@ -149,6 +148,13 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
               <iframe src={block.content} width="100%" height="100%" title={block.caption || `PDF Document ${index+1}`}></iframe>
             </div>
              {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
+          </figure>
+        );
+      case 'audio':
+        return (
+          <figure className="my-10">
+            <audio controls src={block.content} className="w-full rounded-[30px]"></audio>
+            {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
           </figure>
         );
       default:

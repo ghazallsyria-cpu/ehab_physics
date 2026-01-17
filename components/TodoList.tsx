@@ -234,7 +234,7 @@ const TodoList: React.FC<TodoListProps> = ({ user }) => {
                         </span>
                         <span className="text-[9px] text-gray-600 font-mono flex items-center gap-1">
                            <Calendar className="w-3 h-3" />
-                           {new Date(todo.createdAt).toLocaleDateString('ar-SY')}
+                           {new Date(todo.createdAt).toLocaleDateString('ar-KW')}
                         </span>
                     </div>
                   </div>
