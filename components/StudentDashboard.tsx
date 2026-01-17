@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, StudyGoal, LeaderboardEntry } from '../types';
 import { dbService } from '../services/db';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Lock, Award } from 'lucide-react';
 import { CURRICULUM_DATA } from '../constants';
 
 const CommunityGoals: React.FC = () => {
@@ -39,8 +38,7 @@ const Leaderboard: React.FC<{ user: User }> = ({ user }) => {
     useEffect(() => {
       const loadLeaderboard = async () => {
         let leaderboardData = await dbService.getLeaderboard();
-        // Manually set isCurrentUser for display
-        leaderboardData = leaderboardData.map(entry => ({...entry, isCurrentUser: entry.name === user.name})); // Simplified logic
+        leaderboardData = leaderboardData.map(entry => ({...entry, isCurrentUser: entry.name === user.name}));
         setData(leaderboardData);
       };
       loadLeaderboard();
@@ -67,60 +65,63 @@ interface StudentDashboardProps {
 }
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
-  
   const navigate = (view: any) => {
     window.dispatchEvent(new CustomEvent('change-view', { detail: { view } }));
   };
 
-  const userCurriculum = CURRICULUM_DATA.find(c => c.grade === user.grade && c.subject === 'Physics'); // Default to Physics for main progress
+  const userCurriculum = CURRICULUM_DATA.find(c => c.grade === user.grade);
   const totalLessons = userCurriculum?.units.reduce((acc, unit) => acc + unit.lessons.length, 0) || 1;
   const completedLessonsCount = (user.progress.completedLessonIds || []).length;
-  const progressPercent = totalLessons > 0 ? Math.min(Math.round((completedLessonsCount / totalLessons) * 100), 100) : 0;
+  const progressPercent = Math.min(Math.round((completedLessonsCount / totalLessons) * 100), 100);
 
   return (
     <div className="space-y-10 animate-fadeIn font-['Tajawal'] pb-24 text-right" dir="rtl">
       
-      {/* Header / Welcome Section */}
+      {/* Welcome & Security Banner */}
       <div className="flex flex-col md:flex-row justify-between items-start gap-6">
          <div>
             <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
                مرحباً، <span className="text-sky-400">{user.name.split(' ')[0]}</span>
             </h2>
-            <p className="text-slate-400 text-sm font-medium mt-2 opacity-80">
-              الصف {user.grade} • {user.grade === '10' ? 'عام' : 'الشعبة العلمية'}
-            </p>
+            <div className="flex items-center gap-4 mt-2">
+                <span className="text-slate-400 text-sm font-medium opacity-80">
+                الشهادة الثانوية • الفرع العلمي (الجمهورية العربية السورية)
+                </span>
+                <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest">
+                    <ShieldCheck size={12} /> الحساب مؤمن 🔐
+                </div>
+            </div>
          </div>
          <div className="flex gap-4">
-             <button onClick={() => navigate('recommendations')} className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl text-xs font-bold text-white hover:bg-white hover:text-black transition-all flex items-center gap-2">🧠 توصياتي</button>
+             <button onClick={() => navigate('ai-chat')} className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl text-xs font-bold text-white hover:bg-white hover:text-black transition-all flex items-center gap-2">🤖 اسأل سقراط</button>
              <button onClick={() => navigate('gamification')} className="bg-[#fbbf24] text-black px-6 py-3 rounded-2xl text-xs font-bold hover:scale-105 transition-transform flex items-center gap-2">🏆 التحديات</button>
          </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-         {/* Main Action Card */}
          <div 
            onClick={() => navigate('curriculum')}
            className="lg:col-span-8 bg-gradient-to-br from-sky-500/10 to-indigo-600/10 border border-sky-500/20 p-8 rounded-[40px] cursor-pointer hover:border-sky-500/40 transition-all group relative overflow-hidden animate-slideUp"
          >
-           <div className="relative z-10">
-              <span className="px-3 py-1 bg-sky-500/20 text-sky-400 text-[10px] font-bold rounded-full uppercase tracking-widest mb-4 inline-block border border-sky-500/20">المنهج الدراسي</span>
-              <h3 className="text-2xl font-bold text-white mb-2">تابع رحلتك الدراسية</h3>
-              <p className="text-sm text-slate-400 font-medium max-w-md">تصفح الوحدات والفصول الدراسية للمواد المتاحة وفق المنهج الكويتي.</p>
+            <div className="absolute top-[-20%] left-[-10%] w-64 h-64 bg-sky-500/5 rounded-full blur-[80px]"></div>
+            <div className="relative z-10">
+              <span className="px-3 py-1 bg-sky-500/20 text-sky-400 text-[10px] font-bold rounded-full uppercase tracking-widest mb-4 inline-block border border-sky-500/20">المسار الدراسي 2024</span>
+              <h3 className="text-2xl font-bold text-white mb-2">تابع رحلة التفوق السورية</h3>
+              <p className="text-sm text-slate-400 font-medium max-w-md">تصفح دروس الفيزياء المقررة للثالث الثانوي العلمي وفق الخطة الدرسية الجديدة.</p>
               <div className="mt-6 flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-widest group-hover:gap-4 transition-all">
-                 <span>اذهب إلى المناهج</span>
+                 <span>عرض الكتاب والدروس</span>
                  <ArrowRight className="w-4 h-4" />
               </div>
            </div>
          </div>
 
-         {/* Progress Sidebar */}
          <div className="lg:col-span-4 space-y-6">
            <div className="bg-slate-800/40 border border-white/5 p-8 rounded-[40px] animate-slideUp">
-              <h4 className="text-sm font-bold text-white mb-6 border-r-4 border-sky-500 pr-3">مؤشرات الأداء</h4>
+              <h4 className="text-sm font-bold text-white mb-6 border-r-4 border-sky-500 pr-3">مؤشرات الإنجاز</h4>
               <div className="space-y-5">
                  <div className="space-y-2">
                     <div className="flex justify-between items-center text-xs">
-                       <span className="text-slate-500 font-bold">إنجاز المنهج</span>
+                       <span className="text-slate-500 font-bold">تقدم المنهج</span>
                        <span className="text-white font-bold">{progressPercent}%</span>
                     </div>
                     <div className="w-full h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
@@ -129,12 +130,14 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
                  </div>
                  
                  <div className="flex justify-between items-center text-sm pt-4 border-t border-white/10">
-                    <span className="text-slate-400 font-bold">النقاط المكتسبة:</span>
-                    <span className="text-xl font-black text-[#fbbf24] tabular-nums">{user.progress.points || 0}</span>
+                    <span className="text-slate-400 font-bold">النقاط العلمية:</span>
+                    <span className="text-xl font-black text-[#fbbf24] tabular-nums">{user.progress.points || 0} XP</span>
                  </div>
-                 <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-400 font-bold">الدروس المنجزة:</span>
-                    <span className="text-xl font-black text-white tabular-nums">{completedLessonsCount}</span>
+
+                 {/* Security Status Message */}
+                 <div className="mt-6 p-4 bg-black/40 border border-white/5 rounded-2xl flex gap-3 items-center">
+                    <Lock className="text-gray-500 shrink-0" size={14} />
+                    <p className="text-[9px] text-gray-500 leading-relaxed font-medium">تم تفعيل التشفير المتعدد لبياناتك. كلمات المرور مشفرة محلياً قبل التخزين.</p>
                  </div>
               </div>
            </div>
@@ -143,14 +146,14 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       
       {/* Social Hub */}
       <div className="animate-slideUp" style={{animationDelay: '0.2s'}}>
-        <h3 className="text-2xl font-black mb-6">المركز الاجتماعي</h3>
+        <h3 className="text-2xl font-black mb-6 flex items-center gap-3">الساحة التفاعلية <Award className="text-[#fbbf24]"/></h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="glass-panel p-8 rounded-[40px] border-white/5 hover:border-purple-500/30 transition-all">
-                <h4 className="text-lg font-bold text-purple-400 mb-4">أهداف المجتمع</h4>
+                <h4 className="text-lg font-bold text-purple-400 mb-4">أهداف الطلاب</h4>
                 <CommunityGoals />
             </div>
             <div className="glass-panel p-8 rounded-[40px] border-white/5 hover:border-yellow-500/30 transition-all">
-                <h4 className="text-lg font-bold text-yellow-400 mb-4">لوحة الصدارة</h4>
+                <h4 className="text-lg font-bold text-yellow-400 mb-4">لوحة الصدارة (سوريا)</h4>
                 <Leaderboard user={user} />
             </div>
         </div>

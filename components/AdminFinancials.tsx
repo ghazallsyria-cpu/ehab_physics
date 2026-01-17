@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Invoice, PaymentStatus, PaymentSettings, SubscriptionCode } from '../types';
 import { dbService } from '../services/db';
@@ -37,7 +36,7 @@ const AdminFinancials: React.FC = () => {
 
     } catch (e) {
       console.error("Failed to load finance data", e);
-      setMessage({ text: 'فشل تحميل البيانات المالية. يرجى تحديث الصفحة.', type: 'error' });
+      setMessage({ text: 'فشل تحميل البيانات المالية.', type: 'error' });
     }
   };
 
@@ -49,32 +48,22 @@ const AdminFinancials: React.FC = () => {
   const handleTogglePaymentGateway = async () => {
     if (paymentSettings) {
         setIsToggling(true);
-        setMessage(null);
         try {
             const newState = !paymentSettings.isOnlinePaymentEnabled;
             await dbService.setPaymentSettings(newState);
             setPaymentSettings({ isOnlinePaymentEnabled: newState });
-            setMessage({ text: 'تم تحديث حالة بوابة الدفع بنجاح.', type: 'success' });
-        } catch (e) {
-            setMessage({ text: 'فشل تحديث حالة البوابة.', type: 'error' });
-            console.error(e);
         } finally {
             setIsToggling(false);
-            setTimeout(() => setMessage(null), 4000);
         }
     }
   };
 
   const handleGenerateCode = async () => {
     setIsGenerating(true);
-    setMessage(null);
     try {
         await dbService.createSubscriptionCode('premium');
-        await loadFinanceData(); // Refresh codes list
+        await loadFinanceData();
         setMessage({ text: 'تم إنشاء كود جديد بنجاح.', type: 'success' });
-    } catch (e) {
-        setMessage({ text: 'فشل في إنشاء كود جديد.', type: 'error' });
-        console.error(e);
     } finally {
         setIsGenerating(false);
         setTimeout(() => setMessage(null), 4000);
@@ -88,76 +77,52 @@ const AdminFinancials: React.FC = () => {
   };
 
   return (
-    <div className="space-y-12 animate-fadeIn">
-      {message && (
-        <div className={`p-4 rounded-2xl text-sm font-bold text-center mb-8 ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-            {message.text}
-        </div>
-      )}
-      
+    <div className="space-y-12 animate-fadeIn font-['Tajawal']" dir="rtl">
+      <header className="mb-10 text-right">
+        <h2 className="text-4xl font-black text-white italic">الخزينة <span className="text-[#fbbf24]">المركزية</span></h2>
+        <p className="text-gray-500 font-medium">مراقبة الاشتراكات والمدفوعات (ل.س).</p>
+      </header>
+
       {/* Payment Gateway Control */}
       <div className="glass-panel p-8 rounded-[40px] border-white/5 flex flex-col sm:flex-row justify-between items-center gap-6">
-        <div>
-            <h4 className="text-xl font-black text-white">إدارة بوابة الدفع</h4>
-            <p className="text-sm text-gray-500 mt-1">تفعيل أو إيقاف خدمة الدفع الإلكتروني للطلاب.</p>
+        <div className="text-right">
+            <h4 className="text-xl font-black text-white">بوابة الدفع الإلكتروني</h4>
+            <p className="text-sm text-gray-500 mt-1">تفعيل أو إيقاف استلام المدفوعات عبر المنصة.</p>
         </div>
         <button
             onClick={handleTogglePaymentGateway}
             disabled={isToggling}
-            className={`px-8 py-5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 transition-all disabled:opacity-50 ${paymentSettings?.isOnlinePaymentEnabled ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}
+            className={`px-8 py-5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 transition-all ${paymentSettings?.isOnlinePaymentEnabled ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}
         >
             {isToggling ? <RefreshCw className="animate-spin" size={16}/> : paymentSettings?.isOnlinePaymentEnabled ? <Power size={16}/> : <PowerOff size={16}/>}
-            {isToggling ? 'جاري التحديث...' : paymentSettings?.isOnlinePaymentEnabled ? 'مفعل' : 'متوقف'}
+            {paymentSettings?.isOnlinePaymentEnabled ? 'البوابة مفعلة' : 'البوابة متوقفة'}
         </button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {[
-          { l: 'إجمالي الدخل المحصل', v: `${stats.totalRevenue.toLocaleString()} د.ك`, c: 'text-green-500', i: '💰' },
-          { l: 'مدفوعات قيد التحصيل', v: `${stats.pendingAmount.toLocaleString()} د.ك`, c: 'text-yellow-500', i: '⏳' },
-          { l: 'عدد الفواتير المصدرة', v: stats.totalInvoices, c: 'text-[#00d2ff]', i: '🧾' }
+          { l: 'إجمالي الدخل المحصل', v: `${stats.totalRevenue.toLocaleString()} ل.س`, c: 'text-green-500', i: '💰' },
+          { l: 'مبالغ قيد الانتظار', v: `${stats.pendingAmount.toLocaleString()} ل.س`, c: 'text-yellow-500', i: '⏳' },
+          { l: 'إجمالي الفواتير', v: stats.totalInvoices, c: 'text-[#00d2ff]', i: '🧾' }
         ].map((s, idx) => (
-          <div key={idx} className="glass-panel p-10 rounded-[50px] border-white/5 relative overflow-hidden">
-             <div className="text-3xl mb-6">{s.i}</div>
+          <div key={idx} className="glass-panel p-10 rounded-[50px] border-white/5 relative overflow-hidden group">
+             <div className="text-3xl mb-6 group-hover:scale-110 transition-transform">{s.i}</div>
              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">{s.l}</p>
-             <h3 className={`text-4xl font-black ${s.c} tracking-tighter tabular-nums`}>{s.v}</h3>
+             <h3 className={`text-3xl font-black ${s.c} tracking-tighter tabular-nums`}>{s.v}</h3>
           </div>
         ))}
       </div>
-
-      {/* Subscription Codes */}
-      <div className="glass-panel p-8 rounded-[40px] border-white/5">
-        <div className="flex justify-between items-center mb-6">
-            <h4 className="text-lg font-black uppercase tracking-widest">أكواد الاشتراك اليدوي</h4>
-            <button onClick={handleGenerateCode} disabled={isGenerating} className="flex items-center gap-2 px-4 py-2 bg-green-500/10 text-green-400 rounded-lg text-xs font-bold border border-green-500/20 disabled:opacity-50">
-                {isGenerating ? <RefreshCw className="animate-spin" size={14}/> : <Plus size={14}/>}
-                {isGenerating ? 'جاري...' : 'إنشاء كود جديد'}
-            </button>
-        </div>
-        <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar pr-1">
-            {codes.map(code => (
-                <div key={code.id} className="p-3 bg-black/40 rounded-xl flex justify-between items-center font-mono text-sm">
-                    <span className="text-gray-300">{code.code}</span>
-                    <button onClick={() => copyToClipboard(code.code)} className="p-2 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg">
-                        <Copy size={14}/>
-                    </button>
-                </div>
-            ))}
-            {codes.length === 0 && <p className="text-center text-xs text-gray-600 p-4">لا توجد أكواد غير مستخدمة.</p>}
-        </div>
-      </div>
-
 
       {/* Invoices Table */}
       <div className="glass-panel rounded-[50px] border-white/5 overflow-hidden">
         <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
            <h4 className="text-lg font-black uppercase tracking-widest">سجل المعاملات المالية</h4>
            <div className="flex gap-2">
-              {(['ALL', 'PAID', 'PENDING', 'OVERDUE'] as const).map(f => (
+              {(['ALL', 'PAID', 'PENDING'] as const).map(f => (
                 <button 
                   key={f}
-                  onClick={() => setFilter(f)}
+                  onClick={() => setFilter(f as any)}
                   className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase transition-all ${filter === f ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
                 >
                   {f === 'ALL' ? 'الكل' : f}
@@ -168,41 +133,31 @@ const AdminFinancials: React.FC = () => {
         <table className="w-full text-right">
           <thead className="bg-white/5 text-[9px] font-black text-gray-500 uppercase tracking-widest">
             <tr>
-              <th className="px-10 py-6">رقم الفاتورة</th>
+              <th className="px-10 py-6">الرقم</th>
               <th className="px-10 py-6">الطالب</th>
-              <th className="px-10 py-6">القيمة</th>
-              <th className="px-10 py-6">التاريخ</th>
+              <th className="px-10 py-6">المبلغ</th>
               <th className="px-10 py-6">الحالة</th>
-              <th className="px-10 py-6">الإجراءات</th>
+              <th className="px-10 py-6">التاريخ</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {invoices.filter(i => filter === 'ALL' || i.status === filter).map(inv => (
               <tr key={inv.id} className="hover:bg-white/5 transition-all text-xs">
-                <td className="px-10 py-6 font-bold tabular-nums">#{inv.id.substring(0, 8)}</td>
+                <td className="px-10 py-6 font-mono text-gray-500">#{inv.id.substring(0, 6)}</td>
                 <td className="px-10 py-6 font-bold">{inv.userName}</td>
-                <td className="px-10 py-6 font-black text-[#00d2ff]">{inv.amount.toLocaleString()} د.ك</td>
-                <td className="px-10 py-6 text-gray-500">{new Date(inv.date).toLocaleDateString('ar-KW')}</td>
+                <td className="px-10 py-6 font-black text-[#00d2ff]">{inv.amount.toLocaleString()} ل.س</td>
                 <td className="px-10 py-6">
                   <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase ${
-                    inv.status === 'PAID' ? 'bg-green-500/10 text-green-500' : 
-                    inv.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-red-500/10 text-red-500'
+                    inv.status === 'PAID' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'
                   }`}>
                     {inv.status}
                   </span>
                 </td>
-                <td className="px-10 py-6">
-                   <div className="flex gap-4">
-                      <button onClick={() => handleUpdateStatus(inv.id, 'PAID')} className="text-green-500 hover:scale-110 transition-transform">✓</button>
-                      <button onClick={() => handleUpdateStatus(inv.id, 'CANCELLED')} className="text-red-500 hover:scale-110 transition-transform">✕</button>
-                      <button onClick={() => window.print()} className="text-gray-500 hover:text-white">🖨️</button>
-                   </div>
-                </td>
+                <td className="px-10 py-6 text-gray-600">{new Date(inv.date).toLocaleDateString('ar-SY')}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {invoices.length === 0 && <div className="p-20 text-center text-gray-500 font-black uppercase tracking-widest">لا توجد سجلات مالية</div>}
       </div>
     </div>
   );
