@@ -1,4 +1,3 @@
-
 import { User, Curriculum, Quiz, Question, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, Lesson, Unit, PaymentSettings, SubscriptionCode } from "../types";
 import { db } from "./firebase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, documentId, writeBatch, orderBy, limit } from "firebase/firestore";
@@ -17,12 +16,13 @@ class SyrianScienceCenterDB {
     const userDocRef = doc(db, "users", identifier);
     const userSnap = await getDoc(userDocRef);
     if (userSnap.exists()) {
-        return userSnap.data() as User;
+        return { uid: userSnap.id, ...userSnap.data() } as User;
     }
     const q = query(collection(db, "users"), where("email", "==", identifier));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
-        return querySnapshot.docs[0].data() as User;
+        const userDoc = querySnapshot.docs[0];
+        return { uid: userDoc.id, ...userDoc.data() } as User;
     }
     return null;
   }
@@ -42,14 +42,14 @@ class SyrianScienceCenterDB {
     if (!db) return [];
     const q = query(collection(db, "users"), where("role", "==", "student"));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as User);
+    return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }) as User);
   }
 
   async getTeachers(): Promise<User[]> {
     if (!db) return [];
     const q = query(collection(db, "users"), where("role", "==", "teacher"));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as User);
+    return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }) as User);
   }
 
   // --- Curriculum ---
