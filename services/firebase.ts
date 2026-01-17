@@ -1,14 +1,6 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-
-// SECURITY NOTE:
-// This application utilizes Firebase Authentication, a secure, managed authentication service from Google.
-// All user password handling, including hashing and storage, is managed by Firebase on their servers.
-// Passwords are sent over HTTPS and are hashed using industry-standard, salted algorithms (e.g., scrypt).
-// We do not store passwords or password hashes in our own database. This is a security best practice
-// that delegates credential management to a specialized, highly secure service.
-// Therefore, no client-side hashing is implemented, as it is unnecessary and not recommended.
 
 const firebaseConfig = {
   apiKey: "AIzaSyAwbn6xMl8RZ52cWk571CS_hI4Qo9Kh1VY",
@@ -20,14 +12,17 @@ const firebaseConfig = {
   measurementId: "G-7WBG5PBVC2"
 };
 
-const app = initializeApp(firebaseConfig);
-
+// Initialize Main App
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-// FIX: Force account selection prompt for Google Sign-In to prevent popup errors after logout.
+// Initialize Secondary App for Admin Actions (to prevent session swapping)
+const secondaryApp = !getApps().find(a => a.name === "Secondary") 
+  ? initializeApp(firebaseConfig, "Secondary") 
+  : getApp("Secondary");
+export const secondaryAuth = getAuth(secondaryApp);
+
 const provider = new GoogleAuthProvider();
-provider.setCustomParameters({
-  prompt: 'select_account'
-});
+provider.setCustomParameters({ prompt: 'select_account' });
 export const googleProvider = provider;
