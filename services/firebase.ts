@@ -3,7 +3,6 @@ import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-// Use environment variables provided via define in vite.config.ts
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
@@ -21,7 +20,8 @@ if (!getApps().length) {
   app = getApp();
 }
 
-// تهيئة تطبيق ثانوي لإدارة عمليات Auth الخاصة بالمسؤول (لإنشاء مستخدمين دون تسجيل خروج المسؤول)
+// تهيئة تطبيق ثانوي لإدارة عمليات Auth الخاصة بالمسؤول
+// هذا يمنع تسجيل خروج المسؤول عند إنشاء حسابات يدوية للطلاب/المعلمين
 const secondaryAppName = "SecondaryAdminApp";
 let secondaryApp;
 if (!getApps().find(a => a.name === secondaryAppName)) {
