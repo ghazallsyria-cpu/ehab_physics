@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, AIRecommendation } from '../types';
 import { dbService } from '../services/db';
@@ -9,8 +10,6 @@ const Recommendations: React.FC<{ user: User }> = ({ user }) => {
 
   useEffect(() => {
     const fetchRecs = async () => {
-      // FIX: Add a guard clause to ensure the user object is valid before making an API call.
-      // This robustly handles any edge cases where the user prop might not be immediately available.
       if (!user) {
         setIsLoading(false);
         return;

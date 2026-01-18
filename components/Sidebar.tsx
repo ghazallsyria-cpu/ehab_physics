@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ViewState, User } from '../types';
 
@@ -88,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
         <div className="p-6 pb-2">
           <div className="bg-white/[0.03] border border-white/5 p-4 rounded-3xl flex items-center gap-4 mb-6 relative overflow-hidden group">
              <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20 shrink-0 relative z-10 font-bold text-lg">
+             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20 shrink-0 relative z-10 font-bold text-lg transition-transform duration-300 group-hover:scale-110">
                 {user.name.charAt(0)}
              </div>
              <div className="min-w-0 relative z-10">

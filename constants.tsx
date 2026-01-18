@@ -131,32 +131,29 @@ export const CURRICULUM_DATA: Curriculum[] = [
   }
 ];
 
-// FIX: Added PHYSICS_TOPICS as an alias for CURRICULUM_DATA
 export const PHYSICS_TOPICS = CURRICULUM_DATA;
 
 
 // --- 2. Exams System Data ---
 export const ANSWERS_DB: Answer[] = [
     { id: 'ans-1-1', text: 'زيادة عدد اللفات' }, { id: 'ans-1-2', text: 'تقليل شدة المجال المغناطيسي' }, { id: 'ans-1-3', text: 'إبطاء حركة المغناطيس' },
-    { id: 'ans-2-1', text: 'تمدد الزمن' }, { id: 'ans-2-2', text: 'تقلص الطول' }, { id: 'ans-2-3', text: 'ثبات سرعة الضوء' },
+    { id: 'ans-2-1', text: 'تمدد الزمن' }, { id: 'ans-2-2', text: 'تقلص الطول' }, { id: 'ans-2-3', text: 'ثبات سرعة الضوء في الفراغ' },
+    { id: 'ans-3-1', text: '10 جول' }, { id: 'ans-3-2', text: '25 جول' }, { id: 'ans-3-3', text: '50 جول' },
 ];
 
 export const QUESTIONS_DB: Question[] = [
     { 
       id: 'q-1', 
-      question_text: 'أي من التالي يزيد من القوة الدافعة الحثية المتولدة في ملف؟', 
+      text: 'أي من التالي يزيد من القوة الدافعة الحثية المتولدة في ملف؟', 
       type: 'mcq', 
-      choices: [
-        { key: 'أ', text: 'زيادة عدد اللفات' },
-        { key: 'ب', text: 'تقليل شدة المجال المغناطيسي' },
-        { key: 'ج', text: 'إبطاء حركة المغناطيس' }
-      ],
-      correct_answer: 'أ',
+      answers: ANSWERS_DB.slice(0, 3),
+      correctAnswerId: 'ans-1-1',
       isVerified: true,
       difficulty: 'Easy',
       unit: 'الكهرومغناطيسية',
       grade: '12',
       category: 'الحث',
+      subject: 'Physics',
       solution: 'وفقاً لقانون فاراداي، القوة الدافعة الحثية تتناسب طرداً مع عدد اللفات (N) ومعدل تغير التدفق المغناطيسي. زيادة عدد اللفات تزيد من القوة الدافعة الحثية.',
       steps_array: [
         'نستدعي قانون فاراداي للحث: $$\\varepsilon = -N \\frac{\\Delta \\Phi_B}{\\Delta t}$$',
@@ -167,71 +164,49 @@ export const QUESTIONS_DB: Question[] = [
         'الخلط بين شدة المجال ومعدل تغير التدفق.',
         'الاعتقاد بأن إبطاء الحركة يزيد من زمن التغير وبالتالي يزيد القوة (العكس هو الصحيح).'
       ],
-      answers: ANSWERS_DB.slice(0, 3),
-      correctAnswerId: 'ans-1-1',
-      text: 'أي من التالي يزيد من القوة الدافعة الحثية المتولدة في ملف؟', 
     },
     { 
       id: 'q-2', 
-      question_text: 'ما هو أحد مبادئ أينشتاين في النظرية النسبية الخاصة؟', 
+      text: 'ما هو أحد مبادئ أينشتاين في النظرية النسبية الخاصة؟', 
       type: 'mcq', 
-      choices: [
-        { key: 'أ', text: 'تمدد الزمن' },
-        { key: 'ب', text: 'تقلص الطول' },
-        { key: 'ج', text: 'ثبات سرعة الضوء في الفراغ' }
-      ],
-      correct_answer: 'ج',
+      answers: ANSWERS_DB.slice(3, 6),
+      correctAnswerId: 'ans-2-3',
       isVerified: false,
       difficulty: 'Medium',
       unit: 'الفيزياء الحديثة',
       grade: '12',
       category: 'النسبية',
+      subject: 'Physics',
       solution: 'ينص المبدأ الثاني للنسبية الخاصة على أن سرعة الضوء في الفراغ لها نفس القيمة لجميع المراقبين بغض النظر عن حركتهم.',
-      steps_array: [],
-      common_errors: [],
-      answers: ANSWERS_DB.slice(3, 6),
-      correctAnswerId: 'ans-2-3',
-      text: 'ما هو أحد مبادئ أينشتاين في النظرية النسبية الخاصة؟', 
     },
     { 
       id: 'q-3-11', 
-      question_text: 'جسم كتلته 2kg يتحرك بسرعة 5m/s. ما هي طاقته الحركية؟', 
+      text: 'جسم كتلته 2kg يتحرك بسرعة 5m/s. ما هي طاقته الحركية؟', 
       type: 'mcq', 
-      choices: [
-        { key: 'أ', text: '10 جول' },
-        { key: 'ب', text: '25 جول' },
-        { key: 'ج', text: '50 جول' }
-      ],
-      correct_answer: 'ب',
+      answers: ANSWERS_DB.slice(6, 9),
+      correctAnswerId: 'ans-3-2',
       isVerified: true,
       difficulty: 'Easy',
       unit: 'الميكانيكا',
       grade: '11',
       category: 'الطاقة',
+      subject: 'Physics',
       solution: 'الطاقة الحركية (KE) تحسب من العلاقة $$K = \\frac{1}{2}mv^2$$. بالتعويض، نجد أن $$K = \\frac{1}{2} \\times 2 \\times 5^2 = 25$$ جول.',
-      steps_array: [],
       common_errors: ['نسيان تربيع السرعة.'],
-      answers: [],
-      correctAnswerId: '',
-      text: 'جسم كتلته 2kg يتحرك بسرعة 5m/s. ما هي طاقته الحركية؟', 
     },
     { 
       id: 'q-4-10', 
-      question_text: 'ما هي وحدة قياس القوة في النظام الدولي للوحدات (SI)؟', 
+      text: 'ما هي وحدة قياس القوة في النظام الدولي للوحدات (SI)؟', 
       type: 'short_answer', 
-      choices: [],
-      correct_answer: 'النيوتن',
+      answers: [], // Short answer has no predefined answers
+      correctAnswerId: 'النيوتن', // For short answer, this might be the string to match
       isVerified: true,
       difficulty: 'Easy',
       unit: 'القياس',
       grade: '10',
       category: 'أساسيات',
+      subject: 'Physics',
       solution: 'وحدة قياس القوة هي النيوتن (N)، وتكريماً للعالم إسحاق نيوتن.',
-      steps_array: [],
-      common_errors: [],
-      answers: [],
-      correctAnswerId: '',
-      text: 'ما هي وحدة قياس القوة في النظام الدولي للوحدات (SI)؟', 
     },
 ];
 
@@ -249,6 +224,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     duration: 'term',
     features: ['الوصول لجميع الدروس والفيديوهات', 'بنك الأسئلة الشامل', 'المساعد الذكي (AI Tutor)', 'اختبارات تجريبية غير محدودة', 'شهادات إنجاز رقمية'],
     recommended: true,
+    tier: 'premium'
   },
   {
     id: 'plan_basic',
@@ -256,10 +232,10 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     price: 15000,
     duration: 'monthly',
     features: ['الوصول لدروس الوحدة الأولى فقط', 'اختبارات محدودة', 'دعم فني عبر المنتدى'],
+    tier: 'free'
   }
 ];
 
-// FIX: Added PRICING_PLANS as an alias for SUBSCRIPTION_PLANS
 export const PRICING_PLANS = SUBSCRIPTION_PLANS;
 
 // --- 4. Gamification ---
@@ -281,7 +257,7 @@ export const STUDY_GOALS_DB: StudyGoal[] = [
   { id: 'goal-2', title: 'حل 100 مسألة فيزياء حديثة', participantCount: 88, progress: 40 }
 ];
 
-// --- 6. New Mock Data (Added to fix errors) ---
+// --- 6. New Mock Data ---
 
 export const MOCK_ARTICLES: Article[] = [
     { id: 'art-1', category: 'الفيزياء الفلكية', title: 'أسرار الثقوب السوداء', summary: 'استكشاف كيف تتحدى الثقوب السوداء فهمنا للزمان والمكان.', imageUrl: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?q=80&w=2071&auto=format&fit=crop', readTime: '12 دقيقة', content: '### مقدمة\nالثقوب السوداء هي مناطق في الزمكان تتميز بجاذبية قوية جدًا بحيث لا يمكن لأي شيء، حتى الضوء، الهروب منها. تتشكل من بقايا النجوم الضخمة التي انهارت تحت تأثير جاذبيتها الخاصة.\n\n$$ R_s = \\frac{2GM}{c^2} $$\n\nيمثل $R_s$ نصف قطر شفارتزشيلد، وهو نصف القطر الذي يجب أن ينضغط إليه أي جسم ليصبح ثقبًا أسود.' },

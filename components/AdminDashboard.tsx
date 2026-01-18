@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BookOpen, Users, Briefcase, Banknote, BrainCircuit } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Banknote, BrainCircuit, Settings } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
 
@@ -14,6 +14,7 @@ const AdminDashboard: React.FC = () => {
     { view: 'admin-teachers', icon: Briefcase, title: 'إدارة المعلمين', description: 'إدارة صلاحيات المعلمين، الحسابات، والبيانات.', color: 'indigo' },
     { view: 'admin-questions', icon: BrainCircuit, title: 'بنك الأسئلة المركزي', description: 'رقمنة، فحص، واعتماد أسئلة الامتحانات.', color: 'amber' },
     { view: 'admin-financials', icon: Banknote, title: 'الأمور المالية', description: 'مراقبة سجلات الدفع، الفواتير، والإحصائيات.', color: 'rose' },
+    { view: 'admin-settings', icon: Settings, title: 'إعدادات النظام', description: 'التحكم في تسجيل البيانات وسياسات الخصوصية.', color: 'gray' },
   ];
 
   const colors = {
@@ -22,6 +23,7 @@ const AdminDashboard: React.FC = () => {
     indigo: { border: 'border-indigo-500/20', hoverBorder: 'hover:border-indigo-500/40', bg: 'bg-indigo-500/10', text: 'text-indigo-400', hoverText: 'group-hover:text-indigo-400' },
     amber: { border: 'border-amber-500/20', hoverBorder: 'hover:border-amber-500/40', bg: 'bg-amber-500/10', text: 'text-amber-400', hoverText: 'group-hover:text-amber-400' },
     rose: { border: 'border-rose-500/20', hoverBorder: 'hover:border-rose-500/40', bg: 'bg-rose-500/10', text: 'text-rose-400', hoverText: 'group-hover:text-rose-400' },
+    gray: { border: 'border-gray-500/20', hoverBorder: 'hover:border-gray-500/40', bg: 'bg-gray-500/10', text: 'text-gray-400', hoverText: 'group-hover:text-gray-400' },
   };
 
   return (

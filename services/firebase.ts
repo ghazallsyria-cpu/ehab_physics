@@ -3,7 +3,7 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAwbn6xMl8RZ52cWk571CS_hI4Qo9Kh1VY",
+  apiKey: process.env.API_KEY,
   authDomain: "physi-kuwait-prod-46032.firebaseapp.com",
   projectId: "physi-kuwait-prod-46032",
   storageBucket: "physi-kuwait-prod-46032.firebasestorage.app",

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Curriculum, Unit, Lesson } from '../types';
 import { dbService } from '../services/db';

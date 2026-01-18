@@ -5,7 +5,7 @@ import { secondaryAuth } from '../services/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   Search, User as UserIcon, Zap, Save, RefreshCw, GraduationCap, 
-  Mail, Phone, School, PlusCircle, X, KeyRound
+  Mail, Phone, School, PlusCircle, X, KeyRound, Trash2
 } from 'lucide-react';
 
 const AdminStudentManager: React.FC = () => {
@@ -112,6 +112,31 @@ const AdminStudentManager: React.FC = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedStudent || selectedStudent.uid === 'new_entry') return;
+
+    if (!window.confirm(`⚠️ تحذير: هل أنت متأكد من حذف الطالب "${selectedStudent.name}"؟ سيتم حذف جميع بياناته بشكل دائم.`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage(null);
+    try {
+      await dbService.deleteUser(selectedStudent.uid);
+      await loadStudents();
+      setMessage({ text: 'تم حذف الطالب بنجاح.', type: 'success' });
+      setTimeout(() => {
+        handleCloseModal();
+        setMessage(null);
+      }, 1500);
+    } catch (e) {
+      console.error("Failed to delete student", e);
+      setMessage({ text: 'فشل حذف الطالب.', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="font-['Tajawal'] text-right animate-fadeIn" dir="rtl">
         <div className="glass-panel p-8 rounded-[40px] border-white/5 bg-[#0a1118]/80 shadow-2xl">
@@ -198,14 +223,25 @@ const AdminStudentManager: React.FC = () => {
                         {message.text}
                     </div>
                 )}
-                <button 
-                    onClick={handleSave} 
-                    disabled={isLoading}
-                    className="w-full bg-[#fbbf24] text-black py-5 rounded-[25px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                >
-                    {isLoading ? <RefreshCw className="animate-spin" /> : <Save size={18} />}
-                    {selectedStudent.uid === 'new_entry' ? 'إنشاء الحساب' : 'حفظ التعديلات'}
-                </button>
+                <div className="flex gap-4">
+                    {selectedStudent.uid !== 'new_entry' && (
+                        <button
+                            onClick={handleDelete}
+                            disabled={isLoading}
+                            className="bg-red-500/10 text-red-400 p-5 rounded-[25px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all disabled:opacity-50"
+                        >
+                            <Trash2 size={18} />
+                        </button>
+                    )}
+                    <button 
+                        onClick={handleSave} 
+                        disabled={isLoading}
+                        className="flex-1 bg-[#fbbf24] text-black py-5 rounded-[25px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                    >
+                        {isLoading ? <RefreshCw className="animate-spin" /> : <Save size={18} />}
+                        {selectedStudent.uid === 'new_entry' ? 'إنشاء الحساب' : 'حفظ التعديلات'}
+                    </button>
+                </div>
             </div>
           </div>
         </div>

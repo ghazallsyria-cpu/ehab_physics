@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { getAdvancedPhysicsInsight } from '../services/gemini';
 import { Message } from '../types';
@@ -20,7 +19,20 @@ const AiTutor: React.FC<AiTutorProps> = ({ grade, subject }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showThinking, setShowThinking] = useState(true);
+  
+  // New state for theme color
+  const [themeColor, setThemeColor] = useState('#fbbf24');
+  
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null); // Ref for the input element
+
+  // Color options
+  const colorOptions = [
+    { name: 'Gold', value: '#fbbf24' },
+    { name: 'Sky', value: '#00d2ff' },
+    { name: 'Purple', value: '#a855f7' },
+    { name: 'Green', value: '#22c55e' }
+  ];
 
   useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isLoading]);
 
@@ -56,15 +68,28 @@ const AiTutor: React.FC<AiTutorProps> = ({ grade, subject }) => {
     <div className="h-full min-h-[600px] flex flex-col glass-panel rounded-[40px] md:rounded-[60px] border-white/5 overflow-hidden shadow-2xl relative font-['Tajawal']">
       <div className="p-6 sm:p-8 bg-white/[0.03] border-b border-white/5 flex justify-between items-center backdrop-blur-3xl">
         <div className="flex items-center gap-4 sm:gap-6">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-[18px] sm:rounded-[25px] bg-[#fbbf24] text-black flex items-center justify-center text-3xl sm:text-4xl shadow-lg animate-float">🤖</div>
+          <div aria-label="AI Tutor Icon" style={{ backgroundColor: themeColor }} className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl text-black flex items-center justify-center text-3xl sm:text-4xl shadow-lg animate-float transition-all duration-500 hover:scale-110">🤖</div>
           <div>
-            <h3 className="text-xl sm:text-2xl font-black">المساعد <span className="text-[#fbbf24]">الذكي</span></h3>
+            <h3 className="text-xl sm:text-2xl font-black">المساعد <span style={{ color: themeColor }} className="transition-colors duration-500">الذكي</span></h3>
             <p className="text-[10px] text-[#00d2ff] font-black uppercase tracking-widest">مساعدك في {subject === 'Physics' ? 'الفيزياء' : 'الكيمياء'}</p>
           </div>
         </div>
-        <button onClick={() => setShowThinking(!showThinking)} className={`px-4 py-2 sm:px-6 sm:py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest border transition-all ${showThinking ? 'bg-[#00d2ff]/20 border-[#00d2ff] text-[#00d2ff]' : 'bg-white/5 border-white/10 text-gray-500'}`}>
-          {showThinking ? 'إخفاء التفكير' : 'عرض التفكير'}
-        </button>
+        <div className="flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-2 bg-black/40 p-1.5 rounded-full border border-white/10">
+                {colorOptions.map(color => (
+                    <button 
+                        key={color.value}
+                        onClick={() => setThemeColor(color.value)}
+                        className={`w-5 h-5 rounded-full transition-all duration-300 ${themeColor === color.value ? 'ring-2 ring-offset-2 ring-offset-gray-800' : 'scale-90 opacity-60 hover:opacity-100 hover:scale-100'}`}
+                        style={{ backgroundColor: color.value, borderColor: color.value }}
+                        title={`Theme: ${color.name}`}
+                    />
+                ))}
+            </div>
+            <button onClick={() => setShowThinking(!showThinking)} className={`px-4 py-2 sm:px-6 sm:py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest border transition-all ${showThinking ? 'bg-[#00d2ff]/20 border-[#00d2ff] text-[#00d2ff]' : 'bg-white/5 border-white/10 text-gray-500'}`}>
+              {showThinking ? 'إخفاء التفكير' : 'عرض التفكير'}
+            </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-12 no-scrollbar bg-gradient-to-b from-black/20 to-transparent">
@@ -102,17 +127,21 @@ const AiTutor: React.FC<AiTutorProps> = ({ grade, subject }) => {
 
       <div className="p-6 bg-black/60 border-t border-white/10 flex flex-col sm:flex-row gap-4 backdrop-blur-2xl">
         <input 
+          ref={inputRef}
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+          onFocus={() => { if(inputRef.current) inputRef.current.style.borderColor = themeColor; }}
+          onBlur={() => { if(inputRef.current) inputRef.current.style.borderColor = ''; }}
           placeholder="اكتب سؤالك هنا..."
-          className="flex-1 bg-white/5 border border-white/10 rounded-full px-6 py-4 sm:px-10 sm:py-6 text-white outline-none focus:border-[#fbbf24] transition-all font-bold text-base sm:text-lg"
+          className="flex-1 bg-white/5 border border-white/10 rounded-full px-6 py-4 sm:px-10 sm:py-6 text-white outline-none transition-all font-bold text-base sm:text-lg"
         />
         <button 
           onClick={handleSend}
           disabled={isLoading || !input.trim()}
-          className="w-full sm:w-auto bg-[#fbbf24] text-black px-8 sm:px-16 py-4 sm:py-auto rounded-full font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-30"
+          style={{ backgroundColor: themeColor }}
+          className="w-full sm:w-auto text-black px-8 sm:px-16 py-4 sm:py-auto rounded-full font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-30"
         >
           {isLoading ? 'جاري الكتابة...' : 'إرسال'}
         </button>

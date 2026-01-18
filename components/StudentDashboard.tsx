@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, StudyGoal, LeaderboardEntry } from '../types';
 import { dbService } from '../services/db';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Map } from 'lucide-react';
 import { CURRICULUM_DATA } from '../constants';
 
 const CommunityGoals: React.FC = () => {
@@ -97,25 +97,42 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-         {/* Main Action Card */}
+         {/* Main Action Cards */}
          <div 
            onClick={() => navigate('curriculum')}
-           className="lg:col-span-8 bg-gradient-to-br from-sky-500/10 to-indigo-600/10 border border-sky-500/20 p-8 rounded-[40px] cursor-pointer hover:border-sky-500/40 transition-all group relative overflow-hidden animate-slideUp"
+           className="lg:col-span-4 bg-gradient-to-br from-sky-500/10 to-indigo-600/10 border border-sky-500/20 p-8 rounded-[40px] cursor-pointer hover:border-sky-500/40 transition-all group relative overflow-hidden animate-slideUp"
          >
            <div className="relative z-10">
               <span className="px-3 py-1 bg-sky-500/20 text-sky-400 text-[10px] font-bold rounded-full uppercase tracking-widest mb-4 inline-block border border-sky-500/20">المنهج الدراسي</span>
-              <h3 className="text-2xl font-bold text-white mb-2">تابع رحلتك الدراسية</h3>
-              <p className="text-sm text-slate-400 font-medium max-w-md">تصفح الوحدات والفصول الدراسية للمواد المتاحة وفق المنهج الكويتي.</p>
+              <h3 className="text-2xl font-bold text-white mb-2">تصفح المناهج</h3>
+              <p className="text-sm text-slate-400 font-medium">الوحدات والفصول الدراسية للمواد المتاحة.</p>
               <div className="mt-6 flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-widest group-hover:gap-4 transition-all">
                  <span>اذهب إلى المناهج</span>
                  <ArrowRight className="w-4 h-4" />
               </div>
            </div>
          </div>
+         
+         <div 
+           onClick={() => navigate('journey-map')}
+           className="lg:col-span-4 bg-gradient-to-br from-purple-500/10 to-pink-600/10 border border-purple-500/20 p-8 rounded-[40px] cursor-pointer hover:border-purple-500/40 transition-all group relative overflow-hidden animate-slideUp"
+            style={{animationDelay: '0.1s'}}
+         >
+           <div className="relative z-10">
+              <span className="px-3 py-1 bg-purple-500/20 text-purple-400 text-[10px] font-bold rounded-full uppercase tracking-widest mb-4 inline-block border border-purple-500/20">مسار التعلم</span>
+              <h3 className="text-2xl font-bold text-white mb-2">خريطة رحلتك</h3>
+              <p className="text-sm text-slate-400 font-medium">تابع تقدمك بصرياً في مسار التعلم الخاص بك.</p>
+              <div className="mt-6 flex items-center gap-2 text-purple-400 font-bold text-xs uppercase tracking-widest group-hover:gap-4 transition-all">
+                 <span>اعرض خريطة رحلتي</span>
+                 <Map className="w-4 h-4" />
+              </div>
+           </div>
+         </div>
+
 
          {/* Progress Sidebar */}
          <div className="lg:col-span-4 space-y-6">
-           <div className="bg-slate-800/40 border border-white/5 p-8 rounded-[40px] animate-slideUp">
+           <div className="bg-slate-800/40 border border-white/5 p-8 rounded-[40px] animate-slideUp" style={{animationDelay: '0.2s'}}>
               <h4 className="text-sm font-bold text-white mb-6 border-r-4 border-sky-500 pr-3">مؤشرات الأداء</h4>
               <div className="space-y-5">
                  <div className="space-y-2">
@@ -142,7 +159,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       </div>
       
       {/* Social Hub */}
-      <div className="animate-slideUp" style={{animationDelay: '0.2s'}}>
+      <div className="animate-slideUp" style={{animationDelay: '0.3s'}}>
         <h3 className="text-2xl font-black mb-6">المركز الاجتماعي</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="glass-panel p-8 rounded-[40px] border-white/5 hover:border-purple-500/30 transition-all">

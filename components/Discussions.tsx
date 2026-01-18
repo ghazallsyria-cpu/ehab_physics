@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Discussion, Comment, ForumPost, ForumReply } from '../types';
 import { dbService } from '../services/db';
@@ -9,7 +10,6 @@ const Discussions: React.FC<{ user: User }> = ({ user }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // FIX: The `getDiscussions` method does not exist. Replaced with `getForumPosts` and mapped the result to the `Discussion` type. Also made the effect asynchronous.
     const loadPosts = async () => {
       setIsLoading(true);
       try {

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Challenge, LeaderboardEntry, StudyGoal } from '../types';
 import { dbService } from '../services/db';
@@ -16,8 +17,6 @@ const GamificationCenter: React.FC<GamificationCenterProps> = ({ user, onUpdateU
 
   useEffect(() => {
     const loadData = async () => {
-      // FIX: Added 'await' to correctly handle the promises returned by dbService methods.
-      // This ensures that `dbChallenges`, `dbLeaderboard`, and `dbStudyGoals` are arrays, not promises, before they are used.
       const dbChallenges = await dbService.getChallenges();
       const dbLeaderboard = await dbService.getLeaderboard();
       const dbStudyGoals = await dbService.getStudyGoals();

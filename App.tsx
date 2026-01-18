@@ -1,40 +1,44 @@
 
-import React, { useState, useEffect } from 'react';
-import { User, ViewState, Lesson, QuizAttempt, Curriculum } from './types';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { User, ViewState, Lesson, QuizAttempt, Curriculum, Invoice } from './types';
 import { dbService } from './services/db';
 import { Bell } from 'lucide-react';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
-// Core Components
+// Core Components (eagerly loaded)
 import Sidebar from './components/Sidebar';
-import LandingPage from './components/LandingPage';
-import Auth from './components/Auth';
-import StudentDashboard from './components/StudentDashboard';
-import AdminDashboard from './components/AdminDashboard';
-import TeacherDashboard from './components/TeacherDashboard';
-import AiTutor from './components/PhysicsChat';
 import PWAPrompt from './components/PWAPrompt';
 import NotificationPanel from './components/NotificationPanel';
 
-// New Structure Components
-import CurriculumBrowser from './components/CurriculumBrowser';
-import LessonViewer from './components/LessonViewer';
-import QuizCenter from './components/QuizCenter';
-import SubscriptionCenter from './components/SubscriptionCenter';
-import Forum from './components/Forum';
-import GamificationCenter from './components/GamificationCenter';
-import Recommendations from './components/Recommendations';
-import LabHub from './components/LabHub';
-import LiveSessions from './components/LiveSessions';
-import ProgressReport from './components/ProgressReport';
-import HelpCenter from './components/HelpCenter';
-import AdminCurriculumManager from './components/AdminCurriculumManager';
-import AdminStudentManager from './components/AdminStudentManager';
-import AdminTeacherManager from './components/AdminTeacherManager';
-import AdminQuestionManager from './components/AdminQuestionManager';
-import AdminFinancials from './components/AdminFinancials';
-import QuizPerformance from './components/QuizPerformance';
+// Lazy-loaded Page Components
+const LandingPage = lazy(() => import('./components/LandingPage'));
+const Auth = lazy(() => import('./components/Auth'));
+const StudentDashboard = lazy(() => import('./components/StudentDashboard'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const TeacherDashboard = lazy(() => import('./components/TeacherDashboard'));
+const AiTutor = lazy(() => import('./components/PhysicsChat'));
+const CurriculumBrowser = lazy(() => import('./components/CurriculumBrowser'));
+const LessonViewer = lazy(() => import('./components/LessonViewer'));
+const QuizCenter = lazy(() => import('./components/QuizCenter'));
+const BillingCenter = lazy(() => import('./components/BillingCenter'));
+const PaymentCertificate = lazy(() => import('./components/PaymentCertificate'));
+const Forum = lazy(() => import('./components/Forum'));
+const GamificationCenter = lazy(() => import('./components/GamificationCenter'));
+const Recommendations = lazy(() => import('./components/Recommendations'));
+const LabHub = lazy(() => import('./components/LabHub'));
+const LiveSessions = lazy(() => import('./components/LiveSessions'));
+const ProgressReport = lazy(() => import('./components/ProgressReport'));
+const HelpCenter = lazy(() => import('./components/HelpCenter'));
+const AdminCurriculumManager = lazy(() => import('./components/AdminCurriculumManager'));
+const AdminStudentManager = lazy(() => import('./components/AdminStudentManager'));
+const AdminTeacherManager = lazy(() => import('./components/AdminTeacherManager'));
+const AdminQuestionManager = lazy(() => import('./components/AdminQuestionManager'));
+const AdminFinancials = lazy(() => import('./components/AdminFinancials'));
+const QuizPerformance = lazy(() => import('./components/QuizPerformance'));
+const AdminSettings = lazy(() => import('./components/AdminSettings'));
+const PhysicsJourneyMap = lazy(() => import('./components/PhysicsJourneyMap'));
+
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -48,6 +52,7 @@ const App: React.FC = () => {
   
   const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   
@@ -59,11 +64,11 @@ const App: React.FC = () => {
         if (auth) {
             unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
                 if (firebaseUser) {
+                    await dbService.initializeSettings(); // Initialize settings on user login
                     const appUser = await dbService.getUser(firebaseUser.uid);
                     if (appUser) {
                         setUser(appUser);
                     } else {
-                        // User exists in Firebase but not our DB, force log out
                         await signOut(auth);
                         setUser(null);
                     }
@@ -74,12 +79,11 @@ const App: React.FC = () => {
             });
         } else {
             // Fallback for local dev without Firebase
+            await dbService.initializeSettings();
             const localUid = sessionStorage.getItem('ssc_active_uid');
             if (localUid) {
                 const localUser = await dbService.getUser(localUid);
-                if (localUser) {
-                    setUser(localUser);
-                }
+                if (localUser) setUser(localUser);
             }
             setIsAuthLoading(false);
         }
@@ -88,9 +92,7 @@ const App: React.FC = () => {
     checkSession();
 
     return () => {
-        if (unsubscribe) {
-            unsubscribe();
-        }
+        if (unsubscribe) unsubscribe();
     };
   }, []);
 
@@ -143,12 +145,14 @@ const App: React.FC = () => {
       
       case 'curriculum': return <CurriculumBrowser user={user} subject={activeSubject} />;
       case 'lesson': return activeLesson ? <LessonViewer user={user} lesson={activeLesson} /> : <CurriculumBrowser user={user} subject={activeSubject} />;
+      case 'journey-map': return <PhysicsJourneyMap user={user} />;
       
-      case 'quiz_center': return <QuizCenter user={user} />;
+      case 'quiz_center': return <QuizCenter user={user} onBack={() => setView('dashboard')} />;
 
       case 'discussions': return <Forum user={user} onAskAI={(q) => { setView('ai-chat'); /* pass question */ }} />;
       
-      case 'subscription': return <SubscriptionCenter user={user} onUpdateUser={setUser} />;
+      case 'subscription': return <BillingCenter user={user} onUpdateUser={setUser} onBack={() => setView('dashboard')} onViewCertificate={(invoice) => { setActiveInvoice(invoice); setView('payment-certificate'); }} />;
+      case 'payment-certificate': return activeInvoice ? <PaymentCertificate user={user} invoice={activeInvoice} onBack={() => setView('dashboard')} /> : <BillingCenter user={user} onUpdateUser={setUser} onBack={() => setView('dashboard')} onViewCertificate={(invoice) => { setActiveInvoice(invoice); setView('payment-certificate'); }}/>;
       
       case 'ai-chat': return <AiTutor grade={user.grade || '12'} subject={activeSubject} />;
       
@@ -168,10 +172,17 @@ const App: React.FC = () => {
       case 'admin-teachers': return <AdminTeacherManager />;
       case 'admin-questions': return <AdminQuestionManager />;
       case 'admin-financials': return <AdminFinancials />;
+      case 'admin-settings': return <AdminSettings />;
       
       default: return <StudentDashboard user={user} />;
     }
   };
+
+  const renderLoader = () => (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="w-16 h-16 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen flex relative overflow-hidden bg-[#0f172a]">
@@ -211,7 +222,9 @@ const App: React.FC = () => {
           </header>
         )}
         <main className={`flex-1 ${view === 'landing' ? '' : 'p-4 md:p-10'} pb-safe`}>
-          {renderContent()}
+          <Suspense fallback={renderLoader()}>
+            {renderContent()}
+          </Suspense>
         </main>
       </div>
       {user && <PWAPrompt user={user} />}

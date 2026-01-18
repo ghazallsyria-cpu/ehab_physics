@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-// FIX: Import GenerateContentResponse to provide explicit type annotation
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
 type ImageSize = "1K" | "2K" | "4K";
@@ -44,7 +43,6 @@ const ImageGenerator: React.FC = () => {
       // Create new instance to use the latest key from the dialog
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-      // FIX: Add explicit type annotation for the response
       const response: GenerateContentResponse = await ai.models.generateContent({
         model: 'gemini-3-pro-image-preview',
         contents: {
@@ -59,7 +57,6 @@ const ImageGenerator: React.FC = () => {
       });
 
       let foundImage = false;
-      // FIX: Ensure candidates exist before accessing them
       for (const part of response.candidates?.[0]?.content.parts || []) {
         if (part.inlineData) {
           setImageUrl(`data:image/png;base64,${part.inlineData.data}`);

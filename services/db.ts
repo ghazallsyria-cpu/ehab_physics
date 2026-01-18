@@ -1,17 +1,51 @@
-
-import { User, Curriculum, Quiz, Question, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, Lesson, Unit, PaymentSettings, SubscriptionCode } from "../types";
+import { User, Curriculum, Quiz, Question, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, Lesson, Unit, PaymentSettings, SubscriptionCode, LoggingSettings } from "../types";
 import { db } from "./firebase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, documentId, writeBatch, orderBy, limit } from "firebase/firestore";
-// Added missing imports from constants
 import { QUIZZES_DB, QUESTIONS_DB } from "../constants";
+
+const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
+  logStudentProgress: true,
+  saveAllQuizAttempts: true,
+  logAIChatHistory: true,
+  archiveTeacherMessages: true,
+};
 
 class SyrianScienceCenterDB {
   private static instance: SyrianScienceCenterDB;
+  private loggingSettings: LoggingSettings = DEFAULT_LOGGING_SETTINGS;
   
   public static getInstance(): SyrianScienceCenterDB {
-    if (!SyrianScienceCenterDB.instance) SyrianScienceCenterDB.instance = new SyrianScienceCenterDB();
+    if (!SyrianScienceCenterDB.instance) {
+      SyrianScienceCenterDB.instance = new SyrianScienceCenterDB();
+      SyrianScienceCenterDB.instance.initializeSettings();
+    }
     return SyrianScienceCenterDB.instance;
   }
+
+  async initializeSettings() {
+    this.loggingSettings = await this.getLoggingSettings();
+  }
+
+  // --- Settings ---
+  async getLoggingSettings(): Promise<LoggingSettings> {
+    if (!db) return DEFAULT_LOGGING_SETTINGS;
+    try {
+        const docRef = doc(db, "settings", "data_logging");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return { ...DEFAULT_LOGGING_SETTINGS, ...docSnap.data() };
+        }
+    } catch (e) { console.error("DB: Error getting logging settings", e); }
+    return DEFAULT_LOGGING_SETTINGS;
+  }
+
+  async saveLoggingSettings(settings: LoggingSettings): Promise<void> {
+    if (!db) return;
+    this.loggingSettings = settings; // Update instance cache immediately
+    const docRef = doc(db, "settings", "data_logging");
+    await setDoc(docRef, settings, { merge: true });
+  }
+
 
   // --- User Management ---
   async getUser(identifier: string): Promise<User | null> {
@@ -48,29 +82,26 @@ class SyrianScienceCenterDB {
   async getAllStudents(): Promise<User[]> {
     if (!db) return [];
     try {
-        const q = query(collection(db, "users"), where("role", "==", "student"));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }) as User);
-    } catch (e) {
-        console.error("DB: Error fetching students, falling back to client filter", e);
         const allSnap = await getDocs(collection(db, "users"));
         return allSnap.docs
             .map(doc => ({ uid: doc.id, ...doc.data() }) as User)
             .filter(u => u.role === 'student');
+    } catch (e) {
+        console.error("DB: Error fetching all users for student filter", e);
+        return []; // Return empty array on any failure
     }
   }
 
   async getTeachers(): Promise<User[]> {
     if (!db) return [];
     try {
-        const q = query(collection(db, "users"), where("role", "==", "teacher"));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }) as User);
-    } catch (e) {
         const allSnap = await getDocs(collection(db, "users"));
         return allSnap.docs
             .map(doc => ({ uid: doc.id, ...doc.data() }) as User)
             .filter(u => u.role === 'teacher');
+    } catch (e) {
+        console.error("DB: Error fetching all users for teacher filter", e);
+        return []; // Return empty array on any failure
     }
   }
 
@@ -156,7 +187,7 @@ class SyrianScienceCenterDB {
             } else {
                 unit.lessons.push(lesson);
             }
-            await setDoc(docRef, curriculumData);
+            await updateDoc(docRef, { units: curriculumData.units });
         }
     }
   }
@@ -174,13 +205,12 @@ class SyrianScienceCenterDB {
         const unit = curriculumData.units.find(u => u.id === unitId);
         if (unit) {
             unit.lessons = (unit.lessons || []).filter(l => l.id !== lessonId);
-            await setDoc(docRef, curriculumData);
+            await updateDoc(docRef, { units: curriculumData.units });
         }
     }
   }
 
   // --- Resources ---
-  // Added getResources method
   async getResources(): Promise<EducationalResource[]> {
     if (!db) return [];
     try {
@@ -204,7 +234,6 @@ class SyrianScienceCenterDB {
     }
   }
 
-  // Added initiatePayment method
   async initiatePayment(userId: string, planId: string, amount: number): Promise<Invoice> {
     if (!db) throw new Error("DB not initialized");
     const user = await this.getUser(userId);
@@ -221,7 +250,6 @@ class SyrianScienceCenterDB {
     return { id: docRef.id, ...invoice };
   }
 
-  // Added completePayment method
   async completePayment(trackId: string, status: 'SUCCESS' | 'FAIL'): Promise<Invoice | null> {
     if (!db) return null;
     const q = query(collection(db, 'invoices'), where('trackId', '==', trackId));
@@ -269,7 +297,6 @@ class SyrianScienceCenterDB {
   }
 
   // --- Forum ---
-  // Added createForumPost method
   async createForumPost(post: Omit<ForumPost, 'id' | 'timestamp' | 'upvotes' | 'replies'>): Promise<void> {
     if (!db) return;
     const newPost: Omit<ForumPost, 'id'> = {
@@ -281,7 +308,6 @@ class SyrianScienceCenterDB {
     await addDoc(collection(db, 'forumPosts'), newPost);
   }
 
-  // Added addForumReply method
   async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'timestamp' | 'upvotes'>): Promise<void> {
     if (!db) return;
     const postRef = doc(db, 'forumPosts', postId);
@@ -296,13 +322,11 @@ class SyrianScienceCenterDB {
     });
   }
 
-  // Added upvotePost method
   async upvotePost(postId: string): Promise<void> {
     if (!db) return;
     await updateDoc(doc(db, 'forumPosts', postId), { upvotes: increment(1) });
   }
 
-  // Added upvoteReply method
   async upvoteReply(postId: string, replyId: string): Promise<void> {
     if (!db) return;
     const postRef = doc(db, 'forumPosts', postId);
@@ -318,7 +342,7 @@ class SyrianScienceCenterDB {
 
   // --- Content Helpers ---
   async toggleLessonComplete(userId: string, lessonId: string) {
-    if (!db) return;
+    if (!db || !this.loggingSettings.logStudentProgress) return;
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
     if (!userSnap.exists()) return;
@@ -331,7 +355,7 @@ class SyrianScienceCenterDB {
   }
 
   async getAllQuestions(): Promise<Question[]> {
-      if (!db) return [];
+      if (!db) return QUESTIONS_DB;
       const snapshot = await getDocs(collection(db, 'questions'));
       return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as Question);
   }
@@ -342,12 +366,10 @@ class SyrianScienceCenterDB {
   }
 
   // --- Quizzes and Attempts ---
-  // Added getQuizzes method
   getQuizzes(): Quiz[] {
     return QUIZZES_DB;
   }
 
-  // Added getQuestionsForQuiz method
   getQuestionsForQuiz(quizId: string): Question[] {
     const quiz = QUIZZES_DB.find(q => q.id === quizId);
     if (!quiz) return [];
@@ -357,10 +379,25 @@ class SyrianScienceCenterDB {
   async saveAttempt(attempt: StudentQuizAttempt) {
     if (!db) return;
     const batch = writeBatch(db);
-    const attemptRef = doc(collection(db, 'attempts'));
-    batch.set(attemptRef, attempt);
     const userRef = doc(db, 'users', attempt.studentId);
+    
+    // Always grant points for the attempt.
     batch.update(userRef, { 'progress.points': increment(attempt.score * 5) });
+
+    const userSnap = await getDoc(userRef);
+    const existingScore = userSnap.data()?.progress?.quizScores?.[attempt.quizId] || 0;
+
+    // Save the full attempt record ONLY if the setting is enabled OR it's a new high score.
+    if (this.loggingSettings.saveAllQuizAttempts || attempt.score > existingScore) {
+        const attemptRef = doc(collection(db, 'attempts'));
+        batch.set(attemptRef, attempt);
+    }
+    
+    // Always update the high score if it's better.
+    if (attempt.score > existingScore) {
+        batch.update(userRef, { [`progress.quizScores.${attempt.quizId}`]: attempt.score });
+    }
+
     await batch.commit();
   }
 
@@ -406,7 +443,6 @@ class SyrianScienceCenterDB {
   }
 
   // --- Parent Portal ---
-  // Added getStudentProgressForParent method
   async getStudentProgressForParent(studentUid: string): Promise<{ user: User, report: WeeklyReport | null }> {
     const user = await this.getUser(studentUid);
     if (!user) throw new Error("Student not found");
@@ -415,7 +451,6 @@ class SyrianScienceCenterDB {
   }
 
   // --- Notifications ---
-  // Added getNotifications method
   async getNotifications(userId: string): Promise<AppNotification[]> {
     if (!db) return [];
     const q = query(collection(db, 'notifications'), where('userId', '==', userId));
@@ -423,10 +458,12 @@ class SyrianScienceCenterDB {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }) as AppNotification);
   }
 
-  // Added addNotification method
-  async addNotification(userId: string, notification: Omit<AppNotification, 'id'>): Promise<void> {
+  // FIX: The `timestamp` is generated here, so the input `notification` object doesn't need to provide it.
+  // The type has been updated from Omit<..., 'id' | 'isRead'> to Omit<..., 'id' | 'isRead' | 'timestamp'>.
+  async addNotification(userId: string, notification: Omit<AppNotification, 'id' | 'isRead' | 'timestamp'>): Promise<void> {
     if (!db) return;
-    await addDoc(collection(db, 'notifications'), notification);
+    const newNotification = { ...notification, isRead: false, timestamp: new Date().toISOString() };
+    await addDoc(collection(db, 'notifications'), newNotification);
   }
 
   // --- Subscription Codes ---
@@ -466,11 +503,10 @@ class SyrianScienceCenterDB {
   async getForumPosts(): Promise<ForumPost[]> {
     if (!db) return [];
     const snapshot = await getDocs(collection(db, 'forumPosts'));
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ForumPost));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ForumPost);
   }
 
   // --- Teacher Support ---
-  // Added getTeacherReviews method
   async getTeacherReviews(teacherId: string): Promise<Review[]> {
     if (!db) return [];
     const q = query(collection(db, 'reviews'), where('teacherId', '==', teacherId));
@@ -478,7 +514,6 @@ class SyrianScienceCenterDB {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }) as Review);
   }
 
-  // Added addReview method
   async addReview(review: Review): Promise<void> {
     if (!db) return;
     const { id, ...data } = review;
@@ -486,7 +521,7 @@ class SyrianScienceCenterDB {
   }
 
   async saveTeacherMessage(message: Omit<TeacherMessage, 'id'>): Promise<void> {
-    if(!db) return;
+    if(!db || !this.loggingSettings.archiveTeacherMessages) return;
     await addDoc(collection(db, 'teacherMessages'), message);
   }
 
@@ -510,13 +545,11 @@ class SyrianScienceCenterDB {
     return docRef.id;
   }
 
-  // Added updateTodo method
   async updateTodo(userId: string, todoId: string, data: Partial<Todo>): Promise<void> {
     if (!db) return;
     await updateDoc(doc(db, 'users', userId, 'todos', todoId), data);
   }
 
-  // Added deleteTodo method
   async deleteTodo(userId: string, todoId: string): Promise<void> {
     if (!db) return;
     await deleteDoc(doc(db, 'users', userId, 'todos', todoId));

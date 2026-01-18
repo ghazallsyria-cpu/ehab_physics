@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User, TeacherMessage, TeacherPermission } from '../types';
 import { dbService } from '../services/db';
-import { auth } from '../services/firebase';
+import { secondaryAuth } from '../services/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   Search, User as UserIcon, Shield, MessageSquare, Trash2, Save, 
@@ -64,12 +65,11 @@ const AdminTeacherManager: React.FC = () => {
 
   const handleCreateNewMode = () => {
     setSearchQuery('');
-    // FIX: Add missing properties 'grade', 'subscription', and 'progress' to match User type
     const newTeacherTemplate: User = {
         uid: 'new_entry', name: '', email: '', role: 'teacher',
-        grade: '12',
-        subscription: 'premium',
-        progress: { completedLessonIds: [], points: 0 },
+        grade: '12', // Default value to satisfy User type
+        subscription: 'premium', // Default value
+        progress: { completedLessonIds: [], points: 0 }, // Default value
         status: 'active', createdAt: new Date().toISOString(),
         specialization: 'فيزياء', yearsExperience: 0, bio: '', avatar: '👨‍🏫',
         gradesTaught: [], permissions: ['create_content', 'reply_messages']
@@ -117,8 +117,8 @@ const AdminTeacherManager: React.FC = () => {
                 setMessage({ text: 'يرجى إدخال كلمة مرور مؤقتة (6 أحرف على الأقل)', type: 'error' });
                 setIsLoading(false); return;
             }
-            // Create Firebase Auth user first
-            const userCredential = await createUserWithEmailAndPassword(auth, teacherToSave.email, password);
+            // Create Firebase Auth user first using the secondary auth instance
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, teacherToSave.email, password);
             teacherToSave.uid = userCredential.user.uid;
             setMessage({ text: 'تم إنشاء حساب المعلم بنجاح', type: 'success' });
             setPassword('');

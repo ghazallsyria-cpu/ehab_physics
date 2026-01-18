@@ -105,32 +105,43 @@ export const generatePhysicsVisualization = async (prompt: string): Promise<stri
     return URL.createObjectURL(blob);
 };
 
+const questionSchema = {
+    type: Type.OBJECT,
+    properties: {
+        questions: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    text: { type: Type.STRING, description: "The main text of the question." },
+                    type: { type: Type.STRING, enum: ['mcq', 'short_answer'] },
+                    difficulty: { type: Type.STRING, enum: ['Easy', 'Medium', 'Hard'] },
+                    answers: { 
+                        type: Type.ARRAY, 
+                        items: { 
+                          type: Type.OBJECT, 
+                          properties: { 
+                            id: { type: Type.STRING, description: "A unique identifier for this answer choice, e.g., 'ans-1a'." }, 
+                            text: { type: Type.STRING } 
+                          } 
+                        } 
+                    },
+                    correctAnswerId: { type: Type.STRING, description: "The 'id' of the correct answer from the 'answers' array." },
+                    solution: { type: Type.STRING, description: "A detailed explanation of the solution." }
+                }
+            }
+        }
+    }
+};
+
 export const extractBankQuestionsAdvanced = async (text: string, grade: string, subject: string, unit: string): Promise<{ questions: Partial<Question>[] }> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
         model: "gemini-3-pro-preview",
-        contents: `استخرج الأسئلة من النص التالي وحولها إلى صيغة JSON. النص من مادة ${subject} للصف ${grade} وحدة ${unit}:\n\n${text}`,
+        contents: `استخرج الأسئلة من النص التالي وحولها إلى صيغة JSON. النص من مادة ${subject} للصف ${grade} وحدة ${unit}. اتبع المخطط المطلوب بدقة، بما في ذلك إنشاء 'id' فريد لكل إجابة واستخدامه في 'correctAnswerId'.\n\n${text}`,
         config: {
             responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    questions: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                question_text: { type: Type.STRING },
-                                type: { type: Type.STRING, enum: ['mcq', 'short_answer'] },
-                                difficulty: { type: Type.STRING, enum: ['Easy', 'Medium', 'Hard'] },
-                                choices: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { key: { type: Type.STRING }, text: { type: Type.STRING } } } },
-                                correct_answer: { type: Type.STRING },
-                                solution: { type: Type.STRING }
-                            }
-                        }
-                    }
-                }
-            }
+            responseSchema: questionSchema
         }
     });
     const jsonText = response.text?.trim() || '{"questions":[]}';
@@ -161,33 +172,13 @@ export const digitizeExamPaper = async (imageUrl: string, grade: string, subject
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const base64Data = imageUrl.split(',')[1];
     const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Data } };
-    const textPart = { text: `قم برقمنة ورقة الامتحان هذه لمادة ${subject} الصف ${grade}. استخرج كل سؤال وحوله لصيغة JSON.` };
+    const textPart = { text: `قم برقمنة ورقة الامتحان هذه لمادة ${subject} الصف ${grade}. استخرج كل سؤال وحوله لصيغة JSON. اتبع المخطط المطلوب بدقة، بما في ذلك إنشاء 'id' فريد لكل إجابة واستخدامه في 'correctAnswerId'.` };
     
+    // FIX: Removed config with responseMimeType and responseSchema as they are not supported by image models.
+    // The prompt still asks for JSON output, which the model should respect.
     const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview', 
+        model: 'gemini-3-pro-image-preview', 
         contents: { parts: [imagePart, textPart] },
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    questions: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                question_text: { type: Type.STRING },
-                                type: { type: Type.STRING, enum: ['mcq', 'short_answer'] },
-                                difficulty: { type: Type.STRING, enum: ['Easy', 'Medium', 'Hard'] },
-                                choices: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { key: { type: Type.STRING }, text: { type: Type.STRING } } } },
-                                correct_answer: { type: Type.STRING },
-                                solution: { type: Type.STRING }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     });
 
     const jsonText = response.text?.trim() || '{"questions":[]}';

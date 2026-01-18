@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Todo } from '../types';
 import { dbService } from '../services/db';
-import { Trash2, Check, Plus, Calendar, ListFilter, Trophy } from 'lucide-react';
+import { Trash2, Check, Plus, Calendar, ListFilter, Trophy, AlertTriangle } from 'lucide-react';
 
 interface TodoListProps {
   user: User;
@@ -12,6 +12,7 @@ const TodoList: React.FC<TodoListProps> = ({ user }) => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [input, setInput] = useState('');
   const [category, setCategory] = useState<Todo['category']>('Study');
+  const [dueDate, setDueDate] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -37,13 +38,15 @@ const TodoList: React.FC<TodoListProps> = ({ user }) => {
       text: input,
       completed: false,
       category,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      dueDate: dueDate || undefined
     };
 
     // Optimistic update
     const tempId = `temp_${Date.now()}`;
     setTodos([{ ...newTodoData, id: tempId }, ...todos]);
     setInput('');
+    setDueDate('');
 
     try {
       const newId = await dbService.saveTodo(user.uid, newTodoData);
@@ -150,6 +153,14 @@ const TodoList: React.FC<TodoListProps> = ({ user }) => {
             </div>
             
             <div className="flex gap-3">
+                <input
+                    type="date"
+                    value={dueDate}
+                    onChange={e => setDueDate(e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
+                    className="bg-black/40 border border-white/10 rounded-[24px] px-4 py-4 text-white outline-none focus:border-[#00d2ff] font-bold text-sm appearance-none cursor-pointer hover:bg-black/60 transition-all"
+                    title="تاريخ الاستحقاق (اختياري)"
+                />
                 <select 
                   value={category}
                   onChange={(e) => setCategory(e.target.value as any)}
@@ -202,13 +213,16 @@ const TodoList: React.FC<TodoListProps> = ({ user }) => {
             <div className="text-center py-20 text-gray-500 animate-pulse">جاري تحميل المهام...</div>
           ) : filteredTodos.length > 0 ? filteredTodos.map(todo => {
             const style = getCategoryStyles(todo.category);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); 
+            const isOverdue = todo.dueDate && !todo.completed && new Date(todo.dueDate) < today;
             return (
               <div 
                 key={todo.id} 
                 className={`flex items-center justify-between p-5 rounded-[30px] border transition-all group animate-slideUp ${
                   todo.completed 
                     ? 'bg-black/20 border-white/5 opacity-60 hover:opacity-100' 
-                    : 'bg-white/[0.03] border-white/5 hover:border-[#00d2ff]/30 hover:bg-white/[0.05]'
+                    : isOverdue ? 'bg-red-500/10 border-red-500/20' : 'bg-white/[0.03] border-white/5 hover:border-[#00d2ff]/30 hover:bg-white/[0.05]'
                 }`}
               >
                 <div className="flex items-center gap-5 flex-1 min-w-0">
@@ -217,7 +231,7 @@ const TodoList: React.FC<TodoListProps> = ({ user }) => {
                     className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shrink-0 ${
                       todo.completed 
                         ? 'bg-green-500 text-black shadow-[0_0_15px_rgba(34,197,94,0.4)]' 
-                        : 'bg-white/5 border-2 border-white/10 hover:border-[#00d2ff] hover:text-[#00d2ff] text-transparent'
+                        : isOverdue ? 'bg-red-500/20 border-2 border-red-400 text-red-400' : 'bg-white/5 border-2 border-white/10 hover:border-[#00d2ff] hover:text-[#00d2ff] text-transparent'
                     }`}
                   >
                     <Check className="w-6 h-6" strokeWidth={4} />
@@ -232,10 +246,18 @@ const TodoList: React.FC<TodoListProps> = ({ user }) => {
                           <span>{style.icon}</span>
                           {todo.category}
                         </span>
-                        <span className="text-[9px] text-gray-600 font-mono flex items-center gap-1">
-                           <Calendar className="w-3 h-3" />
-                           {new Date(todo.createdAt).toLocaleDateString('ar-KW')}
-                        </span>
+                        {todo.dueDate ? (
+                          <span className={`text-[9px] font-mono flex items-center gap-1.5 font-bold ${isOverdue ? 'text-red-400' : 'text-gray-500'}`}>
+                            <Calendar className="w-3 h-3" />
+                            {isOverdue && <AlertTriangle className="w-3 h-3 animate-pulse" />}
+                            مستحق في: {new Date(todo.dueDate).toLocaleDateString('ar-KW', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </span>
+                        ) : (
+                          <span className="text-[9px] text-gray-600 font-mono flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            أضيف في: {new Date(todo.createdAt).toLocaleDateString('ar-KW')}
+                          </span>
+                        )}
                     </div>
                   </div>
                 </div>

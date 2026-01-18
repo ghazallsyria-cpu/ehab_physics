@@ -1,6 +1,6 @@
 
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
-export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-questions' | 'admin-financials' | 'quiz-performance';
+export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-questions' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate';
 
 // --- 0. AI & Chat ---
 export interface Message {
@@ -89,7 +89,6 @@ export interface Quiz {
 
 export type QuestionType = 'mcq' | 'short_answer' | 'essay';
 export type QuestionDifficulty = 'Easy' | 'Medium' | 'Hard';
-// FIX: Added SubjectType and BranchType definitions
 export type SubjectType = 'Physics' | 'Math' | 'Chemistry' | 'English';
 export type BranchType = 'Scientific' | 'Literary';
 
@@ -100,9 +99,6 @@ export interface Question {
   answers: Answer[];
   correctAnswerId: string;
   // Properties for ExamCenter/QuestionBank
-  question_text?: string;
-  choices?: { key: string; text: string }[];
-  correct_answer?: string;
   score?: number;
   unit?: string;
   grade?: string;
@@ -403,6 +399,7 @@ export interface Todo {
     completed: boolean;
     category: 'Study' | 'Exam' | 'Lab' | 'Review' | 'Homework';
     createdAt: number;
+    dueDate?: string;
 }
 
 // --- 14. Teacher/Review System (NEW) ---
@@ -428,3 +425,10 @@ export interface TeacherMessage {
 
 // --- 15. Admin (NEW) ---
 export type CloudLog = any;
+
+export interface LoggingSettings {
+  logStudentProgress: boolean;
+  saveAllQuizAttempts: boolean;
+  logAIChatHistory: boolean;
+  archiveTeacherMessages: boolean;
+}

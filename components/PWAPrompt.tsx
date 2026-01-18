@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 
@@ -6,34 +5,55 @@ const PWAPrompt: React.FC<{ user: User | null }> = ({ user }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPrompt, setShowPrompt] = useState(false);
 
+  // Effect to capture the browser's install prompt event.
+  // This runs once on component mount.
   useEffect(() => {
-    // مراقبة حدث التثبيت من المتصفح
-    const handleBeforeInstall = (e: any) => {
+    const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      
-      // منطق التثبيت المشروط (Week 2): جلستان + درس واحد مكتمل
-      const sessionCount = parseInt(localStorage.getItem('ssc_sessions') || '0');
-      const hasCompletedLesson = user?.completedLessonIds && user.completedLessonIds.length > 0;
-      
-      console.log(`[PWA Debug] Sessions: ${sessionCount}, Lesson Completed: ${hasCompletedLesson}`);
-
-      if (sessionCount >= 2 && hasCompletedLesson) {
-        // تأخير ظهور الرسالة لمدة 3 ثوانٍ لضمان استقرار الواجهة
-        setTimeout(() => setShowPrompt(true), 3000);
-      }
+      console.log('[PWA] beforeinstallprompt event captured.');
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    
+    // Cleanup listener when component unmounts.
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
 
-    window.addEventListener('appinstalled', () => {
+  // Effect to decide when to show the prompt based on user activity.
+  // This re-evaluates whenever user data or the prompt availability changes.
+  useEffect(() => {
+    // Conditions to check before showing the prompt.
+    if (showPrompt || !deferredPrompt || !user) {
+      return;
+    }
+
+    const sessionCount = parseInt(localStorage.getItem('ssc_sessions') || '0');
+    // Check for completed lessons within the user's progress object for accuracy.
+    const lessonsCompleted = user.progress?.completedLessonIds?.length || 0;
+
+    console.log(`[PWA Check] Sessions: ${sessionCount}, Lessons Completed: ${lessonsCompleted}`);
+
+    // Show prompt only if user has at least 2 sessions and completed 1 lesson.
+    if (sessionCount >= 2 && lessonsCompleted >= 1) {
+      console.log('[PWA] Conditions met. Showing install prompt.');
+      // Delay showing the prompt for a better user experience.
+      setTimeout(() => setShowPrompt(true), 3000);
+    }
+  }, [user, deferredPrompt, showPrompt]);
+
+  // Listener for when the app is successfully installed.
+  useEffect(() => {
+    const handleAppInstalled = () => {
       setShowPrompt(false);
       setDeferredPrompt(null);
       console.log('[PWA] SSC was installed successfully!');
-    });
+    };
 
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
-  }, [user]);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => window.removeEventListener('appinstalled', handleAppInstalled);
+  }, []);
+
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;

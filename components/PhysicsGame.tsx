@@ -5,14 +5,20 @@ const PhysicsGame: React.FC = () => {
   const [gameState, setGameState] = useState<'start' | 'playing' | 'gameover'>('start');
   const [score, setScore] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const requestRef = useRef<number>(null);
+  const requestRef = useRef<number | null>(null);
 
   // Simple "Newton's Apple" game logic
   const applesRef = useRef<{x: number, y: number, speed: number, size: number}[]>([]);
   const basketRef = useRef({x: 500, width: 100});
 
   useEffect(() => {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing') {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+        requestRef.current = null;
+      }
+      return;
+    }
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -34,12 +40,13 @@ const PhysicsGame: React.FC = () => {
         applesRef.current.push({
           x: Math.random() * canvas.width,
           y: -50,
-          speed: 3 + Math.random() * 5,
+          speed: 3 + Math.random() * 3 + (score / 100), // Speed increases with score
           size: 15 + Math.random() * 10
         });
       }
 
-      applesRef.current.forEach((apple, index) => {
+      for (let i = applesRef.current.length - 1; i >= 0; i--) {
+        const apple = applesRef.current[i];
         apple.y += apple.speed;
         
         // Draw Apple
@@ -48,27 +55,37 @@ const PhysicsGame: React.FC = () => {
         ctx.arc(apple.x, apple.y, apple.size, 0, Math.PI * 2);
         ctx.fill();
 
-        // Check Collision
+        // Check Collision with basket
         if (apple.y > canvas.height - 50 && 
             Math.abs(apple.x - basketRef.current.x) < basketRef.current.width/2) {
           setScore(prev => prev + 10);
-          applesRef.current.splice(index, 1);
+          applesRef.current.splice(i, 1);
         } else if (apple.y > canvas.height) {
-          applesRef.current.splice(index, 1);
-          if (applesRef.current.length === 0 && Math.random() > 0.95) {
-             // Let it live for now
-          }
+          // Game over condition
+          setGameState('gameover');
         }
-      });
+      }
 
       requestRef.current = requestAnimationFrame(animate);
     };
 
     requestRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(requestRef.current!);
-  }, [gameState]);
+    
+    return () => {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+    };
+  }, [gameState, score]);
+  
+  const handleRestart = () => {
+    setScore(0);
+    applesRef.current = [];
+    setGameState('playing');
+  };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (gameState !== 'playing') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -89,6 +106,15 @@ const PhysicsGame: React.FC = () => {
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md z-10">
                <span className="text-8xl mb-8">🍎</span>
                <button onClick={() => setGameState('playing')} className="bg-[#00d2ff] text-black px-12 py-5 rounded-3xl font-black uppercase tracking-widest shadow-2xl hover:scale-105 transition-all">ابدأ التحدي</button>
+            </div>
+          )}
+
+          {gameState === 'gameover' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-lg z-10 animate-fadeIn">
+               <span className="text-8xl mb-4">💥</span>
+               <h3 className="text-5xl font-black text-white mb-2">Game Over</h3>
+               <p className="text-xl text-[#fbbf24] font-bold mb-8">Final Score: {score}</p>
+               <button onClick={handleRestart} className="bg-[#fbbf24] text-black px-12 py-5 rounded-3xl font-black uppercase tracking-widest shadow-2xl hover:scale-105 transition-all">إعادة المحاولة</button>
             </div>
           )}
           
