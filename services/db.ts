@@ -1,7 +1,7 @@
 
 import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, LiveSession, Question, Quiz } from "../types";
 import { db } from "./firebase";
-import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, writeBatch, orderBy, limit } from "firebase/firestore";
+import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, writeBatch, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { QUIZZES_DB, QUESTIONS_DB, CHALLENGES_DB, LEADERBOARD_DATA, STUDY_GOALS_DB } from "../constants";
 
 const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
@@ -197,6 +197,17 @@ class SyrianScienceCenterDB {
   async getLiveSessions(): Promise<LiveSession[]> {
     const snapshot = await getDocs(collection(db, "live_sessions"));
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as LiveSession);
+  }
+
+  subscribeToLiveSessions(callback: (sessions: LiveSession[]) => void) {
+    this.checkDb();
+    const q = collection(db, "live_sessions");
+    return onSnapshot(q, (snapshot) => {
+      const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LiveSession));
+      callback(sessions);
+    }, (error) => {
+      console.error("Live Sessions Subscription Error:", error);
+    });
   }
 
   async saveLiveSession(session: Partial<LiveSession>): Promise<void> {
