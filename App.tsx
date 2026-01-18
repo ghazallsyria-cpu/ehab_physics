@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { User, ViewState, Lesson, QuizAttempt, Curriculum, Invoice } from './types';
 import { dbService } from './services/db';
@@ -124,7 +123,7 @@ const App: React.FC = () => {
     if (isAuthLoading) {
       return (
         <div className="w-full h-full flex items-center justify-center">
-          <div className="w-16 h-16 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
       );
     }
@@ -180,12 +179,12 @@ const App: React.FC = () => {
 
   const renderLoader = () => (
     <div className="w-full h-full flex items-center justify-center">
-      <div className="w-16 h-16 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
     </div>
   );
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden bg-[#0f172a]">
+    <div className="min-h-screen flex relative overflow-hidden bg-geometric-pattern">
       {view !== 'landing' && view !== 'privacy-policy' && user && (
         <Sidebar 
           currentView={view} 
@@ -198,25 +197,25 @@ const App: React.FC = () => {
       )}
       <div className={`flex-1 flex flex-col ${view !== 'landing' && view !== 'privacy-policy' && user ? 'lg:mr-72' : ''} transition-all duration-500`}>
         {view !== 'landing' && view !== 'privacy-policy' && user && (
-          <header className="px-6 py-4 md:px-10 md:py-6 flex justify-between items-center glass-panel sticky top-0 z-40 backdrop-blur-xl border-b border-white/5 bg-slate-900/80">
+          <header className="px-6 py-4 md:px-10 md:py-6 flex justify-between items-center glass-panel sticky top-0 z-40 backdrop-blur-xl border-b border-white/5 bg-blue-950/80">
             <div className="flex items-center gap-6">
               <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-white p-2 -ml-2">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
               </button>
               <h2 className="text-base md:text-lg font-bold uppercase tracking-tight text-white flex items-center gap-3">
-                <span className="text-sky-400">⚛️</span> 
-                <span className="hidden md:inline">المركز السوري للعلوم</span>
-                <span className="md:hidden">SSC</span>
+                <span className="text-amber-400">⚛️</span> 
+                <span className="hidden md:inline">المركز السوري للعلوم - الكويت</span>
+                <span className="md:hidden">SSC Kuwait</span>
               </h2>
             </div>
             <div className="flex items-center gap-4">
-              <div className="hidden sm:flex bg-slate-800/50 border border-white/10 rounded-full px-5 py-1.5 items-center gap-3">
+              <div className="hidden sm:flex bg-blue-900/50 border border-white/10 rounded-full px-5 py-1.5 items-center gap-3">
                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{view.replace(/[-_]/g, ' ')}</span>
-                 <div className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse shadow-[0_0_10px_#38bdf8]"></div>
+                 <div className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse shadow-[0_0_10px_#fbbf24]"></div>
               </div>
               <button onClick={() => setShowNotifications(true)} className="relative text-slate-400 hover:text-white transition-colors">
                 <Bell size={20} />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-slate-900/80"></span>
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-blue-950/80"></span>
               </button>
             </div>
           </header>

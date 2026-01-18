@@ -21,6 +21,42 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
   
   const emailRef = useRef<HTMLInputElement>(null);
 
+  const mockStudent: User = {
+    uid: 'demo_student_uid',
+    name: 'طالب تجريبي',
+    email: 'student@demo.com',
+    role: 'student',
+    grade: '12',
+    subscription: 'premium',
+    createdAt: new Date().toISOString(),
+    progress: {
+      completedLessonIds: ['l12-1-1'],
+      points: 7500,
+      achievements: ['ch-2'],
+    },
+    status: 'active',
+  };
+
+  const mockAdmin: User = {
+    uid: 'demo_admin_uid',
+    name: 'مدير تجريبي',
+    email: 'admin@demo.com',
+    role: 'admin',
+    grade: '12', // Not relevant but required by type
+    subscription: 'premium', // Not relevant but required by type
+    createdAt: new Date().toISOString(),
+    progress: { completedLessonIds: [], points: 0 },
+    jobTitle: 'مشرف النظام',
+  };
+
+  const handleDemoLogin = (role: 'student' | 'admin') => {
+    if (role === 'student') {
+      onLogin(mockStudent);
+    } else {
+      onLogin(mockAdmin);
+    }
+  };
+
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
@@ -142,23 +178,23 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-[#0f172a] font-['Tajawal']" dir="rtl">
-        <div className="w-full max-w-md bg-white/[0.02] border border-white/10 p-8 rounded-[40px] relative overflow-hidden backdrop-blur-xl shadow-2xl">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-geometric-pattern font-['Tajawal']" dir="rtl">
+        <div className="w-full max-w-md bg-blue-950/[0.6] border border-white/10 p-8 rounded-[40px] relative overflow-hidden backdrop-blur-xl shadow-2xl">
             <button onClick={onBack} className="absolute top-6 left-6 text-gray-500 hover:text-white transition-colors">✕</button>
             <div className="text-center mb-8">
                 <h2 className="text-3xl font-black text-white mb-2">{isResetMode ? 'استعادة كلمة المرور' : isRegistering ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}</h2>
-                <p className="text-gray-500 text-sm">بوابة المركز السوري للعلوم</p>
+                <p className="text-amber-400/50 text-sm font-bold">بوابة المركز السوري للعلوم - الكويت</p>
             </div>
             {message.text && (<div className={`mb-6 p-4 rounded-2xl text-xs font-bold text-center ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>{message.text}</div>)}
-            {isResetMode ? ( <form onSubmit={handlePasswordReset} className="space-y-4"> <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label> <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all ltr text-left" placeholder="name@example.com" /> </div> <button type="submit" disabled={isLoading} className="w-full bg-[#fbbf24] text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50">{isLoading ? 'جاري الإرسال...' : 'إرسال رابط الاستعادة'}</button> <button type="button" onClick={() => setIsResetMode(false)} className="w-full text-gray-500 text-xs font-bold hover:text-white mt-4">العودة لتسجيل الدخول</button> </form> ) : ( 
+            {isResetMode ? ( <form onSubmit={handlePasswordReset} className="space-y-4"> <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label> <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all ltr text-left" placeholder="name@example.com" /> </div> <button type="submit" disabled={isLoading} className="w-full bg-amber-400 text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50">{isLoading ? 'جاري الإرسال...' : 'إرسال رابط الاستعادة'}</button> <button type="button" onClick={() => setIsResetMode(false)} className="w-full text-gray-500 text-xs font-bold hover:text-white mt-4">العودة لتسجيل الدخول</button> </form> ) : ( 
             <>
               <form onSubmit={handleAuth} className="space-y-4"> 
-                {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الاسم الكامل</label> <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all" placeholder="الاسم الثلاثي" /> </div> )} 
-                <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label> <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all ltr text-left" placeholder="name@example.com" /> </div> 
-                <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">كلمة المرور</label> <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all ltr text-left" placeholder="••••••••" /> </div> 
-                {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الصف الدراسي</label> <select value={grade} onChange={e => setGrade(e.target.value as any)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all"> <option value="10">الصف العاشر</option> <option value="11">الصف الحادي عشر</option> <option value="12">الصف الثاني عشر</option> </select> </div> )} 
-                {!isRegistering && ( <div className="flex justify-end"> <button type="button" onClick={() => setIsResetMode(true)} className="text-[10px] font-bold text-gray-500 hover:text-[#fbbf24]">نسيت كلمة المرور؟</button> </div> )} 
-                <button type="submit" disabled={isLoading} className="w-full bg-[#fbbf24] text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 mt-6 shadow-lg">{isLoading ? 'جاري المعالجة...' : isRegistering ? 'إنشاء الحساب' : 'دخول'}</button> 
+                {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الاسم الكامل</label> <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all" placeholder="الاسم الثلاثي" /> </div> )} 
+                <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label> <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all ltr text-left" placeholder="name@example.com" /> </div> 
+                <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">كلمة المرور</label> <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all ltr text-left" placeholder="••••••••" /> </div> 
+                {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الصف الدراسي</label> <select value={grade} onChange={e => setGrade(e.target.value as any)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all"> <option value="10">الصف العاشر</option> <option value="11">الصف الحادي عشر</option> <option value="12">الصف الثاني عشر</option> </select> </div> )} 
+                {!isRegistering && ( <div className="flex justify-end"> <button type="button" onClick={() => setIsResetMode(true)} className="text-[10px] font-bold text-gray-500 hover:text-amber-400">نسيت كلمة المرور؟</button> </div> )} 
+                <button type="submit" disabled={isLoading} className="w-full bg-amber-400 text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 mt-6 shadow-lg">{isLoading ? 'جاري المعالجة...' : isRegistering ? 'إنشاء الحساب' : 'دخول'}</button> 
               </form>
               <div className="relative flex py-5 items-center">
                   <div className="flex-grow border-t border-white/10"></div>
@@ -174,6 +210,32 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
                 <img src="https://www.google.com/favicon.ico" alt="Google icon" className="w-5 h-5" />
                 المتابعة باستخدام جوجل
               </button>
+              
+              <div className="relative flex py-5 items-center">
+                  <div className="flex-grow border-t border-white/10"></div>
+                  <span className="flex-shrink mx-4 text-xs text-gray-600 font-bold">للتجربة</span>
+                  <div className="flex-grow border-t border-white/10"></div>
+              </div>
+
+              <div className="flex gap-4">
+                  <button
+                      type="button"
+                      onClick={() => handleDemoLogin('student')}
+                      disabled={isLoading}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold hover:bg-blue-500/20 hover:border-blue-500/30 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                      🎓 دخول كطالب
+                  </button>
+                  <button
+                      type="button"
+                      onClick={() => handleDemoLogin('admin')}
+                      disabled={isLoading}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold hover:bg-amber-500/20 hover:border-amber-500/30 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                      ⚙️ دخول كمدير
+                  </button>
+              </div>
+
               <div className="pt-6 border-t border-white/5 text-center mt-6"> 
                 <button type="button" onClick={() => setIsRegistering(!isRegistering)} className="text-xs font-bold text-white">{isRegistering ? 'لديك حساب بالفعل؟ تسجيل الدخول' : 'ليس لديك حساب؟ إنشاء حساب جديد'}</button> 
               </div>

@@ -21,14 +21,14 @@ const AiTutor: React.FC<AiTutorProps> = ({ grade, subject }) => {
   const [showThinking, setShowThinking] = useState(true);
   
   // New state for theme color
-  const [themeColor, setThemeColor] = useState('#fbbf24');
+  const [themeColor, setThemeColor] = useState('#e2e8f0');
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null); // Ref for the input element
 
   // Color options
   const colorOptions = [
-    { name: 'Gold', value: '#fbbf24' },
+    { name: 'Gray', value: '#e2e8f0' },
     { name: 'Sky', value: '#00d2ff' },
     { name: 'Purple', value: '#a855f7' },
     { name: 'Green', value: '#22c55e' }
@@ -68,7 +68,15 @@ const AiTutor: React.FC<AiTutorProps> = ({ grade, subject }) => {
     <div className="h-full min-h-[600px] flex flex-col glass-panel rounded-[40px] md:rounded-[60px] border-white/5 overflow-hidden shadow-2xl relative font-['Tajawal']">
       <div className="p-6 sm:p-8 bg-white/[0.03] border-b border-white/5 flex justify-between items-center backdrop-blur-3xl">
         <div className="flex items-center gap-4 sm:gap-6">
-          <div aria-label="AI Tutor Icon" style={{ backgroundColor: themeColor }} className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl text-black flex items-center justify-center text-3xl sm:text-4xl shadow-lg animate-float transition-all duration-500 hover:scale-110">🤖</div>
+          <div 
+            role="button"
+            tabIndex={0}
+            aria-label="AI Tutor Icon" 
+            style={{ backgroundColor: themeColor }} 
+            className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl text-black flex items-center justify-center text-3xl sm:text-4xl shadow-lg animate-float transition-all duration-500 hover:scale-110 focus:outline-none focus:ring-4 focus:ring-amber-400 focus:ring-offset-4 focus:ring-offset-[#0A2540]"
+          >
+            🤖
+          </div>
           <div>
             <h3 className="text-xl sm:text-2xl font-black">المساعد <span style={{ color: themeColor }} className="transition-colors duration-500">الذكي</span></h3>
             <p className="text-[10px] text-[#00d2ff] font-black uppercase tracking-widest">مساعدك في {subject === 'Physics' ? 'الفيزياء' : 'الكيمياء'}</p>

@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>المركز السوري للعلوم | Syrian Science Center</title>
+    <title>المركز السوري للعلوم - الكويت | SSC Kuwait</title>
     
     <!-- PWA Primary Meta -->
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#0A2540">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="SyrianScience">
+    <meta name="apple-mobile-web-app-title" content="SSC Kuwait">
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3209/3209120.png">
+    <link rel="apple-touch-icon" href="https://i.ibb.co/C0W2L1x/gold-atom-logo.png">
     
     <!-- iOS Splash Screens -->
-    <link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="https://cdn-icons-png.flaticon.com/512/3209/3209120.png">
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="https://i.ibb.co/C0W2L1x/gold-atom-logo.png">
     
     <!-- Using CDN for Tailwind CSS for simplicity in this setup -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -22,17 +22,17 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         :root {
-            /* Modern Academic Palette */
-            --bg-deep: #0f172a; /* Slate 900 */
-            --bg-card: rgba(30, 41, 59, 0.7); 
-            --primary: #38bdf8; /* Sky 400 */
-            --primary-glow: rgba(56, 189, 248, 0.5);
-            --accent: #fbbf24; /* Amber 400 */
-            --accent-glow: rgba(251, 191, 36, 0.5);
-            --danger: #ef4444; /* Red 500 */
-            --success: #22c55e; /* Green 500 */
-            --text-light: #e2e8f0; /* Slate 200 */
-            --text-dark: #94a3b8; /* Slate 400 */
+            /* New Gold & Blue Palette */
+            --bg-deep: #0A2540; /* Rich Blue */
+            --bg-card: rgba(10, 37, 64, 0.7); 
+            --primary: #D4AF37; /* Gold */
+            --primary-glow: rgba(212, 175, 55, 0.5);
+            --accent: #C7A24B; /* Darker Gold */
+            --accent-glow: rgba(199, 162, 75, 0.5);
+            --danger: #ef4444;
+            --success: #22c55e;
+            --text-light: #e2e8f0;
+            --text-dark: #94a3b8;
         }
         html { scroll-behavior: smooth; }
         body {
@@ -42,15 +42,18 @@
             overscroll-behavior-y: none;
             -webkit-tap-highlight-color: transparent;
         }
+        .bg-geometric-pattern {
+            background-color: #0A2540;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23C7A24B' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            background-size: 40px 40px;
+        }
         .glass-panel {
-            background: rgba(15, 23, 42, 0.6); /* slate-900/60 */
+            background: rgba(10, 37, 64, 0.6); /* blue-950/60 */
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
         }
-        .text-glow-cyan { text-shadow: 0 0 15px var(--primary-glow); }
-        .text-glow-gold { text-shadow: 0 0 15px var(--accent-glow); }
-        .glow-teal { box-shadow: 0 0 25px rgba(0, 210, 255, 0.4); }
-        .glow-gold { box-shadow: 0 0 25px rgba(251, 191, 36, 0.4); }
+        .text-glow-gold { text-shadow: 0 0 20px var(--primary-glow); }
+        .glow-gold { box-shadow: 0 0 25px var(--primary-glow); }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -61,23 +64,11 @@
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-slideUp { animation: slideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
 
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .animate-float { animation: float 4s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        .animate-float { animation: float 5s ease-in-out infinite; }
         
         @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50% { transform: translateX(-5px); } 20%, 40% { transform: translateX(5px); } }
         .animate-shake { animation: shake 0.5s ease-in-out; }
-        
-        .bg-grid-large {
-           background-image:
-            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-           background-size: 100px 100px;
-        }
-        
-        .nebula-glow {
-            background: radial-gradient(circle at 20% 30%, rgba(0, 210, 255, 0.2), transparent 40%),
-                        radial-gradient(circle at 80% 70%, rgba(112, 0, 255, 0.2), transparent 40%);
-        }
         
         .perspective-2000 {
            perspective: 2000px;
