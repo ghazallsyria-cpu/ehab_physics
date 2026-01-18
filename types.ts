@@ -1,7 +1,6 @@
 
-
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
-export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-questions' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate';
+export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-questions' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions';
 
 // --- 0. AI & Chat ---
 export interface Message {
@@ -23,7 +22,7 @@ export interface AIRecommendation {
   title: string;
   reason: string;
   type: 'lesson' | 'quiz' | 'challenge' | 'discussion';
-  targetId: string; // ID of the lesson, quiz, etc.
+  targetId: string; 
   urgency: 'high' | 'medium' | 'low';
 }
 
@@ -32,7 +31,7 @@ export type ContentBlockType = 'text' | 'image' | 'video' | 'pdf' | 'youtube' | 
 
 export interface ContentBlock {
   type: ContentBlockType;
-  content: string; // Markdown text, URL for image/video/pdf
+  content: string; 
   caption?: string;
 }
 
@@ -53,7 +52,7 @@ export interface Lesson {
 }
 
 export interface Curriculum {
-  id?: string; // Added for journey map
+  id?: string; 
   grade: '10' | '11' | '12';
   subject: 'Physics' | 'Chemistry';
   title: string;
@@ -99,7 +98,6 @@ export interface Question {
   type: QuestionType;
   answers: Answer[];
   correctAnswerId: string;
-  // Properties for ExamCenter/QuestionBank
   score?: number;
   unit?: string;
   grade?: string;
@@ -128,7 +126,7 @@ export interface StudentQuizAttempt {
   score: number;
   totalQuestions: number;
   completedAt: string;
-  answers: Record<string, string>; // { questionId: selectedAnswerId }
+  answers: Record<string, string>; 
   maxScore?: number;
   timeSpent?: number;
   attemptNumber?: number;
@@ -207,16 +205,14 @@ export interface User {
   subscription: 'free' | 'premium' | 'monthly' | 'term' | 'yearly';
   createdAt: string;
   progress: UserProgress;
-  // Added properties
   status?: 'active' | 'suspended' | 'banned';
   phone?: string;
   school?: string;
   educationalLevel?: EducationalLevel;
-  points?: number; // Used directly on user in some places
-  completedLessonIds?: string[]; // ditto
+  points?: number; 
+  completedLessonIds?: string[]; 
   adminNotes?: string;
   subscriptionExpiry?: string;
-  // Teacher properties
   specialization?: string;
   yearsExperience?: number;
   bio?: string;
@@ -225,9 +221,7 @@ export interface User {
   gradesTaught?: string[];
   permissions?: TeacherPermission[];
   jobTitle?: string;
-  // Parent properties
   linkedStudentUids?: string[];
-  // For reports
   weeklyReports?: WeeklyReport[];
 }
 
@@ -280,7 +274,7 @@ export interface Challenge {
   title: string;
   description: string;
   type: 'quiz' | 'speed_run';
-  reward: number; // XP points
+  reward: number; 
   isCompleted: boolean;
 }
 
@@ -358,10 +352,10 @@ export interface LiveSession {
   id: string;
   title: string;
   teacherName: string;
-  startTime: string;
+  startTime: string; 
   status: 'live' | 'upcoming';
   topic: string;
-  zoomLink?: string;
+  zoomLink: string;
 }
 
 // --- 11. Advanced Content (NEW) ---

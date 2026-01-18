@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { User, ViewState, Lesson, QuizAttempt, Curriculum, Invoice } from './types';
 import { dbService } from './services/db';
@@ -37,6 +38,7 @@ const AdminFinancials = lazy(() => import('./components/AdminFinancials'));
 const QuizPerformance = lazy(() => import('./components/QuizPerformance'));
 const AdminSettings = lazy(() => import('./components/AdminSettings'));
 const PhysicsJourneyMap = lazy(() => import('./components/PhysicsJourneyMap'));
+const AdminLiveSessions = lazy(() => import('./components/AdminLiveSessions'));
 
 
 const App: React.FC = () => {
@@ -63,7 +65,7 @@ const App: React.FC = () => {
         if (auth) {
             unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
                 if (firebaseUser) {
-                    await dbService.initializeSettings(); // Initialize settings on user login
+                    await dbService.initializeSettings(); 
                     const appUser = await dbService.getUser(firebaseUser.uid);
                     if (appUser) {
                         setUser(appUser);
@@ -77,7 +79,6 @@ const App: React.FC = () => {
                 setIsAuthLoading(false);
             });
         } else {
-            // Fallback for local dev without Firebase
             await dbService.initializeSettings();
             const localUid = sessionStorage.getItem('ssc_active_uid');
             if (localUid) {
@@ -95,7 +96,6 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Global Event Listener for View Changes
   useEffect(() => {
     const handleChangeView = (e: any) => {
       if (e.detail.view) setView(e.detail.view);
@@ -119,7 +119,6 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
-    // Auth loading state
     if (isAuthLoading) {
       return (
         <div className="w-full h-full flex items-center justify-center">
@@ -128,14 +127,11 @@ const App: React.FC = () => {
       );
     }
     
-    // Public Views
     if (view === 'landing') return <LandingPage onStart={() => setView('dashboard')} />;
     if (view === 'privacy-policy') { return <div className="text-white p-8">Privacy Policy... <button onClick={() => setView('landing')}>Back</button></div>; }
 
-    // Auth Wall
     if (!user) return <Auth onLogin={(u) => { setUser(u); setView('dashboard'); }} onBack={() => setView('landing')} />;
 
-    // Authenticated Views
     switch (view) {
       case 'dashboard':
         if (user.role === 'admin') return <AdminDashboard />;
@@ -148,7 +144,7 @@ const App: React.FC = () => {
       
       case 'quiz_center': return <QuizCenter user={user} onBack={() => setView('dashboard')} />;
 
-      case 'discussions': return <Forum user={user} onAskAI={(q) => { setView('ai-chat'); /* pass question */ }} />;
+      case 'discussions': return <Forum user={user} onAskAI={(q) => { setView('ai-chat'); }} />;
       
       case 'subscription': return <BillingCenter user={user} onUpdateUser={setUser} onBack={() => setView('dashboard')} onViewCertificate={(invoice) => { setActiveInvoice(invoice); setView('payment-certificate'); }} />;
       case 'payment-certificate': return activeInvoice ? <PaymentCertificate user={user} invoice={activeInvoice} onBack={() => setView('dashboard')} /> : <BillingCenter user={user} onUpdateUser={setUser} onBack={() => setView('dashboard')} onViewCertificate={(invoice) => { setActiveInvoice(invoice); setView('payment-certificate'); }}/>;
@@ -165,13 +161,13 @@ const App: React.FC = () => {
       
       case 'help-center': return <HelpCenter />;
 
-      // Admin specific views
       case 'admin-curriculum': return <AdminCurriculumManager />;
       case 'admin-students': return <AdminStudentManager />;
       case 'admin-teachers': return <AdminTeacherManager />;
       case 'admin-questions': return <AdminQuestionManager />;
       case 'admin-financials': return <AdminFinancials />;
       case 'admin-settings': return <AdminSettings />;
+      case 'admin-live-sessions': return <AdminLiveSessions />;
       
       default: return <StudentDashboard user={user} />;
     }

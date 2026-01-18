@@ -18,7 +18,6 @@ const AdminStudentManager: React.FC = () => {
   const [message, setMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState('');
-  const [activationCode, setActivationCode] = useState('');
 
   const [editForm, setEditForm] = useState<Partial<User>>({});
 
@@ -58,6 +57,7 @@ const AdminStudentManager: React.FC = () => {
       setIsModalOpen(false);
       setSelectedStudent(null);
       setEditForm({});
+      setMessage(null);
   };
 
   const handleCreateNewMode = () => {
@@ -75,26 +75,40 @@ const AdminStudentManager: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!editForm.name || !editForm.email) {
-        setMessage({ text: 'يرجى تعبئة جميع الحقول المطلوبة', type: 'error' });
+    // 1. Validation
+    if (!editForm.name?.trim() || !editForm.email?.trim()) {
+        setMessage({ text: 'يرجى تعبئة جميع الحقول المطلوبة (الاسم والبريد)', type: 'error' });
         return;
     }
+    
+    if (selectedStudent?.uid === 'new_entry' && (!password || password.length < 6)) {
+        setMessage({ text: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل للمستخدمين الجدد', type: 'error' });
+        return;
+    }
+
     setIsLoading(true);
     setMessage(null);
 
     try {
         let updatedUser = { ...selectedStudent, ...editForm } as User;
         
+        // 2. Auth Creation if New
         if (selectedStudent?.uid === 'new_entry') {
-            if (!password || password.length < 6) {
-                setMessage({ text: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل', type: 'error' });
-                setIsLoading(false); return;
+            try {
+                const userCredential = await createUserWithEmailAndPassword(secondaryAuth, updatedUser.email, password);
+                updatedUser.uid = userCredential.user.uid;
+            } catch (authError: any) {
+                console.error("Auth Error:", authError);
+                let authMsg = 'حدث خطأ أثناء إنشاء الحساب.';
+                if (authError.code === 'auth/email-already-in-use') authMsg = 'هذا البريد الإلكتروني مستخدم بالفعل.';
+                if (authError.code === 'auth/invalid-email') authMsg = 'البريد الإلكتروني غير صحيح.';
+                if (authError.code === 'auth/weak-password') authMsg = 'كلمة المرور ضعيفة جداً.';
+                if (authError.code === 'auth/operation-not-allowed') authMsg = 'تسجيل الدفع بالبريد معطل في إعدادات Firebase.';
+                throw new Error(authMsg);
             }
-            // Use secondaryAuth to create user without logging out the current admin
-            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, updatedUser.email, password);
-            updatedUser.uid = userCredential.user.uid;
         }
 
+        // 3. Database Save
         await dbService.saveUser(updatedUser);
         await loadStudents();
         setMessage({ text: 'تم حفظ البيانات بنجاح ✅', type: 'success' });
@@ -103,10 +117,8 @@ const AdminStudentManager: React.FC = () => {
             setTimeout(handleCloseModal, 1500);
         }
     } catch (e: any) {
-        console.error(e);
-        let errorMsg = 'حدث خطأ غير متوقع.';
-        if (e.code === 'auth/email-already-in-use') errorMsg = 'البريد الإلكتروني مسجل مسبقاً.';
-        setMessage({ text: errorMsg, type: 'error' });
+        console.error("Save Error:", e);
+        setMessage({ text: e.message || 'حدث خطأ غير متوقع أثناء الحفظ.', type: 'error' });
     } finally {
         setIsLoading(false);
     }
@@ -127,11 +139,10 @@ const AdminStudentManager: React.FC = () => {
       setMessage({ text: 'تم حذف الطالب بنجاح.', type: 'success' });
       setTimeout(() => {
         handleCloseModal();
-        setMessage(null);
       }, 1500);
-    } catch (e) {
-      console.error("Failed to delete student", e);
-      setMessage({ text: 'فشل حذف الطالب.', type: 'error' });
+    } catch (e: any) {
+      console.error("Delete Error:", e);
+      setMessage({ text: 'فشل حذف الطالب: ' + (e.message || 'خطأ في قاعدة البيانات'), type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -166,6 +177,9 @@ const AdminStudentManager: React.FC = () => {
                     </div>
                 ))}
             </div>
+            {!isLoading && filteredStudents.length === 0 && (
+                <div className="py-20 text-center opacity-30 italic">لا يوجد طلاب مطابقين للبحث.</div>
+            )}
         </div>
 
       {isModalOpen && selectedStudent && (

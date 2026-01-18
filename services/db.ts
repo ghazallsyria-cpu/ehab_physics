@@ -1,4 +1,4 @@
-import { User, Curriculum, Quiz, Question, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, Lesson, Unit, PaymentSettings, SubscriptionCode, LoggingSettings } from "../types";
+import { User, Curriculum, Quiz, Question, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, Lesson, Unit, PaymentSettings, SubscriptionCode, LoggingSettings, LiveSession } from "../types";
 import { db } from "./firebase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, documentId, writeBatch, orderBy, limit } from "firebase/firestore";
 import { QUIZZES_DB, QUESTIONS_DB } from "../constants";
@@ -26,6 +26,17 @@ class SyrianScienceCenterDB {
     this.loggingSettings = await this.getLoggingSettings();
   }
 
+  // Helper to remove undefined fields which Firestore doesn't like
+  private cleanData(obj: any) {
+    const cleaned = { ...obj };
+    Object.keys(cleaned).forEach(key => {
+      if (cleaned[key] === undefined) {
+        delete cleaned[key];
+      }
+    });
+    return cleaned;
+  }
+
   // --- Settings ---
   async getLoggingSettings(): Promise<LoggingSettings> {
     if (!db) return DEFAULT_LOGGING_SETTINGS;
@@ -41,7 +52,7 @@ class SyrianScienceCenterDB {
 
   async saveLoggingSettings(settings: LoggingSettings): Promise<void> {
     if (!db) return;
-    this.loggingSettings = settings; // Update instance cache immediately
+    this.loggingSettings = settings; 
     const docRef = doc(db, "settings", "data_logging");
     await setDoc(docRef, settings, { merge: true });
   }
@@ -70,8 +81,9 @@ class SyrianScienceCenterDB {
 
   async saveUser(user: User): Promise<void> {
     if (!db) return;
+    const cleanedUser = this.cleanData(user);
     const userDocRef = doc(db, "users", user.uid);
-    await setDoc(userDocRef, user, { merge: true });
+    await setDoc(userDocRef, cleanedUser, { merge: true });
   }
 
   async deleteUser(userId: string): Promise<void> {
@@ -88,7 +100,7 @@ class SyrianScienceCenterDB {
             .filter(u => u.role === 'student');
     } catch (e) {
         console.error("DB: Error fetching all users for student filter", e);
-        return []; // Return empty array on any failure
+        return []; 
     }
   }
 
@@ -101,8 +113,36 @@ class SyrianScienceCenterDB {
             .filter(u => u.role === 'teacher');
     } catch (e) {
         console.error("DB: Error fetching all users for teacher filter", e);
-        return []; // Return empty array on any failure
+        return []; 
     }
+  }
+
+  // --- Live Sessions ---
+  async getLiveSessions(): Promise<LiveSession[]> {
+    if (!db) return [];
+    try {
+        const snapshot = await getDocs(collection(db, "live_sessions"));
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as LiveSession);
+    } catch (e) {
+        console.error("DB: Error fetching live sessions", e);
+        return [];
+    }
+  }
+
+  async saveLiveSession(session: Partial<LiveSession>): Promise<void> {
+    if (!db) return;
+    const cleaned = this.cleanData(session);
+    const { id, ...data } = cleaned;
+    if (id) {
+        await updateDoc(doc(db, "live_sessions", id), data);
+    } else {
+        await addDoc(collection(db, "live_sessions"), data);
+    }
+  }
+
+  async deleteLiveSession(id: string): Promise<void> {
+    if (!db) return;
+    await deleteDoc(doc(db, "live_sessions", id));
   }
 
   // --- Curriculum ---
@@ -115,7 +155,6 @@ class SyrianScienceCenterDB {
         return snapshot.docs[0].ref;
     }
     
-    // If not exists, create a new doc for this grade/subject
     const newDocRef = doc(collection(db, 'curriculum'));
     const initialData: Curriculum = {
         grade: grade as any,
@@ -143,15 +182,12 @@ class SyrianScienceCenterDB {
     const curriculumSnap = await getDoc(docRef);
     if (curriculumSnap.exists()) {
         const curriculumData = curriculumSnap.data() as Curriculum;
-        // Make sure we are working with an array. Create a shallow copy for modification.
         const units = Array.isArray(curriculumData.units) ? [...curriculumData.units] : [];
         const unitIndex = units.findIndex(u => u.id === unit.id);
 
         if (unitIndex > -1) {
-            // Update existing unit
             units[unitIndex] = unit;
         } else {
-            // Add new unit
             units.push(unit);
         }
         await updateDoc(docRef, { units: units });
@@ -385,19 +421,16 @@ class SyrianScienceCenterDB {
     const batch = writeBatch(db);
     const userRef = doc(db, 'users', attempt.studentId);
     
-    // Always grant points for the attempt.
     batch.update(userRef, { 'progress.points': increment(attempt.score * 5) });
 
     const userSnap = await getDoc(userRef);
     const existingScore = userSnap.data()?.progress?.quizScores?.[attempt.quizId] || 0;
 
-    // Save the full attempt record ONLY if the setting is enabled OR it's a new high score.
     if (this.loggingSettings.saveAllQuizAttempts || attempt.score > existingScore) {
         const attemptRef = doc(collection(db, 'attempts'));
         batch.set(attemptRef, attempt);
     }
     
-    // Always update the high score if it's better.
     if (attempt.score > existingScore) {
         batch.update(userRef, { [`progress.quizScores.${attempt.quizId}`]: attempt.score });
     }
@@ -462,8 +495,6 @@ class SyrianScienceCenterDB {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }) as AppNotification);
   }
 
-  // FIX: The `timestamp` is generated here, so the input `notification` object doesn't need to provide it.
-  // The type has been updated from Omit<..., 'id' | 'isRead'> to Omit<..., 'id' | 'isRead' | 'timestamp'>.
   async addNotification(userId: string, notification: Omit<AppNotification, 'id' | 'isRead' | 'timestamp'>): Promise<void> {
     if (!db) return;
     const newNotification = { ...notification, isRead: false, timestamp: new Date().toISOString() };
@@ -556,7 +587,7 @@ class SyrianScienceCenterDB {
 
   async deleteTodo(userId: string, todoId: string): Promise<void> {
     if (!db) return;
-    await deleteDoc(doc(db, 'users', userId, 'todos', todoId));
+    await deleteDoc(doc(db, "users", userId, "todos", todoId));
   }
 }
 

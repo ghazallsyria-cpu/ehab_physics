@@ -1,13 +1,13 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { User, TeacherMessage, TeacherPermission } from '../types';
 import { dbService } from '../services/db';
 import { secondaryAuth } from '../services/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+// Added missing Mail icon import
 import { 
   Search, User as UserIcon, Shield, MessageSquare, Trash2, Save, 
   PlusCircle, UserPlus, Briefcase, GraduationCap, CheckCircle,
-  FileText, Lock, RefreshCw, KeyRound
+  FileText, Lock, RefreshCw, KeyRound, Mail
 } from 'lucide-react';
 
 const AdminTeacherManager: React.FC = () => {
@@ -67,9 +67,9 @@ const AdminTeacherManager: React.FC = () => {
     setSearchQuery('');
     const newTeacherTemplate: User = {
         uid: 'new_entry', name: '', email: '', role: 'teacher',
-        grade: '12', // Default value to satisfy User type
-        subscription: 'premium', // Default value
-        progress: { completedLessonIds: [], points: 0 }, // Default value
+        grade: '12', 
+        subscription: 'premium', 
+        progress: { completedLessonIds: [], points: 0 },
         status: 'active', createdAt: new Date().toISOString(),
         specialization: 'فيزياء', yearsExperience: 0, bio: '', avatar: '👨‍🏫',
         gradesTaught: [], permissions: ['create_content', 'reply_messages']
@@ -103,41 +103,47 @@ const AdminTeacherManager: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!editForm.name || !editForm.email) {
+    if (!editForm.name?.trim() || !editForm.email?.trim()) {
         setMessage({ text: 'يرجى تعبئة الاسم والبريد الإلكتروني', type: 'error' });
         return;
     }
 
+    if (selectedTeacher?.uid === 'new_entry' && (!password || password.length < 6)) {
+        setMessage({ text: 'يرجى إدخال كلمة مرور مؤقتة (6 أحرف على الأقل)', type: 'error' });
+        return;
+    }
+
     setIsLoading(true);
+    setMessage(null);
     try {
         let teacherToSave = { ...selectedTeacher, ...editForm } as User;
         
         if (selectedTeacher?.uid === 'new_entry') {
-            if (!password || password.length < 6) {
-                setMessage({ text: 'يرجى إدخال كلمة مرور مؤقتة (6 أحرف على الأقل)', type: 'error' });
-                setIsLoading(false); return;
+            try {
+                const userCredential = await createUserWithEmailAndPassword(secondaryAuth, teacherToSave.email, password);
+                teacherToSave.uid = userCredential.user.uid;
+            } catch (authError: any) {
+                console.error("Auth Error:", authError);
+                let authMsg = 'فشل إنشاء الحساب.';
+                if (authError.code === 'auth/email-already-in-use') authMsg = 'هذا البريد الإلكتروني مسجل مسبقاً.';
+                if (authError.code === 'auth/invalid-email') authMsg = 'البريد الإلكتروني غير صالح.';
+                if (authError.code === 'auth/weak-password') authMsg = 'كلمة المرور ضعيفة جداً.';
+                throw new Error(authMsg);
             }
-            // Create Firebase Auth user first using the secondary auth instance
-            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, teacherToSave.email, password);
-            teacherToSave.uid = userCredential.user.uid;
-            setMessage({ text: 'تم إنشاء حساب المعلم بنجاح', type: 'success' });
-            setPassword('');
-        } else {
-            setMessage({ text: 'تم تحديث البيانات بنجاح', type: 'success' });
         }
 
         await dbService.saveUser(teacherToSave);
         await loadTeachers();
         setSelectedTeacher(teacherToSave);
+        setMessage({ text: 'تم حفظ بيانات المعلم بنجاح ✅', type: 'success' });
+        setPassword('');
         
     } catch (e: any) {
-        console.error(e);
-        let errorMsg = 'حدث خطأ أثناء الحفظ.';
-        if (e.code === 'auth/email-already-in-use') errorMsg = 'هذا البريد الإلكتروني مسجل مسبقاً.';
-        if (e.code === 'auth/invalid-email') errorMsg = 'البريد الإلكتروني غير صالح.';
-        setMessage({ text: errorMsg, type: 'error' });
+        console.error("Save Error:", e);
+        setMessage({ text: e.message || 'حدث خطأ أثناء محاولة الحفظ.', type: 'error' });
+    } finally {
+        setIsLoading(false);
     }
-    setIsLoading(false);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -145,10 +151,18 @@ const AdminTeacherManager: React.FC = () => {
     if (!selectedTeacher || selectedTeacher.uid === 'new_entry') return;
     if (!confirm('⚠️ تحذير: سيتم حذف المعلم وجميع البيانات المرتبطة به. هل أنت متأكد؟')) return;
 
-    await dbService.deleteUser(selectedTeacher.uid);
-    setMessage({ text: 'تم حذف المعلم', type: 'success' });
-    loadTeachers();
-    setSelectedTeacher(null);
+    setIsLoading(true);
+    try {
+        await dbService.deleteUser(selectedTeacher.uid);
+        setMessage({ text: 'تم حذف المعلم بنجاح', type: 'success' });
+        loadTeachers();
+        setSelectedTeacher(null);
+    } catch (e: any) {
+        console.error("Delete Error:", e);
+        setMessage({ text: 'فشل حذف المعلم: ' + (e.message || 'خطأ فني'), type: 'error' });
+    } finally {
+        setIsLoading(false);
+    }
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -188,10 +202,6 @@ const AdminTeacherManager: React.FC = () => {
                         </div>
                     ))}
                 </div>
-                <div className="mt-4 pt-4 border-t border-white/5 flex justify-between text-[10px] text-gray-500 font-bold uppercase tracking-widest">
-                    <span>العدد الكلي: {teachers.length}</span>
-                    <span>نشط: {teachers.filter(t => t.status === 'active').length}</span>
-                </div>
             </div>
         </div>
         <div className="lg:col-span-8">
@@ -226,7 +236,8 @@ const AdminTeacherManager: React.FC = () => {
                         {activeTab === 'PROFILE' && ( <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-slideUp">
                             <div className="space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <UserIcon size={12}/> الاسم الكامل </label> <input type="text" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium" /> </div>
                             <div className="space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <Briefcase size={12}/> التخصص </label> <input type="text" value={editForm.specialization || ''} onChange={e => setEditForm({...editForm, specialization: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium" /> </div>
-                            {selectedTeacher.uid === 'new_entry' && <div className="space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <KeyRound size={12}/> كلمة المرور المؤقتة </label> <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-red-500/50 transition-all font-medium" /> </div>}
+                            <div className="space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <Mail size={12}/> البريد الإلكتروني </label> <input type="email" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium text-left ltr" /> </div>
+                            {selectedTeacher.uid === 'new_entry' && <div className="space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <KeyRound size={12}/> كلمة المرور المؤقتة </label> <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-red-500/50 transition-all font-medium text-left ltr" /> </div>}
                             <div className="space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <Shield size={12}/> اللقب الوظيفي </label> <input type="text" value={editForm.jobTitle || ''} onChange={e => setEditForm({...editForm, jobTitle: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium" /> </div>
                             <div className="col-span-full space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <FileText size={12}/> نبذة تعريفية </label> <textarea value={editForm.bio || ''} onChange={e => setEditForm({...editForm, bio: e.target.value})} className="w-full h-24 bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#fbbf24] transition-all font-medium leading-relaxed" /> </div>
                             <div className="col-span-full space-y-2"> <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"> <GraduationCap size={12}/> الصفوف الدراسية </label> <div className="flex flex-wrap gap-2 bg-black/40 border border-white/10 rounded-2xl p-4"> {['10', '11', '12', 'uni'].map(g => ( <button key={g} onClick={() => toggleGrade(g)} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${ editForm.gradesTaught?.includes(g) ? 'bg-[#00d2ff] text-black' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}>{g === 'uni' ? 'جامعة' : `صف ${g}`}</button>))} </div> </div>
