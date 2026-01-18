@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { LiveSession, User } from '../types';
 import { dbService } from '../services/db';
-import { Video, X, Calendar, User as UserIcon, BookOpen } from 'lucide-react';
+import { Video, X, Calendar, User as UserIcon, BookOpen, RefreshCw, AlertCircle } from 'lucide-react';
 import ZoomMeeting from './ZoomMeeting';
 
 interface LiveSessionsProps {
@@ -13,14 +13,24 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
   const [sessions, setSessions] = useState<LiveSession[]>([]);
   const [activeZoomSession, setActiveZoomSession] = useState<LiveSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSessions = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await dbService.getLiveSessions();
+      // Ensure data is an array
+      setSessions(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.error("Fetch Live Sessions Error:", err);
+      setError("عذراً، فشل الاتصال بخادم الجلسات. يرجى التحقق من اتصال الإنترنت.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchSessions = async () => {
-      setIsLoading(true);
-      const data = await dbService.getLiveSessions();
-      setSessions(data);
-      setIsLoading(false);
-    };
     fetchSessions();
   }, []);
 
@@ -28,9 +38,10 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
     if (session.status === 'live') {
       if (session.meetingId && session.passcode) {
         setActiveZoomSession(session);
-      } else {
-        // Fallback to direct link if SDK data is missing
+      } else if (session.zoomLink) {
         window.open(session.zoomLink, '_blank');
+      } else {
+        alert('بيانات الرابط غير مكتملة لهذه الجلسة.');
       }
     } else {
       alert('لم تبدأ هذه الجلسة بعد. سيتم إرسال إشعار لك عند بدئها.');
@@ -59,15 +70,34 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
       </div>
 
       <div className="border-t border-white/5 pt-12">
-        <h3 className="text-2xl font-black mb-8 border-r-4 border-blue-500 pr-4">الجلسات المتاحة</h3>
+        <div className="flex justify-between items-center mb-8">
+            <h3 className="text-2xl font-black border-r-4 border-blue-500 pr-4">الجلسات المتاحة</h3>
+            <button 
+                onClick={fetchSessions} 
+                disabled={isLoading}
+                className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition-colors bg-white/5 px-4 py-2 rounded-xl"
+            >
+                <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+                تحديث القائمة
+            </button>
+        </div>
         
         {isLoading ? (
-          <div className="py-20 text-center animate-pulse text-gray-500">جاري البحث عن البثوث النشطة...</div>
-        ) : (
+          <div className="py-32 text-center animate-pulse">
+             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+             <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">جاري البحث عن البثوث النشطة...</p>
+          </div>
+        ) : error ? (
+            <div className="py-20 text-center glass-panel rounded-[40px] border-red-500/20 bg-red-500/5">
+                <AlertCircle size={48} className="mx-auto mb-4 text-red-500" />
+                <p className="text-lg font-bold text-red-400 mb-6">{error}</p>
+                <button onClick={fetchSessions} className="bg-white text-black px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all">إعادة المحاولة</button>
+            </div>
+        ) : sessions.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {sessions.map(session => (
               <div 
-                  key={session.id} 
+                  key={session.id || Math.random().toString()} 
                   className="bg-[#0a1118] border border-white/5 p-8 rounded-[40px] group hover:border-blue-500/30 transition-all flex flex-col relative overflow-hidden"
               >
                   <div className="flex justify-between items-start mb-6 relative z-10">
@@ -100,17 +130,17 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
                       {session.status === 'live' ? 'الانضمام للبث المدمج' : 'تذكيري بالموعد'}
                   </button>
                   
-                  {/* Decorative Blur */}
                   <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/5 rounded-full blur-[60px] pointer-events-none"></div>
               </div>
               ))}
           </div>
-        )}
-
-        {!isLoading && sessions.length === 0 && (
-          <div className="py-20 text-center glass-panel rounded-[50px] border-dashed border-white/10 opacity-30">
-              <Video size={48} className="mx-auto mb-4" />
-              <p className="font-bold">لا يوجد بث مباشر في الوقت الحالي.</p>
+        ) : (
+          <div className="py-32 text-center glass-panel rounded-[50px] border-2 border-dashed border-white/10 opacity-40 animate-fadeIn">
+              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Video size={40} className="text-gray-500" />
+              </div>
+              <p className="font-black text-lg uppercase tracking-widest mb-2">لا توجد بثوث نشطة الآن</p>
+              <p className="text-sm text-gray-600 max-w-xs mx-auto">سيتم عرض الحصص المباشرة المجدولة هنا بمجرد إضافتها من قبل الإدارة.</p>
           </div>
         )}
       </div>
