@@ -15,20 +15,25 @@ const firebaseConfig = {
   measurementId: "G-7WBG5PBVC2"
 };
 
-if (!apiKey) {
-    console.error("Firebase Initialization Error: API_KEY is missing from environment variables.");
+// تهيئة التطبيق الأساسي
+let app;
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
 }
 
-// Initialize Main App
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// تهيئة تطبيق ثانوي لإدارة عمليات Auth الخاصة بالمسؤول (لإنشاء مستخدمين دون تسجيل خروج المسؤول)
+const secondaryAppName = "SecondaryAdminApp";
+let secondaryApp;
+if (!getApps().find(a => a.name === secondaryAppName)) {
+  secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+} else {
+  secondaryApp = getApp(secondaryAppName);
+}
+
 export const db = getFirestore(app);
 export const auth = getAuth(app);
-
-// Initialize Secondary App for Admin Actions
-const secondaryAppName = "SecondaryAdminApp";
-const secondaryApp = !getApps().find(a => a.name === secondaryAppName) 
-  ? initializeApp(firebaseConfig, secondaryAppName) 
-  : getApp(secondaryAppName);
 export const secondaryAuth = getAuth(secondaryApp);
 
 const provider = new GoogleAuthProvider();

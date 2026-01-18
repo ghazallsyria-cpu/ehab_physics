@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Briefcase, Banknote, BrainCircuit, Settings, Video, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Banknote, BrainCircuit, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ExternalLink } from 'lucide-react';
 import { dbService } from '../services/db';
 
 const AdminDashboard: React.FC = () => {
-  const [isDbAlive, setIsDbAlive] = useState<boolean | null>(null);
+  const [dbStatus, setDbStatus] = useState<{ alive: boolean | null, error?: string }>({ alive: null });
   const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
@@ -13,8 +13,8 @@ const AdminDashboard: React.FC = () => {
 
   const checkHealth = async () => {
     setIsChecking(true);
-    const alive = await dbService.checkConnection();
-    setIsDbAlive(alive);
+    const status = await dbService.checkConnection();
+    setDbStatus(status);
     setIsChecking(false);
   };
 
@@ -41,15 +41,47 @@ const AdminDashboard: React.FC = () => {
         </div>
         
         {/* Connection Status Indicator */}
-        <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${isDbAlive === true ? 'bg-green-500/10 border-green-500/20 text-green-400' : isDbAlive === false ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-white/5 border-white/10 text-gray-500'}`}>
+        <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border transition-all duration-500 ${dbStatus.alive === true ? 'bg-green-500/10 border-green-500/20 text-green-400' : dbStatus.alive === false ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-white/5 border-white/10 text-gray-500'}`}>
             <div className="flex flex-col items-end">
                 <span className="text-[10px] font-black uppercase tracking-widest">حالة قاعدة البيانات</span>
-                <span className="text-xs font-bold">{isChecking ? 'جاري الفحص...' : isDbAlive ? 'متصل وجاهز' : 'خطأ في الاتصال'}</span>
+                <span className="text-xs font-bold">{isChecking ? 'جاري الفحص...' : dbStatus.alive ? 'متصل وجاهز' : 'خطأ في الاتصال'}</span>
             </div>
-            {isChecking ? <RefreshCw className="animate-spin" size={20} /> : isDbAlive ? <Wifi size={20}/> : <WifiOff size={20}/>}
-            {!isChecking && <button onClick={checkHealth} className="mr-2 p-1.5 hover:bg-white/10 rounded-lg transition-colors"><RefreshCw size={14}/></button>}
+            {isChecking ? <RefreshCw className="animate-spin" size={20} /> : dbStatus.alive ? <Wifi size={20}/> : <WifiOff size={20}/>}
+            {!isChecking && <button onClick={checkHealth} className="mr-2 p-1.5 hover:bg-white/10 rounded-lg transition-colors" title="إعادة الفحص"><RefreshCw size={14}/></button>}
         </div>
       </header>
+
+      {/* Detailed Error Section */}
+      {dbStatus.alive === false && (
+          <div className="glass-panel p-10 rounded-[40px] border-red-500/20 bg-red-500/5 animate-slideUp">
+              <div className="flex items-start gap-6">
+                  <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
+                      <AlertTriangle size={32} />
+                  </div>
+                  <div className="flex-1">
+                      <h4 className="text-xl font-black text-red-400 mb-2 uppercase tracking-widest">تشخيص المشكلة</h4>
+                      <p className="text-gray-300 leading-relaxed font-bold italic mb-6">"{dbStatus.error}"</p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-red-500/10">
+                          <div className="space-y-4">
+                              <h5 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">حلول مقترحة:</h5>
+                              <ul className="space-y-2 text-xs text-gray-400 font-medium list-disc list-inside">
+                                  <li>تأكد من تفعيل "Email/Password" في Firebase Authentication.</li>
+                                  <li>تأكد من ضبط Firestore Security Rules لتسمح بالقراءة والكتابة.</li>
+                                  <li>تحقق من صحة مفتاح API (API_KEY) في إعدادات البيئة.</li>
+                              </ul>
+                          </div>
+                          <div className="flex flex-col justify-end items-end gap-3">
+                              <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs font-black text-amber-400 hover:underline">
+                                  Firebase Console <ExternalLink size={12}/>
+                              </a>
+                              <button onClick={checkHealth} className="bg-red-500 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 transition-all">إعادة محاولة الاتصال</button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {adminTools.map(tool => (

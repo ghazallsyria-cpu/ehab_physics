@@ -6,7 +6,7 @@ import { secondaryAuth } from '../services/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   Search, User as UserIcon, Zap, Save, RefreshCw, GraduationCap, 
-  Mail, Phone, School, PlusCircle, X, KeyRound, Trash2
+  Mail, Phone, School, PlusCircle, X, KeyRound, Trash2, AlertCircle
 } from 'lucide-react';
 
 const AdminStudentManager: React.FC = () => {
@@ -102,8 +102,10 @@ const AdminStudentManager: React.FC = () => {
         } as User;
         
         if (selectedStudent?.uid === 'new_entry') {
+            if (!secondaryAuth) {
+              throw new Error("نظام التوثيق الثانوي غير متاح. تأكد من تفعيل Firebase Auth.");
+            }
             try {
-                // Ensure no conflicting session
                 const userCredential = await createUserWithEmailAndPassword(secondaryAuth, updatedUser.email, password);
                 updatedUser.uid = userCredential.user.uid;
             } catch (authError: any) {
@@ -113,7 +115,7 @@ const AdminStudentManager: React.FC = () => {
                 if (authError.code === 'auth/invalid-email') authMsg = 'البريد الإلكتروني غير صحيح.';
                 if (authError.code === 'auth/weak-password') authMsg = 'كلمة المرور ضعيفة جداً.';
                 if (authError.code === 'auth/operation-not-allowed') authMsg = 'مزود "البريد وكلمة المرور" غير مفعل في Firebase Console.';
-                throw new Error(authMsg + ` (Code: ${authError.code})`);
+                throw new Error(authMsg);
             }
         }
 
@@ -234,7 +236,8 @@ const AdminStudentManager: React.FC = () => {
 
             <div className="mt-10 pt-8 border-t border-white/10 flex flex-col gap-4">
                 {message && (
-                    <div className={`p-4 rounded-2xl text-xs font-bold text-center ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                    <div className={`p-4 rounded-2xl text-xs font-bold text-center flex items-center justify-center gap-2 ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                        {message.type === 'error' && <AlertCircle size={14} />}
                         {message.text}
                     </div>
                 )}

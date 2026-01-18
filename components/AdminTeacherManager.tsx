@@ -7,7 +7,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   Search, User as UserIcon, Shield, MessageSquare, Trash2, Save, 
   PlusCircle, UserPlus, Briefcase, GraduationCap, CheckCircle,
-  FileText, Lock, RefreshCw, KeyRound, Mail
+  FileText, Lock, RefreshCw, KeyRound, Mail, AlertCircle
 } from 'lucide-react';
 
 const AdminTeacherManager: React.FC = () => {
@@ -134,6 +134,9 @@ const AdminTeacherManager: React.FC = () => {
         } as User;
         
         if (selectedTeacher?.uid === 'new_entry') {
+            if (!secondaryAuth) {
+              throw new Error("نظام التوثيق الثانوي غير متاح. تأكد من تفعيل Firebase Auth.");
+            }
             try {
                 const userCredential = await createUserWithEmailAndPassword(secondaryAuth, teacherToSave.email, password);
                 teacherToSave.uid = userCredential.user.uid;
@@ -144,7 +147,7 @@ const AdminTeacherManager: React.FC = () => {
                 if (authError.code === 'auth/invalid-email') authMsg = 'البريد الإلكتروني غير صالح.';
                 if (authError.code === 'auth/weak-password') authMsg = 'كلمة المرور ضعيفة جداً.';
                 if (authError.code === 'auth/operation-not-allowed') authMsg = 'مزود "البريد وكلمة المرور" غير مفعل في Firebase Console.';
-                throw new Error(authMsg + ` (Code: ${authError.code})`);
+                throw new Error(authMsg);
             }
         }
 
@@ -289,7 +292,10 @@ const AdminTeacherManager: React.FC = () => {
                         {activeTab === 'MESSAGES' && ( <div className="space-y-4 animate-slideUp max-h-[400px] overflow-y-auto no-scrollbar pr-2">{messages.length > 0 ? messages.map(msg => ( <div key={msg.id} className="p-6 bg-white/5 border border-white/5 rounded-3xl"> <div className="flex justify-between items-start mb-2"> <span className="text-sm font-bold text-[#00d2ff]">{msg.studentName}</span> <span className="text-[9px] text-gray-500 font-mono">{new Date(msg.timestamp).toLocaleDateString('ar-SY')}</span> </div> <p className="text-gray-300 text-xs leading-relaxed">{msg.content}</p> </div> )) : ( <div className="text-center py-20 opacity-30"> <MessageSquare className="w-12 h-12 mx-auto mb-2" /> <p className="text-xs font-bold">لا توجد رسائل</p> </div> )}</div> )}
                     </div>
                     <div className="absolute bottom-8 left-8 right-8 flex gap-4 border-t border-white/10 pt-6 bg-[#0a1118]/80 backdrop-blur-md rounded-b-[40px]">
-                        {message && ( <div className={`flex-1 p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}> <span>{message.type === 'success' ? '✓' : '⚠️'}</span> {message.text} </div> )}
+                        {message && ( <div className={`flex-1 p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                            {message.type === 'error' && <AlertCircle size={14} />}
+                            {message.text}
+                        </div> )}
                         <button onClick={handleSave} disabled={isLoading} className="bg-[#fbbf24] text-black px-12 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 ml-auto disabled:opacity-50">
                             {isLoading ? <RefreshCw className="animate-spin w-4 h-4" /> : <Save className="w-4 h-4" />}
                             {selectedTeacher.uid === 'new_entry' ? 'إضافة المعلم' : 'حفظ التعديلات'}

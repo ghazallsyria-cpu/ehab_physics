@@ -31,7 +31,6 @@ class SyrianScienceCenterDB {
     }
   }
 
-  // Deep recursive cleaner to remove any 'undefined' which crashes Firestore
   private cleanData(obj: any): any {
     if (obj === null || obj === undefined) return null;
     if (Array.isArray(obj)) {
@@ -53,40 +52,53 @@ class SyrianScienceCenterDB {
   }
 
   private checkDb() {
-    if (!db) throw new Error("قاعدة البيانات غير متصلة. يرجى التحقق من اتصال الإنترنت أو مفتاح API.");
+    if (!db) throw new Error("لم يتم العثور على كائن قاعدة البيانات (db). يرجى التأكد من صحة إعدادات Firebase ومفتاح API.");
   }
 
-  // --- Health Check ---
-  async checkConnection(): Promise<boolean> {
+  async checkConnection(): Promise<{ alive: boolean, error?: string }> {
     try {
       this.checkDb();
-      const testRef = doc(db, "settings", "health_check");
-      await getDoc(testRef);
-      return true;
-    } catch (e) {
-      return false;
+      // محاولة قراءة بسيطة لاختبار الاتصال والصلاحيات
+      const testQuery = query(collection(db, "settings"), limit(1));
+      await getDocs(testQuery);
+      return { alive: true };
+    } catch (e: any) {
+      console.error("Firebase Connection Diagnostic:", e);
+      let errorMsg = "حدث خطأ غير متوقع في الاتصال.";
+      
+      if (e.code === 'permission-denied') {
+        errorMsg = "تم رفض الوصول (Permission Denied). يرجى تفعيل Firestore Security Rules لتسمح بالقراءة والكتابة.";
+      } else if (e.code === 'unavailable') {
+        errorMsg = "الخدمة غير متوفرة. يرجى التحقق من اتصال الإنترنت.";
+      } else if (e.message?.includes('API key')) {
+        errorMsg = "مفتاح API غير صالح أو لم يتم العثور عليه.";
+      } else if (e.message?.includes('project-id')) {
+        errorMsg = "معرف المشروع (Project ID) غير صحيح.";
+      } else {
+        errorMsg = e.message || "خطأ مجهول في Firebase.";
+      }
+      
+      return { alive: false, error: errorMsg };
     }
   }
 
-  // --- Settings ---
   async getLoggingSettings(): Promise<LoggingSettings> {
     try {
         const docRef = doc(db, "settings", "data_logging");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return { ...DEFAULT_LOGGING_SETTINGS, ...docSnap.data() };
+            return { ...DEFAULT_LOGGING_SETTINGS, ...docSnap.data() } as LoggingSettings;
         }
     } catch (e) {}
     return DEFAULT_LOGGING_SETTINGS;
   }
 
   async saveLoggingSettings(settings: LoggingSettings): Promise<void> {
+    this.checkDb();
     const docRef = doc(db, "settings", "data_logging");
     await setDoc(docRef, this.cleanData(settings), { merge: true });
   }
 
-
-  // --- User Management ---
   async getUser(identifier: string): Promise<User | null> {
     this.checkDb();
     try {
@@ -114,7 +126,7 @@ class SyrianScienceCenterDB {
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, cleanedUser, { merge: true });
     } catch (e: any) {
-        throw new Error(`فشل حفظ في Firestore: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
   }
 
@@ -123,7 +135,7 @@ class SyrianScienceCenterDB {
     try {
         await deleteDoc(doc(db, "users", userId));
     } catch (e: any) {
-        throw new Error(`فشل حذف المستخدم: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
   }
 
@@ -151,7 +163,6 @@ class SyrianScienceCenterDB {
     }
   }
 
-  // --- Live Sessions ---
   async getLiveSessions(): Promise<LiveSession[]> {
     this.checkDb();
     try {
@@ -186,7 +197,6 @@ class SyrianScienceCenterDB {
     }
   }
 
-  // --- Curriculum ---
   private async _ensureCurriculumDoc(grade: string, subject: string) {
     this.checkDb();
     const q = query(collection(db, 'curriculum'), where("grade", "==", grade), where("subject", "==", subject));
@@ -295,7 +305,6 @@ class SyrianScienceCenterDB {
     }
   }
 
-  // --- Resources ---
   async getResources(): Promise<EducationalResource[]> {
     this.checkDb();
     try {
@@ -306,7 +315,6 @@ class SyrianScienceCenterDB {
     }
   }
 
-  // --- Financials ---
   async getInvoices(): Promise<{ data: Invoice[] }> {
     this.checkDb();
     try {
@@ -400,7 +408,6 @@ class SyrianScienceCenterDB {
     await addDoc(collection(db, 'subscription_codes'), this.cleanData(newCode));
   }
 
-  // --- Forum ---
   async getForumPosts(): Promise<ForumPost[]> {
     this.checkDb();
     try {
@@ -455,7 +462,6 @@ class SyrianScienceCenterDB {
     }
   }
 
-  // --- Content Helpers ---
   async toggleLessonComplete(userId: string, lessonId: string) {
     this.checkDb();
     if (!this.loggingSettings.logStudentProgress) return;
@@ -476,7 +482,7 @@ class SyrianScienceCenterDB {
         const snapshot = await getDocs(collection(db, 'questions'));
         return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as Question);
       } catch (e) {
-        return QUESTIONS_DB; // Fallback to mock if db is empty/error
+        return QUESTIONS_DB;
       }
   }
 
@@ -485,7 +491,6 @@ class SyrianScienceCenterDB {
       await addDoc(collection(db, 'questions'), this.cleanData(question));
   }
 
-  // --- Quizzes and Attempts ---
   getQuizzes(): Quiz[] {
     return QUIZZES_DB;
   }
@@ -526,7 +531,6 @@ class SyrianScienceCenterDB {
     return snapshot.docs.map(doc => doc.data() as StudentQuizAttempt);
   }
 
-  // --- Gamification ---
   async getChallenges(): Promise<Challenge[]> {
     this.checkDb();
     try {
@@ -565,7 +569,6 @@ class SyrianScienceCenterDB {
     ];
   }
 
-  // --- Notifications ---
   async getNotifications(userId: string): Promise<AppNotification[]> {
     this.checkDb();
     const q = query(collection(db, 'notifications'), where('userId', '==', userId));
@@ -579,7 +582,6 @@ class SyrianScienceCenterDB {
     await addDoc(collection(db, 'notifications'), this.cleanData(newNotification));
   }
 
-  // --- Subscription Codes ---
   async activateSubscriptionWithCode(code: string, userId: string): Promise<{success: boolean, message: string}> {
     this.checkDb();
     const q = query(collection(db, 'subscription_codes'), where('code', '==', code));
@@ -595,7 +597,6 @@ class SyrianScienceCenterDB {
     return { success: true, message: 'تم تفعيل الاشتراك بنجاح!' };
   }
 
-  // --- Teacher Support ---
   async getTeacherReviews(teacherId: string): Promise<Review[]> {
     this.checkDb();
     const q = query(collection(db, 'reviews'), where('teacherId', '==', teacherId));
@@ -622,7 +623,6 @@ class SyrianScienceCenterDB {
     return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as TeacherMessage);
   }
 
-  // --- Todo Management ---
   async getTodos(userId: string): Promise<Todo[]> {
     this.checkDb();
     const snapshot = await getDocs(collection(db, 'users', userId, 'todos'));
