@@ -112,7 +112,6 @@ export interface Question {
   hasDiagram?: boolean;
   imageUrl?: string;
   solution?: string;
-  // Fix: Added alternative property names used in AI digitization and display components
   question_text?: string;
   choices?: { key: string; text: string }[];
   correct_answer?: string;
@@ -152,8 +151,6 @@ export interface SubscriptionPlan {
   recommended?: boolean;
   tier?: 'free' | 'premium';
 }
-
-export type PricingPlan = SubscriptionPlan;
 
 export interface Invoice {
   id: string;
@@ -239,6 +236,19 @@ export interface WeeklyReport {
     parentNote?: string;
 }
 
+// --- 10. Live Sessions ---
+export interface LiveSession {
+  id: string;
+  title: string;
+  teacherName: string;
+  startTime: string; 
+  status: 'live' | 'upcoming';
+  topic: string;
+  zoomLink: string;
+  meetingId?: string;    // Added for SDK
+  passcode?: string;     // Added for SDK
+}
+
 export interface PredictiveInsight {
     topicId: string;
     topicTitle: string;
@@ -272,6 +282,15 @@ export interface StudyGoal {
   progress: number;
 }
 
+// Added missing StudyGroup interface to fix export error
+export interface StudyGroup {
+  id: string;
+  name: string;
+  level: string;
+  membersCount: number;
+  activeChallenge: string;
+}
+
 // --- 6. Gamification ---
 export interface Challenge {
   id: string;
@@ -301,7 +320,7 @@ export interface AppNotification {
   category?: 'academic' | 'general';
 }
 
-// --- 8. Labs & Simulations (NEW) ---
+// --- 8. Labs & Simulations ---
 export interface PhysicsExperiment {
   id: string;
   title: string;
@@ -328,7 +347,7 @@ export interface SavedExperiment {
   result: number;
 }
 
-// --- 9. Forum & Community (NEW) ---
+// --- 9. Forum & Community ---
 export interface ForumPost {
   id: string;
   authorEmail: string;
@@ -351,18 +370,7 @@ export interface ForumReply {
   upvotes?: number;
 }
 
-// --- 10. Live Sessions (NEW) ---
-export interface LiveSession {
-  id: string;
-  title: string;
-  teacherName: string;
-  startTime: string; 
-  status: 'live' | 'upcoming';
-  topic: string;
-  zoomLink: string;
-}
-
-// --- 11. Advanced Content (NEW) ---
+// --- 11. Advanced Content ---
 export interface Article {
   id: string;
   category: string;
@@ -382,17 +390,13 @@ export interface PhysicsEquation {
   solveFor?: string;
 }
 
-
-// --- 12. More Social (NEW) ---
-export interface StudyGroup {
-    id: string;
-    name: string;
-    level: '10' | '11' | '12';
-    membersCount: number;
-    activeChallenge: string;
+export interface LoggingSettings {
+  logStudentProgress: boolean;
+  saveAllQuizAttempts: boolean;
+  logAIChatHistory: boolean;
+  archiveTeacherMessages: boolean;
 }
 
-// --- 13. Todo List (NEW) ---
 export interface Todo {
     id: string;
     text: string;
@@ -402,7 +406,6 @@ export interface Todo {
     dueDate?: string;
 }
 
-// --- 14. Teacher/Review System (NEW) ---
 export interface Review {
     id: string;
     teacherId: string;
@@ -421,14 +424,4 @@ export interface TeacherMessage {
     content: string;
     timestamp: string;
     isRedacted: boolean;
-}
-
-// --- 15. Admin (NEW) ---
-export type CloudLog = any;
-
-export interface LoggingSettings {
-  logStudentProgress: boolean;
-  saveAllQuizAttempts: boolean;
-  logAIChatHistory: boolean;
-  archiveTeacherMessages: boolean;
 }

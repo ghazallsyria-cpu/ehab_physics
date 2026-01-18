@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -13,9 +14,10 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="https://i.ibb.co/C0W2L1x/gold-atom-logo.png">
     
-    <!-- iOS Splash Screens -->
-    <link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="https://i.ibb.co/C0W2L1x/gold-atom-logo.png">
-    
+    <!-- Zoom Web SDK CSS -->
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/2.11.0/css/bootstrap.css" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/2.11.0/css/react-select.css" />
+
     <!-- Using CDN for Tailwind CSS for simplicity in this setup -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;700;800;900&display=swap" rel="stylesheet">
@@ -78,6 +80,12 @@
            min-height: 44px;
            min-width: 44px;
         }
+
+        /* Zoom Fixes */
+        #zmmtg-root {
+            display: none;
+            background-color: #000;
+        }
     </style>
 <script type="importmap">
 {
@@ -93,13 +101,15 @@
     "vite": "https://esm.sh/vite@^7.3.1",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
     "@google/genai": "https://esm.sh/@google/genai@^1.37.0",
-    "firebase/": "https://esm.sh/firebase@^12.8.0/"
+    "firebase/": "https://esm.sh/firebase@^12.8.0/",
+    "@zoomus/websdk": "https://esm.sh/@zoomus/websdk@2.11.0"
   }
 }
 </script>
 </head>
 <body>
     <div id="root"></div>
+    <div id="zmmtg-root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>

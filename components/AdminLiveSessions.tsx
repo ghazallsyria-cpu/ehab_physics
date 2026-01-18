@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { LiveSession } from '../types';
 import { dbService } from '../services/db';
-import { Video, Plus, Trash2, Edit, Save, X, Calendar, User, BookOpen, Link as LinkIcon, RefreshCw } from 'lucide-react';
+import { Video, Plus, Trash2, Edit, Save, X, Calendar, User, BookOpen, Link as LinkIcon, RefreshCw, KeyRound, Hash } from 'lucide-react';
 
 const AdminLiveSessions: React.FC = () => {
   const [sessions, setSessions] = useState<LiveSession[]>([]);
@@ -54,7 +54,7 @@ const AdminLiveSessions: React.FC = () => {
             <p className="text-gray-500 mt-2">قم بجدولة جلسات Zoom المباشرة وإضافة روابط البث للطلاب.</p>
         </div>
         <button 
-          onClick={() => setEditingSession({ title: '', teacherName: '', startTime: '', status: 'upcoming', topic: '', zoomLink: '' })} 
+          onClick={() => setEditingSession({ title: '', teacherName: '', startTime: '', status: 'upcoming', topic: '', zoomLink: '', meetingId: '', passcode: '' })} 
           className="bg-blue-500 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-all flex items-center gap-2"
         >
             <Plus size={18} /> إضافة جلسة جديدة
@@ -88,6 +88,7 @@ const AdminLiveSessions: React.FC = () => {
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center text-[10px] font-bold text-gray-600">
                     <span className="flex items-center gap-1"><Calendar size={12}/> {session.startTime}</span>
+                    {session.meetingId && <span className="flex items-center gap-1"><Hash size={10}/> {session.meetingId}</span>}
                 </div>
                 <div className="mt-4 p-3 bg-black/40 rounded-xl border border-white/5 truncate">
                     <p className="text-[9px] font-mono text-gray-500 flex items-center gap-2"><LinkIcon size={10}/> {session.zoomLink}</p>
@@ -125,12 +126,22 @@ const AdminLiveSessions: React.FC = () => {
                             <input type="text" value={editingSession.startTime} onChange={e => setEditingSession({...editingSession, startTime: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="اليوم 18:00" />
                         </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2 flex items-center gap-2"><Hash size={10}/> Meeting ID</label>
+                            <input type="text" value={editingSession.meetingId} onChange={e => setEditingSession({...editingSession, meetingId: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="000 0000 000" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2 flex items-center gap-2"><KeyRound size={10}/> Passcode</label>
+                            <input type="text" value={editingSession.passcode} onChange={e => setEditingSession({...editingSession, passcode: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="123456" />
+                        </div>
+                    </div>
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">الموضوع</label>
                         <input type="text" value={editingSession.topic} onChange={e => setEditingSession({...editingSession, topic: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="الفيزياء الذرية" />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">رابط Zoom</label>
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">رابط Zoom (الاحتياطي)</label>
                         <input type="text" value={editingSession.zoomLink} onChange={e => setEditingSession({...editingSession, zoomLink: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400 ltr text-left" placeholder="https://zoom.us/j/..." />
                     </div>
                     <div className="space-y-2">
