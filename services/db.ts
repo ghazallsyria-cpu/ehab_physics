@@ -143,15 +143,18 @@ class SyrianScienceCenterDB {
     const curriculumSnap = await getDoc(docRef);
     if (curriculumSnap.exists()) {
         const curriculumData = curriculumSnap.data() as Curriculum;
-        const units = curriculumData.units || [];
+        // Make sure we are working with an array. Create a shallow copy for modification.
+        const units = Array.isArray(curriculumData.units) ? [...curriculumData.units] : [];
         const unitIndex = units.findIndex(u => u.id === unit.id);
 
         if (unitIndex > -1) {
+            // Update existing unit
             units[unitIndex] = unit;
         } else {
+            // Add new unit
             units.push(unit);
         }
-        await updateDoc(docRef, { units });
+        await updateDoc(docRef, { units: units });
     }
   }
   
@@ -178,7 +181,8 @@ class SyrianScienceCenterDB {
     const curriculumSnap = await getDoc(docRef);
     if (curriculumSnap.exists()) {
         const curriculumData = curriculumSnap.data() as Curriculum;
-        const unit = curriculumData.units.find(u => u.id === unitId);
+        const units = Array.isArray(curriculumData.units) ? curriculumData.units : [];
+        const unit = units.find(u => u.id === unitId);
         if (unit) {
             if (!unit.lessons) unit.lessons = [];
             const lessonIndex = unit.lessons.findIndex(l => l.id === lesson.id);
@@ -187,7 +191,7 @@ class SyrianScienceCenterDB {
             } else {
                 unit.lessons.push(lesson);
             }
-            await updateDoc(docRef, { units: curriculumData.units });
+            await updateDoc(docRef, { units: units });
         }
     }
   }

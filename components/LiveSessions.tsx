@@ -3,7 +3,7 @@ import { LiveSession } from '../types';
 import { Video, X } from 'lucide-react';
 
 const ZoomModal: React.FC<{ session: LiveSession; onClose: () => void }> = ({ session, onClose }) => {
-  const zoomLink = `https://zoom.us/j/${session.id.replace(/\D/g, '')}5551234`; // Example link
+  const zoomLink = session.zoomLink || `https://zoom.us/j/1234567890`; // Fallback for safety
 
   return (
     <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-lg flex items-center justify-center p-6 animate-fadeIn">
@@ -35,14 +35,17 @@ const LiveSessions: React.FC = () => {
   const [joiningSession, setJoiningSession] = useState<LiveSession | null>(null);
 
   const sessions: LiveSession[] = [
-    { id: 'l1', title: 'الفيزياء النووية - الفصل الافتراضي', teacherName: 'أ. جاسم الكندري', startTime: 'الآن', status: 'live', topic: 'نشاط إشعاعي' },
-    { id: 'l2', title: 'مراجعة الميكانيكا', teacherName: 'أ. ريم الشمري', startTime: 'غداً 17:00', status: 'upcoming', topic: 'الحركة' },
+    { id: 'l1', title: 'الفيزياء النووية - الفصل الافتراضي', teacherName: 'أ. جاسم الكندري', startTime: 'الآن', status: 'live', topic: 'نشاط إشعاعي', zoomLink: 'https://zoom.us/j/1234567890?pwd=SomePassword' },
+    { id: 'l2', title: 'مراجعة الميكانيكا', teacherName: 'أ. ريم الشمري', startTime: 'غداً 17:00', status: 'upcoming', topic: 'الحركة', zoomLink: 'https://zoom.us/j/0987654321?pwd=AnotherPassword' },
   ];
 
   const handleJoinClick = (session: LiveSession) => {
-    if (session.status === 'live') {
+    if (session.status === 'live' && session.zoomLink) {
       setJoiningSession(session);
-    } else {
+    } else if (session.status === 'live' && !session.zoomLink) {
+        alert('رابط الجلسة غير متوفر حالياً. يرجى المحاولة لاحقاً.');
+    }
+    else {
       alert('لم تبدأ هذه الجلسة بعد. سيتم إرسال إشعار لك عند بدئها.');
     }
   };

@@ -1,4 +1,5 @@
 
+
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-questions' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate';
 
@@ -360,6 +361,7 @@ export interface LiveSession {
   startTime: string;
   status: 'live' | 'upcoming';
   topic: string;
+  zoomLink?: string;
 }
 
 // --- 11. Advanced Content (NEW) ---
