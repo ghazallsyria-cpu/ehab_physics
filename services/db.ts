@@ -31,6 +31,7 @@ class SyrianScienceCenterDB {
     }
   }
 
+  // Deep recursive cleaner to remove any 'undefined' which crashes Firestore
   private cleanData(obj: any): any {
     if (obj === null || obj === undefined) return null;
     if (Array.isArray(obj)) {
@@ -43,7 +44,7 @@ class SyrianScienceCenterDB {
         if (value !== undefined) {
           cleaned[key] = (value && typeof value === 'object' && !(value instanceof Date)) 
             ? this.cleanData(value) 
-            : value;
+            : (value === undefined ? null : value);
         }
       });
       return cleaned;
@@ -58,26 +59,15 @@ class SyrianScienceCenterDB {
   async checkConnection(): Promise<{ alive: boolean, error?: string }> {
     try {
       this.checkDb();
-      // محاولة قراءة بسيطة لاختبار الاتصال والصلاحيات
       const testQuery = query(collection(db, "settings"), limit(1));
       await getDocs(testQuery);
       return { alive: true };
     } catch (e: any) {
       console.error("Firebase Connection Diagnostic:", e);
       let errorMsg = "حدث خطأ غير متوقع في الاتصال.";
-      
-      if (e.code === 'permission-denied') {
-        errorMsg = "تم رفض الوصول (Permission Denied). يرجى تفعيل Firestore Security Rules لتسمح بالقراءة والكتابة.";
-      } else if (e.code === 'unavailable') {
-        errorMsg = "الخدمة غير متوفرة. يرجى التحقق من اتصال الإنترنت.";
-      } else if (e.message?.includes('API key')) {
-        errorMsg = "مفتاح API غير صالح أو لم يتم العثور عليه.";
-      } else if (e.message?.includes('project-id')) {
-        errorMsg = "معرف المشروع (Project ID) غير صحيح.";
-      } else {
-        errorMsg = e.message || "خطأ مجهول في Firebase.";
-      }
-      
+      if (e.code === 'permission-denied') errorMsg = "تم رفض الوصول (Security Rules).";
+      else if (e.code === 'unavailable') errorMsg = "الخدمة غير متوفرة.";
+      else if (e.message?.includes('API key')) errorMsg = "مفتاح API غير صالح.";
       return { alive: false, error: errorMsg };
     }
   }

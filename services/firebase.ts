@@ -3,16 +3,14 @@ import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-const apiKey = process.env.API_KEY;
-
+// Use environment variables provided via define in vite.config.ts
 const firebaseConfig = {
-  apiKey: apiKey,
-  authDomain: "physi-kuwait-prod-46032.firebaseapp.com",
-  projectId: "physi-kuwait-prod-46032",
-  storageBucket: "physi-kuwait-prod-46032.firebasestorage.app",
-  messagingSenderId: "27783754762",
-  appId: "1:27783754762:web:fa0065227eed7e52081bf3",
-  measurementId: "G-7WBG5PBVC2"
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID
 };
 
 // تهيئة التطبيق الأساسي
