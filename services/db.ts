@@ -67,8 +67,8 @@ class SyrianScienceCenterDB {
       console.error("Firebase Connection Diagnostic:", e);
       let errorMsg = "حدث خطأ غير متوقع في الاتصال.";
       
-      if (e.code === 'permission-denied') {
-        errorMsg = "تم رفض الوصول (Permission Denied). يرجى تفعيل Firestore Security Rules في Console.";
+      if (e.code === 'permission-denied' || e.message?.includes('permission-denied')) {
+        errorMsg = "تم رفض الوصول (Permission Denied). قواعد الحماية (Security Rules) في Firestore تمنع التطبيق من القراءة والكتابة.";
       } else if (e.code === 'unavailable') {
         errorMsg = "الخدمة غير متوفرة. يرجى التحقق من اتصال الإنترنت.";
       } else if (e.message?.includes('API key')) {
@@ -81,8 +81,6 @@ class SyrianScienceCenterDB {
     }
   }
 
-  // --- بقية وظائف قاعدة البيانات مع استخدام cleanData ---
-  
   async getLoggingSettings(): Promise<LoggingSettings> {
     try {
         const docRef = doc(db, "settings", "data_logging");
@@ -115,7 +113,7 @@ class SyrianScienceCenterDB {
             return { uid: userDoc.id, ...userDoc.data() } as User;
         }
     } catch (e: any) {
-        throw new Error(`فشل جلب بيانات المستخدم: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
     return null;
   }
@@ -148,7 +146,7 @@ class SyrianScienceCenterDB {
             .map(doc => ({ uid: doc.id, ...doc.data() }) as User)
             .filter(u => u.role === 'student');
     } catch (e: any) {
-        throw new Error(`فشل جلب قائمة الطلاب: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
   }
 
@@ -160,7 +158,7 @@ class SyrianScienceCenterDB {
             .map(doc => ({ uid: doc.id, ...doc.data() }) as User)
             .filter(u => u.role === 'teacher');
     } catch (e: any) {
-        throw new Error(`فشل جلب قائمة المعلمين: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
   }
 
@@ -170,7 +168,7 @@ class SyrianScienceCenterDB {
         const snapshot = await getDocs(collection(db, "live_sessions"));
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as LiveSession);
     } catch (e: any) {
-        throw new Error(`فشل جلب الجلسات المباشرة: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
   }
 
@@ -185,7 +183,7 @@ class SyrianScienceCenterDB {
             await addDoc(collection(db, "live_sessions"), data);
         }
     } catch (e: any) {
-        throw new Error(`فشل حفظ الجلسة: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
   }
 
@@ -194,7 +192,7 @@ class SyrianScienceCenterDB {
     try {
         await deleteDoc(doc(db, "live_sessions", id));
     } catch (e: any) {
-        throw new Error(`فشل حذف الجلسة: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
   }
 
@@ -226,7 +224,7 @@ class SyrianScienceCenterDB {
         const snapshot = await getDocs(collection(db, 'curriculum'));
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Curriculum);
     } catch (e: any) {
-        throw new Error(`فشل جلب المناهج: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
   }
 
@@ -312,7 +310,7 @@ class SyrianScienceCenterDB {
         const snapshot = await getDocs(collection(db, 'resources'));
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as EducationalResource);
     } catch (e: any) {
-        throw new Error(`فشل جلب الموارد التعليمية: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
   }
 
@@ -322,7 +320,7 @@ class SyrianScienceCenterDB {
         const snapshot = await getDocs(collection(db, 'invoices'));
         return { data: snapshot.docs.map(d => ({id: d.id, ...d.data()}) as Invoice) };
     } catch (e: any) {
-        throw new Error(`فشل جلب الفواتير: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
   }
 
@@ -416,7 +414,7 @@ class SyrianScienceCenterDB {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ForumPost);
     } catch (e: any) {
-        throw new Error(`فشل جلب منشورات المنتدى: ${e.message}`);
+        throw new Error(`Firestore Error: ${e.message}`);
     }
   }
 

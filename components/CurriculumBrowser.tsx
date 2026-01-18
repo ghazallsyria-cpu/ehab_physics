@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CURRICULUM_DATA } from '../constants';
 import { User, Unit, Lesson, Curriculum } from '../types';
+import { dbService } from '../services/db';
 
 interface CurriculumBrowserProps {
   user: User;
@@ -9,11 +10,30 @@ interface CurriculumBrowserProps {
 }
 
 const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) => {
-  // Fix: handle 'uni' grade by defaulting to '12' as activeGrade state only accepts '10' | '11' | '12'
   const [activeGrade, setActiveGrade] = useState<'10' | '11' | '12'>(user.grade === 'uni' ? '12' : user.grade);
   const [expandedUnitId, setExpandedUnitId] = useState<string | null>(null);
+  const [dbCurriculum, setDbCurriculum] = useState<Curriculum[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const activeTopic = CURRICULUM_DATA.find(t => t.grade === activeGrade && t.subject === subject);
+  useEffect(() => {
+    const fetchCurriculum = async () => {
+      setIsLoading(true);
+      try {
+        const data = await dbService.getCurriculum();
+        setDbCurriculum(data);
+      } catch (e) {
+        console.error("Failed to fetch curriculum from DB, using fallback.");
+        setDbCurriculum(CURRICULUM_DATA);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCurriculum();
+  }, [subject]);
+
+  const activeTopic = dbCurriculum.find(t => t.grade === activeGrade && t.subject === subject) 
+                    || CURRICULUM_DATA.find(t => t.grade === activeGrade && t.subject === subject);
+  
   const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
   const subjectColor = subject === 'Physics' ? 'text-[#00d2ff]' : 'text-green-400';
 
@@ -50,7 +70,12 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
         </div>
       </div>
 
-      {activeTopic && activeTopic.units.length > 0 ? (
+      {isLoading ? (
+        <div className="py-32 text-center animate-pulse">
+          <div className="w-16 h-16 border-4 border-[#fbbf24] border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+          <p className="text-gray-500 font-bold">جاري تحميل المنهج الدراسي...</p>
+        </div>
+      ) : activeTopic && activeTopic.units && activeTopic.units.length > 0 ? (
         <div className="max-w-3xl mx-auto space-y-6">
           {activeTopic.units.map((unit: Unit, idx: number) => (
             <div key={unit.id} className={`glass-panel border transition-all duration-500 overflow-hidden ${ expandedUnitId === unit.id ? 'rounded-[40px] border-[#00d2ff]/40 bg-[#00d2ff]/5' : 'rounded-[30px] border-white/5 hover:border-white/20 bg-white/[0.02]' }`}>
@@ -59,14 +84,14 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black transition-all ${ expandedUnitId === unit.id ? 'bg-[#00d2ff] text-black shadow-lg' : 'bg-white/5 text-gray-500' }`}>{idx + 1}</div>
                   <div>
                     <h4 className={`text-xl font-black transition-colors ${expandedUnitId === unit.id ? 'text-[#00d2ff]' : 'text-white'}`}>{unit.title}</h4>
-                    <p className="text-xs text-gray-500 mt-1">{unit.lessons.length} دروس • {unit.description}</p>
+                    <p className="text-xs text-gray-500 mt-1">{unit.lessons?.length || 0} دروس • {unit.description}</p>
                   </div>
                 </div>
                 <div className={`transform transition-transform duration-500 ${expandedUnitId === unit.id ? 'rotate-180 text-[#00d2ff]' : 'text-gray-600'}`}>▼</div>
               </button>
               <div className={`transition-all duration-500 ease-in-out ${expandedUnitId === unit.id ? 'max-h-[1000px] opacity-100 pb-8' : 'max-h-0 opacity-0'}`}>
                  <div className="px-8 space-y-3">
-                    {unit.lessons.map((lesson) => {
+                    {unit.lessons?.map((lesson) => {
                       const isCompleted = user.progress.completedLessonIds.includes(lesson.id);
                       return (
                         <div key={lesson.id} onClick={() => navigateToLesson(lesson)} className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer group transition-all ${ isCompleted ? 'bg-green-500/10 border-green-500/20' : 'bg-black/40 border-white/5 hover:border-[#fbbf24]/30'}`}>
