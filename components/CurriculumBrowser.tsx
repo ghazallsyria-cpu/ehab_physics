@@ -9,7 +9,8 @@ interface CurriculumBrowserProps {
 }
 
 const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) => {
-  const [activeGrade, setActiveGrade] = useState<'10' | '11' | '12'>(user.grade);
+  // Fix: handle 'uni' grade by defaulting to '12' as activeGrade state only accepts '10' | '11' | '12'
+  const [activeGrade, setActiveGrade] = useState<'10' | '11' | '12'>(user.grade === 'uni' ? '12' : user.grade);
   const [expandedUnitId, setExpandedUnitId] = useState<string | null>(null);
 
   const activeTopic = CURRICULUM_DATA.find(t => t.grade === activeGrade && t.subject === subject);

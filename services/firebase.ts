@@ -1,9 +1,12 @@
+
 import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
+const apiKey = process.env.API_KEY;
+
 const firebaseConfig = {
-  apiKey: process.env.API_KEY,
+  apiKey: apiKey,
   authDomain: "physi-kuwait-prod-46032.firebaseapp.com",
   projectId: "physi-kuwait-prod-46032",
   storageBucket: "physi-kuwait-prod-46032.firebasestorage.app",
@@ -12,15 +15,20 @@ const firebaseConfig = {
   measurementId: "G-7WBG5PBVC2"
 };
 
+if (!apiKey) {
+    console.error("Firebase Initialization Error: API_KEY is missing from environment variables.");
+}
+
 // Initialize Main App
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-// Initialize Secondary App for Admin Actions (to prevent session swapping)
-const secondaryApp = !getApps().find(a => a.name === "Secondary") 
-  ? initializeApp(firebaseConfig, "Secondary") 
-  : getApp("Secondary");
+// Initialize Secondary App for Admin Actions
+const secondaryAppName = "SecondaryAdminApp";
+const secondaryApp = !getApps().find(a => a.name === secondaryAppName) 
+  ? initializeApp(firebaseConfig, secondaryAppName) 
+  : getApp(secondaryAppName);
 export const secondaryAuth = getAuth(secondaryApp);
 
 const provider = new GoogleAuthProvider();

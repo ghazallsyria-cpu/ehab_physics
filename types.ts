@@ -112,6 +112,10 @@ export interface Question {
   hasDiagram?: boolean;
   imageUrl?: string;
   solution?: string;
+  // Fix: Added alternative property names used in AI digitization and display components
+  question_text?: string;
+  choices?: { key: string; text: string }[];
+  correct_answer?: string;
 }
 
 export interface Answer {

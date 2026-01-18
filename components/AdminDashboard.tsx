@@ -1,8 +1,22 @@
 
-import React from 'react';
-import { BookOpen, Users, Briefcase, Banknote, BrainCircuit, Settings, Video } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BookOpen, Users, Briefcase, Banknote, BrainCircuit, Settings, Video, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { dbService } from '../services/db';
 
 const AdminDashboard: React.FC = () => {
+  const [isDbAlive, setIsDbAlive] = useState<boolean | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+
+  useEffect(() => {
+    checkHealth();
+  }, []);
+
+  const checkHealth = async () => {
+    setIsChecking(true);
+    const alive = await dbService.checkConnection();
+    setIsDbAlive(alive);
+    setIsChecking(false);
+  };
 
   const navigate = (view: string) => {
     window.dispatchEvent(new CustomEvent('change-view', { detail: { view } }));
@@ -20,9 +34,21 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="animate-fadeIn space-y-10 font-['Tajawal'] text-right" dir="rtl">
-      <header className="mb-10">
-        <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase">غرفة <span className="text-amber-400">التحكم</span></h2>
-        <p className="text-gray-500 mt-2 font-medium">مرحباً بك في لوحة تحكم المسؤول.</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div>
+            <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase">غرفة <span className="text-amber-400">التحكم</span></h2>
+            <p className="text-gray-500 mt-2 font-medium">مرحباً بك في لوحة تحكم المسؤول.</p>
+        </div>
+        
+        {/* Connection Status Indicator */}
+        <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${isDbAlive === true ? 'bg-green-500/10 border-green-500/20 text-green-400' : isDbAlive === false ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-white/5 border-white/10 text-gray-500'}`}>
+            <div className="flex flex-col items-end">
+                <span className="text-[10px] font-black uppercase tracking-widest">حالة قاعدة البيانات</span>
+                <span className="text-xs font-bold">{isChecking ? 'جاري الفحص...' : isDbAlive ? 'متصل وجاهز' : 'خطأ في الاتصال'}</span>
+            </div>
+            {isChecking ? <RefreshCw className="animate-spin" size={20} /> : isDbAlive ? <Wifi size={20}/> : <WifiOff size={20}/>}
+            {!isChecking && <button onClick={checkHealth} className="mr-2 p-1.5 hover:bg-white/10 rounded-lg transition-colors"><RefreshCw size={14}/></button>}
+        </div>
       </header>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

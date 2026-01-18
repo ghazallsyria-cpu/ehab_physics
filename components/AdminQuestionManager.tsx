@@ -215,14 +215,16 @@ const AdminQuestionManager: React.FC = () => {
                         <span className="text-[#00d2ff] uppercase">{q.category}</span>
                      </div>
                      
-                     <p className="text-lg font-bold text-white leading-relaxed">{q.question_text}</p>
+                     {/* Fix: fallback to 'text' if 'question_text' is missing */}
+                     <p className="text-lg font-bold text-white leading-relaxed">{q.question_text || q.text}</p>
                      
                      <div className="grid grid-cols-2 gap-4">
-                        {q.choices && q.choices.length > 0 ? (
+                        {/* Fix: handle both 'choices' and 'answers' properties */}
+                        {(q.choices || (q.answers as any)) && (q.choices || (q.answers as any)).length > 0 ? (
                            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 col-span-2">
                              <p className="text-[8px] font-black text-gray-400 uppercase mb-2">الخيارات:</p>
                              <div className="grid grid-cols-2 gap-2">
-                               {q.choices.map(c => <span key={c.key} className={`text-xs ${c.key === q.correct_answer ? 'text-green-400 font-bold' : 'text-gray-500'}`}>{c.key}) {c.text}</span>)}
+                               {(q.choices || (q.answers as any)).map((c: any) => <span key={c.key || c.id} className={`text-xs ${(c.key || c.id) === (q.correct_answer || q.correctAnswerId) ? 'text-green-400 font-bold' : 'text-gray-500'}`}>{c.key || c.id.split('-').pop()}) {c.text}</span>)}
                              </div>
                            </div>
                         ) : null}
