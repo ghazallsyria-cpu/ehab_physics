@@ -22,14 +22,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;700;800;900&display=swap" rel="stylesheet">
     
-    <!-- Zoom Web SDK Global Scripts -->
-    <script src="https://source.zoom.us/2.11.0/lib/vendor/react.min.js"></script>
-    <script src="https://source.zoom.us/2.11.0/lib/vendor/react-dom.min.js"></script>
-    <script src="https://source.zoom.us/2.11.0/lib/vendor/redux.min.js"></script>
-    <script src="https://source.zoom.us/2.11.0/lib/vendor/redux-thunk.min.js"></script>
-    <script src="https://source.zoom.us/2.11.0/lib/vendor/lodash.min.js"></script>
-    <script src="https://source.zoom.us/zoom-meeting-2.11.0.min.js"></script>
-
     <style>
         :root {
             --bg-deep: #0A2540;
@@ -58,6 +50,13 @@
             background: rgba(10, 37, 64, 0.6);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
+        }
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 8s linear infinite;
         }
     </style>
 <script type="importmap">
