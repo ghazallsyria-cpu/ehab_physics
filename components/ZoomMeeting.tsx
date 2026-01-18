@@ -1,7 +1,7 @@
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useState } from 'react';
 import { UserRole } from '../types';
-import { ShieldAlert, RefreshCw, LogOut, Loader2, Video, ExternalLink } from 'lucide-react';
+import { LogOut, Loader2, ExternalLink, ShieldCheck } from 'lucide-react';
 
 interface ZoomMeetingProps {
   meetingNumber: string;
@@ -13,173 +13,74 @@ interface ZoomMeetingProps {
 }
 
 const ZoomMeeting: React.FC<ZoomMeetingProps> = ({ meetingNumber, passCode, userName, userRole, directLink, onLeave }) => {
-  const [loadingStatus, setLoadingStatus] = useState<string>('جاري تحضير غرفة البث...');
-  const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
-  const [error, setError] = useState('');
-  const [retryCount, setRetryCount] = useState(0);
-  const zoomStartedRef = useRef(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const loadScript = (src: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      const existing = document.querySelector(`script[src="${src}"]`);
-      if (existing) {
-        resolve();
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = src;
-      script.async = false;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error(`Failed: ${src}`));
-      document.body.appendChild(script);
-    });
-  };
+  // بناء رابط الويب المباشر لزوم
+  // هذا الرابط يتخطى طلب التحميل ويفتح البث في المتصفح مباشرة
+  const encodedName = encodeURIComponent(userName);
+  const zoomWebUrl = `https://zoom.us/wc/join/${meetingNumber}?pwd=${passCode}&un=${encodedName}`;
 
-  const startZoom = useCallback(async () => {
-    if (zoomStartedRef.current) return;
-    zoomStartedRef.current = true;
+  return (
+    <div className="fixed inset-0 z-[2000] bg-black flex flex-col font-['Tajawal'] animate-fadeIn">
+      {/* شريط التحكم العلوي - يشبه مشغلات الفيديو الاحترافية */}
+      <header className="bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-4 flex justify-between items-center z-50">
+        <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center text-white shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                <ShieldCheck size={20} />
+            </div>
+            <div className="text-right">
+                <h3 className="text-white font-black text-sm uppercase tracking-tighter">بث الحصة المباشرة</h3>
+                <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">اتصال آمن • المركز السوري للعلوم</p>
+            </div>
+        </div>
 
-    try {
-      setLoadingStatus('جاري تحميل المكتبات الأساسية...');
-      
-      // Load dependencies in strict sequence
-      await loadScript("https://source.zoom.us/2.11.0/lib/vendor/react.min.js");
-      await loadScript("https://source.zoom.us/2.11.0/lib/vendor/react-dom.min.js");
-      await loadScript("https://source.zoom.us/2.11.0/lib/vendor/redux.min.js");
-      await loadScript("https://source.zoom.us/2.11.0/lib/vendor/redux-thunk.min.js");
-      await loadScript("https://source.zoom.us/2.11.0/lib/vendor/lodash.min.js");
-      await loadScript("https://source.zoom.us/zoom-meeting-2.11.0.min.js");
-
-      const ZoomMtg = (window as any).ZoomMtg;
-      if (!ZoomMtg) throw new Error("Zoom library not found");
-
-      setLoadingStatus('جاري تهيئة الاتصال المشفر...');
-      
-      ZoomMtg.setZoomJSLib("https://source.zoom.us/2.11.0/lib", "/av");
-      ZoomMtg.preLoadWasm();
-      ZoomMtg.prepareJssdk();
-
-      // Show the dedicated container
-      const zoomRoot = document.getElementById('zmmtg-root');
-      if (zoomRoot) zoomRoot.style.display = 'block';
-
-      // Demo SDK Key - In production, use your actual key
-      const sdkKey = "pWJ9N27rX3n7R6uN7E9R"; 
-
-      ZoomMtg.init({
-        leaveUrl: window.location.origin,
-        isSupportAV: true,
-        success: () => {
-          setLoadingStatus('جاري الدخول للحصة...');
-          ZoomMtg.join({
-            signature: "", // Will use default if empty for demo or handled by SDK
-            meetingNumber: meetingNumber,
-            userName: userName,
-            sdkKey: sdkKey,
-            userEmail: "",
-            passWord: passCode,
-            success: () => {
-              setStatus('ready');
-            },
-            error: (err: any) => {
-              console.error("Join Error", err);
-              setStatus('failed');
-              setError('تعذر الانضمام للحصة. تأكد من أن المعلم قد بدأ البث.');
-            }
-          });
-        },
-        error: (err: any) => {
-          console.error("Init Error", err);
-          setStatus('failed');
-          setError('حدث خطأ في واجهة البث المدمجة.');
-        }
-      });
-
-    } catch (e: any) {
-      console.error("SDK Crash", e);
-      setStatus('failed');
-      setError('فشل تحميل محرك الفيديو. قد يكون متصفحك يحجب السكربتات الخارجية.');
-    }
-  }, [meetingNumber, passCode, userName, userRole]);
-
-  useEffect(() => {
-    startZoom();
-    return () => {
-      const zoomRoot = document.getElementById('zmmtg-root');
-      if (zoomRoot) {
-        zoomRoot.style.display = 'none';
-        zoomRoot.innerHTML = '';
-      }
-      zoomStartedRef.current = false;
-    };
-  }, [startZoom]);
-
-  if (status === 'failed') {
-    return (
-      <div className="fixed inset-0 z-[2000] bg-[#010304] flex flex-col items-center justify-center p-8 font-['Tajawal'] text-white">
-        <div className="glass-panel p-10 md:p-14 rounded-[50px] border-red-500/20 bg-red-500/5 text-center max-w-lg w-full">
-           <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-8">
-              <ShieldAlert size={48} className="text-red-500" />
-           </div>
-           <h3 className="text-2xl font-black mb-4 uppercase">فشل الانضمام المدمج</h3>
-           <p className="text-gray-400 text-sm mb-10 leading-relaxed italic">"{error}"</p>
-           
-           <div className="space-y-4">
-              {directLink && (
-                  <a 
+        <div className="flex items-center gap-3">
+            {directLink && (
+                 <a 
                     href={directLink} 
                     target="_blank" 
                     rel="noreferrer"
-                    className="w-full bg-blue-500 text-white py-5 rounded-[25px] font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl flex items-center justify-center gap-3"
-                  >
-                    <ExternalLink size={18} /> فتح عبر تطبيق Zoom (خيار مضمون)
-                  </a>
-              )}
-              <button 
-                onClick={() => window.location.reload()}
-                className="w-full bg-white/5 border border-white/10 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10"
-              >
-                <RefreshCw size={14} className="inline ml-2" /> إعادة محاولة التحميل
-              </button>
-              <button 
+                    className="hidden md:flex items-center gap-2 bg-white/5 border border-white/10 text-gray-400 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all"
+                 >
+                    <ExternalLink size={14} /> فتح في نافذة مستقلة
+                 </a>
+            )}
+            <button 
                 onClick={onLeave}
-                className="w-full py-4 text-gray-500 font-bold text-xs uppercase hover:text-white"
-              >
-                العودة للمنصة
-              </button>
-           </div>
+                className="bg-red-600 hover:bg-red-500 text-white px-8 py-2.5 rounded-xl flex items-center gap-3 transition-all shadow-xl font-black text-xs uppercase"
+            >
+                <LogOut size={16} /> إنهاء المشاهدة
+            </button>
         </div>
-      </div>
-    );
-  }
+      </header>
 
-  if (status === 'loading') {
-      return (
-        <div className="fixed inset-0 z-[2000] bg-[#010304] flex flex-col items-center justify-center font-['Tajawal'] text-white">
-            <div className="relative w-40 h-40 mb-12">
-                <div className="absolute inset-0 border-4 border-blue-500/10 rounded-full"></div>
-                <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center text-5xl">📡</div>
-            </div>
-            <div className="text-center">
-                <h3 className="text-3xl font-black mb-4 tracking-tighter">جاري الربط مع <span className="text-blue-500">القمر الصناعي</span></h3>
-                <div className="flex items-center justify-center gap-3 text-gray-500">
-                    <Loader2 size={16} className="animate-spin" />
-                    <p className="font-bold text-xs uppercase tracking-widest">{loadingStatus}</p>
+      {/* منطقة البث - Iframe */}
+      <div className="flex-1 relative bg-[#010304]">
+        {isLoading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10 bg-[#010304]">
+                <div className="relative w-24 h-24 mb-6">
+                    <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <Loader2 className="absolute inset-0 m-auto text-blue-500 animate-pulse" size={32} />
                 </div>
+                <p className="font-black text-xs uppercase tracking-[0.3em] text-blue-500 animate-pulse">جاري ربط إشارة البث...</p>
+                <p className="text-gray-600 text-[10px] mt-4 font-bold">يرجى السماح بصلاحيات الصوت إذا طلب المتصفح ذلك</p>
             </div>
-        </div>
-      );
-  }
+        )}
 
-  return (
-    <div className="fixed top-6 left-6 z-[3000]">
-        <button 
-            onClick={onLeave}
-            className="bg-red-600 text-white px-8 py-4 rounded-2xl hover:bg-red-500 transition-all flex items-center gap-3 shadow-2xl font-black text-xs uppercase tracking-widest"
-        >
-            <LogOut size={18} /> إنهاء المشاهدة
-        </button>
+        <iframe
+          src={zoomWebUrl}
+          allow="microphone; camera; borderless; autoplay; encrypted-media; fullscreen; display-capture"
+          className="w-full h-full border-none"
+          onLoad={() => setIsLoading(false)}
+          title="Zoom Live Stream"
+        />
+      </div>
+
+      {/* شريط معلومات سفلي بسيط */}
+      <footer className="bg-black py-2 px-6 border-t border-white/5 flex justify-center">
+         <p className="text-[9px] font-bold text-gray-700 uppercase tracking-[0.5em]">SYRIAN SCIENCE CENTER • KUWAIT • VIRTUAL CLASSROOM</p>
+      </footer>
     </div>
   );
 };
