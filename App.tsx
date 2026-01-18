@@ -152,11 +152,10 @@ const App: React.FC = () => {
       case 'ai-chat': return <AiTutor grade={user.grade || '12'} subject={activeSubject} />;
       
       case 'gamification': return <GamificationCenter user={user} onUpdateUser={setUser} />;
-      case 'gamification': return <GamificationCenter user={user} onUpdateUser={setUser} />;
       case 'recommendations': return <Recommendations user={user} />;
 
       case 'virtual-lab': return <LabHub user={user} />;
-      // Added missing 'user' prop to LiveSessions component
+      
       case 'live-sessions': return <LiveSessions user={user} />;
       case 'reports': return <ProgressReport user={user} attempts={[]} onBack={() => setView('dashboard')} />;
       case 'quiz-performance': return <QuizPerformance user={user} />;
