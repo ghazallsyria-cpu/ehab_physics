@@ -2,9 +2,9 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { LiveSession, User } from '../types';
 import { dbService } from '../services/db';
-import { Video, Calendar, User as UserIcon, BookOpen, RefreshCw, AlertCircle, PlayCircle } from 'lucide-react';
+import { Video, Calendar, User as UserIcon, BookOpen, RefreshCw, AlertCircle, PlayCircle, ExternalLink } from 'lucide-react';
 
-// Lazy load Zoom meeting to prevent main UI crash if SDK fails
+// Lazy load Zoom meeting
 const ZoomMeeting = lazy(() => import('./ZoomMeeting'));
 
 interface LiveSessionsProps {
@@ -19,30 +19,24 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
 
   useEffect(() => {
     setIsLoading(true);
-    // Use Real-time Sync instead of one-time fetch
     const unsubscribe = dbService.subscribeToLiveSessions((updatedSessions) => {
-        console.log("Live sessions synced:", updatedSessions);
         setSessions(updatedSessions);
         setIsLoading(false);
         setError(null);
     });
-
-    // Cleanup on unmount
     return () => unsubscribe();
   }, []);
 
   const handleJoinClick = (session: LiveSession) => {
     if (session.status === 'live') {
-      if (session.meetingId && session.passcode) {
         setActiveZoomSession(session);
-      } else if (session.zoomLink) {
-        window.open(session.zoomLink, '_blank');
-      } else {
-        alert('بيانات الرابط غير مكتملة لهذه الجلسة.');
-      }
     } else {
       alert('لم تبدأ هذه الجلسة بعد. سيتم تفعيل زر الانضمام عند بدء البث.');
     }
+  };
+
+  const openDirectLink = (url: string) => {
+      window.open(url, '_blank');
   };
 
   if (activeZoomSession) {
@@ -58,6 +52,7 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
             passCode={activeZoomSession.passcode || ""} 
             userName={user.name} 
             userRole={user.role}
+            directLink={activeZoomSession.zoomLink}
             onLeave={() => setActiveZoomSession(null)}
         />
       </Suspense>
@@ -122,12 +117,22 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
                           </div>
                       </div>
                   </div>
-                  <button 
-                      onClick={() => handleJoinClick(session)}
-                      className={`w-full mt-4 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${session.status === 'live' ? 'bg-blue-500 text-white shadow-lg hover:scale-105' : 'bg-white/5 text-gray-600 cursor-default'}`}
-                  >
-                      {session.status === 'live' ? <><PlayCircle size={16}/> دخول الحصة الآن</> : 'بانتظار بدء المعلم'}
-                  </button>
+                  <div className="mt-4 flex flex-col gap-2">
+                    <button 
+                        onClick={() => handleJoinClick(session)}
+                        className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${session.status === 'live' ? 'bg-blue-500 text-white shadow-lg hover:scale-[1.02]' : 'bg-white/5 text-gray-600 cursor-default'}`}
+                    >
+                        {session.status === 'live' ? <><PlayCircle size={16}/> دخول الحصة المدمجة</> : 'بانتظار بدء المعلم'}
+                    </button>
+                    {session.status === 'live' && session.zoomLink && (
+                        <button 
+                            onClick={() => openDirectLink(session.zoomLink)}
+                            className="w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-blue-400 border border-blue-500/20 hover:bg-blue-500/10 transition-all flex items-center justify-center gap-2"
+                        >
+                            <ExternalLink size={12}/> فتح في تطبيق Zoom
+                        </button>
+                    )}
+                  </div>
                   
                   {session.status === 'live' && (
                     <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/10 rounded-full blur-[60px] pointer-events-none"></div>
@@ -141,7 +146,7 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
                 <Video size={40} className="text-gray-600" />
               </div>
               <p className="font-black text-lg uppercase tracking-widest mb-2">لا توجد حصص مباشرة حالياً</p>
-              <p className="text-sm text-gray-600 max-w-xs mx-auto">عندما يقوم المعلم ببدء بث جديد، سيظهر لك هنا بشكل تلقائي دون الحاجة لتحديث الصفحة.</p>
+              <p className="text-sm text-gray-600 max-w-xs mx-auto">سيتم إخطارك فور بدء أي حصة جديدة.</p>
           </div>
         )}
       </div>
