@@ -2,7 +2,6 @@
 import { User, Curriculum, Quiz, Question, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, Lesson, Unit, PaymentSettings, SubscriptionCode, LoggingSettings, LiveSession } from "../types";
 import { db } from "./firebase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, documentId, writeBatch, orderBy, limit } from "firebase/firestore";
-// Fix: Added missing CHALLENGES_DB, LEADERBOARD_DATA, STUDY_GOALS_DB imports
 import { QUIZZES_DB, QUESTIONS_DB, CHALLENGES_DB, LEADERBOARD_DATA, STUDY_GOALS_DB } from "../constants";
 
 const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
@@ -71,20 +70,17 @@ class SyrianScienceCenterDB {
 
   // --- Settings ---
   async getLoggingSettings(): Promise<LoggingSettings> {
-    this.checkDb();
     try {
         const docRef = doc(db, "settings", "data_logging");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             return { ...DEFAULT_LOGGING_SETTINGS, ...docSnap.data() };
         }
-    } catch (e) { console.error("DB: Error getting logging settings", e); }
+    } catch (e) {}
     return DEFAULT_LOGGING_SETTINGS;
   }
 
   async saveLoggingSettings(settings: LoggingSettings): Promise<void> {
-    this.checkDb();
-    this.loggingSettings = settings; 
     const docRef = doc(db, "settings", "data_logging");
     await setDoc(docRef, this.cleanData(settings), { merge: true });
   }
@@ -118,7 +114,7 @@ class SyrianScienceCenterDB {
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, cleanedUser, { merge: true });
     } catch (e: any) {
-        throw new Error(`فشل حفظ بيانات المستخدم: ${e.message}`);
+        throw new Error(`فشل حفظ في Firestore: ${e.message}`);
     }
   }
 
@@ -383,7 +379,6 @@ class SyrianScienceCenterDB {
     await setDoc(docRef, { isOnlinePaymentEnabled: isEnabled });
   }
 
-  // Fix: Added missing getUnusedSubscriptionCodes method
   async getUnusedSubscriptionCodes(): Promise<SubscriptionCode[]> {
     this.checkDb();
     const q = query(collection(db, 'subscription_codes'), where('isUsed', '==', false));
@@ -391,7 +386,6 @@ class SyrianScienceCenterDB {
     return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as SubscriptionCode);
   }
 
-  // Fix: Added missing createSubscriptionCode method
   async createSubscriptionCode(planId: string): Promise<void> {
     this.checkDb();
     const code = Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -407,7 +401,6 @@ class SyrianScienceCenterDB {
   }
 
   // --- Forum ---
-  // Fix: Added missing getForumPosts method
   async getForumPosts(): Promise<ForumPost[]> {
     this.checkDb();
     try {
@@ -542,7 +535,6 @@ class SyrianScienceCenterDB {
     } catch (e) { return CHALLENGES_DB; }
   }
 
-  // Fix: Added missing getStudyGoals method
   async getStudyGoals(): Promise<StudyGoal[]> {
     this.checkDb();
     try {
@@ -653,7 +645,6 @@ class SyrianScienceCenterDB {
     await deleteDoc(doc(db, "users", userId, "todos", todoId));
   }
 
-  // Fix: Added missing getStudentProgressForParent method
   async getStudentProgressForParent(studentUid: string): Promise<{ user: User, report: WeeklyReport }> {
     this.checkDb();
     const user = await this.getUser(studentUid);

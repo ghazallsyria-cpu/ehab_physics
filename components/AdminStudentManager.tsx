@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { dbService } from '../services/db';
@@ -14,7 +15,6 @@ const AdminStudentManager: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'PROFILE' | 'SUBSCRIPTION' | 'PROGRESS'>('PROFILE');
   const [message, setMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState('');
@@ -39,16 +39,17 @@ const AdminStudentManager: React.FC = () => {
 
   const loadStudents = async () => {
     setIsLoading(true);
-    const data = await dbService.getAllStudents();
-    setStudents(data);
-    setFilteredStudents(data);
+    try {
+        const data = await dbService.getAllStudents();
+        setStudents(data);
+        setFilteredStudents(data);
+    } catch (e) {}
     setIsLoading(false);
   };
 
   const handleSelectStudent = (student: User) => {
     setSelectedStudent(student);
     setEditForm({ ...student });
-    setActiveTab('PROFILE');
     setMessage(null);
     setIsModalOpen(true);
   };
@@ -62,20 +63,24 @@ const AdminStudentManager: React.FC = () => {
 
   const handleCreateNewMode = () => {
     const newStudentTemplate: User = {
-        uid: 'new_entry', name: '', email: '', role: 'student',
-        grade: '12', status: 'active', subscription: 'free', createdAt: new Date().toISOString(),
-        progress: { completedLessonIds: [], points: 0 }
+        uid: 'new_entry', 
+        name: '', 
+        email: '', 
+        role: 'student',
+        grade: '12', 
+        status: 'active', 
+        subscription: 'free', 
+        createdAt: new Date().toISOString(),
+        progress: { completedLessonIds: [], points: 0, achievements: [], strengths: [], weaknesses: [] }
     };
     setSelectedStudent(newStudentTemplate);
     setEditForm(newStudentTemplate);
-    setActiveTab('PROFILE');
     setMessage(null);
     setPassword('');
     setIsModalOpen(true);
   };
 
   const handleSave = async () => {
-    // 1. Validation
     if (!editForm.name?.trim() || !editForm.email?.trim()) {
         setMessage({ text: 'يرجى تعبئة جميع الحقول المطلوبة (الاسم والبريد)', type: 'error' });
         return;
@@ -90,25 +95,28 @@ const AdminStudentManager: React.FC = () => {
     setMessage(null);
 
     try {
-        let updatedUser = { ...selectedStudent, ...editForm } as User;
+        let updatedUser = { 
+            ...selectedStudent, 
+            ...editForm,
+            progress: selectedStudent?.progress || { completedLessonIds: [], points: 0 } 
+        } as User;
         
-        // 2. Auth Creation if New
         if (selectedStudent?.uid === 'new_entry') {
             try {
+                // Ensure no conflicting session
                 const userCredential = await createUserWithEmailAndPassword(secondaryAuth, updatedUser.email, password);
                 updatedUser.uid = userCredential.user.uid;
             } catch (authError: any) {
-                console.error("Auth Error:", authError);
+                console.error("Auth Error Code:", authError.code);
                 let authMsg = 'حدث خطأ أثناء إنشاء الحساب.';
-                if (authError.code === 'auth/email-already-in-use') authMsg = 'هذا البريد الإلكتروني مستخدم بالفعل.';
+                if (authError.code === 'auth/email-already-in-use') authMsg = 'هذا البريد الإلكتروني مسجل مسبقاً.';
                 if (authError.code === 'auth/invalid-email') authMsg = 'البريد الإلكتروني غير صحيح.';
                 if (authError.code === 'auth/weak-password') authMsg = 'كلمة المرور ضعيفة جداً.';
-                if (authError.code === 'auth/operation-not-allowed') authMsg = 'تسجيل الدفع بالبريد معطل في إعدادات Firebase.';
-                throw new Error(authMsg);
+                if (authError.code === 'auth/operation-not-allowed') authMsg = 'مزود "البريد وكلمة المرور" غير مفعل في Firebase Console.';
+                throw new Error(authMsg + ` (Code: ${authError.code})`);
             }
         }
 
-        // 3. Database Save
         await dbService.saveUser(updatedUser);
         await loadStudents();
         setMessage({ text: 'تم حفظ البيانات بنجاح ✅', type: 'success' });
@@ -126,10 +134,7 @@ const AdminStudentManager: React.FC = () => {
 
   const handleDelete = async () => {
     if (!selectedStudent || selectedStudent.uid === 'new_entry') return;
-
-    if (!window.confirm(`⚠️ تحذير: هل أنت متأكد من حذف الطالب "${selectedStudent.name}"؟ سيتم حذف جميع بياناته بشكل دائم.`)) {
-      return;
-    }
+    if (!window.confirm(`⚠️ تحذير: هل أنت متأكد من حذف الطالب "${selectedStudent.name}"؟`)) return;
 
     setIsLoading(true);
     setMessage(null);
@@ -137,12 +142,9 @@ const AdminStudentManager: React.FC = () => {
       await dbService.deleteUser(selectedStudent.uid);
       await loadStudents();
       setMessage({ text: 'تم حذف الطالب بنجاح.', type: 'success' });
-      setTimeout(() => {
-        handleCloseModal();
-      }, 1500);
+      setTimeout(handleCloseModal, 1500);
     } catch (e: any) {
-      console.error("Delete Error:", e);
-      setMessage({ text: 'فشل حذف الطالب: ' + (e.message || 'خطأ في قاعدة البيانات'), type: 'error' });
+      setMessage({ text: 'فشل الحذف: ' + e.message, type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -192,28 +194,27 @@ const AdminStudentManager: React.FC = () => {
                     {selectedStudent.uid === 'new_entry' ? '🆕' : '🎓'}
                 </div>
                 <h3 className="text-3xl font-black text-white">{selectedStudent.uid === 'new_entry' ? 'تسجيل طالب جديد' : 'تعديل بيانات الطالب'}</h3>
-                <p className="text-gray-500 text-sm mt-2">نظام إدارة المركز السوري للعلوم</p>
             </div>
 
             <div className="space-y-6 max-h-[60vh] overflow-y-auto no-scrollbar px-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">الاسم الكامل</label>
-                        <input type="text" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#fbbf24]" placeholder="اسم الطالب" />
+                        <input type="text" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#fbbf24]" placeholder="اسم الطالب" />
                     </div>
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">البريد الإلكتروني</label>
-                        <input type="email" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#fbbf24] text-left ltr" placeholder="email@example.com" />
+                        <input type="email" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#fbbf24] text-left ltr" placeholder="email@example.com" />
                     </div>
                     {selectedStudent.uid === 'new_entry' && (
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">كلمة المرور المؤقتة</label>
-                            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#fbbf24] text-left ltr" placeholder="••••••••" />
+                            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#fbbf24] text-left ltr" placeholder="••••••••" />
                         </div>
                     )}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">الصف الدراسي</label>
-                        <select value={editForm.grade || '12'} onChange={e => setEditForm({...editForm, grade: e.target.value as any})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#fbbf24]">
+                        <select value={editForm.grade || '12'} onChange={e => setEditForm({...editForm, grade: e.target.value as any})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#fbbf24]">
                             <option value="10">الصف العاشر</option>
                             <option value="11">الصف الحادي عشر</option>
                             <option value="12">الصف الثاني عشر</option>

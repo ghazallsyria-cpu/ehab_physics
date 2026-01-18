@@ -1,9 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User, TeacherMessage, TeacherPermission } from '../types';
 import { dbService } from '../services/db';
 import { secondaryAuth } from '../services/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-// Added missing Mail icon import
 import { 
   Search, User as UserIcon, Shield, MessageSquare, Trash2, Save, 
   PlusCircle, UserPlus, Briefcase, GraduationCap, CheckCircle,
@@ -44,9 +44,11 @@ const AdminTeacherManager: React.FC = () => {
 
   const loadTeachers = async () => {
     setIsLoading(true);
-    const data = await dbService.getTeachers();
-    setTeachers(data);
-    setFilteredTeachers(data);
+    try {
+        const data = await dbService.getTeachers();
+        setTeachers(data);
+        setFilteredTeachers(data);
+    } catch (e) {}
     setIsLoading(false);
   };
 
@@ -66,13 +68,21 @@ const AdminTeacherManager: React.FC = () => {
   const handleCreateNewMode = () => {
     setSearchQuery('');
     const newTeacherTemplate: User = {
-        uid: 'new_entry', name: '', email: '', role: 'teacher',
+        uid: 'new_entry', 
+        name: '', 
+        email: '', 
+        role: 'teacher',
         grade: '12', 
         subscription: 'premium', 
-        progress: { completedLessonIds: [], points: 0 },
-        status: 'active', createdAt: new Date().toISOString(),
-        specialization: 'فيزياء', yearsExperience: 0, bio: '', avatar: '👨‍🏫',
-        gradesTaught: [], permissions: ['create_content', 'reply_messages']
+        progress: { completedLessonIds: [], points: 0, achievements: [] },
+        status: 'active', 
+        createdAt: new Date().toISOString(),
+        specialization: 'فيزياء', 
+        yearsExperience: 0, 
+        bio: '', 
+        avatar: '👨‍🏫',
+        gradesTaught: [], 
+        permissions: ['create_content', 'reply_messages']
     };
     setSelectedTeacher(newTeacherTemplate);
     setEditForm(newTeacherTemplate);
@@ -116,19 +126,25 @@ const AdminTeacherManager: React.FC = () => {
     setIsLoading(true);
     setMessage(null);
     try {
-        let teacherToSave = { ...selectedTeacher, ...editForm } as User;
+        let teacherToSave = { 
+            ...selectedTeacher, 
+            ...editForm,
+            gradesTaught: editForm.gradesTaught || [],
+            permissions: editForm.permissions || []
+        } as User;
         
         if (selectedTeacher?.uid === 'new_entry') {
             try {
                 const userCredential = await createUserWithEmailAndPassword(secondaryAuth, teacherToSave.email, password);
                 teacherToSave.uid = userCredential.user.uid;
             } catch (authError: any) {
-                console.error("Auth Error:", authError);
+                console.error("Auth Error Code:", authError.code);
                 let authMsg = 'فشل إنشاء الحساب.';
                 if (authError.code === 'auth/email-already-in-use') authMsg = 'هذا البريد الإلكتروني مسجل مسبقاً.';
                 if (authError.code === 'auth/invalid-email') authMsg = 'البريد الإلكتروني غير صالح.';
                 if (authError.code === 'auth/weak-password') authMsg = 'كلمة المرور ضعيفة جداً.';
-                throw new Error(authMsg);
+                if (authError.code === 'auth/operation-not-allowed') authMsg = 'مزود "البريد وكلمة المرور" غير مفعل في Firebase Console.';
+                throw new Error(authMsg + ` (Code: ${authError.code})`);
             }
         }
 
@@ -158,8 +174,7 @@ const AdminTeacherManager: React.FC = () => {
         loadTeachers();
         setSelectedTeacher(null);
     } catch (e: any) {
-        console.error("Delete Error:", e);
-        setMessage({ text: 'فشل حذف المعلم: ' + (e.message || 'خطأ فني'), type: 'error' });
+        setMessage({ text: 'فشل حذف المعلم: ' + e.message, type: 'error' });
     } finally {
         setIsLoading(false);
     }
