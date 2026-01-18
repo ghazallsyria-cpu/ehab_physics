@@ -43,6 +43,7 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
         meetingNumber={activeZoomSession.meetingId || ""} 
         passCode={activeZoomSession.passcode || ""} 
         userName={user.name} 
+        userRole={user.role}
         onLeave={() => setActiveZoomSession(null)}
       />
     );
