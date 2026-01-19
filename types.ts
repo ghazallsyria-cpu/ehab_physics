@@ -80,6 +80,7 @@ export interface Quiz {
   id: string;
   title: string;
   description?: string;
+  category?: string;
   grade: '10' | '11' | '12' | 'uni';
   subject: SubjectType;
   questionIds: string[];
@@ -137,6 +138,8 @@ export interface StudentQuizAttempt {
   attemptNumber?: number;
   guessingDetected?: boolean;
   timestamp?: string;
+  status?: 'auto-graded' | 'pending-review' | 'manually-graded';
+  manualGrades?: Record<string, { awardedScore: number; feedback?: string }>;
 }
 
 export type QuizAttempt = StudentQuizAttempt;
@@ -204,6 +207,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  gender?: 'male' | 'female';
   grade: '10' | '11' | '12' | 'uni';
   subscription: 'free' | 'premium' | 'monthly' | 'term' | 'yearly';
   createdAt: string;
