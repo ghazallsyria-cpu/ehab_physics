@@ -64,7 +64,7 @@ const AdminLiveSessions: React.FC = () => {
             <p className="text-gray-500 mt-2">قم بجدولة جلسات Zoom المباشرة وإضافة روابط البث للطلاب.</p>
         </div>
         <button 
-          onClick={() => setEditingSession({ title: '', teacherName: '', startTime: '', status: 'upcoming', topic: '', platform: 'zoom', streamUrl: '', meetingId: '', passcode: '' })} 
+          onClick={() => setEditingSession({ title: '', teacherName: '', startTime: '', status: 'upcoming', topic: '', platform: 'zoom', streamUrl: '', meetingId: '', passcode: '', targetGrades: [], isPremium: false })} 
           className="bg-blue-500 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-all flex items-center gap-2"
         >
             <Plus size={18} /> إضافة جلسة جديدة
@@ -82,6 +82,7 @@ const AdminLiveSessions: React.FC = () => {
             <div className="col-span-full py-20 text-center animate-pulse text-gray-500">جاري تحميل الجلسات...</div>
         ) : sessions.map(session => (
             <div key={session.id} className="glass-panel p-8 rounded-[40px] border border-white/5 bg-[#0a1118]/80 group relative overflow-hidden flex flex-col">
+                {session.isPremium && <div className="absolute top-4 left-4 bg-[#fbbf24] text-black text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Premium</div>}
                 <div className="flex justify-between items-start mb-6">
                     <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${session.status === 'live' ? 'bg-red-500 text-white' : 'bg-white/10 text-gray-400'}`}>
                         {session.status === 'live' ? 'بث مباشر 🔴' : 'مجدولة 📅'}
@@ -94,7 +95,12 @@ const AdminLiveSessions: React.FC = () => {
                 <div className="flex-1">
                     <h4 className="text-xl font-bold text-white mb-2">{session.title}</h4>
                     <p className="text-xs text-gray-500 font-bold mb-4 flex items-center gap-2"><User size={12}/> {session.teacherName}</p>
-                    <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-6">الموضوع: {session.topic}</p>
+                    <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-2">الموضوع: {session.topic}</p>
+                    <div className="flex flex-wrap gap-1">
+                        {(session.targetGrades && session.targetGrades.length > 0 ? session.targetGrades : ['الكل']).map(g => (
+                            <span key={g} className="text-[9px] bg-white/5 px-2 py-0.5 rounded text-gray-300 font-bold">{g === 'uni' ? 'جامعي' : `صف ${g}`}</span>
+                        ))}
+                    </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center text-[10px] font-bold text-gray-600">
                     <span className="flex items-center gap-1"><Calendar size={12}/> {session.startTime}</span>
@@ -160,6 +166,35 @@ const AdminLiveSessions: React.FC = () => {
                             </div>
                         </div>
                     )}
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">الفئات المستهدفة (اتركه فارغاً للكل)</label>
+                        <div className="flex flex-wrap gap-2 bg-black/40 p-3 rounded-2xl border border-white/10">
+                            {(['12', '11', '10', 'uni'] as const).map(g => (
+                                <button
+                                    key={g}
+                                    onClick={() => {
+                                        const currentGrades = editingSession.targetGrades || [];
+                                        const newGrades = currentGrades.includes(g)
+                                            ? currentGrades.filter(grade => grade !== g)
+                                            : [...currentGrades, g];
+                                        setEditingSession({ ...editingSession, targetGrades: newGrades });
+                                    }}
+                                    className={`px-4 py-2 rounded-lg text-xs font-bold ${editingSession.targetGrades?.includes(g) ? 'bg-blue-500 text-white' : 'bg-white/5 text-gray-400'}`}
+                                >
+                                    {g === 'uni' ? 'جامعي' : `الصف ${g}`}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/10">
+                        <label className="font-bold text-[#fbbf24]">جلسة للمشتركين (Premium)؟</label>
+                        <button
+                            onClick={() => setEditingSession({...editingSession, isPremium: !editingSession.isPremium})}
+                            className={`w-16 h-8 rounded-full p-1 transition-colors ${editingSession.isPremium ? 'bg-green-500' : 'bg-gray-700'}`}
+                        >
+                            <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${editingSession.isPremium ? 'translate-x-8' : 'translate-x-0'}`}/>
+                        </button>
+                    </div>
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">الموضوع</label>
                         <input type="text" value={editingSession.topic || ''} onChange={e => setEditingSession({...editingSession, topic: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="الفيزياء الذرية" />

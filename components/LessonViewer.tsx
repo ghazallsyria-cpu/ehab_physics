@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Lesson, User, ContentBlock } from '../types';
 import { dbService } from '../services/db';
@@ -16,10 +15,32 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [isContentVisible, setIsContentVisible] = useState(true);
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   useEffect(() => {
     setIsCompleted((user.progress.completedLessonIds || []).includes(lesson.id));
   }, [user, lesson]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+        const totalScrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+        if (totalScrollableHeight <= 0) {
+            setScrollProgress(100);
+            return;
+        }
+        const currentScroll = window.scrollY;
+        const progress = (currentScroll / totalScrollableHeight) * 100;
+        setScrollProgress(Math.min(progress, 100));
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // Initial check
+
+    return () => {
+        window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
 
   const handleToggleComplete = async () => {
     await dbService.toggleLessonComplete(user.uid, lesson.id);
@@ -183,6 +204,13 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
                 </div>
             </div>
             
+            <div className="w-full h-1 bg-white/5 rounded-full mb-10 overflow-hidden">
+                <div 
+                    className="h-full bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full transition-all duration-150 ease-linear"
+                    style={{ width: `${scrollProgress}%` }}
+                ></div>
+            </div>
+
             <div className={`transition-all duration-700 ease-in-out grid ${isContentVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
                 <div className="overflow-hidden">
                     <div className="space-y-8 pt-2">

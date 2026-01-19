@@ -1,4 +1,3 @@
-
 import { Curriculum, Quiz, Question, Answer, SubscriptionPlan, Challenge, LeaderboardEntry, StudyGoal, Article, StudyGroup, PhysicsExperiment, PhysicsEquation } from './types';
 
 // --- 1. Educational Content Data ---
@@ -213,12 +212,64 @@ export const QUESTIONS_DB: Question[] = [
       score: 1,
       solution: 'وحدة قياس القوة هي النيوتن (N)، وتكريماً للعالم إسحاق نيوتن.',
     },
+    {
+      id: 'q-10-1',
+      text: 'ما هي الوحدة الأساسية لقياس الطول في النظام الدولي (SI)?',
+      type: 'mcq',
+      choices: [
+          { id: 'ans-10-1-1', text: 'السنتيمتر' },
+          { id: 'ans-10-1-2', text: 'المتر' },
+          { id: 'ans-10-1-3', text: 'الكيلومتر' },
+      ],
+      correctChoiceId: 'ans-10-1-2',
+      score: 2,
+      grade: '10',
+      subject: 'Physics',
+      unit: 'القياس',
+      difficulty: 'Easy',
+      isVerified: true,
+    },
+    {
+        id: 'q-10-2',
+        text: 'عرّف الكمية المتجهة مع ذكر مثال واحد.',
+        type: 'short_answer',
+        modelAnswer: 'الكمية المتجهة هي كمية فيزيائية لها مقدار واتجاه. مثال: السرعة, القوة, الإزاحة.',
+        score: 3,
+        grade: '10',
+        subject: 'Physics',
+        unit: 'المتجهات',
+        difficulty: 'Medium',
+        isVerified: true,
+    },
+    {
+        id: 'q-10-3',
+        text: 'ارسم مخطط الجسم الحر لكرة معلقة بحبل في حالة سكون, موضحاً عليه جميع القوى المؤثرة.',
+        type: 'file_upload',
+        score: 5,
+        grade: '10',
+        subject: 'Physics',
+        unit: 'القوى',
+        difficulty: 'Medium',
+        isVerified: true,
+    }
 ];
 
 // FIX: Removed `unitId` as it's not a property of the `Quiz` type.
 export const QUIZZES_DB: Quiz[] = [
   { id: 'quiz-1', title: 'اختبار سريع في الحث الكهرومغناطيسي', grade: '12', subject: 'Physics', questionIds: ['q-1'], duration: 5, totalScore: 1 },
   { id: 'quiz-2', title: 'اختبار مبادئ الفيزياء الحديثة', grade: '12', subject: 'Physics', questionIds: ['q-2'], duration: 5, totalScore: 1 },
+  { 
+    id: 'quiz-3-10', 
+    title: 'اختبار تأسيسي في أساسيات الفيزياء', 
+    description: 'اختبار يغطي الوحدات والمتجهات والقوى للصف العاشر.',
+    grade: '10', 
+    subject: 'Physics', 
+    questionIds: ['q-10-1', 'q-10-2', 'q-10-3', 'q-4-10'], 
+    duration: 20, 
+    totalScore: 11,
+    maxAttempts: 2, 
+    isPremium: false 
+  }
 ];
 
 // --- 3. Financial System Data ---

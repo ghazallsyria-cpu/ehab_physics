@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
-import { User, LiveSession } from '../types';
+import { User, LiveSession, AppNotification } from '../types';
 import { dbService } from '../services/db';
-import { Video, Calendar, Users, MessageSquare, Play, Settings } from 'lucide-react';
+import { Video, Calendar, Users, MessageSquare, Play, Settings, Bell, FileCheck, UserPlus } from 'lucide-react';
 import ZoomMeeting from './ZoomMeeting';
 import ActivityStats from './ActivityStats';
 
@@ -10,6 +9,32 @@ const TeacherDashboard: React.FC<{ user: User }> = ({ user }) => {
   const [sessions, setSessions] = useState<LiveSession[]>([]);
   const [activeZoomSession, setActiveZoomSession] = useState<LiveSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Mock data for notifications as a real-time system is not yet fully implemented for teachers
+  const mockNotifications: AppNotification[] = [
+    { id: '1', userId: user.uid, title: 'تصحيح مطلوب', message: 'الطالب "محمد الأحمد" سلم اختبار الفيزياء النووية.', timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), isRead: false, category: 'academic' },
+    { id: '2', userId: user.uid, title: 'طالب جديد انضم', message: 'انضم "علي مصطفى" إلى صف الثاني عشر.', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), isRead: false, category: 'general' },
+    { id: '3', userId: user.uid, title: 'رسالة جديدة', message: 'لديك رسالة من الطالبة "فاطمة الزهراء".', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), isRead: true, category: 'general' },
+  ];
+
+  const formatRelativeTime = (timestamp: string) => {
+    const now = new Date();
+    const past = new Date(timestamp);
+    const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) return `منذ ${diffInMinutes} د`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `منذ ${diffInHours} س`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `منذ ${diffInDays} ي`;
+  };
+
+  const getNotificationIcon = (category: AppNotification['category']) => {
+    if (category === 'academic') return <FileCheck className="text-amber-400" size={18} />;
+    // You can expand this logic for different notification types
+    return <UserPlus className="text-blue-400" size={18} />;
+  };
+
 
   useEffect(() => {
     loadMySessions();
@@ -115,7 +140,7 @@ const TeacherDashboard: React.FC<{ user: User }> = ({ user }) => {
             </div>
         </div>
 
-        {/* Right Column: Quick Stats */}
+        {/* Right Column: Quick Stats & Notifications */}
         <div className="lg:col-span-4 space-y-8">
             <div className="glass-panel p-8 rounded-[40px] border-white/5">
                 <h3 className="text-lg font-black text-[#fbbf24] mb-6 border-r-4 border-[#fbbf24] pr-3">إحصائيات الأداء</h3>
@@ -141,10 +166,24 @@ const TeacherDashboard: React.FC<{ user: User }> = ({ user }) => {
                 <ActivityStats activityLog={user.activityLog} />
             </div>
 
-            <div className="glass-panel p-8 rounded-[40px] border-[#fbbf24]/20 bg-[#fbbf24]/5">
-                <p className="text-[10px] font-black text-[#fbbf24] uppercase tracking-widest mb-3">تنبيه النظام</p>
-                <p className="text-sm text-gray-300 leading-relaxed italic">"أ. {user.name.split(' ')[0]}، تم رصد تفاعل كبير في حصة الأمس. نقترح إضافة اختبار قصير (Quiz) لتعزيز الفهم."</p>
+            <div className="glass-panel p-8 rounded-[40px] border-white/5">
+                <h3 className="text-lg font-black text-blue-400 mb-6 border-r-4 border-blue-400 pr-3 flex items-center gap-3"><Bell size={18}/> الإشعارات الحديثة</h3>
+                <div className="space-y-4">
+                    {mockNotifications.map(note => (
+                        <div key={note.id} className="flex items-start gap-4 p-4 bg-black/40 rounded-2xl border border-white/5 group">
+                            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0 border border-white/10 relative">
+                                {getNotificationIcon(note.category)}
+                                {!note.isRead && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-400 rounded-full border-2 border-[#0a1118] shadow-[0_0_10px_#3b82f6]"></div>}
+                            </div>
+                            <div className="flex-1">
+                                <p className={`font-bold text-xs ${note.isRead ? 'text-gray-400' : 'text-white'}`}>{note.message}</p>
+                                <p className="text-[10px] font-mono text-gray-600 group-hover:text-blue-400 transition-colors">{formatRelativeTime(note.timestamp)}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
+
         </div>
       </div>
     </div>

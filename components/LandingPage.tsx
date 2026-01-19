@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface LandingPageProps {
@@ -12,7 +11,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
       {/* Background Image with Ken Burns Effect */}
       <div 
         className="absolute inset-0 bg-cover bg-center animate-kenburns"
-        style={{ backgroundImage: "url('https://i.ibb.co/6r1h1g4/ssc-kuwait-logo-bg.jpg')" }}
+        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?q=80&w=2070&auto=format&fit=crop')" }}
       ></div>
 
       {/* Gradient Overlay for Text Readability */}

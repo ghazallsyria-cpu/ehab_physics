@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { User, TeacherMessage, TeacherPermission } from '../types';
 import { dbService } from '../services/db';
@@ -48,6 +47,19 @@ const AdminTeacherManager: React.FC = () => {
       loadMessages(selectedTeacher.uid);
     }
   }, [selectedTeacher, activeTab]);
+
+  const calculateWeeklyActivity = (activityLog?: Record<string, number>): number => {
+    if (!activityLog) return 0;
+    const today = new Date();
+    let totalMinutes = 0;
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateString = d.toISOString().split('T')[0];
+        totalMinutes += activityLog[dateString] || 0;
+    }
+    return totalMinutes;
+  };
 
   const loadMessages = async (teacherId: string) => {
     const msgs = await dbService.getAllTeacherMessages(teacherId);
@@ -201,7 +213,9 @@ const AdminTeacherManager: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1">
-                    {filteredTeachers.map(teacher => (
+                    {filteredTeachers.map(teacher => {
+                        const weeklyMinutes = calculateWeeklyActivity(teacher.activityLog);
+                        return (
                         <div key={teacher.uid} onClick={() => handleSelectTeacher(teacher)} className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center gap-4 group ${selectedTeacher?.uid === teacher.uid ? 'bg-[#fbbf24] border-[#fbbf24] text-black shadow-lg shadow-[#fbbf24]/20' : 'bg-white/[0.02] border-white/5 text-gray-300 hover:bg-white/5 hover:border-white/10'}`}>
                             <div className="relative">
                                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg overflow-hidden ${selectedTeacher?.uid === teacher.uid ? 'bg-black/20' : 'bg-black/40'}`}>
@@ -216,10 +230,15 @@ const AdminTeacherManager: React.FC = () => {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h4 className="font-bold truncate text-sm">{teacher.name}</h4>
-                                <p className={`text-[10px] font-mono truncate ${selectedTeacher?.uid === teacher.uid ? 'text-black/60' : 'text-gray-500'}`}>{teacher.specialization}</p>
+                                <div className={`flex items-center gap-2 text-[10px] font-mono truncate ${selectedTeacher?.uid === teacher.uid ? 'text-black/60' : 'text-gray-500'}`}>
+                                    <span>{teacher.specialization}</span>
+                                    <span className="opacity-50">•</span>
+                                    <BarChart size={11} />
+                                    <span>{weeklyMinutes > 0 ? `${Math.round(weeklyMinutes)} د / 7 أيام` : 'غير نشط'}</span>
+                                </div>
                             </div>
                         </div>
-                    ))}
+                    )})}
                 </div>
             </div>
         </div>

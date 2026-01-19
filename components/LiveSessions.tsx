@@ -2,10 +2,19 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { LiveSession, User } from '../types';
 import { dbService } from '../services/db';
-import { Video, Calendar, User as UserIcon, BookOpen, RefreshCw, AlertCircle, PlayCircle, ExternalLink, Youtube } from 'lucide-react';
+import { Video, Calendar, User as UserIcon, BookOpen, RefreshCw, AlertCircle, PlayCircle, ExternalLink, Youtube, X } from 'lucide-react';
 
-// Lazy load Zoom meeting
+// Lazy load components
 const ZoomMeeting = lazy(() => import('./ZoomMeeting'));
+const YouTubePlayer = lazy(() => import('./YouTubePlayer'));
+
+// Helper to extract video ID from various YouTube URL formats
+const extractYoutubeId = (url: string): string | null => {
+    if (!url) return null;
+    const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]{11}).*/;
+    const match = url.match(regExp);
+    return (match && match[1]) ? match[1] : null;
+};
 
 interface LiveSessionsProps {
   user: User;
@@ -15,6 +24,7 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
   const [sessions, setSessions] = useState<LiveSession[]>([]);
   const [teachers, setTeachers] = useState<User[]>([]);
   const [activeZoomSession, setActiveZoomSession] = useState<LiveSession | null>(null);
+  const [activeYoutubeSession, setActiveYoutubeSession] = useState<LiveSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,14 +37,17 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
     });
     const unsubscribeTeachers = dbService.subscribeToUsers((updatedTeachers) => {
         setTeachers(updatedTeachers);
-        if (sessions.length > 0) setIsLoading(false);
+        if (sessions.length > 0 || dbCurriculumIsNotEmpty()) setIsLoading(false);
     }, 'teacher');
+
+    // Helper to check if any curriculum data is loaded, to prevent indefinite loading state.
+    const dbCurriculumIsNotEmpty = () => sessions.length > 0;
 
     return () => {
         unsubscribeSessions();
         unsubscribeTeachers();
     };
-  }, []); // Dependencies are not needed as subscriptions handle updates
+  }, []);
 
   const handleJoinClick = (session: LiveSession) => {
     if (session.status !== 'live') {
@@ -44,12 +57,39 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
 
     if (session.platform === 'zoom' && session.meetingId) {
       setActiveZoomSession(session);
+    } else if (session.platform === 'youtube' && session.streamUrl) {
+      setActiveYoutubeSession(session);
     } else if (session.streamUrl) {
       window.open(session.streamUrl, '_blank', 'noopener,noreferrer');
     } else {
       alert('رابط البث غير متوفر حالياً.');
     }
   };
+
+  if (activeYoutubeSession) {
+    const videoId = extractYoutubeId(activeYoutubeSession.streamUrl);
+    return (
+        <div className="fixed inset-0 z-[2000] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-4" onClick={() => setActiveYoutubeSession(null)}>
+            <div className="w-full max-w-4xl bg-[#0a1118] rounded-[40px] border border-white/10 overflow-hidden shadow-2xl animate-slideUp" onClick={e => e.stopPropagation()}>
+                <header className="p-4 flex justify-between items-center bg-black/50">
+                    <h3 className="text-sm font-bold text-white">{activeYoutubeSession.title}</h3>
+                    <button onClick={() => setActiveYoutubeSession(null)} className="p-2 rounded-full bg-white/10 text-white hover:bg-red-500"><X size={16} /></button>
+                </header>
+                <div className="aspect-video bg-black">
+                    {videoId ? (
+                        <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-white">جاري تحميل البث...</div>}>
+                            <YouTubePlayer videoId={videoId} />
+                        </Suspense>
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-red-400 font-bold p-8 text-center">
+                           رابط يوتيوب غير صالح أو لا يمكن تضمينه. يرجى التحقق من الرابط في لوحة التحكم.
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+  }
 
   if (activeZoomSession) {
     return (
@@ -70,6 +110,14 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
       </Suspense>
     );
   }
+  
+  const isUserPremium = user.subscription !== 'free';
+  const filteredSessions = sessions.filter(session => {
+    const gradeMatch = !session.targetGrades || session.targetGrades.length === 0 || session.targetGrades.includes(user.grade);
+    const subMatch = !session.isPremium || isUserPremium;
+    return gradeMatch && subMatch;
+  });
+
 
   const getPlatformIcon = (platform: LiveSession['platform']) => {
     switch (platform) {
@@ -111,7 +159,7 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
     if (session.platform === 'youtube') {
        return (
         <button onClick={() => handleJoinClick(session)} className="w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-red-600 text-white shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-3">
-          <Youtube size={16}/> مشاهدة على يوتيوب
+          <Youtube size={16}/> مشاهدة البث الآن
         </button>
        );
     }
@@ -152,9 +200,9 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
                 <AlertCircle size={48} className="mx-auto mb-4 text-red-500" />
                 <p className="text-lg font-bold text-red-400">{error}</p>
             </div>
-        ) : sessions.length > 0 ? (
+        ) : filteredSessions.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {sessions.map(session => {
+              {filteredSessions.map(session => {
                 const teacher = teachers.find(t => t.name === session.teacherName);
                 const isTeacherOnline = teacher?.lastSeen && (new Date().getTime() - new Date(teacher.lastSeen).getTime()) < 3 * 60 * 1000;
                 return (
@@ -207,8 +255,8 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
               <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Video size={40} className="text-gray-600" />
               </div>
-              <p className="font-black text-lg uppercase tracking-widest mb-2">لا توجد حصص مباشرة حالياً</p>
-              <p className="text-sm text-gray-600 max-w-xs mx-auto">سيتم إخطارك فور بدء أي حصة جديدة.</p>
+              <p className="font-black text-lg uppercase tracking-widest mb-2">لا توجد حصص مباشرة متاحة لك حالياً</p>
+              <p className="text-sm text-gray-600 max-w-xs mx-auto">سيتم إخطارك فور بدء أي حصة جديدة تناسب صفك الدراسي.</p>
           </div>
         )}
       </div>

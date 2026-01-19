@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Quiz, Question, SubjectType } from '../types';
 import { dbService } from '../services/db';
@@ -45,6 +44,7 @@ const AdminQuizManager: React.FC = () => {
       questionIds: [],
       duration: 30,
       totalScore: 0,
+      isPremium: false,
     });
     setQuizQuestions([]);
   };
@@ -137,6 +137,15 @@ const AdminQuizManager: React.FC = () => {
                         </select>
                     </div>
                     <input type="number" placeholder="مدة الاختبار (دقائق)" value={editingQuiz.duration || 0} onChange={e => setEditingQuiz({...editingQuiz, duration: parseInt(e.target.value)})} className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-[#fbbf24]"/>
+                    <div className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/10">
+                        <label className="font-bold text-[#fbbf24]">اختبار للمشتركين (Premium)؟</label>
+                        <button
+                            onClick={() => setEditingQuiz({...editingQuiz, isPremium: !editingQuiz.isPremium})}
+                            className={`w-16 h-8 rounded-full p-1 transition-colors ${editingQuiz.isPremium ? 'bg-green-500' : 'bg-gray-700'}`}
+                        >
+                            <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${editingQuiz.isPremium ? 'translate-x-8' : 'translate-x-0'}`}/>
+                        </button>
+                    </div>
                 </div>
                  {/* Search existing questions */}
                 <div className="glass-panel p-6 rounded-3xl border-white/5">
@@ -158,7 +167,12 @@ const AdminQuizManager: React.FC = () => {
                     {quizQuestions.map(q => (
                         <div key={q.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex justify-between items-center">
                             <p className="flex-1 text-sm truncate">{q.text}</p>
-                            <div className="flex gap-2">
+                            <div className="flex items-center gap-2">
+                                <span className={`text-[9px] font-black px-2 py-1 rounded-full ${
+                                    q.difficulty === 'Easy' ? 'bg-green-500/20 text-green-400' :
+                                    q.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                    q.difficulty === 'Hard' ? 'bg-red-500/20 text-red-400' : 'bg-white/5'
+                                }`}>{q.difficulty || 'N/A'}</span>
                                 <span className="text-[10px] bg-white/5 px-2 py-1 rounded">{q.type}</span>
                                 <span className="text-[10px] bg-[#fbbf24]/20 text-[#fbbf24] px-2 py-1 rounded">{q.score} pts</span>
                                 <button onClick={() => setEditingQuestion(q)} className="p-1"><Edit size={12}/></button>
@@ -200,6 +214,7 @@ const AdminQuizManager: React.FC = () => {
             <div className="flex gap-2 mb-4">
               <span className="text-[9px] bg-white/5 px-2 py-1 rounded">{quiz.grade}</span>
               <span className="text-[9px] bg-[#fbbf24]/20 text-[#fbbf24] px-2 py-1 rounded">{quiz.subject}</span>
+               {quiz.isPremium && <span className="text-[9px] bg-yellow-400/20 text-yellow-400 font-black px-2 py-1 rounded">PREMIUM</span>}
             </div>
             <p className="text-xs text-gray-400 flex-1 mb-4">{quiz.questionIds.length} سؤال • {quiz.duration} دقيقة</p>
             <div className="flex gap-2 mt-auto pt-4 border-t border-white/5">

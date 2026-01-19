@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { CURRICULUM_DATA } from '../constants';
 import { User, Unit, Lesson, Curriculum } from '../types';
@@ -10,7 +9,10 @@ interface CurriculumBrowserProps {
 }
 
 const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) => {
-  const gradeToShow = user.grade === 'uni' ? '12' : user.grade;
+  // The user's actual grade, defaulting 'uni' to '12' for initial view.
+  const userInitialGrade = user.grade === 'uni' ? '12' : user.grade;
+  
+  const [selectedGrade, setSelectedGrade] = useState<'10' | '11' | '12'>(userInitialGrade);
   const [expandedUnitId, setExpandedUnitId] = useState<string | null>(null);
   const [dbCurriculum, setDbCurriculum] = useState<Curriculum[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,10 +31,15 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
       }
     };
     fetchCurriculum();
-  }, [subject]);
+  }, []); // Only fetch once on mount
 
-  const activeTopic = dbCurriculum.find(t => t.grade === gradeToShow && t.subject === subject) 
-                    || CURRICULUM_DATA.find(t => t.grade === gradeToShow && t.subject === subject);
+  const handleGradeChange = (grade: '10' | '11' | '12') => {
+    setSelectedGrade(grade);
+    setExpandedUnitId(null); // Reset expanded unit when changing grade
+  };
+
+  const activeTopic = dbCurriculum.find(t => t.grade === selectedGrade && t.subject === subject) 
+                    || CURRICULUM_DATA.find(t => t.grade === selectedGrade && t.subject === subject);
   
   const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
   const subjectColor = subject === 'Physics' ? 'text-[#00d2ff]' : 'text-green-400';
@@ -45,12 +52,26 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
 
   return (
     <div className="max-w-7xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white">
-      <div className="mb-16 text-center">
-        <h2 className="text-5xl font-black mb-4 tracking-tighter">منهج <span className={`${subjectColor} text-glow`}>{subjectName}</span> - الصف {gradeToShow}</h2>
+      <div className="mb-12 text-center">
+        <h2 className="text-5xl font-black mb-4 tracking-tighter">منهج <span className={`${subjectColor} text-glow`}>{subjectName}</span></h2>
         <p className="text-gray-500 max-w-2xl mx-auto text-lg">
           توزيع المنهج المعتمد لطلاب المرحلة الثانوية - الكويت.
         </p>
       </div>
+
+      {/* Grade Tabs */}
+      <div className="flex justify-center gap-4 mb-16">
+        {(['12', '11', '10'] as const).map(grade => (
+          <button
+            key={grade}
+            onClick={() => handleGradeChange(grade)}
+            className={`px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${selectedGrade === grade ? 'bg-[#fbbf24] text-black shadow-lg shadow-[#fbbf24]/20' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}
+          >
+            الصف {grade}
+          </button>
+        ))}
+      </div>
+
 
       {isLoading ? (
         <div className="py-32 text-center animate-pulse">

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Question, QuestionType, SubjectType } from '../types';
 import { X, Plus, Trash2, Image as ImageIcon, Type, FileUp, MessageSquare } from 'lucide-react';
@@ -86,20 +85,49 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ question: initialQuesti
                 <div className="p-4 bg-blue-500/10 text-blue-400 text-xs text-center rounded-lg border border-blue-500/20">سيُطلب من الطالب رفع ملف كإجابة (مثل صورة أو PDF).</div>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5">
-                <input type="number" placeholder="الدرجة" value={question.score || ''} onChange={e => updateField('score', parseInt(e.target.value) || 0)} className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-[#fbbf24]"/>
-                <input type="text" placeholder="الوحدة" value={question.unit || ''} onChange={e => updateField('unit', e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-[#fbbf24]"/>
-                {/* Grade and Subject are inherited from quiz, but can be overridden */}
-                <select value={question.grade} onChange={e => updateField('grade', e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-[#fbbf24]">
-                    <option value="10">الصف 10</option>
-                    <option value="11">الصف 11</option>
-                    <option value="12">الصف 12</option>
-                    <option value="uni">جامعي</option>
-                </select>
-                <select value={question.subject} onChange={e => updateField('subject', e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-[#fbbf24]">
-                    <option value="Physics">الفيزياء</option>
-                    <option value="Chemistry">الكيمياء</option>
-                </select>
+            <div className="pt-4 border-t border-white/10">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2 mb-2 block">شرح الحل (اختياري)</label>
+                <textarea 
+                    value={question.solution || ''} 
+                    onChange={e => updateField('solution', e.target.value)} 
+                    placeholder="شرح موجز لكيفية الوصول إلى الحل الصحيح. يدعم معادلات LaTeX باستخدام $...$" 
+                    className="w-full h-24 bg-black/20 border border-white/10 rounded-lg p-4 text-white outline-none focus:border-[#fbbf24]"
+                />
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t border-white/5">
+                <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-gray-500">الدرجة</label>
+                    <input type="number" placeholder="الدرجة" value={question.score || ''} onChange={e => updateField('score', parseInt(e.target.value) || 0)} className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-[#fbbf24]"/>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-gray-500">الوحدة</label>
+                    <input type="text" placeholder="الوحدة" value={question.unit || ''} onChange={e => updateField('unit', e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-[#fbbf24]"/>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-gray-500">مستوى الصعوبة</label>
+                    <select value={question.difficulty || 'Medium'} onChange={e => updateField('difficulty', e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-[#fbbf24]">
+                        <option value="Easy">سهل</option>
+                        <option value="Medium">متوسط</option>
+                        <option value="Hard">صعب</option>
+                    </select>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-gray-500">الصف</label>
+                    <select value={question.grade} onChange={e => updateField('grade', e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-[#fbbf24]">
+                        <option value="10">الصف 10</option>
+                        <option value="11">الصف 11</option>
+                        <option value="12">الصف 12</option>
+                        <option value="uni">جامعي</option>
+                    </select>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-gray-500">المادة</label>
+                    <select value={question.subject} onChange={e => updateField('subject', e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-[#fbbf24]">
+                        <option value="Physics">الفيزياء</option>
+                        <option value="Chemistry">الكيمياء</option>
+                    </select>
+                </div>
             </div>
         </div>
 

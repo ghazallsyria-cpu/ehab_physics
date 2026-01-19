@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
-import { Lesson, ContentBlock, ContentBlockType, Curriculum } from '../types';
+import { Lesson, ContentBlock, ContentBlockType } from '../types';
 import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio } from 'lucide-react';
+import YouTubePlayer from './YouTubePlayer';
 
 interface LessonEditorProps {
   lessonData: Partial<Lesson>;
@@ -11,6 +11,16 @@ interface LessonEditorProps {
   onSave: (lesson: Lesson, unitId: string, grade: '10' | '11' | '12', subject: 'Physics' | 'Chemistry') => void;
   onCancel: () => void;
 }
+
+const extractYoutubeId = (url: string): string | null => {
+    if (!url) {
+        return null;
+    }
+    const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]{11}).*/;
+    const match = url.match(regExp);
+
+    return (match && match[1]) ? match[1] : null;
+};
 
 const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, subject, onSave, onCancel }) => {
   const [lesson, setLesson] = useState<Partial<Lesson>>(lessonData);
@@ -103,6 +113,40 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
                   />
                 )}
                 <input type="text" value={block.caption || ''} onChange={e => updateBlock(index, {...block, caption: e.target.value})} placeholder="تعليق توضيحي (اختياري)..." className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white text-sm outline-none focus:border-white/20"/>
+
+                {/* Instant Preview Section */}
+                {(block.type === 'image' || block.type === 'video' || block.type === 'youtube') && block.content && (
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    <label className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">معاينة فورية</label>
+                    <div className="mt-2 bg-black/20 p-2 rounded-lg aspect-video flex items-center justify-center border border-white/5">
+                      {block.type === 'image' && (
+                        <img 
+                          src={block.content} 
+                          alt="معاينة" 
+                          className="max-w-full max-h-full object-contain rounded-md"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          onLoad={(e) => { e.currentTarget.style.display = 'block'; }}
+                        />
+                      )}
+                      {block.type === 'video' && (
+                        <video 
+                          key={block.content}
+                          controls 
+                          src={block.content} 
+                          className="w-full h-full rounded-md"
+                        />
+                      )}
+                      {block.type === 'youtube' && (() => {
+                        const videoId = extractYoutubeId(block.content);
+                        return videoId ? (
+                          <YouTubePlayer videoId={videoId} />
+                        ) : (
+                          <p className="text-xs text-red-400">رابط يوتيوب غير صالح للمعاينة. يرجى استخدام الرابط الكامل للفيديو.</p>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}

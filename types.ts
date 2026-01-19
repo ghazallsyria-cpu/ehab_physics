@@ -252,6 +252,8 @@ export interface LiveSession {
   streamUrl: string;
   meetingId?: string;    // For integrated Zoom SDK
   passcode?: string;     // For integrated Zoom SDK
+  targetGrades?: ('10' | '11' | '12' | 'uni')[];
+  isPremium?: boolean;
 }
 
 export interface PredictiveInsight {

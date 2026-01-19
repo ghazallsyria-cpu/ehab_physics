@@ -1,12 +1,11 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User } from '../types';
 import { dbService } from '../services/db';
 import { secondaryAuth } from '../services/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   Search, User as UserIcon, Zap, Save, RefreshCw, GraduationCap, 
-  Mail, Phone, School, PlusCircle, X, KeyRound, Trash2, AlertCircle
+  Mail, Phone, School, PlusCircle, X, KeyRound, Trash2, AlertCircle, BarChart
 } from 'lucide-react';
 import ActivityStats from './ActivityStats';
 
@@ -44,6 +43,32 @@ const AdminStudentManager: React.FC = () => {
       ));
     }
   }, [searchQuery, students]);
+
+  const calculateWeeklyActivity = (activityLog?: Record<string, number>): number => {
+    if (!activityLog) return 0;
+    const today = new Date();
+    let totalMinutes = 0;
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateString = d.toISOString().split('T')[0];
+        totalMinutes += activityLog[dateString] || 0;
+    }
+    return totalMinutes;
+  };
+
+  const groupedStudents = useMemo(() => {
+    return filteredStudents.reduce((acc, student) => {
+      const grade = student.grade || 'uni';
+      if (!acc[grade]) {
+        acc[grade] = [];
+      }
+      acc[grade].push(student);
+      return acc;
+    }, {} as Record<User['grade'], User[]>);
+  }, [filteredStudents]);
+
+  const gradeOrder: User['grade'][] = ['12', '11', '10', 'uni'];
 
   const handleSelectStudent = (student: User) => {
     setSelectedStudent(student);
@@ -118,7 +143,6 @@ const AdminStudentManager: React.FC = () => {
         }
 
         await dbService.saveUser(updatedUser);
-        // No need for loadStudents(), subscription handles it
         setMessage({ text: 'تم حفظ البيانات بنجاح ✅', type: 'success' });
         
         if (selectedStudent?.uid === 'new_entry') {
@@ -140,7 +164,6 @@ const AdminStudentManager: React.FC = () => {
     setMessage(null);
     try {
       await dbService.deleteUser(selectedStudent.uid);
-      // No need for loadStudents(), subscription handles it
       setMessage({ text: 'تم حذف الطالب بنجاح.', type: 'success' });
       setTimeout(handleCloseModal, 1500);
     } catch (e: any) {
@@ -154,7 +177,7 @@ const AdminStudentManager: React.FC = () => {
     <div className="font-['Tajawal'] text-right animate-fadeIn" dir="rtl">
         <div className="glass-panel p-8 rounded-[40px] border-white/5 bg-[#0a1118]/80 shadow-2xl">
             <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
-                <h2 className="text-3xl font-black text-white">إدارة <span className="text-[#fbbf24]">الطلاب</span></h2>
+                <h2 className="text-3xl font-black text-white">إدارة <span className="text-[#fbbf24]">الطلاب</span> ({students.length})</h2>
                 <button onClick={handleCreateNewMode} className="bg-[#fbbf24] text-black px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-all flex items-center gap-2">
                     <PlusCircle size={18} /> تسجيل طالب جديد
                 </button>
@@ -165,29 +188,46 @@ const AdminStudentManager: React.FC = () => {
                 <input type="text" placeholder="بحث باسم الطالب أو البريد الإلكتروني..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-3xl pr-14 pl-6 py-5 text-white outline-none focus:border-[#fbbf24] transition-all font-bold" />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredStudents.map(student => (
-                    <div key={student.uid} onClick={() => handleSelectStudent(student)} className="p-5 rounded-3xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer transition-all flex items-center gap-4 group">
-                        <div className="relative">
-                            <div className="w-14 h-14 rounded-2xl bg-black/40 p-1 border border-white/10 overflow-hidden">
-                                <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${student.uid}`} alt="avatar" />
-                            </div>
-                            {(() => {
-                                const isOnline = student.lastSeen && (new Date().getTime() - new Date(student.lastSeen).getTime()) < 3 * 60 * 1000;
+            <div className="space-y-8">
+                {gradeOrder.map(grade => groupedStudents[grade] && (
+                    <div key={grade}>
+                        <h3 className="text-xl font-bold text-white mb-4 border-r-4 border-[#fbbf24] pr-4">
+                            الصف {grade === 'uni' ? 'الجامعي' : grade} ({groupedStudents[grade].length})
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {groupedStudents[grade].map(student => {
+                                const weeklyMinutes = calculateWeeklyActivity(student.activityLog);
                                 return (
-                                    <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-[#0a1118] ${isOnline ? 'bg-emerald-500' : 'bg-gray-600'}`} title={isOnline ? 'متصل الآن' : `آخر ظهور: ${student.lastSeen ? new Date(student.lastSeen).toLocaleString('ar-KW') : 'غير معروف'}`}></div>
-                                );
-                            })()}
-                        </div>
+                                <div key={student.uid} onClick={() => handleSelectStudent(student)} className="p-5 rounded-3xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer transition-all flex items-center gap-4 group">
+                                    <div className="relative">
+                                        <div className="w-14 h-14 rounded-2xl bg-black/40 p-1 border border-white/10 overflow-hidden">
+                                            <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${student.uid}`} alt="avatar" />
+                                        </div>
+                                        {(() => {
+                                            const isOnline = student.lastSeen && (new Date().getTime() - new Date(student.lastSeen).getTime()) < 3 * 60 * 1000;
+                                            return (
+                                                <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-[#0a1118] ${isOnline ? 'bg-emerald-500' : 'bg-gray-600'}`} title={isOnline ? 'متصل الآن' : `آخر ظهور: ${student.lastSeen ? new Date(student.lastSeen).toLocaleString('ar-KW') : 'غير معروف'}`}></div>
+                                            );
+                                        })()}
+                                    </div>
 
-                        <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-white truncate">{student.name}</h4>
-                            <p className="text-[10px] text-gray-500 font-mono">الصف {student.grade}</p>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-bold text-white truncate">{student.name}</h4>
+                                        <div className="text-[10px] text-gray-500 font-mono flex items-center gap-1.5">
+                                            <span>الصف {student.grade}</span>
+                                            <span className="opacity-50">•</span>
+                                            <BarChart size={11} />
+                                            <span>{weeklyMinutes > 0 ? `${Math.round(weeklyMinutes)} د / 7 أيام` : 'غير نشط'}</span>
+                                        </div>
+                                    </div>
+                                    <div className={`w-2 h-2 rounded-full ${student.subscription === 'premium' ? 'bg-[#fbbf24] shadow-[0_0_10px_#fbbf24]' : 'bg-gray-700'}`}></div>
+                                </div>
+                            )})}
                         </div>
-                        <div className={`w-2 h-2 rounded-full ${student.subscription === 'premium' ? 'bg-[#fbbf24] shadow-[0_0_10px_#fbbf24]' : 'bg-gray-700'}`}></div>
                     </div>
                 ))}
             </div>
+
             {!isLoading && filteredStudents.length === 0 && (
                 <div className="py-20 text-center opacity-30 italic">لا يوجد طلاب مطابقين للبحث.</div>
             )}
