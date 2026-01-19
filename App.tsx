@@ -96,6 +96,29 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Presence and Activity Management
+  useEffect(() => {
+    let presenceInterval: ReturnType<typeof setInterval> | undefined;
+
+    const updateUserActivity = () => {
+      if (user && document.visibilityState === 'visible') {
+        dbService.updateUserPresenceAndActivity(user.uid, 2); // Log 2 minutes of activity
+      }
+    };
+
+    if (user) {
+      updateUserActivity(); // Initial update
+      presenceInterval = setInterval(updateUserActivity, 2 * 60 * 1000); // Update every 2 minutes
+      document.addEventListener('visibilitychange', updateUserActivity);
+    }
+
+    return () => {
+      if (presenceInterval) clearInterval(presenceInterval);
+      document.removeEventListener('visibilitychange', updateUserActivity);
+    };
+  }, [user]);
+
+
   useEffect(() => {
     const handleChangeView = (e: any) => {
       if (e.detail.view) setView(e.detail.view);

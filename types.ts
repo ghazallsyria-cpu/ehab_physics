@@ -224,6 +224,8 @@ export interface User {
   jobTitle?: string;
   linkedStudentUids?: string[];
   weeklyReports?: WeeklyReport[];
+  lastSeen?: string; // ISO date string for presence
+  activityLog?: Record<string, number>; // date (YYYY-MM-DD) -> minutes
 }
 
 

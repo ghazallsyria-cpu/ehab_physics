@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, StudyGoal, LeaderboardEntry } from '../types';
 import { dbService } from '../services/db';
 import { ArrowRight, Map } from 'lucide-react';
 import { CURRICULUM_DATA } from '../constants';
+import ActivityStats from './ActivityStats';
 
 const CommunityGoals: React.FC = () => {
     const [goals, setGoals] = useState<StudyGoal[]>([]);
@@ -154,6 +156,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
                  </div>
               </div>
            </div>
+           <div className="glass-panel p-8 rounded-[40px] border-white/5 animate-slideUp" style={{animationDelay: '0.3s'}}>
+              <h4 className="text-sm font-bold text-white mb-6 border-r-4 border-blue-500 pr-3">سجل النشاط</h4>
+              <ActivityStats activityLog={user.activityLog} />
+            </div>
          </div>
       </div>
       

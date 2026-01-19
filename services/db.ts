@@ -1,5 +1,5 @@
 
-import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, LiveSession, Question, Quiz } from "../types";
+import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, LiveSession, Question, Quiz, UserRole } from "../types";
 import { db } from "./firebase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, writeBatch, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { QUIZZES_DB, QUESTIONS_DB, CHALLENGES_DB, LEADERBOARD_DATA, STUDY_GOALS_DB } from "../constants";
@@ -149,6 +149,42 @@ class SyrianScienceCenterDB {
         await updateDoc(docRef, { units: this.cleanData(units) });
     }
   }
+
+  // --- Presence and User Management ---
+  async updateUserPresenceAndActivity(userId: string, durationInMinutes: number): Promise<void> {
+    if (!this.loggingSettings.logStudentProgress) return;
+    try {
+      this.checkDb();
+      const userRef = doc(db, 'users', userId);
+      
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const fieldPath = `activityLog.${today}`;
+
+      await updateDoc(userRef, {
+        lastSeen: new Date().toISOString(),
+        [fieldPath]: increment(durationInMinutes)
+      });
+    } catch (e) {
+      console.warn("Could not update user presence and activity:", e);
+    }
+  }
+
+  subscribeToUsers(callback: (users: User[]) => void, role?: UserRole) {
+    this.checkDb();
+    let q;
+    if (role) {
+      q = query(collection(db, "users"), where("role", "==", role));
+    } else {
+      q = collection(db, "users");
+    }
+    return onSnapshot(q, (snapshot) => {
+      const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }) as User);
+      callback(users);
+    }, (error) => {
+      console.error(`Subscription Error for role ${role || 'all'}:`, error);
+    });
+  }
+
 
   // --- Financial & Other methods ---
   async updateInvoiceStatus(id: string, status: PaymentStatus): Promise<void> {

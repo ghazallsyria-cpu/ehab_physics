@@ -7,15 +7,16 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   Search, User as UserIcon, Shield, MessageSquare, Trash2, Save, 
   PlusCircle, UserPlus, Briefcase, GraduationCap, CheckCircle,
-  FileText, Lock, RefreshCw, KeyRound, Mail, AlertCircle
+  FileText, Lock, RefreshCw, KeyRound, Mail, AlertCircle, BarChart
 } from 'lucide-react';
+import ActivityStats from './ActivityStats';
 
 const AdminTeacherManager: React.FC = () => {
   const [teachers, setTeachers] = useState<User[]>([]);
   const [filteredTeachers, setFilteredTeachers] = useState<User[]>([]);
   const [selectedTeacher, setSelectedTeacher] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'PROFILE' | 'PERMISSIONS' | 'MESSAGES'>('PROFILE');
+  const [activeTab, setActiveTab] = useState<'PROFILE' | 'PERMISSIONS' | 'MESSAGES' | 'ACTIVITY'>('PROFILE');
   const [messages, setMessages] = useState<TeacherMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
@@ -25,7 +26,13 @@ const AdminTeacherManager: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadTeachers();
+    setIsLoading(true);
+    const unsubscribe = dbService.subscribeToUsers((updatedTeachers) => {
+        setTeachers(updatedTeachers);
+        setIsLoading(false);
+    }, 'teacher');
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -41,16 +48,6 @@ const AdminTeacherManager: React.FC = () => {
       loadMessages(selectedTeacher.uid);
     }
   }, [selectedTeacher, activeTab]);
-
-  const loadTeachers = async () => {
-    setIsLoading(true);
-    try {
-        const data = await dbService.getTeachers();
-        setTeachers(data);
-        setFilteredTeachers(data);
-    } catch (e) {}
-    setIsLoading(false);
-  };
 
   const loadMessages = async (teacherId: string) => {
     const msgs = await dbService.getAllTeacherMessages(teacherId);
@@ -152,7 +149,7 @@ const AdminTeacherManager: React.FC = () => {
         }
 
         await dbService.saveUser(teacherToSave);
-        await loadTeachers();
+        // No need to loadTeachers, subscription will update state
         setSelectedTeacher(teacherToSave);
         setMessage({ text: 'تم حفظ بيانات المعلم بنجاح ✅', type: 'success' });
         setPassword('');
@@ -174,7 +171,6 @@ const AdminTeacherManager: React.FC = () => {
     try {
         await dbService.deleteUser(selectedTeacher.uid);
         setMessage({ text: 'تم حذف المعلم بنجاح', type: 'success' });
-        loadTeachers();
         setSelectedTeacher(null);
     } catch (e: any) {
         setMessage({ text: 'فشل حذف المعلم: ' + e.message, type: 'error' });
@@ -211,7 +207,12 @@ const AdminTeacherManager: React.FC = () => {
                                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg overflow-hidden ${selectedTeacher?.uid === teacher.uid ? 'bg-black/20' : 'bg-black/40'}`}>
                                     {teacher.photoURL ? <img src={teacher.photoURL} className="w-full h-full object-cover" /> : teacher.avatar}
                                 </div>
-                                <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0a1118] ${teacher.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                                {(() => {
+                                    const isOnline = teacher.lastSeen && (new Date().getTime() - new Date(teacher.lastSeen).getTime()) < 3 * 60 * 1000;
+                                    return (
+                                        <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 ${selectedTeacher?.uid === teacher.uid ? 'border-black/50' : 'border-[#0a1118]'} ${isOnline ? 'bg-emerald-500' : 'bg-gray-600'}`} title={isOnline ? 'متصل الآن' : `آخر ظهور: ${teacher.lastSeen ? new Date(teacher.lastSeen).toLocaleString('ar-KW') : 'غير معروف'}`}></div>
+                                    );
+                                })()}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h4 className="font-bold truncate text-sm">{teacher.name}</h4>
@@ -244,7 +245,7 @@ const AdminTeacherManager: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex gap-2 mb-8 overflow-x-auto no-scrollbar p-1">
-                        {[ {id: 'PROFILE', label: 'الملف الشخصي', icon: UserIcon}, {id: 'PERMISSIONS', label: 'الصلاحيات', icon: Lock}, {id: 'MESSAGES', label: 'المراسلات', icon: MessageSquare, disabled: selectedTeacher.uid === 'new_entry'} ].map(tab => (
+                        {[ {id: 'PROFILE', label: 'الملف الشخصي', icon: UserIcon}, {id: 'PERMISSIONS', label: 'الصلاحيات', icon: Lock}, {id: 'MESSAGES', label: 'المراسلات', icon: MessageSquare, disabled: selectedTeacher.uid === 'new_entry'}, {id: 'ACTIVITY', label: 'النشاط', icon: BarChart, disabled: selectedTeacher.uid === 'new_entry'} ].map(tab => (
                             <button key={tab.id} onClick={() => !tab.disabled && setActiveTab(tab.id as any)} disabled={tab.disabled} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${ tab.disabled ? 'opacity-30 cursor-not-allowed bg-transparent text-gray-600' : activeTab === tab.id ? 'bg-[#fbbf24] text-black shadow-lg shadow-[#fbbf24]/20' : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}>
                                 <tab.icon size={14} /> {tab.label}
                             </button>
@@ -290,6 +291,12 @@ const AdminTeacherManager: React.FC = () => {
                             </div>
                         )}
                         {activeTab === 'MESSAGES' && ( <div className="space-y-4 animate-slideUp max-h-[400px] overflow-y-auto no-scrollbar pr-2">{messages.length > 0 ? messages.map(msg => ( <div key={msg.id} className="p-6 bg-white/5 border border-white/5 rounded-3xl"> <div className="flex justify-between items-start mb-2"> <span className="text-sm font-bold text-[#00d2ff]">{msg.studentName}</span> <span className="text-[9px] text-gray-500 font-mono">{new Date(msg.timestamp).toLocaleDateString('ar-SY')}</span> </div> <p className="text-gray-300 text-xs leading-relaxed">{msg.content}</p> </div> )) : ( <div className="text-center py-20 opacity-30"> <MessageSquare className="w-12 h-12 mx-auto mb-2" /> <p className="text-xs font-bold">لا توجد رسائل</p> </div> )}</div> )}
+                        {activeTab === 'ACTIVITY' && (
+                            <div className="animate-slideUp">
+                                <h4 className="text-lg font-black text-white mb-6">سجل النشاط الزمني للمعلم</h4>
+                                <ActivityStats activityLog={editForm.activityLog} />
+                            </div>
+                        )}
                     </div>
                     <div className="absolute bottom-8 left-8 right-8 flex gap-4 border-t border-white/10 pt-6 bg-[#0a1118]/80 backdrop-blur-md rounded-b-[40px]">
                         {message && ( <div className={`flex-1 p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>

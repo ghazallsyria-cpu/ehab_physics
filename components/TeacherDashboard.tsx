@@ -4,6 +4,7 @@ import { User, LiveSession } from '../types';
 import { dbService } from '../services/db';
 import { Video, Calendar, Users, MessageSquare, Play, Settings } from 'lucide-react';
 import ZoomMeeting from './ZoomMeeting';
+import ActivityStats from './ActivityStats';
 
 const TeacherDashboard: React.FC<{ user: User }> = ({ user }) => {
   const [sessions, setSessions] = useState<LiveSession[]>([]);
@@ -133,6 +134,11 @@ const TeacherDashboard: React.FC<{ user: User }> = ({ user }) => {
                         </div>
                     ))}
                 </div>
+            </div>
+
+            <div className="glass-panel p-8 rounded-[40px] border-white/5">
+                <h3 className="text-lg font-black text-blue-400 mb-6 border-r-4 border-blue-400 pr-3">سجل النشاط</h3>
+                <ActivityStats activityLog={user.activityLog} />
             </div>
 
             <div className="glass-panel p-8 rounded-[40px] border-[#fbbf24]/20 bg-[#fbbf24]/5">

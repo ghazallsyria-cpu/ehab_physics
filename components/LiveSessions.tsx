@@ -13,19 +13,28 @@ interface LiveSessionsProps {
 
 const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
   const [sessions, setSessions] = useState<LiveSession[]>([]);
+  const [teachers, setTeachers] = useState<User[]>([]);
   const [activeZoomSession, setActiveZoomSession] = useState<LiveSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
-    const unsubscribe = dbService.subscribeToLiveSessions((updatedSessions) => {
+    const unsubscribeSessions = dbService.subscribeToLiveSessions((updatedSessions) => {
         setSessions(updatedSessions);
-        setIsLoading(false);
+        if (teachers.length > 0) setIsLoading(false);
         setError(null);
     });
-    return () => unsubscribe();
-  }, []);
+    const unsubscribeTeachers = dbService.subscribeToUsers((updatedTeachers) => {
+        setTeachers(updatedTeachers);
+        if (sessions.length > 0) setIsLoading(false);
+    }, 'teacher');
+
+    return () => {
+        unsubscribeSessions();
+        unsubscribeTeachers();
+    };
+  }, []); // Dependencies are not needed as subscriptions handle updates
 
   const handleJoinClick = (session: LiveSession) => {
     if (session.status !== 'live') {
@@ -145,43 +154,53 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
             </div>
         ) : sessions.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {sessions.map(session => (
-              <div 
-                  key={session.id} 
-                  className={`bg-[#0a1118]/80 border p-8 rounded-[40px] group transition-all flex flex-col relative overflow-hidden ${session.status === 'live' ? 'border-blue-500/40 shadow-[0_0_30px_rgba(59,130,246,0.1)]' : 'border-white/5 hover:border-white/10'}`}
-              >
-                  <div className="flex justify-between items-start mb-6">
-                      <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${session.status === 'live' ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-gray-400'}`}>
-                          {session.status === 'live' ? 'بث مباشر 🔴' : 'مجدولة 📅'}
-                      </span>
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${session.status === 'live' ? 'bg-blue-500 text-black' : 'bg-white/5 text-gray-500'}`}>
-                          {getPlatformIcon(session.platform)}
+              {sessions.map(session => {
+                const teacher = teachers.find(t => t.name === session.teacherName);
+                const isTeacherOnline = teacher?.lastSeen && (new Date().getTime() - new Date(teacher.lastSeen).getTime()) < 3 * 60 * 1000;
+                return (
+                  <div 
+                      key={session.id} 
+                      className={`bg-[#0a1118]/80 border p-8 rounded-[40px] group transition-all flex flex-col relative overflow-hidden ${session.status === 'live' ? 'border-blue-500/40 shadow-[0_0_30px_rgba(59,130,246,0.1)]' : 'border-white/5 hover:border-white/10'}`}
+                  >
+                      <div className="flex justify-between items-start mb-6">
+                          <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${session.status === 'live' ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-gray-400'}`}>
+                              {session.status === 'live' ? 'بث مباشر 🔴' : 'مجدولة 📅'}
+                          </span>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${session.status === 'live' ? 'bg-blue-500 text-black' : 'bg-white/5 text-gray-500'}`}>
+                              {getPlatformIcon(session.platform)}
+                          </div>
                       </div>
-                  </div>
-                  <div className="flex-1">
-                      <h4 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">{session.title}</h4>
-                      <p className="text-xs text-gray-500 font-bold mb-6 flex items-center gap-2"><UserIcon size={14}/> {session.teacherName}</p>
+                      <div className="flex-1">
+                          <h4 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">{session.title}</h4>
+                          <div className="text-xs text-gray-500 font-bold mb-6 flex items-center gap-2">
+                            <UserIcon size={14}/> 
+                            {session.teacherName}
+                            {isTeacherOnline !== undefined && (
+                              <span className={`w-2 h-2 rounded-full ml-1 ${isTeacherOnline ? 'bg-green-500' : 'bg-gray-600'}`} title={isTeacherOnline ? 'المعلم متصل الآن' : 'المعلم غير متصل'}></span>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-2 mb-6">
+                              <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                                  <BookOpen size={12}/>
+                                  <span className="font-black uppercase tracking-widest">{session.topic}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                                  <Calendar size={12}/>
+                                  <span className="font-black uppercase tracking-widest">{session.startTime}</span>
+                              </div>
+                          </div>
+                      </div>
+                      <div className="mt-4">
+                        {getJoinButton(session)}
+                      </div>
                       
-                      <div className="space-y-2 mb-6">
-                          <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                              <BookOpen size={12}/>
-                              <span className="font-black uppercase tracking-widest">{session.topic}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                              <Calendar size={12}/>
-                              <span className="font-black uppercase tracking-widest">{session.startTime}</span>
-                          </div>
-                      </div>
+                      {session.status === 'live' && (
+                        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+                      )}
                   </div>
-                  <div className="mt-4">
-                    {getJoinButton(session)}
-                  </div>
-                  
-                  {session.status === 'live' && (
-                    <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/10 rounded-full blur-[60px] pointer-events-none"></div>
-                  )}
-              </div>
-              ))}
+                );
+              })}
           </div>
         ) : (
           <div className="py-32 text-center glass-panel rounded-[50px] border-2 border-dashed border-white/10 opacity-60">

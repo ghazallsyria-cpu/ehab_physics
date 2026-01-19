@@ -8,6 +8,7 @@ import {
   Search, User as UserIcon, Zap, Save, RefreshCw, GraduationCap, 
   Mail, Phone, School, PlusCircle, X, KeyRound, Trash2, AlertCircle
 } from 'lucide-react';
+import ActivityStats from './ActivityStats';
 
 const AdminStudentManager: React.FC = () => {
   const [students, setStudents] = useState<User[]>([]);
@@ -22,8 +23,15 @@ const AdminStudentManager: React.FC = () => {
   const [editForm, setEditForm] = useState<Partial<User>>({});
 
   useEffect(() => {
-    loadStudents();
+    setIsLoading(true);
+    const unsubscribe = dbService.subscribeToUsers((updatedStudents) => {
+        setStudents(updatedStudents);
+        setIsLoading(false);
+    }, 'student');
+
+    return () => unsubscribe();
   }, []);
+
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -36,16 +44,6 @@ const AdminStudentManager: React.FC = () => {
       ));
     }
   }, [searchQuery, students]);
-
-  const loadStudents = async () => {
-    setIsLoading(true);
-    try {
-        const data = await dbService.getAllStudents();
-        setStudents(data);
-        setFilteredStudents(data);
-    } catch (e) {}
-    setIsLoading(false);
-  };
 
   const handleSelectStudent = (student: User) => {
     setSelectedStudent(student);
@@ -120,7 +118,7 @@ const AdminStudentManager: React.FC = () => {
         }
 
         await dbService.saveUser(updatedUser);
-        await loadStudents();
+        // No need for loadStudents(), subscription handles it
         setMessage({ text: 'تم حفظ البيانات بنجاح ✅', type: 'success' });
         
         if (selectedStudent?.uid === 'new_entry') {
@@ -142,7 +140,7 @@ const AdminStudentManager: React.FC = () => {
     setMessage(null);
     try {
       await dbService.deleteUser(selectedStudent.uid);
-      await loadStudents();
+      // No need for loadStudents(), subscription handles it
       setMessage({ text: 'تم حذف الطالب بنجاح.', type: 'success' });
       setTimeout(handleCloseModal, 1500);
     } catch (e: any) {
@@ -170,9 +168,18 @@ const AdminStudentManager: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredStudents.map(student => (
                     <div key={student.uid} onClick={() => handleSelectStudent(student)} className="p-5 rounded-3xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer transition-all flex items-center gap-4 group">
-                        <div className="w-14 h-14 rounded-2xl bg-black/40 p-1 border border-white/10 overflow-hidden">
-                            <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${student.uid}`} alt="avatar" />
+                        <div className="relative">
+                            <div className="w-14 h-14 rounded-2xl bg-black/40 p-1 border border-white/10 overflow-hidden">
+                                <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${student.uid}`} alt="avatar" />
+                            </div>
+                            {(() => {
+                                const isOnline = student.lastSeen && (new Date().getTime() - new Date(student.lastSeen).getTime()) < 3 * 60 * 1000;
+                                return (
+                                    <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-[#0a1118] ${isOnline ? 'bg-emerald-500' : 'bg-gray-600'}`} title={isOnline ? 'متصل الآن' : `آخر ظهور: ${student.lastSeen ? new Date(student.lastSeen).toLocaleString('ar-KW') : 'غير معروف'}`}></div>
+                                );
+                            })()}
                         </div>
+
                         <div className="flex-1 min-w-0">
                             <h4 className="font-bold text-white truncate">{student.name}</h4>
                             <p className="text-[10px] text-gray-500 font-mono">الصف {student.grade}</p>
@@ -231,6 +238,10 @@ const AdminStudentManager: React.FC = () => {
                         <button onClick={() => setEditForm({...editForm, subscription: 'free'})} className={`py-4 rounded-2xl font-bold transition-all border ${editForm.subscription === 'free' ? 'bg-white/10 border-white text-white' : 'bg-transparent border-white/10 text-gray-500'}`}>مجاني</button>
                         <button onClick={() => setEditForm({...editForm, subscription: 'premium'})} className={`py-4 rounded-2xl font-bold transition-all border ${editForm.subscription === 'premium' ? 'bg-[#fbbf24]/20 border-[#fbbf24] text-[#fbbf24]' : 'bg-transparent border-white/10 text-gray-500'}`}>بريميوم ⚡</button>
                     </div>
+                </div>
+                <div className="pt-6 border-t border-white/5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2 mb-4 block">إحصائيات النشاط</label>
+                    <ActivityStats activityLog={editForm.activityLog} />
                 </div>
             </div>
 
