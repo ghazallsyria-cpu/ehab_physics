@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { User, ViewState, Lesson, QuizAttempt, Curriculum, Invoice } from './types';
+import { User, ViewState, Lesson, QuizAttempt, Curriculum, Invoice, Quiz } from './types';
 import { dbService } from './services/db';
 import { Bell } from 'lucide-react';
 import { auth } from './services/firebase';
@@ -21,6 +22,7 @@ const AiTutor = lazy(() => import('./components/PhysicsChat'));
 const CurriculumBrowser = lazy(() => import('./components/CurriculumBrowser'));
 const LessonViewer = lazy(() => import('./components/LessonViewer'));
 const QuizCenter = lazy(() => import('./components/QuizCenter'));
+const QuizPlayer = lazy(() => import('./components/QuizPlayer'));
 const BillingCenter = lazy(() => import('./components/BillingCenter'));
 const PaymentCertificate = lazy(() => import('./components/PaymentCertificate'));
 const Forum = lazy(() => import('./components/Forum'));
@@ -53,6 +55,7 @@ const App: React.FC = () => {
   
   const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -124,6 +127,7 @@ const App: React.FC = () => {
       if (e.detail.view) setView(e.detail.view);
       if (e.detail.subject) setActiveSubject(e.detail.subject);
       if (e.detail.lesson) setActiveLesson(e.detail.lesson);
+      if (e.detail.quiz) setActiveQuiz(e.detail.quiz);
       
       setIsSidebarOpen(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -166,6 +170,7 @@ const App: React.FC = () => {
       case 'journey-map': return <PhysicsJourneyMap user={user} />;
       
       case 'quiz_center': return <QuizCenter user={user} onBack={() => setView('dashboard')} />;
+      case 'quiz_player': return activeQuiz ? <QuizPlayer user={user} quiz={activeQuiz} onFinish={() => { setView('quiz_center'); setActiveQuiz(null); }} /> : <QuizCenter user={user} onBack={() => setView('dashboard')} />;
 
       case 'discussions': return <Forum user={user} onAskAI={(q) => { setView('ai-chat'); }} />;
       
@@ -205,7 +210,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex relative overflow-hidden bg-geometric-pattern">
-      {view !== 'landing' && view !== 'privacy-policy' && user && (
+      {view !== 'landing' && view !== 'privacy-policy' && user && view !== 'quiz_player' && (
         <Sidebar 
           currentView={view} 
           setView={(v, s) => { setView(v); if(s) setActiveSubject(s); }} 
@@ -215,8 +220,8 @@ const App: React.FC = () => {
           onClose={() => setIsSidebarOpen(false)}
         />
       )}
-      <div className={`flex-1 flex flex-col ${view !== 'landing' && view !== 'privacy-policy' && user ? 'lg:mr-72' : ''} transition-all duration-500`}>
-        {view !== 'landing' && view !== 'privacy-policy' && user && (
+      <div className={`flex-1 flex flex-col ${view !== 'landing' && view !== 'privacy-policy' && user && view !== 'quiz_player' ? 'lg:mr-72' : ''} transition-all duration-500`}>
+        {view !== 'landing' && view !== 'privacy-policy' && user && view !== 'quiz_player' && (
           <header className="px-6 py-4 md:px-10 md:py-6 flex justify-between items-center glass-panel sticky top-0 z-40 backdrop-blur-xl border-b border-white/5 bg-blue-950/80">
             <div className="flex items-center gap-6">
               <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-white p-2 -ml-2">
@@ -240,7 +245,7 @@ const App: React.FC = () => {
             </div>
           </header>
         )}
-        <main className={`flex-1 ${view === 'landing' ? '' : 'p-4 md:p-10'} pb-safe`}>
+        <main className={`flex-1 ${view === 'landing' || view === 'quiz_player' ? '' : 'p-4 md:p-10'} pb-safe`}>
           <Suspense fallback={renderLoader()}>
             {renderContent()}
           </Suspense>

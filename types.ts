@@ -1,4 +1,5 @@
 
+
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions' | 'admin-quizzes';
 
@@ -125,6 +126,7 @@ export interface Answer {
 export interface StudentQuizAttempt {
   id: string;
   studentId: string;
+  studentName: string; // Added for easier display in admin panels
   quizId: string;
   score: number;
   totalQuestions: number;

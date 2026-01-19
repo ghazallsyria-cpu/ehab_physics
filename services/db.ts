@@ -1,4 +1,5 @@
 
+
 import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, LiveSession, Question, Quiz, UserRole } from "../types";
 import { db } from "./firebase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, writeBatch, orderBy, limit, onSnapshot } from "firebase/firestore";
@@ -412,6 +413,14 @@ class SyrianScienceCenterDB {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as StudentQuizAttempt);
   }
+
+  async getAttemptsForQuiz(quizId: string): Promise<StudentQuizAttempt[]> {
+    this.checkDb();
+    const q = query(collection(db, "attempts"), where("quizId", "==", quizId), orderBy("completedAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as StudentQuizAttempt);
+  }
+
 
   async getChallenges(): Promise<Challenge[]> {
     const snapshot = await getDocs(collection(db, 'challenges'));
