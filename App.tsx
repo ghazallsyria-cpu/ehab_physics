@@ -33,12 +33,12 @@ const HelpCenter = lazy(() => import('./components/HelpCenter'));
 const AdminCurriculumManager = lazy(() => import('./components/AdminCurriculumManager'));
 const AdminStudentManager = lazy(() => import('./components/AdminStudentManager'));
 const AdminTeacherManager = lazy(() => import('./components/AdminTeacherManager'));
-const AdminQuestionManager = lazy(() => import('./components/AdminQuestionManager'));
 const AdminFinancials = lazy(() => import('./components/AdminFinancials'));
 const QuizPerformance = lazy(() => import('./components/QuizPerformance'));
 const AdminSettings = lazy(() => import('./components/AdminSettings'));
 const PhysicsJourneyMap = lazy(() => import('./components/PhysicsJourneyMap'));
 const AdminLiveSessions = lazy(() => import('./components/AdminLiveSessions'));
+const AdminQuizManager = lazy(() => import('./components/AdminQuizManager'));
 
 
 const App: React.FC = () => {
@@ -163,9 +163,9 @@ const App: React.FC = () => {
       case 'help-center': return <HelpCenter />;
 
       case 'admin-curriculum': return <AdminCurriculumManager />;
+      case 'admin-quizzes': return <AdminQuizManager />;
       case 'admin-students': return <AdminStudentManager />;
       case 'admin-teachers': return <AdminTeacherManager />;
-      case 'admin-questions': return <AdminQuestionManager />;
       case 'admin-financials': return <AdminFinancials />;
       case 'admin-settings': return <AdminSettings />;
       case 'admin-live-sessions': return <AdminLiveSessions />;

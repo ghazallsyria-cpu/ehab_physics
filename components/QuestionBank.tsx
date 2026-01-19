@@ -32,7 +32,6 @@ interface QuestionBankProps {
 
 const QuestionBank: React.FC<QuestionBankProps> = ({ user, onExplainAI }) => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [selectedGrade, setSelectedGrade] = useState<string>(user?.grade || '12');
   const [showAnswerFor, setShowAnswerFor] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,25 +43,13 @@ const QuestionBank: React.FC<QuestionBankProps> = ({ user, onExplainAI }) => {
     setQuestions(data);
   };
 
-  const filteredQuestions = questions.filter(q => q.grade === selectedGrade);
+  const filteredQuestions = user ? questions.filter(q => q.grade === user.grade) : [];
 
   return (
     <div className="max-w-5xl mx-auto animate-fadeIn font-['Tajawal'] pb-20">
       <header className="mb-12 border-r-4 border-[#fbbf24] pr-8">
-        <h2 className="text-5xl font-black mb-4 tracking-tighter italic">بنك الأسئلة <span className="text-[#fbbf24]">الكويتي</span></h2>
+        <h2 className="text-5xl font-black mb-4 tracking-tighter italic">بنك أسئلة <span className="text-[#fbbf24]">الصف {user?.grade}</span></h2>
         <p className="text-gray-500 text-xl font-medium">أرشيف أسئلة المنهج الكويتي المرقمنة بذكاء اصطناعي تفاعلي.</p>
-        
-        <div className="flex gap-4 mt-8 overflow-x-auto no-scrollbar pb-2">
-          {['10', '11', '12', 'university'].map(g => (
-            <button 
-              key={g} 
-              onClick={() => setSelectedGrade(g)}
-              className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${selectedGrade === g ? 'bg-[#fbbf24] text-black shadow-lg shadow-[#fbbf24]/20' : 'bg-white/5 text-gray-500 hover:text-white'}`}
-            >
-              {g === 'university' ? 'الجامعة (Foundation)' : `صف ${g}`}
-            </button>
-          ))}
-        </div>
       </header>
 
       <div className="space-y-10">

@@ -22,8 +22,29 @@ const QuizCenter: React.FC<{ user: User; onBack: () => void }> = ({ user, onBack
   }, [user]);
 
   const loadQuizzes = async () => {
-    const data = dbService.getQuizzes();
-    setQuizzes(data);
+    setIsLoading(true);
+    // FIX: getQuizzes is now async.
+    const allQuizzes = await dbService.getQuizzes();
+    const allQuestions = await dbService.getAllQuestions();
+    
+    const questionGradeMap = new Map<string, string>();
+    allQuestions.forEach(q => {
+      if (q.grade) {
+        questionGradeMap.set(q.id, q.grade);
+      }
+    });
+
+    const gradeSpecificQuizzes = allQuizzes.filter(quiz => {
+      if (quiz.questionIds.length > 0) {
+        const firstQuestionId = quiz.questionIds[0];
+        const grade = questionGradeMap.get(firstQuestionId);
+        return grade === user.grade;
+      }
+      return false; // Don't show quizzes with no questions
+    });
+
+    setQuizzes(gradeSpecificQuizzes);
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -57,7 +78,8 @@ const QuizCenter: React.FC<{ user: User; onBack: () => void }> = ({ user, onBack
     }
 
     setIsLoading(true);
-    const quizQuestions = dbService.getQuestionsForQuiz(quiz.id);
+    // FIX: getQuestionsForQuiz is now async, so we need to await it.
+    const quizQuestions = await dbService.getQuestionsForQuiz(quiz.id);
     
     setQuestions(quizQuestions);
     setCurrentQuiz(quiz);
@@ -75,7 +97,7 @@ const QuizCenter: React.FC<{ user: User; onBack: () => void }> = ({ user, onBack
 
     let score = 0;
     questions.forEach(q => {
-      if (userAnswers[q.id] === q.correctAnswerId) score += (q.score || 1);
+      if (userAnswers[q.id] === q.correctChoiceId) score += (q.score || 1);
     });
     
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
@@ -160,7 +182,7 @@ const QuizCenter: React.FC<{ user: User; onBack: () => void }> = ({ user, onBack
         <div className="glass-panel p-12 rounded-[50px] border-white/10 mb-10 shadow-2xl">
            <div className="text-2xl font-bold leading-relaxed mb-10 text-right">{q.text}</div>
            <div className="grid grid-cols-1 gap-4">
-              {q.answers?.map((choice) => (
+              {q.choices?.map((choice) => (
                 <button key={choice.id} onClick={() => setUserAnswers({...userAnswers, [q.id]: choice.id})} className={`w-full text-right p-6 rounded-2xl border transition-all flex justify-between items-center ${userAnswers[q.id] === choice.id ? 'bg-[#fbbf24]/20 border-[#fbbf24] text-[#fbbf24]' : 'bg-white/5 border-white/5 hover:border-white/20'}`}>
                   <span className="font-bold text-lg">{choice.text}</span>
                   <div className={`w-6 h-6 rounded-full border-2 ${userAnswers[q.id] === choice.id ? 'bg-[#fbbf24] border-[#fbbf24]' : 'border-white/10'}`}></div>

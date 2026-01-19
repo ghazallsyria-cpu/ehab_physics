@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ViewState, User } from '../types';
 
@@ -67,7 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
             { id: 'admin-students', label: 'إدارة الطلاب', icon: '🎓' },
             { id: 'admin-teachers', label: 'إدارة المعلمين', icon: '👨‍🏫' },
             { id: 'admin-curriculum', label: 'إدارة المناهج', icon: '📚' },
-            { id: 'admin-questions', label: 'بنك الأسئلة', icon: '🧠' },
+            { id: 'admin-quizzes', label: 'إدارة الاختبارات', icon: '📝' },
             { id: 'admin-financials', label: 'الأمور المالية', icon: '💰' },
           ]}
         ];

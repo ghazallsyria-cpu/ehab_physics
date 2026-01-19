@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, QuizAttempt, Question } from '../types';
 import { dbService } from '../services/db';
@@ -59,7 +60,8 @@ const QuizPerformance: React.FC<QuizPerformanceProps> = ({ user }) => {
     attempts.forEach(attempt => {
       Object.entries(attempt.answers).forEach(([questionId, answerId]) => {
         const question = allQuestionsMap.get(questionId);
-        if (question && answerId !== question.correctAnswerId) {
+        // FIX: Use `correctChoiceId` to match the `Question` type definition.
+        if (question && answerId !== question.correctChoiceId) {
           const area = question.unit || 'General';
           wrongAnswers[area] = (wrongAnswers[area] || 0) + 1;
         }

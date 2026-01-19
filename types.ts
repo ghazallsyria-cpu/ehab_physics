@@ -1,6 +1,6 @@
 
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
-export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-questions' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions';
+export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions' | 'admin-quizzes';
 
 // --- 0. AI & Chat ---
 export interface Message {
@@ -78,44 +78,44 @@ export interface EducationalResource {
 export interface Quiz {
   id: string;
   title: string;
-  unitId: string;
+  description?: string;
+  grade: '10' | '11' | '12' | 'uni';
+  subject: SubjectType;
   questionIds: string[];
-  duration?: number;
-  totalScore?: number;
+  duration: number; // in minutes
+  totalScore: number;
   maxAttempts?: number;
   isPremium?: boolean;
-  minTimeRequired?: number;
 }
 
-export type QuestionType = 'mcq' | 'short_answer' | 'essay';
+export type QuestionType = 'mcq' | 'short_answer' | 'essay' | 'file_upload';
 export type QuestionDifficulty = 'Easy' | 'Medium' | 'Hard';
 export type SubjectType = 'Physics' | 'Math' | 'Chemistry' | 'English';
 export type BranchType = 'Scientific' | 'Literary';
 
 export interface Question {
-  id:string;
-  text: string;
+  id: string;
   type: QuestionType;
-  answers: Answer[];
-  correctAnswerId: string;
-  score?: number;
-  unit?: string;
-  grade?: string;
+  text: string;
+  imageUrl?: string;
+  choices?: { id: string; text: string }[];
+  correctChoiceId?: string;
+  modelAnswer?: string; // For short_answer/essay
+  score: number;
+  grade: '10' | '11' | '12' | 'uni';
+  subject: SubjectType;
+  unit: string;
+  category?: string;
+  difficulty?: QuestionDifficulty;
+  isVerified?: boolean;
+  // Deprecated fields from previous structure for compatibility, can be cleaned up later
   question_latex?: string;
   steps_array?: string[];
   common_errors?: string[];
-  isVerified?: boolean;
-  difficulty?: QuestionDifficulty;
-  category?: string;
-  subject?: SubjectType;
   branch?: BranchType;
-  hasDiagram?: boolean;
-  imageUrl?: string;
   solution?: string;
-  question_text?: string;
-  choices?: { key: string; text: string }[];
-  correct_answer?: string;
 }
+
 
 export interface Answer {
   id: string;
@@ -129,7 +129,7 @@ export interface StudentQuizAttempt {
   score: number;
   totalQuestions: number;
   completedAt: string;
-  answers: Record<string, string>; 
+  answers: Record<string, any>; 
   maxScore?: number;
   timeSpent?: number;
   attemptNumber?: number;
@@ -237,6 +237,8 @@ export interface WeeklyReport {
 }
 
 // --- 10. Live Sessions ---
+export type StreamingPlatform = 'zoom' | 'youtube' | 'other';
+
 export interface LiveSession {
   id: string;
   title: string;
@@ -244,9 +246,10 @@ export interface LiveSession {
   startTime: string; 
   status: 'live' | 'upcoming';
   topic: string;
-  zoomLink: string;
-  meetingId?: string;    // Added for SDK
-  passcode?: string;     // Added for SDK
+  platform: StreamingPlatform;
+  streamUrl: string;
+  meetingId?: string;    // For integrated Zoom SDK
+  passcode?: string;     // For integrated Zoom SDK
 }
 
 export interface PredictiveInsight {

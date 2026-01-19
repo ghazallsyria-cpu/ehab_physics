@@ -141,19 +141,21 @@ export const ANSWERS_DB: Answer[] = [
     { id: 'ans-3-1', text: '10 جول' }, { id: 'ans-3-2', text: '25 جول' }, { id: 'ans-3-3', text: '50 جول' },
 ];
 
+// FIX: Use `choices` and `correctChoiceId` to match the `Question` type definition.
 export const QUESTIONS_DB: Question[] = [
     { 
       id: 'q-1', 
       text: 'أي من التالي يزيد من القوة الدافعة الحثية المتولدة في ملف؟', 
       type: 'mcq', 
-      answers: ANSWERS_DB.slice(0, 3),
-      correctAnswerId: 'ans-1-1',
+      choices: ANSWERS_DB.slice(0, 3),
+      correctChoiceId: 'ans-1-1',
       isVerified: true,
       difficulty: 'Easy',
       unit: 'الكهرومغناطيسية',
       grade: '12',
       category: 'الحث',
       subject: 'Physics',
+      score: 1,
       solution: 'وفقاً لقانون فاراداي، القوة الدافعة الحثية تتناسب طرداً مع عدد اللفات (N) ومعدل تغير التدفق المغناطيسي. زيادة عدد اللفات تزيد من القوة الدافعة الحثية.',
       steps_array: [
         'نستدعي قانون فاراداي للحث: $$\\varepsilon = -N \\frac{\\Delta \\Phi_B}{\\Delta t}$$',
@@ -169,28 +171,30 @@ export const QUESTIONS_DB: Question[] = [
       id: 'q-2', 
       text: 'ما هو أحد مبادئ أينشتاين في النظرية النسبية الخاصة؟', 
       type: 'mcq', 
-      answers: ANSWERS_DB.slice(3, 6),
-      correctAnswerId: 'ans-2-3',
+      choices: ANSWERS_DB.slice(3, 6),
+      correctChoiceId: 'ans-2-3',
       isVerified: false,
       difficulty: 'Medium',
       unit: 'الفيزياء الحديثة',
       grade: '12',
       category: 'النسبية',
       subject: 'Physics',
+      score: 1,
       solution: 'ينص المبدأ الثاني للنسبية الخاصة على أن سرعة الضوء في الفراغ لها نفس القيمة لجميع المراقبين بغض النظر عن حركتهم.',
     },
     { 
       id: 'q-3-11', 
       text: 'جسم كتلته 2kg يتحرك بسرعة 5m/s. ما هي طاقته الحركية؟', 
       type: 'mcq', 
-      answers: ANSWERS_DB.slice(6, 9),
-      correctAnswerId: 'ans-3-2',
+      choices: ANSWERS_DB.slice(6, 9),
+      correctChoiceId: 'ans-3-2',
       isVerified: true,
       difficulty: 'Easy',
       unit: 'الميكانيكا',
       grade: '11',
       category: 'الطاقة',
       subject: 'Physics',
+      score: 1,
       solution: 'الطاقة الحركية (KE) تحسب من العلاقة $$K = \\frac{1}{2}mv^2$$. بالتعويض، نجد أن $$K = \\frac{1}{2} \\times 2 \\times 5^2 = 25$$ جول.',
       common_errors: ['نسيان تربيع السرعة.'],
     },
@@ -198,21 +202,23 @@ export const QUESTIONS_DB: Question[] = [
       id: 'q-4-10', 
       text: 'ما هي وحدة قياس القوة في النظام الدولي للوحدات (SI)؟', 
       type: 'short_answer', 
-      answers: [], // Short answer has no predefined answers
-      correctAnswerId: 'النيوتن', // For short answer, this might be the string to match
+      choices: [], // Short answer has no predefined answers
+      modelAnswer: 'النيوتن', // For short answer, this might be the string to match
       isVerified: true,
       difficulty: 'Easy',
       unit: 'القياس',
       grade: '10',
       category: 'أساسيات',
       subject: 'Physics',
+      score: 1,
       solution: 'وحدة قياس القوة هي النيوتن (N)، وتكريماً للعالم إسحاق نيوتن.',
     },
 ];
 
+// FIX: Removed `unitId` as it's not a property of the `Quiz` type.
 export const QUIZZES_DB: Quiz[] = [
-  { id: 'quiz-1', title: 'اختبار سريع في الحث الكهرومغناطيسي', unitId: 'u12-1', questionIds: ['q-1'] },
-  { id: 'quiz-2', title: 'اختبار مبادئ الفيزياء الحديثة', unitId: 'u12-2', questionIds: ['q-2'] },
+  { id: 'quiz-1', title: 'اختبار سريع في الحث الكهرومغناطيسي', grade: '12', subject: 'Physics', questionIds: ['q-1'], duration: 5, totalScore: 1 },
+  { id: 'quiz-2', title: 'اختبار مبادئ الفيزياء الحديثة', grade: '12', subject: 'Physics', questionIds: ['q-2'], duration: 5, totalScore: 1 },
 ];
 
 // --- 3. Financial System Data ---

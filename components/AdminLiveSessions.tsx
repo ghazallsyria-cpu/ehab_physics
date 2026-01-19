@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { LiveSession } from '../types';
 import { dbService } from '../services/db';
-import { Video, Plus, Trash2, Edit, Save, X, Calendar, User, BookOpen, Link as LinkIcon, RefreshCw, KeyRound, Hash } from 'lucide-react';
+import { Video, Plus, Trash2, Edit, Save, X, Calendar, User, BookOpen, Link as LinkIcon, RefreshCw, KeyRound, Hash, Youtube, Globe } from 'lucide-react';
 
 const AdminLiveSessions: React.FC = () => {
   const [sessions, setSessions] = useState<LiveSession[]>([]);
@@ -22,8 +22,8 @@ const AdminLiveSessions: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!editingSession?.title || !editingSession?.zoomLink) {
-        setMessage({ text: 'يرجى إكمال الحقول الأساسية (العنوان ورابط Zoom)', type: 'error' });
+    if (!editingSession?.title || !editingSession?.streamUrl) {
+        setMessage({ text: 'يرجى إكمال الحقول الأساسية (العنوان ورابط البث)', type: 'error' });
         return;
     }
 
@@ -45,6 +45,16 @@ const AdminLiveSessions: React.FC = () => {
     await dbService.deleteLiveSession(id);
     loadSessions();
   };
+  
+  const getPlatformIcon = (platform: LiveSession['platform']) => {
+    switch (platform) {
+      case 'youtube': return <Youtube size={12} className="text-red-500" />;
+      case 'other': return <Globe size={12} className="text-gray-400" />;
+      case 'zoom':
+      default:
+        return <Video size={12} className="text-blue-400" />;
+    }
+  };
 
   return (
     <div className="space-y-10 animate-fadeIn font-['Tajawal'] text-right" dir="rtl">
@@ -54,7 +64,7 @@ const AdminLiveSessions: React.FC = () => {
             <p className="text-gray-500 mt-2">قم بجدولة جلسات Zoom المباشرة وإضافة روابط البث للطلاب.</p>
         </div>
         <button 
-          onClick={() => setEditingSession({ title: '', teacherName: '', startTime: '', status: 'upcoming', topic: '', zoomLink: '', meetingId: '', passcode: '' })} 
+          onClick={() => setEditingSession({ title: '', teacherName: '', startTime: '', status: 'upcoming', topic: '', platform: 'zoom', streamUrl: '', meetingId: '', passcode: '' })} 
           className="bg-blue-500 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-all flex items-center gap-2"
         >
             <Plus size={18} /> إضافة جلسة جديدة
@@ -88,10 +98,10 @@ const AdminLiveSessions: React.FC = () => {
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center text-[10px] font-bold text-gray-600">
                     <span className="flex items-center gap-1"><Calendar size={12}/> {session.startTime}</span>
-                    {session.meetingId && <span className="flex items-center gap-1"><Hash size={10}/> {session.meetingId}</span>}
+                    <span className="flex items-center gap-1.5">{getPlatformIcon(session.platform)} {session.platform}</span>
                 </div>
                 <div className="mt-4 p-3 bg-black/40 rounded-xl border border-white/5 truncate">
-                    <p className="text-[9px] font-mono text-gray-500 flex items-center gap-2"><LinkIcon size={10}/> {session.zoomLink}</p>
+                    <p className="text-[9px] font-mono text-gray-500 flex items-center gap-2"><LinkIcon size={10}/> {session.streamUrl}</p>
                 </div>
             </div>
         ))}
@@ -114,39 +124,49 @@ const AdminLiveSessions: React.FC = () => {
                 <div className="space-y-6 max-h-[60vh] overflow-y-auto no-scrollbar px-2">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">عنوان البث</label>
-                        <input type="text" value={editingSession.title} onChange={e => setEditingSession({...editingSession, title: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="مثال: مراجعة الفيزياء النووية" />
+                        <input type="text" value={editingSession.title || ''} onChange={e => setEditingSession({...editingSession, title: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="مثال: مراجعة الفيزياء النووية" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">اسم المعلم</label>
-                            <input type="text" value={editingSession.teacherName} onChange={e => setEditingSession({...editingSession, teacherName: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="أ. فلان الفلاني" />
+                            <input type="text" value={editingSession.teacherName || ''} onChange={e => setEditingSession({...editingSession, teacherName: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="أ. فلان الفلاني" />
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">الموعد</label>
-                            <input type="text" value={editingSession.startTime} onChange={e => setEditingSession({...editingSession, startTime: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="اليوم 18:00" />
+                            <input type="text" value={editingSession.startTime || ''} onChange={e => setEditingSession({...editingSession, startTime: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="اليوم 18:00" />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2 flex items-center gap-2"><Hash size={10}/> Meeting ID</label>
-                            <input type="text" value={editingSession.meetingId} onChange={e => setEditingSession({...editingSession, meetingId: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="000 0000 000" />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2 flex items-center gap-2"><KeyRound size={10}/> Passcode</label>
-                            <input type="text" value={editingSession.passcode} onChange={e => setEditingSession({...editingSession, passcode: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="123456" />
-                        </div>
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">منصة البث</label>
+                        <select value={editingSession.platform || 'zoom'} onChange={e => setEditingSession({...editingSession, platform: e.target.value as any})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400">
+                            <option value="zoom">Zoom (مدمج وآمن)</option>
+                            <option value="youtube">YouTube Live</option>
+                            <option value="other">منصة خارجية أخرى</option>
+                        </select>
                     </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">رابط البث المباشر (URL)</label>
+                        <input type="text" value={editingSession.streamUrl || ''} onChange={e => setEditingSession({...editingSession, streamUrl: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400 ltr text-left" placeholder={editingSession.platform === 'youtube' ? 'https://youtube.com/live/...' : 'https://...'} />
+                    </div>
+                    {(!editingSession.platform || editingSession.platform === 'zoom') && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2 flex items-center gap-2"><Hash size={10}/> Meeting ID (للتشغيل المدمج)</label>
+                                <input type="text" value={editingSession.meetingId || ''} onChange={e => setEditingSession({...editingSession, meetingId: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="000 0000 000" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2 flex items-center gap-2"><KeyRound size={10}/> Passcode</label>
+                                <input type="text" value={editingSession.passcode || ''} onChange={e => setEditingSession({...editingSession, passcode: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="123456" />
+                            </div>
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">الموضوع</label>
-                        <input type="text" value={editingSession.topic} onChange={e => setEditingSession({...editingSession, topic: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="الفيزياء الذرية" />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">رابط Zoom (الاحتياطي)</label>
-                        <input type="text" value={editingSession.zoomLink} onChange={e => setEditingSession({...editingSession, zoomLink: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400 ltr text-left" placeholder="https://zoom.us/j/..." />
+                        <input type="text" value={editingSession.topic || ''} onChange={e => setEditingSession({...editingSession, topic: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" placeholder="الفيزياء الذرية" />
                     </div>
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-2">حالة البث</label>
-                        <select value={editingSession.status} onChange={e => setEditingSession({...editingSession, status: e.target.value as any})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400">
+                        <select value={editingSession.status || 'upcoming'} onChange={e => setEditingSession({...editingSession, status: e.target.value as any})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400">
                             <option value="upcoming">مجدول (قريباً)</option>
                             <option value="live">بث مباشر الآن</option>
                         </select>

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { LiveSession, User } from '../types';
 import { dbService } from '../services/db';
-import { Video, Calendar, User as UserIcon, BookOpen, RefreshCw, AlertCircle, PlayCircle, ExternalLink } from 'lucide-react';
+import { Video, Calendar, User as UserIcon, BookOpen, RefreshCw, AlertCircle, PlayCircle, ExternalLink, Youtube } from 'lucide-react';
 
 // Lazy load Zoom meeting
 const ZoomMeeting = lazy(() => import('./ZoomMeeting'));
@@ -28,15 +28,18 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
   }, []);
 
   const handleJoinClick = (session: LiveSession) => {
-    if (session.status === 'live') {
-        setActiveZoomSession(session);
-    } else {
+    if (session.status !== 'live') {
       alert('لم تبدأ هذه الجلسة بعد. سيتم تفعيل زر الانضمام عند بدء البث.');
+      return;
     }
-  };
 
-  const openDirectLink = (url: string) => {
-      window.open(url, '_blank');
+    if (session.platform === 'zoom' && session.meetingId) {
+      setActiveZoomSession(session);
+    } else if (session.streamUrl) {
+      window.open(session.streamUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      alert('رابط البث غير متوفر حالياً.');
+    }
   };
 
   if (activeZoomSession) {
@@ -52,12 +55,65 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
             passCode={activeZoomSession.passcode || ""} 
             userName={user.name} 
             userRole={user.role}
-            directLink={activeZoomSession.zoomLink}
+            directLink={activeZoomSession.streamUrl}
             onLeave={() => setActiveZoomSession(null)}
         />
       </Suspense>
     );
   }
+
+  const getPlatformIcon = (platform: LiveSession['platform']) => {
+    switch (platform) {
+      case 'youtube': return <Youtube size={20} />;
+      default: return <Video size={20} />;
+    }
+  };
+  
+  const getJoinButton = (session: LiveSession) => {
+    if (session.status !== 'live') {
+      return (
+        <button disabled className="w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-white/5 text-gray-600 cursor-default">
+          بانتظار بدء المعلم
+        </button>
+      );
+    }
+
+    if (session.platform === 'zoom') {
+      return (
+        <div className="flex flex-col gap-2">
+          <button 
+              onClick={() => handleJoinClick(session)}
+              className="w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-blue-500 text-white shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
+          >
+              <PlayCircle size={16}/> دخول الحصة المدمجة
+          </button>
+          {session.streamUrl && (
+              <button 
+                  onClick={() => window.open(session.streamUrl, '_blank', 'noopener,noreferrer')}
+                  className="w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-blue-400 border border-blue-500/20 hover:bg-blue-500/10 transition-all flex items-center justify-center gap-2"
+              >
+                  <ExternalLink size={12}/> فتح في تطبيق Zoom
+              </button>
+          )}
+        </div>
+      );
+    }
+    
+    if (session.platform === 'youtube') {
+       return (
+        <button onClick={() => handleJoinClick(session)} className="w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-red-600 text-white shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-3">
+          <Youtube size={16}/> مشاهدة على يوتيوب
+        </button>
+       );
+    }
+
+    return (
+      <button onClick={() => handleJoinClick(session)} className="w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-gray-500 text-white shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-3">
+        <ExternalLink size={16}/> الانضمام للجلسة
+      </button>
+    );
+  };
+
 
   return (
     <div className="max-w-6xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white">
@@ -99,7 +155,7 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
                           {session.status === 'live' ? 'بث مباشر 🔴' : 'مجدولة 📅'}
                       </span>
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${session.status === 'live' ? 'bg-blue-500 text-black' : 'bg-white/5 text-gray-500'}`}>
-                          <Video size={20}/>
+                          {getPlatformIcon(session.platform)}
                       </div>
                   </div>
                   <div className="flex-1">
@@ -117,21 +173,8 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
                           </div>
                       </div>
                   </div>
-                  <div className="mt-4 flex flex-col gap-2">
-                    <button 
-                        onClick={() => handleJoinClick(session)}
-                        className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${session.status === 'live' ? 'bg-blue-500 text-white shadow-lg hover:scale-[1.02]' : 'bg-white/5 text-gray-600 cursor-default'}`}
-                    >
-                        {session.status === 'live' ? <><PlayCircle size={16}/> دخول الحصة المدمجة</> : 'بانتظار بدء المعلم'}
-                    </button>
-                    {session.status === 'live' && session.zoomLink && (
-                        <button 
-                            onClick={() => openDirectLink(session.zoomLink)}
-                            className="w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-blue-400 border border-blue-500/20 hover:bg-blue-500/10 transition-all flex items-center justify-center gap-2"
-                        >
-                            <ExternalLink size={12}/> فتح في تطبيق Zoom
-                        </button>
-                    )}
+                  <div className="mt-4">
+                    {getJoinButton(session)}
                   </div>
                   
                   {session.status === 'live' && (

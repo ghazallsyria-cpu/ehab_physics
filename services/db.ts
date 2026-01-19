@@ -320,11 +320,45 @@ class SyrianScienceCenterDB {
   async saveQuestion(question: Partial<Question>): Promise<void> {
     await addDoc(collection(db, 'questions'), this.cleanData(question));
   }
+  
+  // FIX: Implement updateQuestion to modify an existing question.
+  async updateQuestion(questionId: string, questionData: Partial<Question>): Promise<void> {
+    this.checkDb();
+    await updateDoc(doc(db, 'questions', questionId), this.cleanData(questionData));
+  }
 
-  getQuizzes(): Quiz[] { return QUIZZES_DB; }
-  getQuestionsForQuiz(quizId: string): Question[] {
-    const quiz = QUIZZES_DB.find(q => q.id === quizId);
-    return quiz ? QUESTIONS_DB.filter(q => quiz.questionIds.includes(q.id)) : [];
+  // FIX: Make getQuizzes async and fetch from Firestore, with a fallback.
+  async getQuizzes(): Promise<Quiz[]> {
+    try {
+        const snapshot = await getDocs(collection(db, 'quizzes'));
+        if (snapshot.empty && QUIZZES_DB.length > 0) return QUIZZES_DB;
+        return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as Quiz);
+    } catch (e) {
+        return QUIZZES_DB;
+    }
+  }
+
+  // FIX: Implement saveQuiz to create/update quizzes in Firestore.
+  async saveQuiz(quiz: Quiz): Promise<void> {
+    this.checkDb();
+    const { id, ...data } = quiz;
+    await setDoc(doc(db, "quizzes", id), this.cleanData(data), { merge: true });
+  }
+
+  // FIX: Implement deleteQuiz to remove a quiz from Firestore.
+  async deleteQuiz(quizId: string): Promise<void> {
+    this.checkDb();
+    await deleteDoc(doc(db, "quizzes", quizId));
+  }
+
+  // FIX: Make getQuestionsForQuiz async to accommodate async data fetching.
+  async getQuestionsForQuiz(quizId: string): Promise<Question[]> {
+    const quizzes = await this.getQuizzes();
+    const quiz = quizzes.find(q => q.id === quizId);
+    if (!quiz) return [];
+    
+    const allQuestions = await this.getAllQuestions();
+    return allQuestions.filter(q => quiz.questionIds.includes(q.id));
   }
 
   async saveAttempt(attempt: StudentQuizAttempt) {

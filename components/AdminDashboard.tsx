@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Briefcase, Banknote, BrainCircuit, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ExternalLink, Copy, Check } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ExternalLink, Copy, Check, ClipboardList } from 'lucide-react';
 import { dbService } from '../services/db';
 
 const AdminDashboard: React.FC = () => {
@@ -40,10 +40,10 @@ service cloud.firestore {
 
   const adminTools = [
     { view: 'admin-curriculum', icon: BookOpen, title: 'إدارة المناهج', description: 'إضافة وتعديل الدروس والمحتوى التعليمي.' },
+    { view: 'admin-quizzes', icon: ClipboardList, title: 'إدارة الاختبارات', description: 'إنشاء وتعديل الاختبارات وبنوك الأسئلة.' },
     { view: 'admin-students', icon: Users, title: 'إدارة الطلاب', description: 'متابعة حسابات الطلاب، الاشتراكات، والتقدم.' },
     { view: 'admin-teachers', icon: Briefcase, title: 'إدارة المعلمين', description: 'إدارة صلاحيات المعلمين، الحسابات، والبيانات.' },
     { view: 'admin-live-sessions', icon: Video, title: 'إدارة البث المباشر', description: 'جدولة جلسات Zoom وإضافة روابط البث للطلاب.' },
-    { view: 'admin-questions', icon: BrainCircuit, title: 'بنك الأسئلة المركزي', description: 'رقمنة، فحص، واعتماد أسئلة الامتحانات.' },
     { view: 'admin-financials', icon: Banknote, title: 'الأمور المالية', description: 'مراقبة سجلات الدفع، الفواتير، والإحصائيات.' },
     { view: 'admin-settings', icon: Settings, title: 'إعدادات النظام', description: 'التحكم في تسجيل البيانات وسياسات الخصوصية.' },
   ];

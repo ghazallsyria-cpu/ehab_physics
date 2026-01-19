@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Review, User, TeacherMessage } from '../types';
 import { dbService } from '../services/db';
@@ -19,11 +20,18 @@ const TeacherDirectory: React.FC<TeacherDirectoryProps> = ({ user }) => {
 
   useEffect(() => {
     loadTeachers();
-  }, []);
+  }, [user]);
 
   const loadTeachers = async () => {
     const data = await dbService.getTeachers();
-    setTeachers(data);
+    if (user) {
+      const relevantTeachers = data.filter(teacher => 
+          teacher.gradesTaught?.includes(user.grade)
+      );
+      setTeachers(relevantTeachers);
+    } else {
+      setTeachers(data); // Show all if no user is logged in
+    }
   };
 
   const handleSelectTeacher = async (teacher: User) => {
