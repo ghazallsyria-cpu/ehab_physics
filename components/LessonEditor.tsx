@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lesson, ContentBlock, ContentBlockType } from '../types';
-import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio } from 'lucide-react';
+import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio, CheckCircle, AlertTriangle } from 'lucide-react';
 import YouTubePlayer from './YouTubePlayer';
 import { dbService } from '../services/db';
 
@@ -26,6 +26,8 @@ const extractYoutubeId = (url: string): string | null => {
 const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, subject, onSave, onCancel }) => {
   const [lesson, setLesson] = useState<Partial<Lesson>>(lessonData);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [showUrlInputFor, setShowUrlInputFor] = useState<Record<number, boolean>>({});
+
 
   const updateField = (field: keyof Lesson, value: any) => {
     setLesson(prev => ({ ...prev, [field]: value }));
@@ -120,17 +122,59 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
                 {block.type === 'text' ? (
                   <textarea value={block.content} onChange={e => updateBlock(index, {...block, content: e.target.value})} placeholder="اكتب الشرح هنا (يدعم Markdown والمعادلات)..." className="w-full h-32 bg-black/40 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-white/20"/>
                 ) : (block.type === 'image' || block.type === 'video' || block.type === 'pdf' || block.type === 'audio') ? (
-                  <div>
-                      <input 
-                          type="text" 
-                          value={block.content} 
-                          onChange={e => updateBlock(index, {...block, content: e.target.value})} 
-                          placeholder={`أدخل رابط أو ارفع ملف...`}
-                          className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-white/20 mb-2"
-                      />
-                      <label className="block w-full text-center py-3 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-lg cursor-pointer hover:bg-blue-500/20 transition-all border border-blue-500/20">
-                          {uploadingIndex === index ? 'جاري الرفع...' : `📂 رفع ملف (${block.type})`}
-                          <input 
+                  <div className="bg-black/20 p-4 rounded-lg border border-white/5">
+                    {(() => {
+                      const isUploaded = block.content && block.content.includes('firebasestorage.googleapis.com');
+                      const isExternalUrl = block.content && (block.content.startsWith('http') || block.content.startsWith('https')) && !isUploaded;
+
+                      if (isUploaded) {
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-green-400 text-xs font-bold p-2 bg-green-500/10 rounded-md border border-green-500/20">
+                              <CheckCircle size={14}/>
+                              <span>تم تخزين الملف في مستودع الموقع لضمان بقائه.</span>
+                            </div>
+                            <input type="text" value={block.content} readOnly className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white/50 text-sm font-mono"/>
+                            <button onClick={() => updateBlock(index, { ...block, content: '' })} className="text-red-500 text-xs font-bold hover:underline">إزالة واستبدال</button>
+                          </div>
+                        );
+                      }
+
+                      if (isExternalUrl) {
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-yellow-400 text-xs font-bold p-2 bg-yellow-500/10 rounded-md border border-yellow-500/20">
+                              <AlertTriangle size={14}/>
+                              <span>تحذير: قد يتوقف هذا الرابط الخارجي عن العمل مستقبلاً. يوصى برفع الملف مباشرة.</span>
+                            </div>
+                            <input type="text" value={block.content} onChange={e => updateBlock(index, { ...block, content: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white text-sm"/>
+                            <button onClick={() => updateBlock(index, { ...block, content: '' })} className="text-red-500 text-xs font-bold hover:underline">إزالة واستبدال</button>
+                          </div>
+                        );
+                      }
+                      
+                      if (showUrlInputFor[index]) {
+                        return (
+                          <div className="animate-fadeIn">
+                            <input
+                              type="text"
+                              placeholder="ألصق الرابط الخارجي هنا..."
+                              onBlur={(e) => {
+                                if (e.target.value) updateBlock(index, { ...block, content: e.target.value });
+                                setShowUrlInputFor(prev => ({ ...prev, [index]: false }));
+                              }}
+                              autoFocus
+                              className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white text-sm"
+                            />
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="flex gap-4">
+                          <label className="flex-1 block text-center py-6 bg-blue-500/10 text-blue-400 text-sm font-bold rounded-lg cursor-pointer hover:bg-blue-500/20 border-2 border-blue-500/30">
+                            {uploadingIndex === index ? 'جاري الرفع...' : `📂 رفع ملف (موصى به)`}
+                            <input 
                               type="file" 
                               accept={
                                   block.type === 'image' ? 'image/*' :
@@ -141,8 +185,17 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
                               className="hidden" 
                               onChange={(e) => e.target.files && handleFileUpload(index, e.target.files[0])}
                               disabled={uploadingIndex !== null}
-                          />
-                      </label>
+                            />
+                          </label>
+                          <button 
+                            onClick={() => setShowUrlInputFor(prev => ({ ...prev, [index]: true }))}
+                            className="flex-1 py-6 bg-white/5 text-gray-400 text-sm font-bold rounded-lg border-2 border-dashed border-white/20 hover:border-white/40"
+                          >
+                            🔗 استخدام رابط خارجي
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <input 

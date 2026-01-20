@@ -72,20 +72,27 @@ class SyrianScienceCenterDB {
   async listAssets(): Promise<Asset[]> {
     this.checkStorage();
     const listRef = ref(storage, 'assets/');
-    const res = await listAll(listRef);
-    const assetPromises = res.items.map(async (itemRef) => {
-      const [url, metadata] = await Promise.all([
-        getDownloadURL(itemRef),
-        getMetadata(itemRef)
-      ]);
-      return {
-        name: metadata.name,
-        url,
-        type: metadata.contentType || 'unknown',
-        size: metadata.size,
-      };
-    });
-    return Promise.all(assetPromises);
+    try {
+        const res = await listAll(listRef);
+        const assetPromises = res.items.map(async (itemRef) => {
+        const [url, metadata] = await Promise.all([
+            getDownloadURL(itemRef),
+            getMetadata(itemRef)
+        ]);
+        return {
+            name: metadata.name,
+            url,
+            type: metadata.contentType || 'unknown',
+            size: metadata.size,
+        };
+        });
+        return Promise.all(assetPromises);
+    } catch (e: any) {
+        if (e.code === 'storage/unauthorized') {
+            throw new Error('STORAGE_PERMISSION_DENIED');
+        }
+        throw e; // re-throw other errors
+    }
   }
 
   async deleteAsset(fileName: string): Promise<void> {
@@ -465,9 +472,12 @@ class SyrianScienceCenterDB {
   
   async getAttemptsForQuiz(quizId: string): Promise<StudentQuizAttempt[]> {
     this.checkDb();
-    const q = query(collection(db, 'quiz_attempts'), where('quizId', '==', quizId), orderBy('completedAt', 'desc'));
+    // Removed orderBy to avoid composite index requirement which might be failing.
+    const q = query(collection(db, 'quiz_attempts'), where('quizId', '==', quizId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as StudentQuizAttempt);
+    const attempts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as StudentQuizAttempt);
+    // Sorting is now handled on the client side.
+    return attempts.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
   }
 
   async getUserAttempts(userId: string, quizId?: string): Promise<StudentQuizAttempt[]> {

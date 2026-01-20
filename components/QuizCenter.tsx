@@ -58,7 +58,6 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const groupedQuizzes = useMemo(() => {
-    // FIX: Explicitly type the accumulator `acc` to resolve the `unknown` type error when using `Object.entries` later.
     // FIX: Explicitly typed the accumulator for the reduce function to ensure proper type inference for groupedQuizzes.
     return quizzes.reduce((acc: Record<string, Quiz[]>, quiz) => {
       const category = quiz.category || 'اختبارات عامة';
@@ -67,8 +66,7 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
       }
       acc[category].push(quiz);
       return acc;
-    // FIX: Cast initial value of reduce to the correct type to ensure proper type inference for groupedQuizzes.
-    }, {});
+    }, {} as Record<string, Quiz[]>);
   }, [quizzes]);
 
   return (

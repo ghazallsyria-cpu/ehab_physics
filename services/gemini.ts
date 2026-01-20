@@ -242,12 +242,10 @@ export const verifyQuestionQuality = async (
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const questionString = JSON.stringify({
-    // FIX: Use `text` instead of `question_text` to match the Question type.
+    // FIX: Use `text`, `choices`, and `correctChoiceId` to match the Question type.
     text: question.text,
     type: question.type,
-    // FIX: Use `choices` instead of `answers` to match the Question type.
     choices: question.choices,
-    // FIX: Use `correctChoiceId` to match the Question type.
     correctAnswer: question.correctChoiceId,
     solution: question.solution,
     difficulty: question.difficulty,

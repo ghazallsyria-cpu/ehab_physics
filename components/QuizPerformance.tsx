@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, QuizAttempt, Question } from '../types';
 import { dbService } from '../services/db';

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Question } from '../types';
 import { dbService } from '../services/db';
@@ -87,8 +88,8 @@ const QuestionBank: React.FC<QuestionBankProps> = ({ user, onExplainAI }) => {
             
             <div className="mb-10">
                <h4 className="text-2xl md:text-3xl font-bold leading-relaxed text-white mb-8">
-                 {/* Fix: fallback to 'text' if 'question_text' is missing */}
-                 {(q.question_text || q.text || "").split(/(\$.*?\$)/g).map((part, i) => i % 2 === 0 ? part : <MathRenderer key={i} content={part.slice(1, -1)} />)}
+                 {/* FIX: fallback to 'text' if 'question_text' is missing for backward compatibility */}
+                 {((q as any).question_text || q.text || "").split(/(\$.*?\$)/g).map((part, i) => i % 2 === 0 ? part : <MathRenderer key={i} content={part.slice(1, -1)} />)}
                </h4>
                {q.question_latex && (
                  <div className="bg-black/40 p-10 rounded-[45px] border border-white/5 mb-8 text-center shadow-inner">
@@ -97,10 +98,10 @@ const QuestionBank: React.FC<QuestionBankProps> = ({ user, onExplainAI }) => {
                )}
             </div>
 
-            {/* Fix: handle both 'choices' and 'answers' properties */}
-            {q.type === 'mcq' && (q.choices || (q.answers as any)) && (q.choices || (q.answers as any)).length > 0 && (
+            {/* FIX: handle both 'choices' and 'answers' properties for backward compatibility */}
+            {q.type === 'mcq' && (q.choices || (q as any).answers) && ((q.choices || (q as any).answers).length > 0) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-                 {(q.choices || (q.answers as any)).map((choice: any) => (
+                 {(q.choices || (q as any).answers).map((choice: any) => (
                    <div key={choice.key || choice.id} className="p-7 bg-white/[0.03] border border-white/5 rounded-[30px] flex items-center justify-between group/choice hover:bg-white/[0.06] transition-all">
                       <span className="font-bold text-gray-300 group-hover/choice:text-white transition-colors">{choice.text}</span>
                       <span className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center font-black text-[#fbbf24] shadow-inner">{choice.key || choice.id.split('-').pop()}</span>

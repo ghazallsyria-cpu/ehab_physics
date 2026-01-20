@@ -31,10 +31,8 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user, attempt }) => {
   const finalScore = useMemo(() => {
     if (attempt.status === 'manually-graded') {
       const autoScore = questions.filter(q => q.type === 'mcq' && attempt.answers[q.id] === q.correctChoiceId).reduce((sum, q) => sum + q.score, 0);
-      // FIX: Explicitly typed the `grade` parameter in the reduce function. `Object.values` can return `unknown[]`, so this clarifies the shape of each item for TypeScript.
-      // FIX: Explicitly typed the 'grade' parameter to resolve 'unknown' type error.
-      // FIX: Explicitly typed the 'grade' parameter to resolve the 'unknown' type error from Object.values().
-      const manualScore = Object.values(attempt.manualGrades || {}).reduce((sum, grade: { awardedScore: number; }) => sum + (grade.awardedScore || 0), 0);
+      // FIX: Removed unnecessary type annotation and @ts-ignore. Type inference should handle this correctly.
+      const manualScore = Object.values(attempt.manualGrades || {}).reduce((sum, grade) => sum + (grade.awardedScore || 0), 0);
       return autoScore + manualScore;
     }
     return attempt.score;

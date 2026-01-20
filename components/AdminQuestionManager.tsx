@@ -217,16 +217,16 @@ const AdminQuestionManager: React.FC = () => {
                         <span className="text-[#00d2ff] uppercase">{q.category}</span>
                      </div>
                      
-                     {/* Fix: fallback to 'text' if 'question_text' is missing */}
-                     <p className="text-lg font-bold text-white leading-relaxed">{q.question_text || q.text}</p>
+                     {/* FIX: fallback to 'text' if 'question_text' is missing to ensure compatibility */}
+                     <p className="text-lg font-bold text-white leading-relaxed">{(q as any).question_text || q.text}</p>
                      
                      <div className="grid grid-cols-2 gap-4">
-                        {/* Fix: handle both 'choices' and 'answers' properties */}
-                        {(q.choices || (q.answers as any)) && (q.choices || (q.answers as any)).length > 0 ? (
+                        {/* FIX: handle both 'choices' and 'answers' properties for backward compatibility */}
+                        {((q as any).choices || q.answers) && ((q as any).choices || q.answers).length > 0 ? (
                            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 col-span-2">
                              <p className="text-[8px] font-black text-gray-400 uppercase mb-2">الخيارات:</p>
                              <div className="grid grid-cols-2 gap-2">
-                               {(q.choices || (q.answers as any)).map((c: any) => <span key={c.key || c.id} className={`text-xs ${(c.key || c.id) === (q.correct_answer || q.correctAnswerId) ? 'text-green-400 font-bold' : 'text-gray-500'}`}>{c.key || c.id.split('-').pop()}) {c.text}</span>)}
+                               {((q as any).choices || q.answers).map((c: any) => <span key={c.key || c.id} className={`text-xs ${(c.key || c.id) === ((q as any).correct_answer || q.correctChoiceId) ? 'text-green-400 font-bold' : 'text-gray-500'}`}>{c.key || c.id.split('-').pop()}) {c.text}</span>)}
                              </div>
                            </div>
                         ) : null}
