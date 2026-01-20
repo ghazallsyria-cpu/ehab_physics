@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { User } from '../types';
 import { Sun, Calendar, BookOpen } from 'lucide-react';
@@ -24,7 +25,6 @@ const ActivityStats: React.FC<ActivityStatsProps> = ({ activityLog }) => {
   
   const monthlyMinutes = Object.entries(activityLog || {})
     .filter(([date]) => date.startsWith(thisMonth))
-    // FIX: Operator '+' cannot be applied to types 'number' and 'unknown'.
     .reduce((sum, [, minutes]) => sum + Number(minutes), 0);
 
   // Approximate term as last 3 months
@@ -35,7 +35,6 @@ const ActivityStats: React.FC<ActivityStatsProps> = ({ activityLog }) => {
   });
   const termMinutes = Object.entries(activityLog || {})
     .filter(([date]) => termMonths.includes(date.substring(0, 7)))
-    // FIX: Operator '+' cannot be applied to types 'number' and 'unknown'.
     .reduce((sum, [, minutes]) => sum + Number(minutes), 0);
 
   const stats = [

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Quiz, Question, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
-import { UploadCloud, Check, X, ArrowRight, ArrowLeft } from 'lucide-react';
+import { UploadCloud, Check, X, ArrowRight, ArrowLeft, AlertTriangle } from 'lucide-react';
 import katex from 'katex';
 
 interface QuizPlayerProps {
@@ -22,6 +22,7 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
 
   useEffect(() => {
     const loadQuestions = async () => {
+      setIsLoading(true);
       const quizQuestions = await dbService.getQuestionsForQuiz(quiz.id);
       setQuestions(quizQuestions);
       setIsLoading(false);
@@ -30,7 +31,7 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
   }, [quiz.id]);
 
   useEffect(() => {
-    if (!isFinished && timeLeft > 0) {
+    if (!isFinished && timeLeft > 0 && !isLoading) {
       const timer = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -43,18 +44,23 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [isFinished, timeLeft]);
+  }, [isFinished, timeLeft, isLoading]);
 
   const handleSubmit = async () => {
+    if (isFinished) return;
+    setIsFinished(true); // Prevent double submission
+
     let score = 0;
     questions.forEach(q => {
       if (q.type === 'mcq' && userAnswers[q.id] === q.correctChoiceId) {
-        score += q.score || 1;
+        score += q.score || 0;
       }
     });
 
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
     const userAttempts = await dbService.getUserAttempts(user.uid, quiz.id);
+
+    const hasManualQuestions = questions.some(q => q.type !== 'mcq');
 
     const attempt: StudentQuizAttempt = {
       id: `attempt_${Date.now()}`,
@@ -68,15 +74,16 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
       answers: userAnswers,
       timeSpent: timeSpent,
       attemptNumber: userAttempts.length + 1,
+      status: hasManualQuestions ? 'pending-review' : 'auto-graded',
     };
 
     await dbService.saveAttempt(attempt);
     setFinalAttempt(attempt);
-    setIsFinished(true);
   };
 
   const renderMathText = (text: string) => {
     try {
+      if (!text) return <div></div>;
       const html = text.replace(/\$(.*?)\$/g, (match, math) => katex.renderToString(math, { throwOnError: false }));
       return <div dangerouslySetInnerHTML={{ __html: html }} />;
     } catch {
@@ -88,12 +95,33 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
     return <div className="fixed inset-0 bg-[#0A2540] flex items-center justify-center text-white font-bold animate-pulse">جاري تحضير الاختبار...</div>;
   }
   
+  if (!isLoading && questions.length === 0) {
+    return (
+        <div className="fixed inset-0 bg-[#0A2540] flex flex-col items-center justify-center text-white text-center p-8 font-['Tajawal']" dir="rtl">
+            <div className="glass-panel p-12 rounded-[50px] border-red-500/20 bg-red-500/5">
+                <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-6" />
+                <h2 className="text-3xl font-black mb-4">خطأ في تحميل الاختبار</h2>
+                <p className="text-gray-400 mb-8">عذراً، هذا الاختبار لا يحتوي على أسئلة في الوقت الحالي. قد يكون المعلم لا يزال في مرحلة الإعداد.</p>
+                <button onClick={onFinish} className="bg-red-500 text-white px-10 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 transition-all">العودة لمركز الاختبارات</button>
+            </div>
+        </div>
+    );
+  }
+  
   if(isFinished && finalAttempt) {
+    const hasPendingReview = finalAttempt.status === 'pending-review';
     return (
         <div className="min-h-screen bg-geometric-pattern p-4 md:p-10 font-['Tajawal'] text-white" dir="rtl">
             <div className="max-w-4xl mx-auto">
                 <div className="glass-panel p-10 md:p-16 rounded-[60px] border-white/5 bg-black/40 text-center mb-8">
-                    <h2 className="text-4xl font-black mb-4">النتيجة النهائية</h2>
+                    <h2 className="text-4xl font-black mb-4">تم تسليم الاختبار بنجاح!</h2>
+                    
+                    {hasPendingReview && (
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 p-4 rounded-2xl text-sm font-bold mb-6">
+                        هذه هي نتيجتك الأولية. بعض الأسئلة تتطلب تصحيحاً يدوياً من قبل المعلم، وسيتم تحديث درجتك النهائية قريباً.
+                      </div>
+                    )}
+                    
                     <p className="text-8xl font-black text-[#fbbf24] mb-4 tabular-nums">{finalAttempt.score} / {finalAttempt.maxScore}</p>
                     <button onClick={onFinish} className="bg-[#fbbf24] text-black px-10 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 transition-all">العودة لمركز الاختبارات</button>
                 </div>
@@ -102,10 +130,16 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
                     <h3 className="text-2xl font-bold text-center">مراجعة الإجابات</h3>
                     {questions.map((q, idx) => {
                         const userAnswer = finalAttempt.answers[q.id];
-                        const isCorrect = userAnswer === q.correctChoiceId;
+                        const isCorrect = q.type === 'mcq' ? userAnswer === q.correctChoiceId : null; // null for non-mcq
+                        
+                        let borderClass = 'border-white/10';
+                        if (isCorrect === true) borderClass = 'border-green-500/30';
+                        if (isCorrect === false) borderClass = 'border-red-500/30';
+
                         return (
-                            <div key={q.id} className={`glass-panel p-8 rounded-[40px] border-2 ${isCorrect ? 'border-green-500/20' : 'border-red-500/20'}`}>
+                            <div key={q.id} className={`glass-panel p-8 rounded-[40px] ${borderClass}`}>
                                 <p className="text-lg font-bold mb-4">({idx + 1}) {renderMathText(q.text)}</p>
+                                
                                 {q.type === 'mcq' && q.choices?.map(choice => {
                                     const isUserChoice = userAnswer === choice.id;
                                     const isCorrectChoice = q.correctChoiceId === choice.id;
@@ -114,12 +148,20 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
                                     if (isUserChoice && !isCorrectChoice) choiceClass = 'bg-red-500/10 border-red-500/20 text-red-400';
 
                                     return (
-                                        <div key={choice.id} className={`p-4 rounded-2xl border ${choiceClass} flex items-center gap-4`}>
+                                        <div key={choice.id} className={`p-4 mb-2 rounded-2xl border ${choiceClass} flex items-center gap-4`}>
                                             {isUserChoice ? '👈' : isCorrectChoice ? '✅' : '⚪️'}
                                             <span>{choice.text}</span>
                                         </div>
                                     )
                                 })}
+                                
+                                {q.type !== 'mcq' && (
+                                    <div className="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/20">
+                                        <p className="text-xs text-blue-400 font-bold mb-2">إجابتك:</p>
+                                        <p className="text-white italic">{userAnswer || "لم تتم الإجابة"}</p>
+                                    </div>
+                                )}
+
                                 <div className="mt-4 pt-4 border-t border-white/10 text-xs text-gray-400 italic">
                                     <p><span className="font-bold text-green-400">الشرح:</span> {q.solution || 'لا يوجد شرح متوفر.'}</p>
                                 </div>
@@ -177,6 +219,14 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
                                     }}/>
                                 </label>
                             </div>
+                         )}
+                         {(currentQuestion.type === 'short_answer' || currentQuestion.type === 'essay') && (
+                            <textarea
+                                value={userAnswers[currentQuestion.id] || ''}
+                                onChange={e => setUserAnswers({...userAnswers, [currentQuestion.id]: e.target.value})}
+                                placeholder="اكتب إجابتك هنا..."
+                                className="w-full h-40 bg-black/40 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-[#fbbf24]"
+                            />
                          )}
                     </div>
                 </div>
