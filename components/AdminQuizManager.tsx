@@ -4,6 +4,7 @@
 
 
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Quiz, Question, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
@@ -67,6 +68,7 @@ const AdminQuizManager: React.FC = () => {
     const autoScore = quizQuestions.filter(q => q.type === 'mcq' && reviewingAttempt.answers[q.id] === q.correctChoiceId).reduce((sum, q) => sum + (q.score || 0), 0);
     // FIX: Explicitly type the 'grade' parameter in the reduce function to resolve the 'unknown' type error.
     // FIX: Explicitly typing the 'grade' parameter ensures TypeScript can infer its properties, resolving the addition error.
+    // Fix for: Operator '+' cannot be applied to types 'unknown' and 'number'.
     const manualScore = Object.values(manualGrades).reduce((sum, grade: { awardedScore: number; }) => sum + (grade.awardedScore || 0), 0);
     const finalScore = autoScore + manualScore;
 

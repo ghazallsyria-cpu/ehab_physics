@@ -4,6 +4,7 @@
 
 
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Quiz, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
@@ -66,6 +67,7 @@ const QuizCenter: React.FC<{ user: User; onBack: () => void }> = ({ user, onBack
   const groupedQuizzes = useMemo(() => {
     // FIX: Explicitly type the accumulator in the reduce function to resolve the 'unknown' type error on `map`.
     // FIX: Explicitly typing the accumulator for the reduce function ensures TypeScript understands its shape, resolving the error.
+    // Fix for: Property 'map' does not exist on type 'unknown'.
     return quizzes.reduce((acc: Record<string, Quiz[]>, quiz) => {
       const category = quiz.category || 'اختبارات عامة';
       if (!acc[category]) {
