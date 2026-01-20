@@ -155,14 +155,22 @@ const App: React.FC = () => {
       );
     }
     
+    const fallbackSpinner = (
+        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-[#0A2540] to-[#010304]">
+            <div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+    );
+
     if (!user) {
-        switch (view) {
-            case 'landing':
-                return <LandingPage onStart={() => setView('dashboard')} />;
-            default:
-                // If not logged in and not on landing, show Auth
-                return <Auth onLogin={handleLogin} onBack={() => setView('landing')} />;
-        }
+        return (
+            <Suspense fallback={fallbackSpinner}>
+                {view === 'landing' ? (
+                    <LandingPage onStart={() => setView('dashboard')} />
+                ) : (
+                    <Auth onLogin={handleLogin} onBack={() => setView('landing')} />
+                )}
+            </Suspense>
+        );
     }
 
     // User is logged in

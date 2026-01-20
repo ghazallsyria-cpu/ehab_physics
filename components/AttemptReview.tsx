@@ -1,10 +1,3 @@
-
-
-
-
-
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, StudentQuizAttempt, Quiz, Question } from '../types';
 import { dbService } from '../services/db';
@@ -42,6 +35,7 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user, attempt, onBack }) 
       // FIX: Explicitly type the 'grade' parameter in the reduce function to resolve the 'unknown' type error.
       // FIX: Explicitly typing the 'grade' parameter ensures TypeScript can infer its properties, resolving the addition error.
       // Fix for: Operator '+' cannot be applied to types 'unknown' and 'number'.
+      // FIX: Explicitly type the 'grade' parameter to resolve the TS error.
       const manualScore = Object.values(attempt.manualGrades || {}).reduce((sum, grade: { awardedScore: number; }) => sum + (grade.awardedScore || 0), 0);
       return autoScore + manualScore;
     }
