@@ -1,6 +1,6 @@
 
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
-export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions' | 'admin-quizzes' | 'attempt_review';
+export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'gamification' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions' | 'admin-quizzes' | 'attempt_review' | 'admin-content';
 
 // --- 0. AI & Chat ---
 export interface Message {
@@ -436,4 +436,16 @@ export interface TeacherMessage {
     content: string;
     timestamp: string;
     isRedacted: boolean;
+}
+
+export interface HomePageContent {
+  id: string;
+  type: 'news' | 'alert' | 'announcement' | 'image';
+  title: string;
+  content: string;
+  imageUrl?: string;
+  ctaText?: string;
+  ctaLink?: ViewState;
+  createdAt: string;
+  priority: 'high' | 'normal';
 }

@@ -1,5 +1,5 @@
 
-import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, LiveSession, Question, Quiz, UserRole } from "../types";
+import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, LiveSession, Question, Quiz, UserRole, HomePageContent } from "../types";
 import { db } from "./firebase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, writeBatch, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { QUIZZES_DB, QUESTIONS_DB, CHALLENGES_DB, LEADERBOARD_DATA, STUDY_GOALS_DB } from "../constants";
@@ -148,6 +148,32 @@ class SyrianScienceCenterDB {
         const units = (data.units || []).filter(u => u.id !== unitId);
         await updateDoc(docRef, { units: this.cleanData(units) });
     }
+  }
+
+  // --- Homepage Content Management ---
+  async getHomePageContent(): Promise<HomePageContent[]> {
+    this.checkDb();
+    const q = query(collection(db, "homepage_content"), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as HomePageContent);
+  }
+  
+  async saveHomePageContent(contentItem: Partial<HomePageContent>): Promise<string> {
+    this.checkDb();
+    const isNew = !contentItem.id;
+    const docRef = isNew ? doc(collection(db, "homepage_content")) : doc(db, "homepage_content", contentItem.id!);
+    const dataToSave = {
+      ...contentItem,
+      createdAt: contentItem.createdAt || new Date().toISOString(),
+    };
+    delete dataToSave.id;
+    await setDoc(docRef, this.cleanData(dataToSave), { merge: true });
+    return docRef.id;
+  }
+  
+  async deleteHomePageContent(id: string): Promise<void> {
+    this.checkDb();
+    await deleteDoc(doc(db, "homepage_content", id));
   }
 
   // --- Presence and User Management ---

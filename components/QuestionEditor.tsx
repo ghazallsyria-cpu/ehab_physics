@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Question, QuestionType, SubjectType } from '../types';
 import { X, Plus, Trash2, Image as ImageIcon, Type, FileUp, MessageSquare } from 'lucide-react';
@@ -62,7 +63,10 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ question: initialQuesti
             </div>
 
             <textarea value={question.text || ''} onChange={e => updateField('text', e.target.value)} placeholder="نص السؤال..." className="w-full h-32 bg-black/20 border border-white/10 rounded-lg p-4 text-white outline-none focus:border-[#fbbf24]"/>
-            <input type="text" placeholder="رابط صورة توضيحية (اختياري)" value={question.imageUrl || ''} onChange={e => updateField('imageUrl', e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-[#fbbf24] text-sm"/>
+            <div className="flex gap-4 items-center">
+                <input type="text" placeholder="رابط صورة توضيحية (اختياري)" value={question.imageUrl || ''} onChange={e => updateField('imageUrl', e.target.value)} className="flex-1 bg-black/20 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-[#fbbf24] text-sm"/>
+                {question.imageUrl && <img src={question.imageUrl} alt="preview" className="w-16 h-16 object-cover rounded-lg border border-white/10"/>}
+            </div>
 
             {question.type === 'mcq' && (
                 <div className="space-y-3">

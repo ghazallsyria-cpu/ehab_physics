@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Quiz, Question, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
@@ -50,31 +51,22 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
     if (isFinished) return;
     setIsFinished(true); // Prevent double submission
 
-    let score = 0;
-    questions.forEach(q => {
-      if (q.type === 'mcq' && userAnswers[q.id] === q.correctChoiceId) {
-        score += q.score || 0;
-      }
-    });
-
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
     const userAttempts = await dbService.getUserAttempts(user.uid, quiz.id);
-
-    const hasManualQuestions = questions.some(q => q.type !== 'mcq');
 
     const attempt: StudentQuizAttempt = {
       id: `attempt_${Date.now()}`,
       studentId: user.uid,
       studentName: user.name,
       quizId: quiz.id,
-      score: score,
+      score: 0, // Initial score is 0, will be graded by teacher
       totalQuestions: questions.length,
       maxScore: quiz.totalScore || questions.reduce((s, q) => s + q.score, 0),
       completedAt: new Date().toISOString(),
       answers: userAnswers,
       timeSpent: timeSpent,
       attemptNumber: userAttempts.length + 1,
-      status: hasManualQuestions ? 'pending-review' : 'auto-graded',
+      status: 'pending-review', // Always pending review
     };
 
     await dbService.saveAttempt(attempt);
@@ -109,65 +101,16 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
   }
   
   if(isFinished && finalAttempt) {
-    const hasPendingReview = finalAttempt.status === 'pending-review';
     return (
-        <div className="min-h-screen bg-geometric-pattern p-4 md:p-10 font-['Tajawal'] text-white" dir="rtl">
-            <div className="max-w-4xl mx-auto">
-                <div className="glass-panel p-10 md:p-16 rounded-[60px] border-white/5 bg-black/40 text-center mb-8">
-                    <h2 className="text-4xl font-black mb-4">تم تسليم الاختبار بنجاح!</h2>
-                    
-                    {hasPendingReview && (
-                      <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 p-4 rounded-2xl text-sm font-bold mb-6">
-                        هذه هي نتيجتك الأولية. بعض الأسئلة تتطلب تصحيحاً يدوياً من قبل المعلم، وسيتم تحديث درجتك النهائية قريباً.
-                      </div>
-                    )}
-                    
-                    <p className="text-8xl font-black text-[#fbbf24] mb-4 tabular-nums">{finalAttempt.score} / {finalAttempt.maxScore}</p>
+        <div className="min-h-screen bg-geometric-pattern p-4 md:p-10 font-['Tajawal'] text-white flex items-center justify-center" dir="rtl">
+            <div className="max-w-2xl mx-auto">
+                <div className="glass-panel p-10 md:p-16 rounded-[60px] border-white/5 bg-black/40 text-center animate-fadeIn">
+                    <div className="w-24 h-24 bg-green-500/10 border-2 border-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-8 text-5xl">
+                       ✓
+                    </div>
+                    <h2 className="text-4xl font-black mb-4">تم تسليم إجاباتك بنجاح!</h2>
+                    <p className="text-gray-400 mb-8 max-w-md mx-auto">سيقوم المعلم بتصحيح الاختبار وإعلامك بالنتيجة النهائية قريباً. سيصلك إشعار عند اكتمال التصحيح.</p>
                     <button onClick={onFinish} className="bg-[#fbbf24] text-black px-10 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 transition-all">العودة لمركز الاختبارات</button>
-                </div>
-
-                <div className="space-y-6">
-                    <h3 className="text-2xl font-bold text-center">مراجعة الإجابات</h3>
-                    {questions.map((q, idx) => {
-                        const userAnswer = finalAttempt.answers[q.id];
-                        const isCorrect = q.type === 'mcq' ? userAnswer === q.correctChoiceId : null; // null for non-mcq
-                        
-                        let borderClass = 'border-white/10';
-                        if (isCorrect === true) borderClass = 'border-green-500/30';
-                        if (isCorrect === false) borderClass = 'border-red-500/30';
-
-                        return (
-                            <div key={q.id} className={`glass-panel p-8 rounded-[40px] ${borderClass}`}>
-                                <p className="text-lg font-bold mb-4">({idx + 1}) {renderMathText(q.text)}</p>
-                                
-                                {q.type === 'mcq' && q.choices?.map(choice => {
-                                    const isUserChoice = userAnswer === choice.id;
-                                    const isCorrectChoice = q.correctChoiceId === choice.id;
-                                    let choiceClass = 'bg-black/20 border-white/5';
-                                    if (isCorrectChoice) choiceClass = 'bg-green-500/10 border-green-500/20 text-green-400';
-                                    if (isUserChoice && !isCorrectChoice) choiceClass = 'bg-red-500/10 border-red-500/20 text-red-400';
-
-                                    return (
-                                        <div key={choice.id} className={`p-4 mb-2 rounded-2xl border ${choiceClass} flex items-center gap-4`}>
-                                            {isUserChoice ? '👈' : isCorrectChoice ? '✅' : '⚪️'}
-                                            <span>{choice.text}</span>
-                                        </div>
-                                    )
-                                })}
-                                
-                                {q.type !== 'mcq' && (
-                                    <div className="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/20">
-                                        <p className="text-xs text-blue-400 font-bold mb-2">إجابتك:</p>
-                                        <p className="text-white italic">{userAnswer || "لم تتم الإجابة"}</p>
-                                    </div>
-                                )}
-
-                                <div className="mt-4 pt-4 border-t border-white/10 text-xs text-gray-400 italic">
-                                    <p><span className="font-bold text-green-400">الشرح:</span> {q.solution || 'لا يوجد شرح متوفر.'}</p>
-                                </div>
-                            </div>
-                        )
-                    })}
                 </div>
             </div>
         </div>
@@ -195,8 +138,9 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
         <main className="flex-1 flex flex-col items-center justify-center p-6 md:p-12">
             <div className="w-full max-w-4xl">
                 <div className="glass-panel p-8 md:p-12 rounded-[50px] border-white/10 mb-10 shadow-2xl min-h-[300px]">
-                    <p className="text-xs text-gray-500 font-bold mb-4">السؤال {currentIndex + 1} من {questions.length}</p>
+                    <p className="text-xs text-gray-500 font-bold mb-4">السؤال {currentIndex + 1} من {questions.length} (عليه {currentQuestion.score} درجات)</p>
                     <div className="text-2xl font-bold leading-relaxed mb-10 text-right">{renderMathText(currentQuestion.text)}</div>
+                    {currentQuestion.imageUrl && <img src={currentQuestion.imageUrl} alt="Question illustration" className="max-w-full max-h-72 mx-auto rounded-lg mb-8" />}
                     
                     <div className="space-y-4">
                         {currentQuestion.type === 'mcq' && currentQuestion.choices?.map((choice) => (
@@ -234,7 +178,7 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
                 <div className="flex justify-between items-center">
                     <button onClick={() => setCurrentIndex(p => Math.max(0, p - 1))} disabled={currentIndex === 0} className="flex items-center gap-2 text-gray-400 font-bold disabled:opacity-30 hover:text-white"><ArrowRight size={16}/> السابق</button>
                     {currentIndex === questions.length - 1 ? (
-                        <button onClick={handleSubmit} className="bg-green-500 text-black px-12 py-5 rounded-[25px] font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all">إنهاء وتصحيح</button>
+                        <button onClick={handleSubmit} className="bg-green-500 text-black px-12 py-5 rounded-[25px] font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all">تسليم الإجابات</button>
                     ) : (
                         <button onClick={() => setCurrentIndex(p => Math.min(questions.length - 1, p + 1))} className="flex items-center gap-2 text-[#fbbf24] font-bold hover:text-yellow-300">التالي <ArrowLeft size={16}/></button>
                     )}

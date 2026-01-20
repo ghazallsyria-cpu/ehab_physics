@@ -1,6 +1,9 @@
 
 
 
+
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, StudentQuizAttempt, Quiz, Question } from '../types';
 import { dbService } from '../services/db';
@@ -36,7 +39,8 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user, attempt, onBack }) 
     if (attempt.status === 'manually-graded') {
       const autoScore = questions.filter(q => q.type === 'mcq' && attempt.answers[q.id] === q.correctChoiceId).reduce((sum, q) => sum + q.score, 0);
       // FIX: Explicitly type the 'grade' parameter in the reduce function to resolve the 'unknown' type error.
-      const manualScore = Object.values(attempt.manualGrades || {}).reduce((sum, grade: { awardedScore: number }) => sum + (grade.awardedScore || 0), 0);
+      // FIX: Explicitly typing the 'grade' parameter ensures TypeScript can infer its properties, resolving the addition error.
+      const manualScore = Object.values(attempt.manualGrades || {}).reduce((sum, grade: { awardedScore: number; }) => sum + (grade.awardedScore || 0), 0);
       return autoScore + manualScore;
     }
     return attempt.score;
