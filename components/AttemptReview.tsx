@@ -7,10 +7,9 @@ import { X, Check, MessageSquare, Award } from 'lucide-react';
 interface AttemptReviewProps {
   user: User;
   attempt: StudentQuizAttempt;
-  onBack: () => void;
 }
 
-const AttemptReview: React.FC<AttemptReviewProps> = ({ user, attempt, onBack }) => {
+const AttemptReview: React.FC<AttemptReviewProps> = ({ user, attempt }) => {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,10 +31,9 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user, attempt, onBack }) 
   const finalScore = useMemo(() => {
     if (attempt.status === 'manually-graded') {
       const autoScore = questions.filter(q => q.type === 'mcq' && attempt.answers[q.id] === q.correctChoiceId).reduce((sum, q) => sum + q.score, 0);
-      // FIX: Explicitly type the 'grade' parameter in the reduce function to resolve the 'unknown' type error.
-      // FIX: Explicitly typing the 'grade' parameter ensures TypeScript can infer its properties, resolving the addition error.
-      // Fix for: Operator '+' cannot be applied to types 'unknown' and 'number'.
-      // FIX: Explicitly type the 'grade' parameter to resolve the TS error.
+      // FIX: Explicitly typed the `grade` parameter in the reduce function. `Object.values` can return `unknown[]`, so this clarifies the shape of each item for TypeScript.
+      // FIX: Explicitly typed the 'grade' parameter to resolve 'unknown' type error.
+      // FIX: Explicitly typed the 'grade' parameter to resolve the 'unknown' type error from Object.values().
       const manualScore = Object.values(attempt.manualGrades || {}).reduce((sum, grade: { awardedScore: number; }) => sum + (grade.awardedScore || 0), 0);
       return autoScore + manualScore;
     }
@@ -62,7 +60,6 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user, attempt, onBack }) 
             <div className="glass-panel p-10 md:p-16 rounded-[60px] border-white/5 bg-black/40 text-center mb-8">
                 <h2 className="text-4xl font-black mb-4">مراجعة محاولة: {quiz.title}</h2>
                 <p className="text-8xl font-black text-[#fbbf24] mb-4 tabular-nums">{finalScore} / {attempt.maxScore}</p>
-                <button onClick={onBack} className="bg-[#fbbf24] text-black px-10 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 transition-all">العودة لمركز الاختبارات</button>
             </div>
 
             <div className="space-y-6">

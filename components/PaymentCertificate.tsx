@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Invoice, User } from '../types';
 import QRCode from 'react-qr-code';
@@ -6,10 +5,9 @@ import QRCode from 'react-qr-code';
 interface PaymentCertificateProps {
   user: User;
   invoice: Invoice;
-  onBack: () => void;
 }
 
-const PaymentCertificate: React.FC<PaymentCertificateProps> = ({ user, invoice, onBack }) => {
+const PaymentCertificate: React.FC<PaymentCertificateProps> = ({ user, invoice }) => {
   const printCertificate = () => {
     window.print();
   };
@@ -25,13 +23,6 @@ const PaymentCertificate: React.FC<PaymentCertificateProps> = ({ user, invoice, 
 
   return (
     <div className="max-w-4xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white print:bg-white print:text-black">
-      <button 
-        onClick={onBack} 
-        className="mb-10 text-[10px] font-black text-gray-500 hover:text-[#fbbf24] uppercase tracking-[0.4em] transition-all flex items-center gap-4 print:hidden"
-      >
-        ← العودة للوحة التحكم
-      </button>
-
       <div className="glass-panel p-12 md:p-20 rounded-[60px] border-white/10 relative overflow-hidden bg-white/[0.02] shadow-[0_50px_100px_rgba(0,0,0,0.4)] print:border-black print:shadow-none print:bg-white print:p-10">
         {/* Certificate Watermark */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[180px] font-black text-white/[0.02] -rotate-12 pointer-events-none select-none print:hidden">

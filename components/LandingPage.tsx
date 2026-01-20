@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { HomePageContent, ViewState } from '../types';
 import { dbService } from '../services/db';
@@ -11,6 +10,8 @@ interface LandingPageProps {
 const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   const [content, setContent] = useState<HomePageContent[]>([]);
   const [alerts, setAlerts] = useState<HomePageContent[]>([]);
+  const [slides, setSlides] = useState<HomePageContent[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -18,8 +19,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
       setIsLoading(true);
       try {
         const allContent = await dbService.getHomePageContent();
+        const carouselSlides = allContent.filter(item => item.type === 'carousel');
+        setSlides(carouselSlides);
         setAlerts(allContent.filter(item => item.type === 'alert' && item.priority === 'high'));
-        setContent(allContent.filter(item => !(item.type === 'alert' && item.priority === 'high')));
+        setContent(allContent.filter(item => item.type !== 'carousel' && !(item.type === 'alert' && item.priority === 'high')));
       } catch (error) {
         console.error("Failed to load homepage content:", error);
       } finally {
@@ -29,6 +32,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
     fetchContent();
   }, []);
   
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const timer = setInterval(() => {
+        setCurrentIndex(prev => (prev + 1) % slides.length);
+    }, 7000); // Change slide every 7 seconds
+    return () => clearInterval(timer);
+  }, [slides]);
+
   const navigate = (view: ViewState) => {
     window.dispatchEvent(new CustomEvent('change-view', { detail: { view } }));
   };
@@ -43,36 +54,75 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         return <Newspaper className="text-amber-400" />;
     }
   };
+  
+  const renderHero = () => {
+    const currentSlide = slides[currentIndex];
+    
+    if (slides.length === 0) {
+        return (
+            <div className="min-h-[80vh] flex flex-col items-center justify-center text-center p-8 relative overflow-hidden">
+                <div className="absolute inset-0 bg-cover bg-center animate-kenburns" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?q=80&w=2070&auto=format&fit=crop')" }}></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A2540] via-[#0A2540]/80 to-transparent"></div>
+                <div className="relative z-10 flex flex-col items-center">
+                    <div className="animate-fadeInUp" style={{ animationDelay: '0.2s' }}>
+                        <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white leading-tight">
+                            منصة الفيزياء <span className="text-amber-400 text-glow-gold">التفاعلية</span>
+                        </h1>
+                        <h2 className="text-xl md:text-2xl font-bold text-slate-300 mt-4 mb-10">
+                            للمرحلة الثانوية في دولة الكويت
+                        </h2>
+                    </div>
+                    <div className="animate-fadeInUp" style={{ animationDelay: '0.4s' }}>
+                        <button onClick={onStart} className="bg-amber-400 text-blue-950 px-16 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-amber-300 transition-all shadow-[0_10px_40px_rgba(251,191,36,0.3)] hover:scale-105 active:scale-95 glow-gold">
+                            ابدأ رحلة التعلم
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-[80vh] relative overflow-hidden flex items-center justify-center text-center">
+            {slides.map((slide, index) => (
+                <div key={slide.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}>
+                    <div className="w-full h-full bg-cover bg-center animate-kenburns" style={{ backgroundImage: `url(${slide.imageUrl})` }} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A2540] via-[#0A2540]/60 to-transparent" />
+                </div>
+            ))}
+            <div className="relative z-10 flex flex-col items-center p-8">
+                <div className="animate-fadeInUp">
+                    <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white leading-tight text-shadow-lg">
+                        {currentSlide?.title || "المركز السوري للعلوم"}
+                    </h1>
+                    <p className="text-xl md:text-2xl font-bold text-slate-300 mt-4 mb-10 max-w-3xl text-shadow">
+                        {currentSlide?.content || "منصة الفيزياء التفاعلية للمرحلة الثانوية في دولة الكويت"}
+                    </p>
+                </div>
+                {currentSlide?.ctaText && currentSlide.ctaLink && (
+                  <div className="animate-fadeInUp" style={{ animationDelay: '0.2s' }}>
+                      <button onClick={() => navigate(currentSlide.ctaLink!)} className="bg-amber-400 text-blue-950 px-16 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-amber-300 transition-all shadow-[0_10px_40px_rgba(251,191,36,0.3)] hover:scale-105 active:scale-95 glow-gold">
+                          {currentSlide.ctaText}
+                      </button>
+                  </div>
+                )}
+            </div>
+            {slides.length > 1 && (
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
+                    {slides.map((_, index) => (
+                        <button key={index} onClick={() => setCurrentIndex(index)} className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentIndex ? 'bg-amber-400 scale-125' : 'bg-white/50 hover:bg-white'}`} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+  };
+
 
   return (
     <div className="min-h-screen w-full bg-black text-white font-['Tajawal'] relative overflow-x-hidden" dir="rtl">
       
-      {/* Hero Section */}
-      <div className="min-h-[80vh] flex flex-col items-center justify-center text-center p-8 relative overflow-hidden">
-        <div 
-          className="absolute inset-0 bg-cover bg-center animate-kenburns"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?q=80&w=2070&auto=format&fit=crop')" }}
-        ></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0A2540] via-[#0A2540]/80 to-transparent"></div>
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="animate-fadeInUp" style={{ animationDelay: '0.2s' }}>
-            <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white leading-tight">
-                منصة الفيزياء <span className="text-amber-400 text-glow-gold">التفاعلية</span>
-            </h1>
-            <h2 className="text-xl md:text-2xl font-bold text-slate-300 mt-4 mb-10">
-                للمرحلة الثانوية في دولة الكويت
-            </h2>
-          </div>
-          <div className="animate-fadeInUp" style={{ animationDelay: '0.4s' }}>
-            <button 
-              onClick={onStart} 
-              className="bg-amber-400 text-blue-950 px-16 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-amber-300 transition-all shadow-[0_10px_40px_rgba(251,191,36,0.3)] hover:scale-105 active:scale-95 glow-gold"
-            >
-              ابدأ رحلة التعلم
-            </button>
-          </div>
-        </div>
-      </div>
+      {renderHero()}
 
       {/* Dynamic Content Section */}
       <div className="bg-[#0A2540] py-20 px-6">

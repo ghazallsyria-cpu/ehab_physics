@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Lesson, ContentBlock, ContentBlockType } from '../types';
 import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio } from 'lucide-react';
 import YouTubePlayer from './YouTubePlayer';
+import { dbService } from '../services/db';
 
 interface LessonEditorProps {
   lessonData: Partial<Lesson>;
@@ -24,6 +25,7 @@ const extractYoutubeId = (url: string): string | null => {
 
 const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, subject, onSave, onCancel }) => {
   const [lesson, setLesson] = useState<Partial<Lesson>>(lessonData);
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
   const updateField = (field: keyof Lesson, value: any) => {
     setLesson(prev => ({ ...prev, [field]: value }));
@@ -35,6 +37,20 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
     updateField('content', newContent);
   };
   
+  const handleFileUpload = async (index: number, file: File) => {
+    if (!file) return;
+    setUploadingIndex(index);
+    try {
+      const asset = await dbService.uploadAsset(file);
+      updateBlock(index, { ...(lesson.content?.[index] as ContentBlock), content: asset.url });
+    } catch (error) {
+      console.error("Upload failed", error);
+      alert("فشل رفع الملف. يرجى المحاولة مرة أخرى.");
+    } finally {
+      setUploadingIndex(null);
+    }
+  };
+
   const addBlock = (type: ContentBlockType) => {
     const newBlock: ContentBlock = { type, content: '' };
     updateField('content', [...(lesson.content || []), newBlock]);
@@ -103,12 +119,37 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
                 </label>
                 {block.type === 'text' ? (
                   <textarea value={block.content} onChange={e => updateBlock(index, {...block, content: e.target.value})} placeholder="اكتب الشرح هنا (يدعم Markdown والمعادلات)..." className="w-full h-32 bg-black/40 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-white/20"/>
+                ) : (block.type === 'image' || block.type === 'video' || block.type === 'pdf' || block.type === 'audio') ? (
+                  <div>
+                      <input 
+                          type="text" 
+                          value={block.content} 
+                          onChange={e => updateBlock(index, {...block, content: e.target.value})} 
+                          placeholder={`أدخل رابط أو ارفع ملف...`}
+                          className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-white/20 mb-2"
+                      />
+                      <label className="block w-full text-center py-3 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-lg cursor-pointer hover:bg-blue-500/20 transition-all border border-blue-500/20">
+                          {uploadingIndex === index ? 'جاري الرفع...' : `📂 رفع ملف (${block.type})`}
+                          <input 
+                              type="file" 
+                              accept={
+                                  block.type === 'image' ? 'image/*' :
+                                  block.type === 'video' ? 'video/*' :
+                                  block.type === 'pdf' ? 'application/pdf' :
+                                  'audio/*'
+                              }
+                              className="hidden" 
+                              onChange={(e) => e.target.files && handleFileUpload(index, e.target.files[0])}
+                              disabled={uploadingIndex !== null}
+                          />
+                      </label>
+                  </div>
                 ) : (
                   <input 
                     type="text" 
                     value={block.content} 
                     onChange={e => updateBlock(index, {...block, content: e.target.value})} 
-                    placeholder={block.type === 'youtube' ? 'أدخل رابط فيديو يوتيوب الكامل...' : `أدخل رابط ${block.type}...`} 
+                    placeholder="أدخل رابط يوتيوب الكامل..." 
                     className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-white/20"
                   />
                 )}

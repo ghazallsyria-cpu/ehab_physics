@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { User, WeeklyReport, QuizAttempt } from '../types';
 import { dbService } from '../services/db';
@@ -6,10 +5,9 @@ import { dbService } from '../services/db';
 interface ProgressReportProps {
   user: User;
   attempts: QuizAttempt[];
-  onBack: () => void;
 }
 
-const ProgressReport: React.FC<ProgressReportProps> = ({ user, attempts: initialAttempts, onBack }) => {
+const ProgressReport: React.FC<ProgressReportProps> = ({ user, attempts: initialAttempts }) => {
   const [attempts, setAttempts] = useState<QuizAttempt[]>(initialAttempts);
 
   useEffect(() => {
@@ -32,7 +30,6 @@ const ProgressReport: React.FC<ProgressReportProps> = ({ user, attempts: initial
     <div className="max-w-6xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal']">
       <header className="flex justify-between items-center mb-16">
         <div>
-           <button onClick={onBack} className="text-[10px] font-black text-[#00d2ff] uppercase tracking-[0.4em] mb-4 hover:opacity-70 transition-all">← العودة للوحة التحكم</button>
            <h2 className="text-5xl font-black text-white tracking-tighter">سجل <span className="text-[#00d2ff]">التميز</span> الأكاديمي</h2>
         </div>
         <div className="text-right">
@@ -109,7 +106,6 @@ const ProgressReport: React.FC<ProgressReportProps> = ({ user, attempts: initial
               <p className="text-xs text-gray-400 leading-relaxed italic">
                 "بناءً على نتائجك الأخيرة في 'قانون أوم'، أنصحك بمشاهدة فيديو Veo لمحاكاة حركة الإلكترونات قبل المحاولة القادمة. مستواك العام يتحسن بنسبة 8% أسبوعياً!"
               </p>
-              <button onClick={onBack} className="w-full mt-8 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">تحسين المسار الآن</button>
            </div>
         </div>
       </div>

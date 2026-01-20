@@ -1,67 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, StudyGoal, LeaderboardEntry } from '../types';
+import { User } from '../types';
 import { dbService } from '../services/db';
 import { ArrowRight, Map } from 'lucide-react';
 import { CURRICULUM_DATA } from '../constants';
 import ActivityStats from './ActivityStats';
-
-const CommunityGoals: React.FC = () => {
-    const [goals, setGoals] = useState<StudyGoal[]>([]);
-    useEffect(() => {
-      const loadGoals = async () => {
-        const data = await dbService.getStudyGoals();
-        setGoals(data);
-      };
-      loadGoals();
-    }, []);
-    
-    if (goals.length === 0) return <div className="text-center py-10 text-gray-500 italic">لا توجد أهداف حالية.</div>;
-
-    return (
-        <div className="space-y-6 p-2">
-            {goals.map(g => (
-                <div key={g.id}>
-                    <div className="flex justify-between items-center mb-2">
-                        <h4 className="text-sm font-bold text-white">{g.title}</h4>
-                        <span className="text-xs font-bold text-gray-400">{g.participantCount} مشارك</span>
-                    </div>
-                    <div className="w-full h-2 bg-black/40 rounded-full border border-white/5 p-0.5">
-                        <div className="h-full bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full" style={{width: `${g.progress}%`}}></div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-const Leaderboard: React.FC<{ user: User }> = ({ user }) => {
-    const [data, setData] = useState<LeaderboardEntry[]>([]);
-    useEffect(() => {
-      const loadLeaderboard = async () => {
-        let leaderboardData = await dbService.getLeaderboard();
-        // Manually set isCurrentUser for display
-        leaderboardData = leaderboardData.map(entry => ({...entry, isCurrentUser: entry.name === user.name})); // Simplified logic
-        setData(leaderboardData);
-      };
-      loadLeaderboard();
-    }, [user]);
-
-    if (data.length === 0) return <div className="text-center py-10 text-gray-500 italic">لا توجد بيانات حالياً.</div>;
-
-    return (
-        <div className="space-y-3">
-            {data.slice(0, 4).map(p => (
-                <div key={p.rank} className={`flex items-center gap-3 p-3 rounded-2xl border ${p.isCurrentUser ? 'bg-amber-400/10 border-amber-400/20' : 'bg-white/5 border-transparent'}`}>
-                    <span className={`w-6 font-black text-xs ${p.rank <= 3 ? 'text-amber-300' : 'text-gray-500'}`}>{p.rank}</span>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${p.isCurrentUser ? 'bg-amber-400 text-black' : 'bg-gray-700 text-white'}`}>{p.name.charAt(0)}</div>
-                    <span className={`flex-1 font-bold text-xs truncate ${p.isCurrentUser ? 'text-white' : 'text-gray-300'}`}>{p.name}</span>
-                    <span className={`font-black text-xs ${p.isCurrentUser ? 'text-amber-300' : 'text-gray-500'}`}>{p.points}</span>
-                </div>
-            ))}
-        </div>
-    );
-};
 
 interface StudentDashboardProps {
   user: User;
@@ -93,7 +36,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
          </div>
          <div className="flex gap-4">
              <button onClick={() => navigate('recommendations')} className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl text-xs font-bold text-white hover:bg-white hover:text-black transition-all flex items-center gap-2">🧠 توصياتي</button>
-             <button onClick={() => navigate('gamification')} className="bg-amber-400 text-black px-6 py-3 rounded-2xl text-xs font-bold hover:scale-105 transition-transform flex items-center gap-2">🏆 التحديات</button>
          </div>
       </div>
 
@@ -163,21 +105,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
          </div>
       </div>
       
-      {/* Social Hub */}
-      <div className="animate-slideUp" style={{animationDelay: '0.3s'}}>
-        <h3 className="text-2xl font-black mb-6">المركز الاجتماعي</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="glass-panel p-8 rounded-[40px] border-white/5 hover:border-amber-500/30 transition-all">
-                <h4 className="text-lg font-bold text-amber-400 mb-4">أهداف المجتمع</h4>
-                <CommunityGoals />
-            </div>
-            <div className="glass-panel p-8 rounded-[40px] border-white/5 hover:border-amber-500/30 transition-all">
-                <h4 className="text-lg font-bold text-amber-400 mb-4">لوحة الصدارة</h4>
-                <Leaderboard user={user} />
-            </div>
-        </div>
-      </div>
-
     </div>
   );
 };

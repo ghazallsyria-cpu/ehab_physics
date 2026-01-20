@@ -2,6 +2,7 @@
 import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -32,6 +33,7 @@ if (!getApps().find(a => a.name === secondaryAppName)) {
 
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 export const secondaryAuth = getAuth(secondaryApp);
 
 const provider = new GoogleAuthProvider();

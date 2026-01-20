@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ExternalLink, Copy, Check, ClipboardList, LayoutDashboard } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ExternalLink, Copy, Check, ClipboardList, LayoutDashboard, Library } from 'lucide-react';
 import { dbService } from '../services/db';
 
 const AdminDashboard: React.FC = () => {
@@ -45,6 +45,7 @@ service cloud.firestore {
     { view: 'admin-teachers', icon: Briefcase, title: 'إدارة المعلمين', description: 'إدارة صلاحيات المعلمين، الحسابات، والبيانات.' },
     { view: 'admin-live-sessions', icon: Video, title: 'إدارة البث المباشر', description: 'جدولة جلسات Zoom وإضافة روابط البث للطلاب.' },
     { view: 'admin-financials', icon: Banknote, title: 'الأمور المالية', description: 'مراقبة سجلات الدفع، الفواتير، والإحصائيات.' },
+    { view: 'admin-assets', icon: Library, title: 'مكتبة الوسائط', description: 'رفع وإدارة الصور والملفات المستخدمة في الدروس.' },
     { view: 'admin-content', icon: LayoutDashboard, title: 'إدارة الرئيسية', description: 'التحكم في الإعلانات والأخبار بالصفحة الرئيسية.' },
     { view: 'admin-settings', icon: Settings, title: 'إعدادات النظام', description: 'التحكم في تسجيل البيانات وسياسات الخصوصية.' },
   ];

@@ -59,10 +59,9 @@ const AdminQuizManager: React.FC = () => {
     if (!reviewingAttempt) return;
     
     const autoScore = quizQuestions.filter(q => q.type === 'mcq' && reviewingAttempt.answers[q.id] === q.correctChoiceId).reduce((sum, q) => sum + (q.score || 0), 0);
-    // FIX: Explicitly type the 'grade' parameter in the reduce function to resolve the 'unknown' type error.
-    // FIX: Explicitly typing the 'grade' parameter ensures TypeScript can infer its properties, resolving the addition error.
-    // Fix for: Operator '+' cannot be applied to types 'unknown' and 'number'.
-    // FIX: Explicitly type the 'grade' parameter to resolve the TS error.
+    // FIX: Explicitly typed the `grade` parameter in the reduce function. `Object.values` can return `unknown[]`, so this clarifies the shape of each item for TypeScript.
+    // FIX: Explicitly typed the 'grade' parameter to resolve 'unknown' type error.
+    // FIX: Explicitly typed the 'grade' parameter to resolve the 'unknown' type error when using Object.values().
     const manualScore = Object.values(manualGrades).reduce((sum, grade: { awardedScore: number; }) => sum + (grade.awardedScore || 0), 0);
     const finalScore = autoScore + manualScore;
 

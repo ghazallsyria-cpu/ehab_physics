@@ -1,8 +1,9 @@
 
-import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, Challenge, LeaderboardEntry, StudyGoal, EducationalResource, Invoice, PaymentStatus, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, LiveSession, Question, Quiz, UserRole, HomePageContent } from "../types";
-import { db } from "./firebase";
+import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, LiveSession, Question, Quiz, UserRole, HomePageContent, PaymentStatus, Invoice, EducationalResource, Asset } from "../types";
+import { db, storage } from "./firebase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, writeBatch, orderBy, limit, onSnapshot } from "firebase/firestore";
-import { QUIZZES_DB, QUESTIONS_DB, CHALLENGES_DB, LEADERBOARD_DATA, STUDY_GOALS_DB } from "../constants";
+import { ref, uploadBytes, getDownloadURL, listAll, deleteObject, getMetadata } from "firebase/storage";
+import { QUIZZES_DB, QUESTIONS_DB } from "../constants";
 
 const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
   logStudentProgress: true,
@@ -54,6 +55,45 @@ class SyrianScienceCenterDB {
   private checkDb() {
     if (!db) throw new Error("قاعدة البيانات غير متصلة.");
   }
+  
+  private checkStorage() {
+    if (!storage) throw new Error("خدمة التخزين غير متصلة.");
+  }
+
+  // --- Asset Management (Firebase Storage) ---
+  async uploadAsset(file: File): Promise<Asset> {
+    this.checkStorage();
+    const storageRef = ref(storage, `assets/${Date.now()}_${file.name}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(snapshot.ref);
+    return { name: file.name, url, type: file.type, size: file.size };
+  }
+
+  async listAssets(): Promise<Asset[]> {
+    this.checkStorage();
+    const listRef = ref(storage, 'assets/');
+    const res = await listAll(listRef);
+    const assetPromises = res.items.map(async (itemRef) => {
+      const [url, metadata] = await Promise.all([
+        getDownloadURL(itemRef),
+        getMetadata(itemRef)
+      ]);
+      return {
+        name: metadata.name,
+        url,
+        type: metadata.contentType || 'unknown',
+        size: metadata.size,
+      };
+    });
+    return Promise.all(assetPromises);
+  }
+
+  async deleteAsset(fileName: string): Promise<void> {
+    this.checkStorage();
+    const assetRef = ref(storage, `assets/${fileName}`);
+    await deleteObject(assetRef);
+  }
+
 
   async checkConnection(): Promise<{ alive: boolean, error?: string }> {
     try {
@@ -459,9 +499,6 @@ class SyrianScienceCenterDB {
   
   // Mocks for unimplemented methods to prevent crashes
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> { return []; }
-  async getChallenges(): Promise<Challenge[]> { return CHALLENGES_DB; }
-  async getLeaderboard(): Promise<LeaderboardEntry[]> { return LEADERBOARD_DATA; }
-  async getStudyGoals(): Promise<StudyGoal[]> { return STUDY_GOALS_DB; }
   async getResources(): Promise<EducationalResource[]> { return []; }
   async getTeacherReviews(teacherId: string): Promise<Review[]> { return []; }
   async addReview(review: Review): Promise<void> {}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { User, Quiz, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
 
-const QuizCenter: React.FC<{ user: User; onBack: () => void }> = ({ user, onBack }) => {
+const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [userAttempts, setUserAttempts] = useState<StudentQuizAttempt[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -58,10 +58,8 @@ const QuizCenter: React.FC<{ user: User; onBack: () => void }> = ({ user, onBack
   };
 
   const groupedQuizzes = useMemo(() => {
-    // FIX: Explicitly type the accumulator in the reduce function to resolve the 'unknown' type error on `map`.
-    // FIX: Explicitly typing the accumulator for the reduce function ensures TypeScript understands its shape, resolving the error.
-    // Fix for: Property 'map' does not exist on type 'unknown'.
-    // FIX: Explicitly type the accumulator in the reduce function to resolve the 'unknown' type error.
+    // FIX: Explicitly type the accumulator `acc` to resolve the `unknown` type error when using `Object.entries` later.
+    // FIX: Explicitly typed the accumulator for the reduce function to ensure proper type inference for groupedQuizzes.
     return quizzes.reduce((acc: Record<string, Quiz[]>, quiz) => {
       const category = quiz.category || 'اختبارات عامة';
       if (!acc[category]) {
@@ -69,6 +67,7 @@ const QuizCenter: React.FC<{ user: User; onBack: () => void }> = ({ user, onBack
       }
       acc[category].push(quiz);
       return acc;
+    // FIX: Cast initial value of reduce to the correct type to ensure proper type inference for groupedQuizzes.
     }, {});
   }, [quizzes]);
 

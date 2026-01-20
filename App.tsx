@@ -1,9 +1,12 @@
 
 
+
+
+
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { User, ViewState, Lesson, QuizAttempt, Curriculum, Invoice, Quiz, StudentQuizAttempt } from './types';
 import { dbService } from './services/db';
-import { Bell } from 'lucide-react';
+import { Bell, ArrowRight } from 'lucide-react';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
@@ -27,7 +30,6 @@ const AttemptReview = lazy(() => import('./components/AttemptReview'));
 const BillingCenter = lazy(() => import('./components/BillingCenter'));
 const PaymentCertificate = lazy(() => import('./components/PaymentCertificate'));
 const Forum = lazy(() => import('./components/Forum'));
-const GamificationCenter = lazy(() => import('./components/GamificationCenter'));
 const Recommendations = lazy(() => import('./components/Recommendations'));
 const LabHub = lazy(() => import('./components/LabHub'));
 const LiveSessions = lazy(() => import('./components/LiveSessions'));
@@ -43,18 +45,16 @@ const PhysicsJourneyMap = lazy(() => import('./components/PhysicsJourneyMap'));
 const AdminLiveSessions = lazy(() => import('./components/AdminLiveSessions'));
 const AdminQuizManager = lazy(() => import('./components/AdminQuizManager'));
 const AdminContentManager = lazy(() => import('./components/AdminContentManager'));
+const FloatingNav = lazy(() => import('./components/FloatingNav'));
+const AdminAssetManager = lazy(() => import('./components/AdminAssetManager'));
 
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   
-  const [view, setView] = useState<ViewState>(() => {
-    const path = window.location.pathname.replace('/', '');
-    // Default to landing page, but allow direct access to privacy policy
-    if (path === 'privacy-policy') return 'privacy-policy';
-    return 'landing';
-  });
+  const [viewStack, setViewStack] = useState<ViewState[]>(['landing']);
+  const view = viewStack[viewStack.length - 1];
   
   const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
@@ -63,6 +63,13 @@ const App: React.FC = () => {
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    const path = window.location.pathname.replace('/', '');
+    if (path === 'privacy-policy') {
+        setViewStack(['landing', 'privacy-policy']);
+    }
+  }, []);
   
   // Session Persistence Check
   useEffect(() => {
@@ -76,7 +83,7 @@ const App: React.FC = () => {
                     const appUser = await dbService.getUser(firebaseUser.uid);
                     if (appUser) {
                         setUser(appUser);
-                        setView('dashboard'); // Redirect to dashboard if user is found
+                        setViewStack(['dashboard']); // Redirect to dashboard if user is found
                     } else {
                         await signOut(auth);
                         setUser(null);
@@ -93,7 +100,7 @@ const App: React.FC = () => {
                 const appUser = await dbService.getUser(localUid);
                 if (appUser) {
                     setUser(appUser);
-                    setView('dashboard');
+                    setViewStack(['dashboard']);
                 }
             }
             setIsAuthLoading(false);
@@ -111,7 +118,10 @@ const App: React.FC = () => {
       const customEvent = event as CustomEvent;
       const { view: newView, lesson, quiz, attempt, invoice, subject } = customEvent.detail;
       
-      if (newView) setView(newView);
+      if (newView && newView !== viewStack[viewStack.length - 1]) {
+        setViewStack(prev => [...prev, newView]);
+      }
+      
       if (subject) setActiveSubject(subject);
       if (lesson) setActiveLesson(lesson);
       if (quiz) setActiveQuiz(quiz);
@@ -127,13 +137,32 @@ const App: React.FC = () => {
         window.scrollTo(0, 0); // Scroll to top on view change
       }
     };
+
+    const handleGoBack = () => {
+        setViewStack(prev => {
+            if (prev.length <= 1) return prev;
+            const newStack = [...prev];
+            newStack.pop();
+            return newStack;
+        });
+    };
+    
+    const handleResetToDashboard = () => setViewStack(['dashboard']);
+
     window.addEventListener('change-view', handleViewChange);
-    return () => window.removeEventListener('change-view', handleViewChange);
-  }, []);
+    window.addEventListener('go-back', handleGoBack);
+    window.addEventListener('reset-to-dashboard', handleResetToDashboard);
+
+    return () => {
+      window.removeEventListener('change-view', handleViewChange);
+      window.removeEventListener('go-back', handleGoBack);
+      window.removeEventListener('reset-to-dashboard', handleResetToDashboard);
+    };
+  }, [viewStack]);
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
-    setView('dashboard');
+    setViewStack(['dashboard']);
     setIsSidebarOpen(false);
   };
   
@@ -143,7 +172,7 @@ const App: React.FC = () => {
     }
     sessionStorage.removeItem('ssc_active_uid');
     setUser(null);
-    setView('landing');
+    setViewStack(['landing']);
   };
   
   const renderView = () => {
@@ -165,9 +194,9 @@ const App: React.FC = () => {
         return (
             <Suspense fallback={fallbackSpinner}>
                 {view === 'landing' ? (
-                    <LandingPage onStart={() => setView('dashboard')} />
+                    <LandingPage onStart={() => setViewStack(['auth'])} />
                 ) : (
-                    <Auth onLogin={handleLogin} onBack={() => setView('landing')} />
+                    <Auth onLogin={handleLogin} onBack={() => setViewStack(['landing'])} />
                 )}
             </Suspense>
         );
@@ -185,21 +214,19 @@ const App: React.FC = () => {
         case 'lesson':
           return activeLesson ? <LessonViewer user={user} lesson={activeLesson} /> : <CurriculumBrowser user={user} subject={activeSubject} />;
         case 'quiz_center':
-          return <QuizCenter user={user} onBack={() => setView('dashboard')} />;
+          return <QuizCenter user={user} />;
         case 'quiz_player':
-          return activeQuiz ? <QuizPlayer user={user} quiz={activeQuiz} onFinish={() => setView('quiz_center')} /> : <QuizCenter user={user} onBack={() => setView('dashboard')} />;
+          return activeQuiz ? <QuizPlayer user={user} quiz={activeQuiz} onFinish={() => setViewStack(prev => [...prev, 'quiz_center'])} /> : <QuizCenter user={user} />;
         case 'attempt_review':
-          return activeAttempt ? <AttemptReview user={user} attempt={activeAttempt} onBack={() => setView('quiz_center')} /> : <QuizCenter user={user} onBack={() => setView('dashboard')} />;
+          return activeAttempt ? <AttemptReview user={user} attempt={activeAttempt} /> : <QuizCenter user={user} />;
         case 'subscription':
-          return <BillingCenter user={user} onUpdateUser={setUser} onBack={() => setView('dashboard')} onViewCertificate={(invoice) => { setActiveInvoice(invoice); setView('payment-certificate'); }} />;
+          return <BillingCenter user={user} onUpdateUser={setUser} onViewCertificate={(invoice) => { setActiveInvoice(invoice); setViewStack(prev => [...prev, 'payment-certificate']); }} />;
         case 'payment-certificate':
-          return activeInvoice ? <PaymentCertificate user={user} invoice={activeInvoice} onBack={() => setView('subscription')} /> : <BillingCenter user={user} onUpdateUser={setUser} onBack={() => setView('dashboard')} />;
+          return activeInvoice ? <PaymentCertificate user={user} invoice={activeInvoice} /> : <BillingCenter user={user} onUpdateUser={setUser} onViewCertificate={() => {}} />;
         case 'discussions':
-          return <Forum user={user} onAskAI={(q) => { setView('ai-chat'); }} />;
+          return <Forum user={user} onAskAI={(q) => { setViewStack(prev => [...prev, 'ai-chat']); }} />;
         case 'ai-chat':
           return <AiTutor grade={user.grade} subject={activeSubject} />;
-        case 'gamification':
-          return <GamificationCenter user={user} onUpdateUser={setUser} />;
         case 'recommendations':
           return <Recommendations user={user} />;
         case 'virtual-lab':
@@ -207,7 +234,7 @@ const App: React.FC = () => {
         case 'live-sessions':
           return <LiveSessions user={user} />;
         case 'reports':
-          return <ProgressReport user={user} attempts={[]} onBack={() => setView('dashboard')} />;
+          return <ProgressReport user={user} attempts={[]} />;
         case 'quiz-performance':
           return <QuizPerformance user={user} />;
         case 'journey-map':
@@ -231,22 +258,31 @@ const App: React.FC = () => {
             return user.role === 'admin' ? <AdminSettings /> : <StudentDashboard user={user} />;
         case 'admin-content':
             return user.role === 'admin' ? <AdminContentManager /> : <StudentDashboard user={user} />;
+        case 'admin-assets':
+            return user.role === 'admin' ? <AdminAssetManager /> : <StudentDashboard user={user} />;
         default:
           return <StudentDashboard user={user} />;
       }
     };
+    
+    const viewsToHideFab: ViewState[] = ['quiz_player', 'virtual-lab', 'lesson', 'payment-certificate', 'attempt_review'];
+    const showFab = user?.role === 'student' && !viewsToHideFab.includes(view);
 
     return (
-      <div className="flex min-h-screen bg-gradient-to-br from-[#0A2540] to-[#010304]">
+      <div className="min-h-screen bg-gradient-to-br from-[#0A2540] to-[#010304]">
         <Sidebar 
           currentView={view} 
-          setView={(v, s) => { setView(v); if (s) setActiveSubject(s); }}
+          setView={(v, s) => { 
+            const detail: any = { view: v };
+            if(s) detail.subject = s;
+            window.dispatchEvent(new CustomEvent('change-view', { detail }));
+          }}
           user={user} 
           onLogout={handleLogout}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
         />
-        <main className="flex-1 p-6 md:p-10 lg:pr-80">
+        <main className="p-6 md:p-10 lg:mr-72">
             {/* Header for mobile */}
             <header className="lg:hidden flex justify-between items-center mb-6">
                 <span className="text-lg font-black text-white">SSC</span>
@@ -260,6 +296,19 @@ const App: React.FC = () => {
                     </button>
                 </div>
             </header>
+
+            {viewStack.length > 1 && view !== 'dashboard' && (
+                <div className="mb-8 animate-fadeIn">
+                    <button 
+                        onClick={() => window.dispatchEvent(new CustomEvent('go-back'))} 
+                        className="flex items-center gap-2 text-gray-400 hover:text-white font-bold text-sm group transition-all"
+                    >
+                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                        <span>رجوع</span>
+                    </button>
+                </div>
+            )}
+            
             <Suspense fallback={
                 <div className="flex items-center justify-center h-full">
                     <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
@@ -269,6 +318,11 @@ const App: React.FC = () => {
             </Suspense>
         </main>
         {showNotifications && <NotificationPanel user={user} onClose={() => setShowNotifications(false)}/>}
+        {showFab && (
+          <Suspense>
+            <FloatingNav />
+          </Suspense>
+        )}
         <PWAPrompt user={user} />
       </div>
     );

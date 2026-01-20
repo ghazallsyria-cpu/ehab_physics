@@ -1,14 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { HomePageContent, ViewState } from '../types';
 import { dbService } from '../services/db';
-import { PlusCircle, Edit, Trash2, X, Save, RefreshCw, LayoutDashboard, AlertTriangle, Newspaper, Image as ImageIcon, Megaphone } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, X, Save, RefreshCw, LayoutDashboard, AlertTriangle, Newspaper, Image as ImageIcon, Megaphone, Film } from 'lucide-react';
 
 const AdminContentManager: React.FC = () => {
     const [contentItems, setContentItems] = useState<HomePageContent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [editingItem, setEditingItem] = useState<Partial<HomePageContent> | null>(null);
     const [message, setMessage] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'general' | 'carousel'>('general');
 
     useEffect(() => {
         loadContent();
@@ -26,6 +26,11 @@ const AdminContentManager: React.FC = () => {
             setIsLoading(false);
         }
     };
+    
+    const filteredContent = contentItems.filter(item => {
+        if (activeTab === 'carousel') return item.type === 'carousel';
+        return ['news', 'alert', 'announcement', 'image'].includes(item.type);
+    });
 
     const handleSave = async () => {
         if (!editingItem || !editingItem.title || !editingItem.content) {
@@ -55,7 +60,7 @@ const AdminContentManager: React.FC = () => {
     
     const startNewItem = () => {
         setEditingItem({
-            type: 'news',
+            type: activeTab === 'carousel' ? 'carousel' : 'news',
             priority: 'normal',
             title: '',
             content: '',
@@ -68,6 +73,7 @@ const AdminContentManager: React.FC = () => {
           case 'alert': return <AlertTriangle size={14} />;
           case 'announcement': return <Megaphone size={14} />;
           case 'image': return <ImageIcon size={14} />;
+          case 'carousel': return <Film size={14} />;
           case 'news': default: return <Newspaper size={14} />;
         }
     };
@@ -84,6 +90,11 @@ const AdminContentManager: React.FC = () => {
 
             {message && <div className="mb-4 p-3 bg-green-500/10 text-green-400 rounded-xl text-xs font-bold text-center">{message}</div>}
 
+            <div className="flex bg-black/40 p-2 rounded-2xl border border-white/5 max-w-md mb-8">
+                <button onClick={() => setActiveTab('general')} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${activeTab === 'general' ? 'bg-white text-black' : 'text-gray-400'}`}>المحتوى العام</button>
+                <button onClick={() => setActiveTab('carousel')} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${activeTab === 'carousel' ? 'bg-white text-black' : 'text-gray-400'}`}>إعلانات Carousel</button>
+            </div>
+
             <div className="glass-panel p-8 rounded-[40px] border-white/5">
                 <table className="w-full text-sm">
                     <thead className="border-b border-white/10 text-xs font-bold text-gray-500 uppercase">
@@ -95,7 +106,7 @@ const AdminContentManager: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {contentItems.map(item => (
+                        {filteredContent.map(item => (
                             <tr key={item.id} className="border-b border-white/5">
                                 <td className="p-4 font-bold">{item.title}</td>
                                 <td className="p-4 text-center">
@@ -114,7 +125,7 @@ const AdminContentManager: React.FC = () => {
                         ))}
                     </tbody>
                 </table>
-                {contentItems.length === 0 && !isLoading && <div className="text-center p-10 text-gray-500">لا يوجد محتوى حالياً.</div>}
+                {filteredContent.length === 0 && !isLoading && <div className="text-center p-10 text-gray-500">لا يوجد محتوى في هذا القسم.</div>}
             </div>
             
             {editingItem && (
@@ -126,14 +137,15 @@ const AdminContentManager: React.FC = () => {
                         </div>
                         <div className="flex-1 overflow-y-auto no-scrollbar pr-2 space-y-4">
                             <input type="text" placeholder="العنوان" value={editingItem.title || ''} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-[#fbbf24]" />
-                            <textarea placeholder="المحتوى..." value={editingItem.content || ''} onChange={e => setEditingItem({ ...editingItem, content: e.target.value })} className="w-full h-32 bg-black/20 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-[#fbbf24]" />
-                            <input type="text" placeholder="رابط صورة (اختياري)" value={editingItem.imageUrl || ''} onChange={e => setEditingItem({ ...editingItem, imageUrl: e.target.value })} className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-[#fbbf24]" />
+                            <textarea placeholder="المحتوى / الوصف" value={editingItem.content || ''} onChange={e => setEditingItem({ ...editingItem, content: e.target.value })} className="w-full h-32 bg-black/20 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-[#fbbf24]" />
+                            <input type="text" placeholder="رابط صورة (مطلوب لـ Carousel)" value={editingItem.imageUrl || ''} onChange={e => setEditingItem({ ...editingItem, imageUrl: e.target.value })} className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-[#fbbf24]" />
                             <div className="grid grid-cols-2 gap-4">
                                 <select value={editingItem.type || 'news'} onChange={e => setEditingItem({ ...editingItem, type: e.target.value as any })} className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-[#fbbf24]">
                                     <option value="news">خبر</option>
                                     <option value="announcement">إعلان</option>
                                     <option value="alert">تنبيه</option>
                                     <option value="image">صورة</option>
+                                    <option value="carousel">إعلان Carousel</option>
                                 </select>
                                 <select value={editingItem.priority || 'normal'} onChange={e => setEditingItem({ ...editingItem, priority: e.target.value as any })} className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-[#fbbf24]">
                                     <option value="normal">عادي</option>

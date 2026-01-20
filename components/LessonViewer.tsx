@@ -230,8 +230,7 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
             )}
 
 
-            <div className="mt-16 pt-10 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-6">
-              <button onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'curriculum' } }))} className="text-gray-500 font-bold text-sm hover:text-white transition-colors">← العودة للمنهج</button>
+            <div className="mt-16 pt-10 border-t border-white/5 flex flex-col sm:flex-row justify-end items-center gap-6">
               <div className="flex items-center gap-4">
                 <button onClick={() => setIsShareModalOpen(true)} className="px-8 py-4 rounded-2xl font-bold text-xs uppercase bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all flex items-center gap-2">
                    <Share2 size={14} /> مشاركة الدرس

@@ -1,4 +1,4 @@
-import { Curriculum, Quiz, Question, Answer, SubscriptionPlan, Challenge, LeaderboardEntry, StudyGoal, Article, StudyGroup, PhysicsExperiment, PhysicsEquation } from './types';
+import { Curriculum, Quiz, Question, Answer, SubscriptionPlan, Article, StudyGroup, PhysicsExperiment, PhysicsEquation } from './types';
 
 // --- 1. Educational Content Data ---
 export const CURRICULUM_DATA: Curriculum[] = [
@@ -294,25 +294,6 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 ];
 
 export const PRICING_PLANS = SUBSCRIPTION_PLANS;
-
-// --- 4. Gamification ---
-export const CHALLENGES_DB: Challenge[] = [
-  { id: 'ch-1', title: 'ماراثون الكهرومغناطيسية', description: 'أجب على 10 أسئلة متتالية بأسرع وقت ممكن.', type: 'quiz', reward: 250, isCompleted: false },
-  { id: 'ch-2', title: 'سباق النسبية', description: 'أكمل درس "النسبية الخاصة" في أقل من 15 دقيقة.', type: 'speed_run', reward: 150, isCompleted: true }
-];
-
-export const LEADERBOARD_DATA: LeaderboardEntry[] = [
-  { rank: 1, name: 'محمد الأحمد', points: 8500, isCurrentUser: false },
-  { rank: 2, name: 'فاطمة الزهراء', points: 7800, isCurrentUser: false },
-  { rank: 3, name: 'أنت', points: 7500, isCurrentUser: true },
-  { rank: 4, name: 'علي مصطفى', points: 7100, isCurrentUser: false },
-];
-
-// --- 5. Social Learning ---
-export const STUDY_GOALS_DB: StudyGoal[] = [
-  { id: 'goal-1', title: 'إتقان الوحدة الأولى (الكهرومغناطيسية)', participantCount: 125, progress: 65 },
-  { id: 'goal-2', title: 'حل 100 مسألة فيزياء حديثة', participantCount: 88, progress: 40 }
-];
 
 // --- 6. New Mock Data ---
 

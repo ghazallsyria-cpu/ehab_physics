@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User, Invoice, SubscriptionPlan } from '../types';
 import { PRICING_PLANS } from '../constants';
@@ -7,11 +6,10 @@ import { dbService } from '../services/db';
 interface BillingCenterProps {
   user: User;
   onUpdateUser: (user: User) => void;
-  onBack: () => void;
   onViewCertificate?: (invoice: Invoice) => void;
 }
 
-const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBack, onViewCertificate }) => {
+const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onViewCertificate }) => {
   const [step, setStep] = useState<'PLANS' | 'GATEWAY' | 'RESULT'>('PLANS');
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -151,7 +149,7 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onBac
            )}
 
            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button onClick={onBack} className="bg-white text-black px-12 py-5 rounded-[30px] font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl">
+              <button onClick={() => window.dispatchEvent(new CustomEvent('reset-to-dashboard'))} className="bg-white text-black px-12 py-5 rounded-[30px] font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl">
                  العودة للرئيسية
               </button>
               
