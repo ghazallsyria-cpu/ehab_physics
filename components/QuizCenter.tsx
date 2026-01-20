@@ -59,6 +59,7 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
 
   const groupedQuizzes = useMemo(() => {
     // FIX: Explicitly typed the accumulator for the reduce function to ensure proper type inference for groupedQuizzes.
+    // FIX: Explicitly typed the accumulator `acc` and the initial value `{}` for the reduce function to ensure proper type inference for groupedQuizzes.
     return quizzes.reduce((acc: Record<string, Quiz[]>, quiz) => {
       const category = quiz.category || 'اختبارات عامة';
       if (!acc[category]) {

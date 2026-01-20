@@ -60,7 +60,8 @@ const AdminQuizManager: React.FC = () => {
     
     const autoScore = quizQuestions.filter(q => q.type === 'mcq' && reviewingAttempt.answers[q.id] === q.correctChoiceId).reduce((sum, q) => sum + (q.score || 0), 0);
     // FIX: Removed unnecessary type annotation and @ts-ignore. Type inference should handle this correctly.
-    const manualScore = Object.values(manualGrades).reduce((sum, grade) => sum + (grade.awardedScore || 0), 0);
+    // FIX: Explicitly type `grade` parameter to resolve `unknown` type issue and allow property access.
+    const manualScore = Object.values(manualGrades).reduce((sum, grade: { awardedScore: number; feedback?: string }) => sum + (grade.awardedScore || 0), 0);
     const finalScore = autoScore + manualScore;
 
     const updatedAttempt: StudentQuizAttempt = {

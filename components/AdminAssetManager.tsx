@@ -50,12 +50,17 @@ service firebase.storage {
         if (!files || files.length === 0) return;
         setIsUploading(true);
         setMessage(null);
+        setStorageRulesError(null);
         try {
             await Promise.all(Array.from(files).map(file => dbService.uploadAsset(file)));
             setMessage({ text: `تم رفع ${files.length} ملف بنجاح.`, type: 'success' });
             await loadAssets();
-        } catch (e) {
-            setMessage({ text: 'حدث خطأ أثناء الرفع.', type: 'error' });
+        } catch (e: any) {
+            if (e.message === 'STORAGE_PERMISSION_DENIED') {
+                setStorageRulesError('STORAGE_PERMISSION_DENIED');
+            } else {
+                setMessage({ text: 'حدث خطأ أثناء الرفع.', type: 'error' });
+            }
         } finally {
             setIsUploading(false);
             setTimeout(() => setMessage(null), 3000);

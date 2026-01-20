@@ -64,9 +64,16 @@ class SyrianScienceCenterDB {
   async uploadAsset(file: File): Promise<Asset> {
     this.checkStorage();
     const storageRef = ref(storage, `assets/${Date.now()}_${file.name}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(snapshot.ref);
-    return { name: file.name, url, type: file.type, size: file.size };
+    try {
+        const snapshot = await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(snapshot.ref);
+        return { name: file.name, url, type: file.type, size: file.size };
+    } catch (e: any) {
+        if (e.code === 'storage/unauthorized') {
+            throw new Error('STORAGE_PERMISSION_DENIED');
+        }
+        throw e;
+    }
   }
 
   async listAssets(): Promise<Asset[]> {
