@@ -282,10 +282,11 @@ class SyrianScienceCenterDB {
     if (status === 'PAID') {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
-            // FIX: The `userId` from `snap.data()` can be of an unknown type. Added a `typeof` check to ensure it's a string before use.
             const invoiceData = snap.data();
-            if (invoiceData && typeof invoiceData.userId === 'string' && invoiceData.userId) {
-                await updateDoc(doc(db, 'users', invoiceData.userId), { subscription: 'premium' });
+            // FIX: The `userId` from `snap.data()` can be of an unknown type. Added a `typeof` check to ensure it's a string before use.
+            const userId = invoiceData?.userId;
+            if (typeof userId === 'string' && userId) {
+                await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
             }
         }
     }

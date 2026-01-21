@@ -1,4 +1,3 @@
-
 {
   "name": "syrian-science",
   "private": true,
@@ -11,6 +10,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.36.0",
+    "@supabase/supabase-js": "2.44.4",
     "@zoomus/websdk": "^2.11.0",
     "firebase": "^10.8.0",
     "html2canvas": "^1.4.1",
