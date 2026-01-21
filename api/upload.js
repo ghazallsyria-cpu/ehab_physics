@@ -1,9 +1,3 @@
-export default async function handler(req, res) {
-  console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
-  console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET');
-  return res.status(200).json({ message: 'Env test' });
-}
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -19,13 +13,19 @@ export default async function handler(req, res) {
   try {
     const { fileBase64, filename, owner_id } = req.body;
 
-    const buffer = Buffer.from(fileBase64, 'base64');
+    if (!fileBase64 || !filename || !owner_id) {
+      return res.status(400).json({ error: 'Missing parameters' });
+    }
+
+    // تحويل Base64 إلى Uint8Array بدل Buffer
+    const bytes = Uint8Array.from(atob(fileBase64), c => c.charCodeAt(0));
+
     const path = `uploads/${Date.now()}_${filename}`;
 
     const { data, error } = await supabase
       .storage
       .from('assets')
-      .upload(path, buffer, {
+      .upload(path, bytes, {
         contentType: 'application/octet-stream',
         metadata: { owner_id }
       });
