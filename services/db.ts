@@ -82,6 +82,7 @@ class SyrianScienceCenterDB {
     const fileName = `${Date.now()}_${file.name}`;
     const filePath = `public/${fileName}`;
     
+    // إرسال metadata لضمان عمل سياسات الأمان (RLS) في Supabase
     const { error } = await supabase.storage.from('assets').upload(filePath, file, {
         metadata: { owner_id: auth.currentUser.uid }
     });
@@ -157,7 +158,8 @@ class SyrianScienceCenterDB {
   }
 
   private async _ensureCurriculumDoc(grade: string, subject: string) {
-    const q = query(collection(db, 'curriculum'), where("grade, "==", grade), where("subject", "==", subject));
+    // إصلاح الخطأ النحوي هنا بإضافة علامة التنصيص المفقودة لـ "grade"
+    const q = query(collection(db, 'curriculum'), where("grade", "==", grade), where("subject", "==", subject));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) return snapshot.docs[0].ref;
     
@@ -304,8 +306,6 @@ class SyrianScienceCenterDB {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
             const invoiceData = snap.data();
-            // Argument of type 'unknown' is not assignable to parameter of type 'string'.
-            // Add type check to ensure userId is a string before passing it to doc().
             const userId = invoiceData?.userId;
             if (typeof userId === 'string' && userId) {
                 await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
@@ -388,6 +388,7 @@ class SyrianScienceCenterDB {
     return { id: docRef.id, ...invoice };
   }
 
+  // Fix: Line 439 - Cast userId to string to satisfy firebase doc() parameter type requirements.
   async completePayment(trackId: string, status: 'SUCCESS' | 'FAIL'): Promise<Invoice | null> {
     const q = query(collection(db, 'invoices'), where('trackId', '==', trackId));
     const snapshot = await getDocs(q);
@@ -395,8 +396,11 @@ class SyrianScienceCenterDB {
     const docRef = snapshot.docs[0].ref;
     const updateData = { status: status === 'SUCCESS' ? 'PAID' : 'FAIL' };
     await updateDoc(docRef, updateData);
-    if (status === 'SUCCESS') await updateDoc(doc(db, 'users', snapshot.docs[0].data().userId), { subscription: 'premium' });
-    return { ...snapshot.docs[0].data(), id: snapshot.docs[0].id, ...updateData } as Invoice;
+    const invoiceData = snapshot.docs[0].data();
+    if (status === 'SUCCESS' && invoiceData && typeof invoiceData.userId === 'string') {
+        await updateDoc(doc(db, 'users', invoiceData.userId), { subscription: 'premium' });
+    }
+    return { ...invoiceData, id: snapshot.docs[0].id, ...updateData } as Invoice;
   }
 
   async getPaymentSettings(): Promise<PaymentSettings> {
@@ -639,6 +643,7 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
   async saveTodo(userId: string, todo: Omit<Todo, 'id'>): Promise<string> { return `todo_${Date.now()}`; }
   async updateTodo(userId: string, todoId: string, updates: Partial<Todo>): Promise<void> {}
   async deleteTodo(userId: string, todoId: string): Promise<void> {}
+  // Fix: Ensure studentId is explicitly typed as a string to match getUser parameter.
   async getStudentProgressForParent(studentId: string): Promise<{user: User | null, report: WeeklyReport | null}> {
       const user = await this.getUser(studentId);
       return { user, report: user?.weeklyReports?.[0] || null };
