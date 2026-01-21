@@ -1,5 +1,5 @@
 import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, NotificationSettings, LiveSession, Question, Quiz, UserRole, HomePageContent, PaymentStatus, Invoice, EducationalResource, Asset, ForumSection, Forum } from "../types";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 import { supabase } from "./supabase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, writeBatch, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { QUIZZES_DB, QUESTIONS_DB } from "../constants";
@@ -61,21 +61,41 @@ class SyrianScienceCenterDB {
     if (!db) throw new Error("قاعدة البيانات غير متصلة.");
   }
   
+  private async setSupabaseAuth() {
+    if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        const { error } = await supabase.auth.setSession({ access_token: token, token_type: 'Bearer' });
+        if (error) {
+            console.error("Supabase auth error:", error);
+            throw new Error("SUPABASE_AUTH_FAILED");
+        }
+    } else {
+        console.warn("No Firebase user for Supabase auth.");
+    }
+  }
+
   // --- Asset Management (Supabase Storage) ---
   async uploadAsset(file: File): Promise<Asset> {
-    const filePath = `public/${Date.now()}_${file.name}`;
-    const { error } = await supabase.storage.from('assets').upload(filePath, file);
+    if (!auth.currentUser) throw new Error("AUTH_REQUIRED");
+    await this.setSupabaseAuth();
+
+    const fileName = `${Date.now()}_${file.name}`;
+    const filePath = `public/${fileName}`;
+    
+    const { error } = await supabase.storage.from('assets').upload(filePath, file, {
+        metadata: { owner_id: auth.currentUser.uid }
+    });
 
     if (error) {
         console.error('Supabase upload error:', error);
-        if (error.message.includes('security policy')) {
+        if (error.message.includes('security policy') || error.message.includes('permission denied')) {
             throw new Error('STORAGE_PERMISSION_DENIED');
         }
         throw error;
     }
 
     const { data } = supabase.storage.from('assets').getPublicUrl(filePath);
-    return { name: filePath, url: data.publicUrl, type: file.type, size: file.size };
+    return { name: fileName, url: data.publicUrl, type: file.type, size: file.size };
   }
 
   async listAssets(): Promise<Asset[]> {
@@ -107,8 +127,9 @@ class SyrianScienceCenterDB {
   }
 
   async deleteAsset(fileName: string): Promise<void> {
-    // Note: Supabase's remove expects the full path within the bucket.
-    // Our upload logic places files in a 'public' folder.
+    if (!auth.currentUser) throw new Error("AUTH_REQUIRED");
+    await this.setSupabaseAuth();
+    
     const filePath = `public/${fileName}`;
     const { error } = await supabase.storage.from('assets').remove([filePath]);
     if (error) {
@@ -136,7 +157,7 @@ class SyrianScienceCenterDB {
   }
 
   private async _ensureCurriculumDoc(grade: string, subject: string) {
-    const q = query(collection(db, 'curriculum'), where("grade", "==", grade), where("subject", "==", subject));
+    const q = query(collection(db, 'curriculum'), where("grade, "==", grade), where("subject", "==", subject));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) return snapshot.docs[0].ref;
     
@@ -283,7 +304,8 @@ class SyrianScienceCenterDB {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
             const invoiceData = snap.data();
-            // FIX: The `userId` from `snap.data()` can be of an unknown type. Added a `typeof` check to ensure it's a string before use.
+            // Argument of type 'unknown' is not assignable to parameter of type 'string'.
+            // Add type check to ensure userId is a string before passing it to doc().
             const userId = invoiceData?.userId;
             if (typeof userId === 'string' && userId) {
                 await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });

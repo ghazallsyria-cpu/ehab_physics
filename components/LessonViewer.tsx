@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Lesson, User, ContentBlock } from '../types';
 import { dbService } from '../services/db';
@@ -117,18 +116,17 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
             </div>
         );
     }
-
+    
+    // FIX: Use a <video> tag for direct video URLs, not an iframe.
     return (
       <div className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-lg">
-        <iframe
-          width="100%"
-          height="100%"
+        <video
+          controls
           src={url}
-          title="Video player"
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        ></iframe>
+          className="w-full h-full object-contain bg-black"
+        >
+            متصفحك لا يدعم عرض الفيديو.
+        </video>
       </div>
     );
   };
