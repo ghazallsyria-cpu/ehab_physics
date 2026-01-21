@@ -88,8 +88,7 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
             <div key={category}>
               <h3 className="text-2xl font-bold mb-6 border-r-4 border-[#fbbf24] pr-4">{category}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Fix: Line 95 - Cast quizList to Quiz[] to satisfy TypeScript that it has a .map() method. */}
-                {(quizList as Quiz[]).map(quiz => {
+                {quizList.map(quiz => {
                   const attemptsForThisQuiz: StudentQuizAttempt[] = userAttempts.filter(a => a.quizId === quiz.id).sort((a,b) => (b.attemptNumber || 0) - (a.attemptNumber || 0));
                   return (
                     <div key={quiz.id} className="glass-panel p-8 rounded-[50px] border-white/5 hover:border-[#fbbf24]/40 transition-all relative overflow-hidden group flex flex-col">

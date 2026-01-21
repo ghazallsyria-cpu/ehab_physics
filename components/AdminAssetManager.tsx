@@ -23,14 +23,12 @@ CREATE POLICY "Public Read Access" ON storage.objects
 FOR SELECT USING ( bucket_id = 'assets' );
 
 -- Policy to allow authenticated users to upload to 'assets' bucket.
--- Note: This assumes you are using Supabase Auth. 
--- For anonymous uploads (less secure), change 'to authenticated' to 'to public'.
 CREATE POLICY "Authenticated Upload" ON storage.objects
 FOR INSERT TO authenticated WITH CHECK ( bucket_id = 'assets' );
 
 -- Policy to allow owners to delete their own files.
 CREATE POLICY "Owner Delete" ON storage.objects
-FOR DELETE USING ( bucket_id = 'assets' AND auth.uid() = owner_id );
+FOR DELETE USING ( bucket_id = 'assets' AND auth.uid() = (storage.foldername(name))[1]::uuid = owner_id );
 `;
 
 
@@ -132,15 +130,34 @@ FOR DELETE USING ( bucket_id = 'assets' AND auth.uid() = owner_id );
                         <div className="flex-1">
                             <h4 className="text-xl font-black text-red-400 mb-2 uppercase tracking-widest">فشل الوصول إلى مخزن Supabase</h4>
                             <p className="text-gray-300 leading-relaxed font-bold italic mb-6">"new row violates row-level security policy for table 'objects'"</p>
+                            <p className="text-sm text-gray-300 mb-6">هذا الخطأ يحدث لأن Supabase لا يملك الصلاحيات الكافية للسماح للمستخدمين (المعرفين عبر Firebase) برفع الملفات. الحل يتطلب خطوتين في لوحة تحكم Supabase:</p>
                             
                             <div className="bg-black/40 rounded-3xl p-8 border border-white/5 mb-8">
                                 <h5 className="text-amber-400 font-black text-sm mb-4 flex items-center gap-2">
-                                    <Settings size={16}/> حل مشكلة الصلاحيات في Supabase Storage:
+                                    <Settings size={16}/> الخطوة 1: تعريف Firebase كمصدر توثيق (JWT)
                                 </h5>
                                 <ol className="text-xs text-gray-400 space-y-4 list-decimal list-inside leading-relaxed">
-                                    <li>اذهب إلى <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">محرر SQL <ExternalLink size={10}/></a> في مشروعك على Supabase.</li>
-                                    <li>تأكد من وجود "Bucket" باسم `assets` وأن يكون عاماً (Public).</li>
-                                    <li>انسخ كود SQL أدناه وقم بتنفيذه لتطبيق سياسات الوصول الصحيحة.</li>
+                                    <li>افتح <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/auth/providers`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">صفحة إعدادات التوثيق <ExternalLink size={10}/></a> في Supabase.</li>
+                                    <li>ابحث عن مزود JWT وقم بتفعيله.</li>
+                                    <li>
+                                        املأ الحقول بالقيم التالية بالضبط:
+                                        <ul className="list-disc pr-8 mt-2 space-y-1 text-gray-300 font-mono text-left ltr">
+                                            <li><strong>JWKS URL:</strong> `https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com`</li>
+                                            <li><strong>Issuer:</strong> `https://securetoken.google.com/{process.env.VITE_FIREBASE_PROJECT_ID}`</li>
+                                        </ul>
+                                    </li>
+                                    <li>اضغط **Save**.</li>
+                                </ol>
+                            </div>
+
+                            <div className="bg-black/40 rounded-3xl p-8 border border-white/5 mb-8">
+                                <h5 className="text-amber-400 font-black text-sm mb-4 flex items-center gap-2">
+                                    <Settings size={16}/> الخطوة 2: تطبيق سياسات الأمان على مخزن الملفات
+                                </h5>
+                                <ol className="text-xs text-gray-400 space-y-4 list-decimal list-inside leading-relaxed">
+                                   <li>اذهب إلى <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">محرر SQL <ExternalLink size={10}/></a> في مشروعك على Supabase.</li>
+                                   <li>تأكد من وجود "Bucket" باسم `assets` وأن يكون عاماً (Public).</li>
+                                   <li>انسخ كود SQL أدناه وقم بتنفيذه لتطبيق سياسات الوصول الصحيحة.</li>
                                 </ol>
                                 
                                 <div className="mt-6 relative group">
