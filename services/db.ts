@@ -309,6 +309,7 @@ class SyrianScienceCenterDB {
             const invoiceData = snap.data() as Invoice;
             const userId = invoiceData.userId;
             if (userId) {
+                // FIX: Ensure userId is not unknown by casting invoiceData.
                 await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
             }
         }
@@ -394,14 +395,21 @@ class SyrianScienceCenterDB {
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     const docRef = snapshot.docs[0].ref;
-    const updateData = { status: status === 'SUCCESS' ? 'PAID' : 'FAIL' };
+    // FIX: Explicitly define `newStatus` with `PaymentStatus` type to prevent type inference issues.
+    const newStatus: PaymentStatus = status === 'SUCCESS' ? 'PAID' : 'FAIL';
+    const updateData = { status: newStatus };
     await updateDoc(docRef, updateData);
-    // FIX: Cast data to Invoice to ensure userId is of type string, not unknown.
     const invoiceData = snapshot.docs[0].data() as Invoice;
     if (status === 'SUCCESS') {
-      await updateDoc(doc(db, 'users', invoiceData.userId), { subscription: 'premium' });
+      // FIX: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+      // By extracting userId and checking for its existence, we satisfy TypeScript's strictness.
+      const userId = invoiceData.userId;
+      if (userId) {
+        await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
+      }
     }
-    return { ...invoiceData, id: snapshot.docs[0].id, ...updateData };
+    // FIX: Construct the return object with the correctly typed `newStatus` to match the `Invoice` type.
+    return { ...invoiceData, id: snapshot.docs[0].id, status: newStatus };
   }
 
   async getPaymentSettings(): Promise<PaymentSettings> {
