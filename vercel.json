@@ -1,9 +1,8 @@
-
 {
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/api/upload",
+      "dest": "/server/upload.js"
     }
   ]
 }
