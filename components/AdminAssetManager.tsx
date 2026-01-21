@@ -14,21 +14,35 @@ const AdminAssetManager: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const supabaseStoragePolicies = `
--- 1. Create a bucket named "assets" and make it public.
+-- الخطوة 1: أنشئ "Bucket" جديداً في Supabase Storage بالاسم "assets" واجعله عاماً (Public).
 
--- 2. Run these SQL policies in your Supabase SQL Editor:
+-- الخطوة 2: اذهب إلى إعدادات الـ "Policies" الخاصة بالـ Bucket وفعّل "Row Level Security" على جدول "objects".
 
--- Policy to allow public read access to all files in 'assets' bucket.
+-- الخطوة 3: اذهب إلى محرر SQL (SQL Editor) ونفّذ الأكواد التالية لإنشاء سياسات الوصول:
+
+-- -- Policy: السماح للجميع بقراءة الملفات
+DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
 CREATE POLICY "Public Read Access" ON storage.objects
 FOR SELECT USING ( bucket_id = 'assets' );
 
--- Policy to allow authenticated users to upload to 'assets' bucket.
+-- -- Policy: السماح للمستخدمين المسجلين فقط برفع الملفات إلى مجلد "uploads"
+-- -- مع التأكد من أنهم يضعون أنفسهم كمالكين للملف
+DROP POLICY IF EXISTS "Authenticated Upload" ON storage.objects;
 CREATE POLICY "Authenticated Upload" ON storage.objects
-FOR INSERT TO authenticated WITH CHECK ( bucket_id = 'assets' );
+FOR INSERT TO authenticated WITH CHECK (
+  bucket_id = 'assets' AND
+  auth.uid() = (metadata->>'owner_id')::uuid AND
+  (storage.foldername(name))[1] = 'uploads'
+);
 
--- Policy to allow owners to delete their own files.
+-- -- Policy: السماح للمالك فقط بحذف ملفاته من مجلد "uploads"
+DROP POLICY IF EXISTS "Owner Delete" ON storage.objects;
 CREATE POLICY "Owner Delete" ON storage.objects
-FOR DELETE USING ( bucket_id = 'assets' AND auth.uid() = (storage.foldername(name))[1]::uuid = owner_id );
+FOR DELETE TO authenticated USING (
+  bucket_id = 'assets' AND
+  auth.uid() = (metadata->>'owner_id')::uuid AND
+  (storage.foldername(name))[1] = 'uploads'
+);
 `;
 
 
@@ -80,7 +94,6 @@ FOR DELETE USING ( bucket_id = 'assets' AND auth.uid() = (storage.foldername(nam
         if (!window.confirm(`هل أنت متأكد من حذف الملف "${asset.name}"؟`)) return;
         
         try {
-            // Supabase delete needs just the name, not the full path in bucket
             await dbService.deleteAsset(asset.name);
             setMessage({ text: 'تم حذف الملف.', type: 'success' });
             await loadAssets();
@@ -154,11 +167,7 @@ FOR DELETE USING ( bucket_id = 'assets' AND auth.uid() = (storage.foldername(nam
                                 <h5 className="text-amber-400 font-black text-sm mb-4 flex items-center gap-2">
                                     <Settings size={16}/> الخطوة 2: تطبيق سياسات الأمان على مخزن الملفات
                                 </h5>
-                                <ol className="text-xs text-gray-400 space-y-4 list-decimal list-inside leading-relaxed">
-                                   <li>اذهب إلى <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">محرر SQL <ExternalLink size={10}/></a> في مشروعك على Supabase.</li>
-                                   <li>تأكد من وجود "Bucket" باسم `assets` وأن يكون عاماً (Public).</li>
-                                   <li>انسخ كود SQL أدناه وقم بتنفيذه لتطبيق سياسات الوصول الصحيحة.</li>
-                                </ol>
+                                <p className="text-xs text-gray-400 mb-4 leading-relaxed">اذهب إلى <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">محرر SQL <ExternalLink size={10}/></a> في مشروعك، وانسخ الكود أدناه بالكامل وقم بتنفيذه.</p>
                                 
                                 <div className="mt-6 relative group">
                                     <pre className="bg-black/60 p-5 rounded-xl text-[10px] font-mono text-emerald-400 overflow-x-auto ltr text-left border border-white/10">

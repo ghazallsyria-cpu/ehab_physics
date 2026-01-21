@@ -80,7 +80,7 @@ class SyrianScienceCenterDB {
     await this.setSupabaseAuth();
 
     const fileName = `${Date.now()}_${file.name}`;
-    const filePath = `public/${fileName}`;
+    const filePath = `uploads/${fileName}`;
     
     const { error } = await supabase.storage.from('assets').upload(filePath, file, {
         metadata: { owner_id: auth.currentUser.uid }
@@ -99,7 +99,7 @@ class SyrianScienceCenterDB {
   }
 
   async listAssets(): Promise<Asset[]> {
-    const { data, error } = await supabase.storage.from('assets').list('public', {
+    const { data, error } = await supabase.storage.from('assets').list('uploads', {
       limit: 100,
       offset: 0,
       sortBy: { column: 'created_at', order: 'desc' },
@@ -116,7 +116,7 @@ class SyrianScienceCenterDB {
     if (!data) return [];
     
     return data.map(file => {
-        const { data: publicUrlData } = supabase.storage.from('assets').getPublicUrl(`public/${file.name}`);
+        const { data: publicUrlData } = supabase.storage.from('assets').getPublicUrl(`uploads/${file.name}`);
         return {
             name: file.name,
             url: publicUrlData.publicUrl,
@@ -130,7 +130,7 @@ class SyrianScienceCenterDB {
     if (!auth.currentUser) throw new Error("AUTH_REQUIRED");
     await this.setSupabaseAuth();
     
-    const filePath = `public/${fileName}`;
+    const filePath = `uploads/${fileName}`;
     const { error } = await supabase.storage.from('assets').remove([filePath]);
     if (error) {
         console.error('Supabase delete error:', error);
@@ -303,11 +303,12 @@ class SyrianScienceCenterDB {
     if (status === 'PAID') {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
-            const invoiceData = snap.data();
             // FIX: Argument of type 'unknown' is not assignable to parameter of type 'string'.
-            // Add type check to ensure userId is a string before passing it to doc().
+            // Explicitly cast `snap.data()` to the `Invoice` type. This ensures that
+            // `invoiceData.userId` is correctly typed as `string`, resolving the error.
+            const invoiceData = snap.data() as Invoice;
             const userId = invoiceData.userId;
-            if (typeof userId === 'string' && userId) {
+            if (userId) {
                 await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
             }
         }
