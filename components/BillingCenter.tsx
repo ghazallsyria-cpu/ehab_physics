@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User, Invoice, SubscriptionPlan } from '../types';
 import { PRICING_PLANS } from '../constants';
@@ -16,7 +17,6 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
   const [finalResult, setFinalResult] = useState<'SUCCESS' | 'FAIL'>('SUCCESS');
   const [failureReason, setFailureReason] = useState<string>('');
 
-  // Fixed 'PricingPlan' to 'SubscriptionPlan' to match types.ts
   const handleInitiate = async (plan: SubscriptionPlan) => {
     setIsProcessing(true);
     const invoice = await dbService.initiatePayment(user.uid, plan.id, plan.price);

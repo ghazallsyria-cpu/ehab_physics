@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, StudentQuizAttempt, Quiz, Question } from '../types';
 import { dbService } from '../services/db';
@@ -30,10 +31,8 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user, attempt }) => {
   
   const finalScore = useMemo(() => {
     if (attempt.status === 'manually-graded') {
-      const autoScore = questions.filter(q => q.type === 'mcq' && attempt.answers[q.id] === q.correctChoiceId).reduce((sum, q) => sum + q.score, 0);
-      // FIX: Removed unnecessary type annotation and @ts-ignore. Type inference should handle this correctly.
-      // FIX: Explicitly type `grade` parameter to resolve `unknown` type issue and allow property access.
-      const manualScore = Object.values(attempt.manualGrades || {}).reduce((sum, grade: { awardedScore: number; feedback?: string }) => sum + (grade.awardedScore || 0), 0);
+      const autoScore = questions.filter(q => q.type === 'mcq' && attempt.answers[q.id] === q.correctChoiceId).reduce((sum: number, q: Question) => sum + Number(q.score || 0), 0);
+      const manualScore = Object.values(attempt.manualGrades || {}).reduce((sum: number, grade: { awardedScore: number; feedback?: string }) => sum + (grade.awardedScore || 0), 0);
       return autoScore + manualScore;
     }
     return attempt.score;

@@ -13,15 +13,26 @@ const AdminAssetManager: React.FC = () => {
     const [copiedRules, setCopiedRules] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const storageRules = `rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    // Allow read and write access to all files
-    match /{allPaths=**} {
-      allow read, write: if true;
-    }
-  }
-}`;
+    const supabaseStoragePolicies = `
+-- 1. Create a bucket named "assets" and make it public.
+
+-- 2. Run these SQL policies in your Supabase SQL Editor:
+
+-- Policy to allow public read access to all files in 'assets' bucket.
+CREATE POLICY "Public Read Access" ON storage.objects
+FOR SELECT USING ( bucket_id = 'assets' );
+
+-- Policy to allow authenticated users to upload to 'assets' bucket.
+-- Note: This assumes you are using Supabase Auth. 
+-- For anonymous uploads (less secure), change 'to authenticated' to 'to public'.
+CREATE POLICY "Authenticated Upload" ON storage.objects
+FOR INSERT TO authenticated WITH CHECK ( bucket_id = 'assets' );
+
+-- Policy to allow owners to delete their own files.
+CREATE POLICY "Owner Delete" ON storage.objects
+FOR DELETE USING ( bucket_id = 'assets' AND auth.uid() = owner_id );
+`;
+
 
     useEffect(() => {
         loadAssets();
@@ -71,6 +82,7 @@ service firebase.storage {
         if (!window.confirm(`هل أنت متأكد من حذف الملف "${asset.name}"؟`)) return;
         
         try {
+            // Supabase delete needs just the name, not the full path in bucket
             await dbService.deleteAsset(asset.name);
             setMessage({ text: 'تم حذف الملف.', type: 'success' });
             await loadAssets();
@@ -88,7 +100,7 @@ service firebase.storage {
     };
     
     const handleCopyRules = () => {
-        navigator.clipboard.writeText(storageRules);
+        navigator.clipboard.writeText(supabaseStoragePolicies);
         setCopiedRules(true);
         setTimeout(() => setCopiedRules(false), 2000);
     };
@@ -105,7 +117,7 @@ service firebase.storage {
     return (
         <div className="max-w-7xl mx-auto py-8 animate-fadeIn font-['Tajawal'] text-right" dir="rtl">
             <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
-                <h2 className="text-3xl font-black text-white flex items-center gap-4"><Library /> مكتبة الوسائط</h2>
+                <h2 className="text-3xl font-black text-white flex items-center gap-4"><Library /> مكتبة الوسائط (Supabase)</h2>
                 <button onClick={loadAssets} className="p-4 bg-white/5 rounded-2xl text-white hover:bg-white/10 transition-all border border-white/10"><RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} /></button>
             </header>
 
@@ -118,22 +130,22 @@ service firebase.storage {
                             <AlertCircle size={32} />
                         </div>
                         <div className="flex-1">
-                            <h4 className="text-xl font-black text-red-400 mb-2 uppercase tracking-widest">فشل الوصول إلى مخزن الوسائط</h4>
-                            <p className="text-gray-300 leading-relaxed font-bold italic mb-6">"Firebase Storage: User does not have permission to list objects."</p>
+                            <h4 className="text-xl font-black text-red-400 mb-2 uppercase tracking-widest">فشل الوصول إلى مخزن Supabase</h4>
+                            <p className="text-gray-300 leading-relaxed font-bold italic mb-6">"new row violates row-level security policy for table 'objects'"</p>
                             
                             <div className="bg-black/40 rounded-3xl p-8 border border-white/5 mb-8">
                                 <h5 className="text-amber-400 font-black text-sm mb-4 flex items-center gap-2">
-                                    <Settings size={16}/> حل مشكلة الصلاحيات في Firebase Storage:
+                                    <Settings size={16}/> حل مشكلة الصلاحيات في Supabase Storage:
                                 </h5>
                                 <ol className="text-xs text-gray-400 space-y-4 list-decimal list-inside leading-relaxed">
-                                    <li>اذهب إلى <a href={`https://console.firebase.google.com/project/${process.env.VITE_FIREBASE_PROJECT_ID}/storage/rules`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">صفحة قواعد التخزين (Storage Rules) <ExternalLink size={10}/></a> في مشروعك على Firebase.</li>
-                                    <li>انسخ الكود أدناه بالكامل.</li>
-                                    <li>استبدل القواعد الموجودة بهذا الكود ثم اضغط على **Publish**.</li>
+                                    <li>اذهب إلى <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">محرر SQL <ExternalLink size={10}/></a> في مشروعك على Supabase.</li>
+                                    <li>تأكد من وجود "Bucket" باسم `assets` وأن يكون عاماً (Public).</li>
+                                    <li>انسخ كود SQL أدناه وقم بتنفيذه لتطبيق سياسات الوصول الصحيحة.</li>
                                 </ol>
                                 
                                 <div className="mt-6 relative group">
                                     <pre className="bg-black/60 p-5 rounded-xl text-[10px] font-mono text-emerald-400 overflow-x-auto ltr text-left border border-white/10">
-                                        {storageRules}
+                                        {supabaseStoragePolicies}
                                     </pre>
                                     <button 
                                         onClick={handleCopyRules}

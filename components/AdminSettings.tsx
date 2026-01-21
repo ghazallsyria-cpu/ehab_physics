@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { LoggingSettings } from '../types';
+import { LoggingSettings, NotificationSettings } from '../types';
 import { dbService } from '../services/db';
-import { Database, Save, AlertCircle, RefreshCw } from 'lucide-react';
+import { Database, Save, AlertCircle, RefreshCw, Bell } from 'lucide-react';
 
 const AdminSettings: React.FC = () => {
   const [settings, setSettings] = useState<LoggingSettings | null>(null);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -16,8 +17,10 @@ const AdminSettings: React.FC = () => {
 
   const loadSettings = async () => {
     setIsLoading(true);
-    const data = await dbService.getLoggingSettings();
-    setSettings(data);
+    const loggingData = await dbService.getLoggingSettings();
+    setSettings(loggingData);
+    const notificationData = await dbService.getNotificationSettings();
+    setNotificationSettings(notificationData);
     setIsLoading(false);
   };
 
@@ -26,13 +29,20 @@ const AdminSettings: React.FC = () => {
       setSettings(prev => ({ ...prev!, [key]: !prev![key] }));
     }
   };
+  
+  const handleNotificationToggle = (key: keyof NotificationSettings) => {
+    if (notificationSettings) {
+      setNotificationSettings(prev => ({ ...prev!, [key]: !prev![key] }));
+    }
+  };
 
   const handleSave = async () => {
-    if (!settings) return;
+    if (!settings || !notificationSettings) return;
     setIsSaving(true);
     setMessage(null);
     try {
       await dbService.saveLoggingSettings(settings);
+      await dbService.saveNotificationSettings(notificationSettings);
       setMessage({ text: 'تم حفظ الإعدادات بنجاح!', type: 'success' });
     } catch (e) {
       setMessage({ text: 'فشل حفظ الإعدادات.', type: 'error' });
@@ -64,6 +74,25 @@ const AdminSettings: React.FC = () => {
     },
   ];
 
+  const notificationSettingOptions: { key: keyof NotificationSettings; title: string; description: string }[] = [
+    {
+      key: 'pushForLiveSessions',
+      title: 'تنبيهات بدء الجلسات المباشرة',
+      description: 'إرسال إشعار دفع (Push Notification) للطلاب قبل 5 دقائق من بدء الحصة المباشرة.',
+    },
+    {
+      key: 'pushForGradedQuizzes',
+      title: 'إشعار عند تصحيح الاختبارات',
+      description: 'إعلام الطالب فوراً عند تصحيح أحد اختباراته المقالية وظهور النتيجة النهائية.',
+    },
+    {
+      key: 'pushForAdminAlerts',
+      title: 'تنبيهات إدارية عاجلة',
+      description: 'للإعلانات الهامة جداً التي تتطلب وصولاً فورياً للطلاب حتى لو كانوا خارج المنصة.',
+    },
+  ];
+
+
   if (isLoading) {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -79,27 +108,51 @@ const AdminSettings: React.FC = () => {
         <p className="text-gray-500 text-xl font-medium">التحكم في البيانات التي يتم تسجيلها في قاعدة بيانات المنصة.</p>
       </header>
 
-      <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8">
-        <div className="flex items-center gap-4 text-gray-400 border-b border-white/5 pb-8">
-            <Database size={24} />
-            <h3 className="text-2xl font-black">إعدادات تسجيل البيانات (Logging)</h3>
+      <div className="space-y-12">
+        <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8">
+            <div className="flex items-center gap-4 text-gray-400 border-b border-white/5 pb-8">
+                <Database size={24} />
+                <h3 className="text-2xl font-black">إعدادات تسجيل البيانات (Logging)</h3>
+            </div>
+
+            {settingOptions.map(({ key, title, description }) => (
+            <div key={key} className="flex items-center justify-between p-6 bg-black/40 rounded-[30px] border border-white/5">
+                <div>
+                <h4 className="text-lg font-bold text-white">{title}</h4>
+                <p className="text-xs text-gray-500 max-w-md">{description}</p>
+                </div>
+                <button
+                onClick={() => handleToggle(key)}
+                className={`w-20 h-10 rounded-full p-1.5 transition-colors duration-300 flex items-center ${settings?.[key] ? 'bg-green-500 justify-end' : 'bg-gray-700 justify-start'}`}
+                >
+                <div className="w-7 h-7 bg-white rounded-full shadow-lg"></div>
+                </button>
+            </div>
+            ))}
         </div>
 
-        {settingOptions.map(({ key, title, description }) => (
-          <div key={key} className="flex items-center justify-between p-6 bg-black/40 rounded-[30px] border border-white/5">
-            <div>
-              <h4 className="text-lg font-bold text-white">{title}</h4>
-              <p className="text-xs text-gray-500 max-w-md">{description}</p>
+        <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8">
+            <div className="flex items-center gap-4 text-gray-400 border-b border-white/5 pb-8">
+                <Bell size={24} />
+                <h3 className="text-2xl font-black">إعدادات إشعارات Push (خارج المنصة)</h3>
             </div>
-            <button
-              onClick={() => handleToggle(key)}
-              className={`w-20 h-10 rounded-full p-1.5 transition-colors duration-300 flex items-center ${settings?.[key] ? 'bg-green-500 justify-end' : 'bg-gray-700 justify-start'}`}
-            >
-              <div className="w-7 h-7 bg-white rounded-full shadow-lg"></div>
-            </button>
-          </div>
-        ))}
+            {notificationSettingOptions.map(({ key, title, description }) => (
+                <div key={key} className="flex items-center justify-between p-6 bg-black/40 rounded-[30px] border border-white/5">
+                    <div>
+                        <h4 className="text-lg font-bold text-white">{title}</h4>
+                        <p className="text-xs text-gray-500 max-w-md">{description}</p>
+                    </div>
+                    <button
+                        onClick={() => handleNotificationToggle(key)}
+                        className={`w-20 h-10 rounded-full p-1.5 transition-colors duration-300 flex items-center ${notificationSettings?.[key] ? 'bg-green-500 justify-end' : 'bg-gray-700 justify-start'}`}
+                    >
+                        <div className="w-7 h-7 bg-white rounded-full shadow-lg"></div>
+                    </button>
+                </div>
+            ))}
+        </div>
       </div>
+
 
       <div className="mt-10 flex flex-col sm:flex-row items-center justify-end gap-6">
         {message && (

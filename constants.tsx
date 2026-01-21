@@ -1,3 +1,4 @@
+
 import { Curriculum, Quiz, Question, Answer, SubscriptionPlan, Article, StudyGroup, PhysicsExperiment, PhysicsEquation } from './types';
 
 // --- 1. Educational Content Data ---
@@ -118,7 +119,17 @@ export const CURRICULUM_DATA: Curriculum[] = [
     title: "منهج الفيزياء - الصف الحادي عشر",
     description: "أساسيات الميكانيكا الكلاسيكية والكهرباء.",
     icon: '⚡',
-    units: []
+    units: [
+        {
+            id: 'u11-1',
+            title: 'الوحدة 1: الحركة والقوة',
+            description: 'قوانين نيوتن، الحركة الخطية، والاحتكاك.',
+            lessons: [
+                { id: 'l11-1-1', title: 'قانون نيوتن الأول', type: 'THEORY', duration: '10 د', content: [] },
+                { id: 'l11-1-2', title: 'قانون نيوتن الثاني', type: 'THEORY', duration: '15 د', content: [] },
+            ]
+        }
+    ]
   },
   {
     grade: '10',
@@ -126,7 +137,17 @@ export const CURRICULUM_DATA: Curriculum[] = [
     title: "منهج الفيزياء - الصف العاشر",
     description: "مقدمة في الفيزياء، القياس، والمتجهات.",
     icon: '📏',
-    units: []
+    units: [
+        {
+            id: 'u10-1',
+            title: 'الوحدة 1: مقدمة في علم الفيزياء',
+            description: 'الكميات الفيزيائية، الوحدات، وأدوات القياس.',
+            lessons: [
+                { id: 'l10-1-1', title: 'ما هي الفيزياء؟', type: 'THEORY', duration: '10 د', content: [] },
+                { id: 'l10-1-2', title: 'النظام الدولي للوحدات (SI)', type: 'THEORY', duration: '15 د', content: [] },
+            ]
+        }
+    ]
   }
 ];
 
@@ -140,7 +161,6 @@ export const ANSWERS_DB: Answer[] = [
     { id: 'ans-3-1', text: '10 جول' }, { id: 'ans-3-2', text: '25 جول' }, { id: 'ans-3-3', text: '50 جول' },
 ];
 
-// FIX: Use `choices` and `correctChoiceId` to match the `Question` type definition.
 export const QUESTIONS_DB: Question[] = [
     { 
       id: 'q-1', 
@@ -254,7 +274,6 @@ export const QUESTIONS_DB: Question[] = [
     }
 ];
 
-// FIX: Removed `unitId` as it's not a property of the `Quiz` type.
 export const QUIZZES_DB: Quiz[] = [
   { id: 'quiz-1', title: 'اختبار سريع في الحث الكهرومغناطيسي', grade: '12', subject: 'Physics', questionIds: ['q-1'], duration: 5, totalScore: 1 },
   { id: 'quiz-2', title: 'اختبار مبادئ الفيزياء الحديثة', grade: '12', subject: 'Physics', questionIds: ['q-2'], duration: 5, totalScore: 1 },

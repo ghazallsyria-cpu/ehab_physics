@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Quiz, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
@@ -58,8 +60,6 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const groupedQuizzes = useMemo(() => {
-    // FIX: Explicitly typed the accumulator for the reduce function to ensure proper type inference for groupedQuizzes.
-    // FIX: Explicitly typed the accumulator `acc` and the initial value `{}` for the reduce function to ensure proper type inference for groupedQuizzes.
     return quizzes.reduce((acc: Record<string, Quiz[]>, quiz) => {
       const category = quiz.category || 'اختبارات عامة';
       if (!acc[category]) {
@@ -91,7 +91,7 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
               <h3 className="text-2xl font-bold mb-6 border-r-4 border-[#fbbf24] pr-4">{category}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {quizList.map(quiz => {
-                  const attemptsForThisQuiz = userAttempts.filter(a => a.quizId === quiz.id).sort((a,b) => (b.attemptNumber || 0) - (a.attemptNumber || 0));
+                  const attemptsForThisQuiz: StudentQuizAttempt[] = userAttempts.filter(a => a.quizId === quiz.id).sort((a,b) => (b.attemptNumber || 0) - (a.attemptNumber || 0));
                   return (
                     <div key={quiz.id} className="glass-panel p-8 rounded-[50px] border-white/5 hover:border-[#fbbf24]/40 transition-all relative overflow-hidden group flex flex-col">
                        {quiz.isPremium && <div className="absolute top-6 left-6 bg-[#fbbf24] text-black text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Premium</div>}
@@ -108,6 +108,8 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
                        {attemptsForThisQuiz.length > 0 && (
                           <div className="mb-6 space-y-2 pt-6 border-t border-white/10">
                               <h5 className="text-xs font-bold text-gray-400 mb-2">محاولاتك السابقة:</h5>
+                              {/* FIX: The original code used an invalid JavaScript comment `//` inside JSX. This can cause parsing errors leading to incorrect type inference by TypeScript. Corrected to a valid JSX comment. */}
+                              {/* FIX: Explicitly typed attemptsForThisQuiz to resolve incorrect type inference when calling .map. */}
                               {attemptsForThisQuiz.map(att => (
                                   <div key={att.id} className="flex justify-between items-center bg-black/40 p-3 rounded-xl text-xs">
                                       <span className="font-bold">محاولة #{att.attemptNumber}</span>

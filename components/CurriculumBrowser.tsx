@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CURRICULUM_DATA } from '../constants';
 import { User, Unit, Lesson, Curriculum } from '../types';
 import { dbService } from '../services/db';
+import { Check, Play } from 'lucide-react';
 
 interface CurriculumBrowserProps {
   user: User;
@@ -41,6 +42,14 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
   const activeTopic = dbCurriculum.find(t => t.grade === selectedGrade && t.subject === subject) 
                     || CURRICULUM_DATA.find(t => t.grade === selectedGrade && t.subject === subject);
   
+  const nextLesson = useMemo(() => {
+    if (!activeTopic) return null;
+    const allLessons = activeTopic.units.flatMap(unit => unit.lessons || []);
+    if (allLessons.length === 0) return null;
+    const completedIds = user.progress.completedLessonIds || [];
+    return allLessons.find(lesson => !completedIds.includes(lesson.id)) || null;
+  }, [activeTopic, user.progress.completedLessonIds]);
+
   const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
   const subjectColor = subject === 'Physics' ? 'text-[#00d2ff]' : 'text-green-400';
 
@@ -94,13 +103,42 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
               </button>
               <div className={`transition-all duration-500 ease-in-out ${expandedUnitId === unit.id ? 'max-h-[1000px] opacity-100 pb-8' : 'max-h-0 opacity-0'}`}>
                  <div className="px-8 space-y-3">
-                    {unit.lessons?.map((lesson) => {
+                    {unit.lessons?.map((lesson, lIdx) => {
                       const isCompleted = user.progress.completedLessonIds.includes(lesson.id);
+                      const isNext = nextLesson?.id === lesson.id;
+
+                      let statusStyles = {
+                          container: 'bg-black/40 border-white/5 hover:border-white/20',
+                          iconContainer: 'bg-white/5 text-gray-500',
+                          text: 'text-gray-300',
+                      };
+                      let icon: React.ReactNode = lIdx + 1;
+
+                      if (isCompleted) {
+                          statusStyles = {
+                              container: 'bg-green-500/10 border-green-500/20 opacity-60 hover:opacity-100',
+                              iconContainer: 'bg-green-500 text-black',
+                              text: 'text-gray-500 line-through',
+                          };
+                          icon = <Check size={16} />;
+                      } else if (isNext) {
+                          statusStyles = {
+                              container: 'bg-[#fbbf24]/10 border-[#fbbf24]/40 animate-pulse',
+                              iconContainer: 'bg-[#fbbf24] text-black',
+                              text: 'text-white font-bold',
+                          };
+                          icon = <Play size={16} />;
+                      }
+
                       return (
-                        <div key={lesson.id} onClick={() => navigateToLesson(lesson)} className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer group transition-all ${ isCompleted ? 'bg-green-500/10 border-green-500/20' : 'bg-black/40 border-white/5 hover:border-[#fbbf24]/30'}`}>
+                        <div key={lesson.id} onClick={() => navigateToLesson(lesson)} className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer group transition-all ${statusStyles.container}`}>
                            <div className="flex items-center gap-4">
-                              <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black ${isCompleted ? 'bg-green-500 text-black' : 'bg-white/5 text-gray-500'}`}>{isCompleted ? '✓' : '▶'}</span>
-                              <p className={`text-sm font-bold ${isCompleted ? 'text-green-400 line-through' : 'text-gray-300'}`}>{lesson.title}</p>
+                              <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black transition-all ${statusStyles.iconContainer}`}>
+                                  {icon}
+                              </span>
+                              <p className={`text-sm transition-colors ${statusStyles.text}`}>
+                                  {lesson.title}
+                              </p>
                            </div>
                            <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest">{lesson.duration}</span>
                         </div>

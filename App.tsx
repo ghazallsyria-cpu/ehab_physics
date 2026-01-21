@@ -1,8 +1,4 @@
 
-
-
-
-
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { User, ViewState, Lesson, QuizAttempt, Curriculum, Invoice, Quiz, StudentQuizAttempt } from './types';
 import { dbService } from './services/db';
@@ -47,6 +43,9 @@ const AdminQuizManager = lazy(() => import('./components/AdminQuizManager'));
 const AdminContentManager = lazy(() => import('./components/AdminContentManager'));
 const FloatingNav = lazy(() => import('./components/FloatingNav'));
 const AdminAssetManager = lazy(() => import('./components/AdminAssetManager'));
+const AdminForumManager = lazy(() => import('./components/AdminForumManager'));
+const AdminCertificates = lazy(() => import('./components/AdminCertificates'));
+const CertificateVerificationPage = lazy(() => import('./components/CertificateVerificationPage'));
 
 
 const App: React.FC = () => {
@@ -63,11 +62,14 @@ const App: React.FC = () => {
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const path = window.location.pathname.replace('/', '');
     if (path === 'privacy-policy') {
         setViewStack(['landing', 'privacy-policy']);
+    } else if (path.startsWith('verify-certificate')) {
+        setViewStack(['verify-certificate']);
     }
   }, []);
   
@@ -83,7 +85,7 @@ const App: React.FC = () => {
                     const appUser = await dbService.getUser(firebaseUser.uid);
                     if (appUser) {
                         setUser(appUser);
-                        setViewStack(['dashboard']); // Redirect to dashboard if user is found
+                        if (view !== 'verify-certificate') setViewStack(['dashboard']);
                     } else {
                         await signOut(auth);
                         setUser(null);
@@ -100,7 +102,7 @@ const App: React.FC = () => {
                 const appUser = await dbService.getUser(localUid);
                 if (appUser) {
                     setUser(appUser);
-                    setViewStack(['dashboard']);
+                    if (view !== 'verify-certificate') setViewStack(['dashboard']);
                 }
             }
             setIsAuthLoading(false);
@@ -112,6 +114,21 @@ const App: React.FC = () => {
     // Cleanup subscription on unmount
     return () => { if (unsubscribe) unsubscribe(); };
   }, []);
+  
+  useEffect(() => {
+    if (!user) return;
+    const fetchUnreadCount = async () => {
+        try {
+            const notes = await dbService.getNotifications(user.uid);
+            const unread = notes.filter(n => !n.isRead).length;
+            setUnreadCount(unread);
+        } catch (e) {
+            console.error("Failed to fetch notification count", e);
+        }
+    };
+    fetchUnreadCount();
+  }, [user]);
+
 
   useEffect(() => {
     const handleViewChange = (event: Event) => {
@@ -176,6 +193,16 @@ const App: React.FC = () => {
   };
   
   const renderView = () => {
+    const fallbackSpinner = (
+        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-[#0A2540] to-[#010304]">
+            <div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+    );
+    
+    if (view === 'verify-certificate') {
+        return <Suspense fallback={fallbackSpinner}><CertificateVerificationPage /></Suspense>
+    }
+
     if (isAuthLoading) {
       return (
         <div className="flex items-center justify-center h-screen">
@@ -183,12 +210,6 @@ const App: React.FC = () => {
         </div>
       );
     }
-    
-    const fallbackSpinner = (
-        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-[#0A2540] to-[#010304]">
-            <div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-    );
 
     if (!user) {
         return (
@@ -224,7 +245,7 @@ const App: React.FC = () => {
         case 'payment-certificate':
           return activeInvoice ? <PaymentCertificate user={user} invoice={activeInvoice} /> : <BillingCenter user={user} onUpdateUser={setUser} onViewCertificate={() => {}} />;
         case 'discussions':
-          return <Forum user={user} onAskAI={(q) => { setViewStack(prev => [...prev, 'ai-chat']); }} />;
+          return <Forum user={user} />;
         case 'ai-chat':
           return <AiTutor grade={user.grade} subject={activeSubject} />;
         case 'recommendations':
@@ -254,12 +275,16 @@ const App: React.FC = () => {
             return user.role === 'admin' ? <AdminLiveSessions /> : <StudentDashboard user={user} />;
         case 'admin-quizzes':
             return user.role === 'admin' ? <AdminQuizManager /> : <StudentDashboard user={user} />;
+        case 'admin-certificates':
+            return user.role === 'admin' ? <AdminCertificates /> : <StudentDashboard user={user} />;
         case 'admin-settings':
             return user.role === 'admin' ? <AdminSettings /> : <StudentDashboard user={user} />;
         case 'admin-content':
             return user.role === 'admin' ? <AdminContentManager /> : <StudentDashboard user={user} />;
         case 'admin-assets':
             return user.role === 'admin' ? <AdminAssetManager /> : <StudentDashboard user={user} />;
+        case 'admin-forums':
+            return user.role === 'admin' ? <AdminForumManager /> : <StudentDashboard user={user} />;
         default:
           return <StudentDashboard user={user} />;
       }
@@ -287,9 +312,13 @@ const App: React.FC = () => {
             <header className="lg:hidden flex justify-between items-center mb-6">
                 <span className="text-lg font-black text-white">SSC</span>
                 <div className="flex items-center gap-2">
-                    <button onClick={() => setShowNotifications(s => !s)} className="p-3 bg-white/5 rounded-full relative">
+                    <button onClick={() => { setShowNotifications(s => !s); setUnreadCount(0); }} className="p-3 bg-white/5 rounded-full relative">
                         <Bell size={18} />
-                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0A2540]"></span>
+                        {unreadCount > 0 && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-[#0A2540] text-white text-[8px] flex items-center justify-center font-bold">
+                            {unreadCount}
+                          </span>
+                        )}
                     </button>
                     <button onClick={() => setIsSidebarOpen(true)} className="p-3 bg-white/5 rounded-full">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 12H21" stroke="white" strokeWidth="2" strokeLinecap="round"/><path d="M3 6H21" stroke="white" strokeWidth="2" strokeLinecap="round"/><path d="M3 18H21" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>

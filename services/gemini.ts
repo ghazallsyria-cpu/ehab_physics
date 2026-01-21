@@ -1,5 +1,4 @@
 
-
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AISolverResult, User, StudentQuizAttempt, Question, Curriculum } from "../types";
 
@@ -105,8 +104,6 @@ export const generatePhysicsVisualization = async (prompt: string): Promise<stri
     const blob = await response.blob();
     return URL.createObjectURL(blob);
 };
-
-// FIX: Implement and export missing Gemini functions for question management.
 
 // Helper function to convert data URL to parts for Gemini
 const fileToGenerativePart = (dataUrl: string) => {
@@ -242,11 +239,10 @@ export const verifyQuestionQuality = async (
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const questionString = JSON.stringify({
-    // FIX: Use `text`, `choices`, and `correctChoiceId` to match the Question type.
     text: question.text,
     type: question.type,
     choices: question.choices,
-    correctAnswer: question.correctChoiceId,
+    correctChoiceId: question.correctChoiceId,
     solution: question.solution,
     difficulty: question.difficulty,
     subject: question.subject,

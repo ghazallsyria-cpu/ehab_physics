@@ -71,6 +71,17 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
 
     await dbService.saveAttempt(attempt);
     setFinalAttempt(attempt);
+    
+    await dbService.createNotification({
+        userId: user.uid,
+        title: "تم استلام الاختبار بنجاح",
+        message: `تم تسليم إجاباتك لاختبار "${quiz.title}". سيقوم المعلم بمراجعته قريباً.`,
+        timestamp: new Date().toISOString(),
+        isRead: false,
+        type: 'info',
+        category: 'academic'
+    });
+
   };
 
   const renderMathText = (text: string) => {

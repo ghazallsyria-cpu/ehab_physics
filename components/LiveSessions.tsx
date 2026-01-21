@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { LiveSession, User } from '../types';
 import { dbService } from '../services/db';
-import { Video, Calendar, User as UserIcon, BookOpen, RefreshCw, AlertCircle, PlayCircle, ExternalLink, Youtube, X } from 'lucide-react';
+import { Video, Calendar, User as UserIcon, BookOpen, RefreshCw, AlertCircle, PlayCircle, ExternalLink, Youtube, X, BellRing } from 'lucide-react';
 
 // Lazy load components
 const ZoomMeeting = lazy(() => import('./ZoomMeeting'));
@@ -27,6 +26,7 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
   const [activeYoutubeSession, setActiveYoutubeSession] = useState<LiveSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -48,6 +48,54 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
         unsubscribeTeachers();
     };
   }, []);
+  
+  // New Effect for notification logic
+  useEffect(() => {
+    const NOTIFICATION_WINDOW_MINUTES = 5;
+
+    const checkUpcomingSessions = () => {
+        const now = new Date().getTime();
+        sessions.forEach(session => {
+            if (session.status === 'upcoming') {
+                const sessionTime = new Date(session.startTime).getTime();
+                if (isNaN(sessionTime)) return; // Invalid date, skip
+                
+                const diffInMinutes = (sessionTime - now) / 60000;
+                const notifiedKey = `notified_${session.id}`;
+                const alreadyNotified = sessionStorage.getItem(notifiedKey);
+
+                if (diffInMinutes > 0 && diffInMinutes <= NOTIFICATION_WINDOW_MINUTES && !alreadyNotified) {
+                    const roundedMinutes = Math.ceil(diffInMinutes);
+                    const toastMessage = `"${session.title}" ستبدأ خلال ${roundedMinutes} ${roundedMinutes > 1 ? 'دقائق' : 'دقيقة'}.`;
+                    
+                    // Show immediate toast
+                    setToast({ title: '📢 جلسة على وشك البدء!', message: toastMessage });
+                    setTimeout(() => setToast(null), 7000);
+
+                    // Create persistent notification in DB
+                    dbService.createNotification({
+                        userId: user.uid,
+                        title: "📢 جلسة على وشك البدء!",
+                        message: `حصتك المباشرة "${session.title}" ستبدأ قريباً. استعد!`,
+                        timestamp: new Date().toISOString(),
+                        isRead: false,
+                        type: 'info',
+                        category: 'academic'
+                    });
+
+                    // Mark as notified for this browser session
+                    sessionStorage.setItem(notifiedKey, 'true');
+                }
+            }
+        });
+    };
+
+    // Run the check every 30 seconds
+    const intervalId = setInterval(checkUpcomingSessions, 30000);
+    checkUpcomingSessions(); // Initial check
+
+    return () => clearInterval(intervalId);
+  }, [sessions, user.uid]);
 
   const handleJoinClick = (session: LiveSession) => {
     if (session.status !== 'live') {
@@ -174,6 +222,21 @@ const LiveSessions: React.FC<LiveSessionsProps> = ({ user }) => {
 
   return (
     <div className="max-w-6xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-24 right-10 z-[2000] w-full max-w-sm animate-slideUp">
+            <div className="glass-panel p-6 rounded-[30px] border-2 border-amber-500/30 bg-amber-500/10 flex items-start gap-4 shadow-2xl">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+                    <BellRing size={24} className="animate-pulse" />
+                </div>
+                <div>
+                    <h4 className="font-black text-amber-400">{toast.title}</h4>
+                    <p className="text-sm text-gray-300">{toast.message}</p>
+                </div>
+                <button onClick={() => setToast(null)} className="absolute top-4 left-4 text-gray-500 hover:text-white">&times;</button>
+            </div>
+        </div>
+      )}
       <div className="mb-16 text-center">
         <h2 className="text-5xl font-black mb-4 tracking-tighter italic uppercase">الجلسات <span className="text-blue-400 text-glow">المباشرة</span></h2>
         <p className="text-gray-500 text-xl max-w-3xl mx-auto leading-relaxed">

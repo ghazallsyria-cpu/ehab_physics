@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ExternalLink, Copy, Check, ClipboardList, LayoutDashboard, Library } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ExternalLink, Copy, Check, ClipboardList, LayoutDashboard, Library, MessageSquare, Award } from 'lucide-react';
 import { dbService } from '../services/db';
 
 const AdminDashboard: React.FC = () => {
@@ -43,6 +43,8 @@ service cloud.firestore {
     { view: 'admin-quizzes', icon: ClipboardList, title: 'إدارة الاختبارات', description: 'إنشاء وتعديل الاختبارات وبنوك الأسئلة.' },
     { view: 'admin-students', icon: Users, title: 'إدارة الطلاب', description: 'متابعة حسابات الطلاب، الاشتراكات، والتقدم.' },
     { view: 'admin-teachers', icon: Briefcase, title: 'إدارة المعلمين', description: 'إدارة صلاحيات المعلمين، الحسابات، والبيانات.' },
+    { view: 'admin-certificates', icon: Award, title: 'إدارة الشهادات', description: 'إصدار وتصميم وتوثيق شهادات إتمام المنهج.' },
+    { view: 'admin-forums', icon: MessageSquare, title: 'إدارة المنتديات', description: 'إنشاء وتعديل أقسام ومنتديات النقاش.' },
     { view: 'admin-live-sessions', icon: Video, title: 'إدارة البث المباشر', description: 'جدولة جلسات Zoom وإضافة روابط البث للطلاب.' },
     { view: 'admin-financials', icon: Banknote, title: 'الأمور المالية', description: 'مراقبة سجلات الدفع، الفواتير، والإحصائيات.' },
     { view: 'admin-assets', icon: Library, title: 'مكتبة الوسائط', description: 'رفع وإدارة الصور والملفات المستخدمة في الدروس.' },

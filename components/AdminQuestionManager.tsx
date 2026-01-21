@@ -1,8 +1,6 @@
 
-
 import React, { useState, useRef } from 'react';
 import { Question, SubjectType, BranchType } from '../types';
-// FIX: Import the newly created Gemini service functions.
 import { extractBankQuestionsAdvanced, verifyQuestionQuality, digitizeExamPaper } from '../services/gemini';
 import { dbService } from '../services/db';
 
@@ -217,11 +215,9 @@ const AdminQuestionManager: React.FC = () => {
                         <span className="text-[#00d2ff] uppercase">{q.category}</span>
                      </div>
                      
-                     {/* FIX: fallback to 'text' if 'question_text' is missing to ensure compatibility */}
                      <p className="text-lg font-bold text-white leading-relaxed">{(q as any).question_text || q.text}</p>
                      
                      <div className="grid grid-cols-2 gap-4">
-                        {/* FIX: handle both 'choices' and 'answers' properties for backward compatibility */}
                         {((q as any).choices || q.answers) && ((q as any).choices || q.answers).length > 0 ? (
                            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 col-span-2">
                              <p className="text-[8px] font-black text-gray-400 uppercase mb-2">الخيارات:</p>

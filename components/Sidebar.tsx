@@ -62,13 +62,24 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
         ];
       case 'admin':
         return [
-          { label: 'الإدارة الشاملة', items: [
-            { id: 'dashboard', label: 'لوحة التحكم الرئيسية', icon: '📊' },
-            { id: 'admin-students', label: 'إدارة الطلاب', icon: '🎓' },
+          { label: 'القائمة الرئيسية', items: [
+            { id: 'dashboard', label: 'لوحة التحكم', icon: '📊' },
+            { id: 'admin-students', label: 'إدارة المستخدمين', icon: '👥' },
             { id: 'admin-teachers', label: 'إدارة المعلمين', icon: '👨‍🏫' },
-            { id: 'admin-curriculum', label: 'إدارة المناهج', icon: '📚' },
-            { id: 'admin-quizzes', label: 'إدارة الاختبارات', icon: '📝' },
-            { id: 'admin-financials', label: 'الأمور المالية', icon: '💰' },
+            { id: 'admin-parents', label: 'أولياء الأمور', icon: '👨‍👩‍👧‍👦' },
+            { id: 'admin-curriculum', label: 'إدارة المسارات', icon: '📚' },
+            { id: 'admin-videos', label: 'فيديوهات الدروس', icon: '📹' },
+            { id: 'admin-live-sessions', label: 'الجلسات المباشرة', icon: '📡' },
+            { id: 'admin-quizzes', label: 'إدارة الاختبارات', icon: '❓' },
+            { id: 'admin-quiz-attempts', label: 'محاولات الاختبارات', icon: '📋' },
+            { id: 'admin-certificates', label: 'الشهادات', icon: '📜' },
+            { id: 'admin-reviews', label: 'آراء الطلاب', icon: '💬' },
+            { id: 'admin-pricing', label: 'إدارة الأسعار', icon: '💲' },
+            { id: 'admin-subscriptions', label: 'الاشتراكات', icon: '💳' },
+            { id: 'admin-payments-log', label: 'سجل المدفوعات', icon: '🧾' },
+            { id: 'admin-payment-settings', label: 'إعدادات الدفع', icon: '⚙️' },
+            { id: 'admin-email-notifications', label: 'إشعارات البريد', icon: '📧' },
+            { id: 'admin-internal-messages', label: 'الرسائل الداخلية', icon: '✉️' },
           ]}
         ];
       default:

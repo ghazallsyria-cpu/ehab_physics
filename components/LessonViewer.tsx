@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Lesson, User, ContentBlock } from '../types';
 import { dbService } from '../services/db';
@@ -43,8 +44,21 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
 
 
   const handleToggleComplete = async () => {
+    const wasCompleted = isCompleted;
     await dbService.toggleLessonComplete(user.uid, lesson.id);
     setIsCompleted(!isCompleted);
+
+    if (!wasCompleted) {
+        await dbService.createNotification({
+            userId: user.uid,
+            title: "إنجاز جديد!",
+            message: `أحسنت! لقد أكملت درس "${lesson.title}". +10 نقاط!`,
+            timestamp: new Date().toISOString(),
+            isRead: false,
+            type: 'success',
+            category: 'academic'
+        });
+    }
   };
   
   const handleCopyLink = () => {

@@ -17,7 +17,7 @@ const extractYoutubeId = (url: string): string | null => {
     if (!url) {
         return null;
     }
-    const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]{11}).*/;
+    const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\v(?:i)?=|\&v(?:i)?=))([^#\&\?]{11}).*/;
     const match = url.match(regExp);
 
     return (match && match[1]) ? match[1] : null;
@@ -124,7 +124,7 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
                 ) : (block.type === 'image' || block.type === 'video' || block.type === 'pdf' || block.type === 'audio') ? (
                   <div className="bg-black/20 p-4 rounded-lg border border-white/5">
                     {(() => {
-                      const isUploaded = block.content && block.content.includes('firebasestorage.googleapis.com');
+                      const isUploaded = block.content && (block.content.includes('supabase.co') || block.content.includes('firebasestorage.googleapis.com'));
                       const isExternalUrl = block.content && (block.content.startsWith('http') || block.content.startsWith('https')) && !isUploaded;
 
                       if (isUploaded) {
@@ -218,8 +218,8 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
                           src={block.content} 
                           alt="معاينة" 
                           className="max-w-full max-h-full object-contain rounded-md"
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                          onLoad={(e) => { e.currentTarget.style.display = 'block'; }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          onLoad={(e) => { (e.target as HTMLImageElement).style.display = 'block'; }}
                         />
                       )}
                       {block.type === 'video' && (

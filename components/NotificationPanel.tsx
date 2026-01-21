@@ -16,17 +16,29 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ user, onClose }) 
   useEffect(() => {
     const fetchNotifications = async () => {
       setIsLoading(true);
-      // In a real app, this would be: const data = await dbService.getNotifications(user.uid);
-      const mockNotes: AppNotification[] = [
-        { id: 'n1', userId: user.uid, title: "إنجاز جديد!", message: "لقد أكملت تحدي 'ماراثون الكهرومغناطيسية'. +250 نقطة!", timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), isRead: false, type: 'success', category: 'academic' },
-        { id: 'n2', userId: user.uid, title: "جلسة مباشرة قادمة", message: "تبدأ جلسة 'مراجعة الميكانيكا' خلال ساعة.", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), isRead: false, type: 'info', category: 'general' },
-        { id: 'n3', userId: user.uid, title: "توصية ذكية", message: "يقترح المساعد الذكي مراجعة درس 'قانون فاراداي'.", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), isRead: true, type: 'info', category: 'academic' }
-      ];
-      setNotifications(mockNotes.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
-      setIsLoading(false);
+      try {
+        const data = await dbService.getNotifications(user.uid);
+        setNotifications(data);
+      } catch (error) {
+        console.error("Failed to load notifications:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     fetchNotifications();
   }, [user.uid]);
+
+  const handleMarkAllAsRead = async () => {
+    // Optimistic UI update
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    try {
+      await dbService.markNotificationsAsRead(user.uid);
+    } catch (error) {
+      console.error("Failed to mark notifications as read:", error);
+      // Optional: Revert UI on failure
+    }
+  };
+
 
   const getIconForType = (type: AppNotification['type']) => {
     switch(type) {
@@ -44,7 +56,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ user, onClose }) 
       >
         <header className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.03]">
           <h3 className="font-black text-white flex items-center gap-3"><Bell size={18}/> مركز الإشعارات</h3>
-          <button className="text-[10px] font-bold text-gray-400 hover:text-white flex items-center gap-1.5"><CheckCheck size={12}/> وضع علامة مقروء للكل</button>
+          <button onClick={handleMarkAllAsRead} className="text-[10px] font-bold text-gray-400 hover:text-white flex items-center gap-1.5"><CheckCheck size={12}/> وضع علامة مقروء للكل</button>
         </header>
         <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3">
           {isLoading ? <div className="p-10 text-center text-gray-500">جاري التحميل...</div> :

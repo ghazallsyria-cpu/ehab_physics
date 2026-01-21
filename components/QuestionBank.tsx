@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Question } from '../types';
 import { dbService } from '../services/db';
@@ -88,7 +87,6 @@ const QuestionBank: React.FC<QuestionBankProps> = ({ user, onExplainAI }) => {
             
             <div className="mb-10">
                <h4 className="text-2xl md:text-3xl font-bold leading-relaxed text-white mb-8">
-                 {/* FIX: fallback to 'text' if 'question_text' is missing for backward compatibility */}
                  {((q as any).question_text || q.text || "").split(/(\$.*?\$)/g).map((part, i) => i % 2 === 0 ? part : <MathRenderer key={i} content={part.slice(1, -1)} />)}
                </h4>
                {q.question_latex && (
@@ -98,7 +96,6 @@ const QuestionBank: React.FC<QuestionBankProps> = ({ user, onExplainAI }) => {
                )}
             </div>
 
-            {/* FIX: handle both 'choices' and 'answers' properties for backward compatibility */}
             {q.type === 'mcq' && (q.choices || (q as any).answers) && ((q.choices || (q as any).answers).length > 0) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
                  {(q.choices || (q as any).answers).map((choice: any) => (

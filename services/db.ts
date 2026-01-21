@@ -1,8 +1,7 @@
-
-import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, LiveSession, Question, Quiz, UserRole, HomePageContent, PaymentStatus, Invoice, EducationalResource, Asset } from "../types";
-import { db, storage } from "./firebase";
+import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, NotificationSettings, LiveSession, Question, Quiz, UserRole, HomePageContent, PaymentStatus, Invoice, EducationalResource, Asset, ForumSection, Forum } from "../types";
+import { db } from "./firebase";
+import { supabase } from "./supabase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, writeBatch, orderBy, limit, onSnapshot } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL, listAll, deleteObject, getMetadata } from "firebase/storage";
 import { QUIZZES_DB, QUESTIONS_DB } from "../constants";
 
 const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
@@ -10,6 +9,12 @@ const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
   saveAllQuizAttempts: true,
   logAIChatHistory: true,
   archiveTeacherMessages: true,
+};
+
+const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  pushForLiveSessions: true,
+  pushForGradedQuizzes: true,
+  pushForAdminAlerts: true,
 };
 
 class SyrianScienceCenterDB {
@@ -56,56 +61,60 @@ class SyrianScienceCenterDB {
     if (!db) throw new Error("قاعدة البيانات غير متصلة.");
   }
   
-  private checkStorage() {
-    if (!storage) throw new Error("خدمة التخزين غير متصلة.");
-  }
-
-  // --- Asset Management (Firebase Storage) ---
+  // --- Asset Management (Supabase Storage) ---
   async uploadAsset(file: File): Promise<Asset> {
-    this.checkStorage();
-    const storageRef = ref(storage, `assets/${Date.now()}_${file.name}`);
-    try {
-        const snapshot = await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(snapshot.ref);
-        return { name: file.name, url, type: file.type, size: file.size };
-    } catch (e: any) {
-        if (e.code === 'storage/unauthorized') {
+    const filePath = `public/${Date.now()}_${file.name}`;
+    const { error } = await supabase.storage.from('assets').upload(filePath, file);
+
+    if (error) {
+        console.error('Supabase upload error:', error);
+        if (error.message.includes('security policy')) {
             throw new Error('STORAGE_PERMISSION_DENIED');
         }
-        throw e;
+        throw error;
     }
+
+    const { data } = supabase.storage.from('assets').getPublicUrl(filePath);
+    return { name: filePath, url: data.publicUrl, type: file.type, size: file.size };
   }
 
   async listAssets(): Promise<Asset[]> {
-    this.checkStorage();
-    const listRef = ref(storage, 'assets/');
-    try {
-        const res = await listAll(listRef);
-        const assetPromises = res.items.map(async (itemRef) => {
-        const [url, metadata] = await Promise.all([
-            getDownloadURL(itemRef),
-            getMetadata(itemRef)
-        ]);
-        return {
-            name: metadata.name,
-            url,
-            type: metadata.contentType || 'unknown',
-            size: metadata.size,
-        };
-        });
-        return Promise.all(assetPromises);
-    } catch (e: any) {
-        if (e.code === 'storage/unauthorized') {
+    const { data, error } = await supabase.storage.from('assets').list('public', {
+      limit: 100,
+      offset: 0,
+      sortBy: { column: 'created_at', order: 'desc' },
+    });
+
+    if (error) {
+        console.error('Supabase list error:', error);
+        if (error.message.includes('permission denied')) {
             throw new Error('STORAGE_PERMISSION_DENIED');
         }
-        throw e; // re-throw other errors
+        throw error;
     }
+    
+    if (!data) return [];
+    
+    return data.map(file => {
+        const { data: publicUrlData } = supabase.storage.from('assets').getPublicUrl(`public/${file.name}`);
+        return {
+            name: file.name,
+            url: publicUrlData.publicUrl,
+            type: file.metadata?.mimetype || 'unknown',
+            size: file.metadata?.size || 0,
+        };
+    });
   }
 
   async deleteAsset(fileName: string): Promise<void> {
-    this.checkStorage();
-    const assetRef = ref(storage, `assets/${fileName}`);
-    await deleteObject(assetRef);
+    // Note: Supabase's remove expects the full path within the bucket.
+    // Our upload logic places files in a 'public' folder.
+    const filePath = `public/${fileName}`;
+    const { error } = await supabase.storage.from('assets').remove([filePath]);
+    if (error) {
+        console.error('Supabase delete error:', error);
+        throw error;
+    }
   }
 
 
@@ -273,7 +282,11 @@ class SyrianScienceCenterDB {
     if (status === 'PAID') {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
-            await updateDoc(doc(db, 'users', snap.data().userId), { subscription: 'premium' });
+            // FIX: The `userId` from `snap.data()` can be of an unknown type. Added a `typeof` check to ensure it's a string before use.
+            const invoiceData = snap.data();
+            if (invoiceData && typeof invoiceData.userId === 'string' && invoiceData.userId) {
+                await updateDoc(doc(db, 'users', invoiceData.userId), { subscription: 'premium' });
+            }
         }
     }
   }
@@ -382,7 +395,37 @@ class SyrianScienceCenterDB {
     const newCode = { code: Math.random().toString(36).substring(2, 10).toUpperCase(), planId, isUsed: false, createdAt: new Date().toISOString(), activatedAt: null, userId: null };
     await addDoc(collection(db, 'subscription_codes'), this.cleanData(newCode));
   }
+async getForumSections(): Promise<ForumSection[]> {
+    this.checkDb();
+    const q = query(collection(db, "forum_sections"), orderBy("order"));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return [];
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ForumSection);
+}
 
+async saveForumSections(sections: ForumSection[]): Promise<void> {
+    this.checkDb();
+    const batch = writeBatch(db);
+    const sectionsCollectionRef = collection(db, 'forum_sections');
+
+    const existingDocsSnapshot = await getDocs(sectionsCollectionRef);
+    const existingIds = new Set(existingDocsSnapshot.docs.map(doc => doc.id));
+    const newIds = new Set(sections.map(s => s.id));
+
+    for (const id of existingIds) {
+        if (!newIds.has(id)) {
+            batch.delete(doc(sectionsCollectionRef, id));
+        }
+    }
+
+    sections.forEach((section, index) => {
+        const docRef = doc(db, 'forum_sections', section.id);
+        const { id, ...data } = section;
+        batch.set(docRef, this.cleanData({ ...data, order: index }));
+    });
+
+    await batch.commit();
+}
   async getForumPosts(): Promise<ForumPost[]> {
     const q = query(collection(db, 'forumPosts'), orderBy('timestamp', 'desc'));
     const snapshot = await getDocs(q);
@@ -514,6 +557,54 @@ class SyrianScienceCenterDB {
     }
   }
   
+  // --- Notification System ---
+  async createNotification(notification: Omit<AppNotification, 'id'>): Promise<void> {
+    this.checkDb();
+    await addDoc(collection(db, 'notifications'), this.cleanData(notification));
+  }
+
+  async getNotifications(userId: string): Promise<AppNotification[]> {
+    this.checkDb();
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', userId),
+      orderBy('timestamp', 'desc'),
+      limit(20) // Limit for performance
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as AppNotification);
+  }
+
+  async markNotificationsAsRead(userId: string): Promise<void> {
+    this.checkDb();
+    const q = query(collection(db, 'notifications'), where('userId', '==', userId), where('isRead', '==', false));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return;
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+      batch.update(doc.ref, { isRead: true });
+    });
+    await batch.commit();
+  }
+
+  // --- Settings ---
+  async getLoggingSettings(): Promise<LoggingSettings> {
+    const docSnap = await getDoc(doc(db, 'settings', 'logging'));
+    return docSnap.exists() ? docSnap.data() as LoggingSettings : DEFAULT_LOGGING_SETTINGS;
+  }
+  async saveLoggingSettings(settings: LoggingSettings): Promise<void> {
+    await setDoc(doc(db, 'settings', 'logging'), this.cleanData(settings));
+  }
+  async getNotificationSettings(): Promise<NotificationSettings> {
+    const docSnap = await getDoc(doc(db, 'settings', 'notifications'));
+    return docSnap.exists() ? docSnap.data() as NotificationSettings : DEFAULT_NOTIFICATION_SETTINGS;
+  }
+  async saveNotificationSettings(settings: NotificationSettings): Promise<void> {
+    await setDoc(doc(db, 'settings', 'notifications'), this.cleanData(settings));
+  }
+
+
   // Mocks for unimplemented methods to prevent crashes
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> { return []; }
   async getResources(): Promise<EducationalResource[]> { return []; }
@@ -525,17 +616,9 @@ class SyrianScienceCenterDB {
   async saveTodo(userId: string, todo: Omit<Todo, 'id'>): Promise<string> { return `todo_${Date.now()}`; }
   async updateTodo(userId: string, todoId: string, updates: Partial<Todo>): Promise<void> {}
   async deleteTodo(userId: string, todoId: string): Promise<void> {}
-  async getNotifications(userId: string): Promise<AppNotification[]> { return []; }
   async getStudentProgressForParent(studentId: string): Promise<{user: User | null, report: WeeklyReport | null}> {
       const user = await this.getUser(studentId);
       return { user, report: user?.weeklyReports?.[0] || null };
-  }
-  async getLoggingSettings(): Promise<LoggingSettings> {
-    const docSnap = await getDoc(doc(db, 'settings', 'logging'));
-    return docSnap.exists() ? docSnap.data() as LoggingSettings : DEFAULT_LOGGING_SETTINGS;
-  }
-  async saveLoggingSettings(settings: LoggingSettings): Promise<void> {
-    await setDoc(doc(db, 'settings', 'logging'), this.cleanData(settings));
   }
 }
 

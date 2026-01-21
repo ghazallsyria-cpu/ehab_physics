@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Quiz, Question, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
@@ -23,7 +24,6 @@ const AdminQuizManager: React.FC = () => {
     loadData();
   }, []);
 
-  // FIX: Define filteredQuizzes based on filterGrade state.
   const filteredQuizzes = useMemo(() => {
     if (filterGrade === 'all') return quizzes;
     return quizzes.filter(q => q.grade === filterGrade);
@@ -56,12 +56,10 @@ const AdminQuizManager: React.FC = () => {
   };
 
   const handleSaveReview = async () => {
-    if (!reviewingAttempt) return;
+    if (!reviewingAttempt || !viewingAttemptsFor) return;
     
-    const autoScore = quizQuestions.filter(q => q.type === 'mcq' && reviewingAttempt.answers[q.id] === q.correctChoiceId).reduce((sum, q) => sum + (q.score || 0), 0);
-    // FIX: Removed unnecessary type annotation and @ts-ignore. Type inference should handle this correctly.
-    // FIX: Explicitly type `grade` parameter to resolve `unknown` type issue and allow property access.
-    const manualScore = Object.values(manualGrades).reduce((sum, grade: { awardedScore: number; feedback?: string }) => sum + (grade.awardedScore || 0), 0);
+    const autoScore = quizQuestions.filter(q => q.type === 'mcq' && reviewingAttempt.answers[q.id] === q.correctChoiceId).reduce((sum: number, q: Question) => sum + Number(q.score || 0), 0);
+    const manualScore = Object.values(manualGrades || {}).reduce((sum: number, grade: { awardedScore: number; feedback?: string }) => sum + (grade.awardedScore || 0), 0);
     const finalScore = autoScore + manualScore;
 
     const updatedAttempt: StudentQuizAttempt = {
@@ -73,6 +71,17 @@ const AdminQuizManager: React.FC = () => {
 
     setIsLoading(true);
     await dbService.updateAttempt(updatedAttempt);
+    
+    await dbService.createNotification({
+        userId: updatedAttempt.studentId,
+        title: "تم تصحيح اختبارك!",
+        message: `تم تصحيح اختبار "${viewingAttemptsFor.title}". نتيجتك النهائية هي ${finalScore}/${updatedAttempt.maxScore}.`,
+        timestamp: new Date().toISOString(),
+        isRead: false,
+        type: 'success',
+        category: 'academic'
+    });
+    
     setQuizAttempts(prev => prev.map(a => a.id === updatedAttempt.id ? updatedAttempt : a));
     setReviewingAttempt(null);
     setIsLoading(false);
@@ -97,7 +106,7 @@ const AdminQuizManager: React.FC = () => {
     const finalQuiz: Quiz = {
         ...editingQuiz,
         questionIds: quizQuestions.map(q => q.id),
-        totalScore: quizQuestions.reduce((sum, q) => sum + q.score, 0)
+        totalScore: quizQuestions.reduce((sum: number, q: Question) => sum + Number(q.score || 0), 0)
     } as Quiz;
     
     await dbService.saveQuiz(finalQuiz);
