@@ -31,7 +31,8 @@ DROP POLICY IF EXISTS "Authenticated Upload" ON storage.objects;
 CREATE POLICY "Authenticated Upload" ON storage.objects
 FOR INSERT TO authenticated WITH CHECK (
   bucket_id = 'assets' AND
-  auth.uid() = (metadata->>'owner_id')::uuid AND
+  auth.uid() IS NOT NULL AND
+  auth.uid() = (metadata->>'owner_id') AND
   (storage.foldername(name))[1] = 'uploads'
 );
 
@@ -40,8 +41,8 @@ DROP POLICY IF EXISTS "Owner Delete" ON storage.objects;
 CREATE POLICY "Owner Delete" ON storage.objects
 FOR DELETE TO authenticated USING (
   bucket_id = 'assets' AND
-  auth.uid() = (metadata->>'owner_id')::uuid AND
-  (storage.foldername(name))[1] = 'uploads'
+  auth.uid() IS NOT NULL AND
+  auth.uid() = (metadata->>'owner_id')
 );
 `;
 

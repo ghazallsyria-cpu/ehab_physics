@@ -396,8 +396,12 @@ class SyrianScienceCenterDB {
     const docRef = snapshot.docs[0].ref;
     const updateData = { status: status === 'SUCCESS' ? 'PAID' : 'FAIL' };
     await updateDoc(docRef, updateData);
-    if (status === 'SUCCESS') await updateDoc(doc(db, 'users', snapshot.docs[0].data().userId), { subscription: 'premium' });
-    return { ...snapshot.docs[0].data(), id: snapshot.docs[0].id, ...updateData } as Invoice;
+    // FIX: Cast data to Invoice to ensure userId is of type string, not unknown.
+    const invoiceData = snapshot.docs[0].data() as Invoice;
+    if (status === 'SUCCESS') {
+      await updateDoc(doc(db, 'users', invoiceData.userId), { subscription: 'premium' });
+    }
+    return { ...invoiceData, id: snapshot.docs[0].id, ...updateData };
   }
 
   async getPaymentSettings(): Promise<PaymentSettings> {
