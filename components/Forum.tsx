@@ -97,7 +97,11 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
   }, [posts, sortBy]);
 
   const handleAsk = async () => {
-    if (!user || !activeForum) { alert('يجب تسجيل الدخول واختيار منتدى لطرح سؤال.'); return; }
+    if (!user || !activeForum) { 
+        alert('يجب تسجيل الدخول واختيار منتدى لطرح سؤال.'); 
+        return; 
+    }
+    
     if (!newQuestion.title.trim() || !newQuestion.content.trim()) {
         alert('يرجى ملء العنوان والمحتوى.');
         return;
@@ -130,7 +134,8 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
         await loadPosts(activeForum.id);
         setTimeout(() => setSuccessMsg(null), 3000);
     } catch (error) {
-        alert("عذراً، فشل النشر. يرجى التحقق من اتصالك بالإنترنت.");
+        console.error("Create post error:", error);
+        alert("عذراً، فشل النشر. يرجى التحقق من اتصالك بالإنترنت أو مراجعة إدارة المنصة.");
     } finally {
         setIsSubmitting(false);
     }
@@ -174,7 +179,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
   const handleTogglePin = async (postId: string, currentPin: boolean) => {
     if (user?.role !== 'admin') return;
     try {
-        await (dbService as any).updateForumPost(postId, { isPinned: !currentPin });
+        await dbService.updateForumPost(postId, { isPinned: !currentPin });
         setPosts(prev => prev.map(p => p.id === postId ? { ...p, isPinned: !currentPin } : p));
         if (selectedPost?.id === postId) setSelectedPost(prev => prev ? { ...prev, isPinned: !currentPin } : null);
     } catch (e) {
@@ -182,13 +187,12 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
     }
   };
 
-  // Add comment: Fix missing closing parenthesis for filter function
   const handleDeletePost = async (postId: string) => {
     if (user?.role !== 'admin') return;
     if (!confirm("هل أنت متأكد من حذف هذا المنشور نهائياً؟")) return;
     
     try {
-        await (dbService as any).deleteForumPost(postId);
+        await dbService.deleteForumPost(postId);
         setPosts(prev => prev.filter(p => p.id !== postId));
         if (selectedPost?.id === postId) setSelectedPost(null);
     } catch (e) {
@@ -196,7 +200,6 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
     }
   };
 
-  // Add comment: Add handleUpvotePost function for post interaction
   const handleUpvotePost = async (postId: string) => {
     try {
       await dbService.upvoteForumPost(postId);
@@ -401,7 +404,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
               </div>
             ))
           ) : (
-            <div className="py-40 text-center glass-panel rounded-[60px] border-2 border-dashed border-white/10 opacity-30">
+            <div className="py-40 text-center glass-panel rounded-[60px] border-2 border-dashed border-white/5 opacity-30">
                <span className="text-8xl mb-8 block">📝</span>
                <p className="font-black text-2xl uppercase tracking-[0.4em]">المنتدى هادئ جداً</p>
                <p className="mt-4 italic">بادر بطرح أول سؤال أو فكرة للنقاش هنا.</p>
@@ -488,7 +491,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
 
       {showAskModal && (
         <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-fadeIn">
-           <div className="glass-panel w-full max-w-2xl p-14 rounded-[70px] border-white/10 relative shadow-[0_50px_150px_rgba(0,0,0,0.9)] overflow-hidden">
+           <div className="glass-panel w-full max-w-2xl p-14 rounded-[70px] border-white/10 relative shadow-[0_50px_150px_rgba(0,0,0,0.9)] overflow-hidden" onClick={e => e.stopPropagation()}>
               <div className="absolute top-0 right-0 p-16 opacity-[0.03] text-9xl pointer-events-none italic font-black">ASK</div>
               <button onClick={() => setShowAskModal(false)} className="absolute top-10 left-10 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full transition-all hover:scale-110"><X size={24}/></button>
               

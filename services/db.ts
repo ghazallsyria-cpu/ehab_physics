@@ -5,13 +5,14 @@ import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
   query, where, onSnapshot, orderBy, Timestamp, addDoc, limit, increment
 } from 'firebase/firestore';
+// Added LiveSession to imports
 import { 
   User, Curriculum, Quiz, Question, StudentQuizAttempt, 
   AppNotification, Todo, TeacherMessage, Review, 
   HomePageContent, Asset, SubscriptionCode, ForumSection, 
   ForumPost, ForumReply, WeeklyReport, LoggingSettings, 
   NotificationSettings, PaymentSettings, Invoice, AIRecommendation,
-  Unit, Lesson
+  Unit, Lesson, LiveSession
 } from '../types';
 import { MOCK_RESOURCES } from '../constants';
 
