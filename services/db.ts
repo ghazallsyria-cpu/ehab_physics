@@ -119,9 +119,26 @@ class DBService {
     this.checkDb();
     try {
         const snap = await getDoc(doc(db, 'settings', 'logging'));
-        if (snap.exists()) return snap.data() as LoggingSettings;
-    } catch (e) {}
-    return { logStudentProgress: true, saveAllQuizAttempts: true, logAIChatHistory: true, archiveTeacherMessages: true, forumAccessTier: 'free' };
+        if (snap.exists()) {
+            const data = snap.data();
+            return {
+                logStudentProgress: data.logStudentProgress ?? true,
+                saveAllQuizAttempts: data.saveAllQuizAttempts ?? true,
+                logAIChatHistory: data.logAIChatHistory ?? true,
+                archiveTeacherMessages: data.archiveTeacherMessages ?? true,
+                forumAccessTier: data.forumAccessTier ?? 'free'
+            };
+        }
+    } catch (e) {
+        console.warn("Could not fetch logging settings, using defaults.");
+    }
+    return { 
+      logStudentProgress: true, 
+      saveAllQuizAttempts: true, 
+      logAIChatHistory: true, 
+      archiveTeacherMessages: true,
+      forumAccessTier: 'free' 
+    };
   }
 
   async getNotificationSettings(): Promise<NotificationSettings> {
