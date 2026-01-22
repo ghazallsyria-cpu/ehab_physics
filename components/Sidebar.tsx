@@ -16,8 +16,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
   const navigate = (view: ViewState, subject?: 'Physics' | 'Chemistry') => {
     const detail: { view: ViewState, subject?: 'Physics' | 'Chemistry' } = { view };
     if (subject) detail.subject = subject;
-    // النقر من السايدبار يعتبر انتقالاً رئيساً لذا نصفر الـ stack في App.tsx عبر فحص الوجهة
+    
+    // إرسال حدث تغيير الصفحة
     window.dispatchEvent(new CustomEvent('change-view', { detail }));
+    
+    // إغلاق القائمة في الجوال بعد النقر
     if (window.innerWidth < 1024) onClose?.();
   };
   
@@ -60,6 +63,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
         return [
           { label: 'الإدارة', items: [
             { id: 'dashboard', label: 'لوحة التحكم', icon: '📊' },
+            { id: 'admin-curriculum', label: 'إدارة المناهج', icon: '📚' },
+            { id: 'admin-quizzes', label: 'إدارة الاختبارات', icon: '❓' },
           ]}
         ];
       case 'admin':
