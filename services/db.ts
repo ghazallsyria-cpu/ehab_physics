@@ -502,7 +502,8 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     const snap = await getDoc(doc(db, 'forumPosts', postId));
     if (snap.exists()) {
       const data = snap.data() as ForumPost;
-      const replies = data.replies?.map(r => r.id === replyId ? { ...r, upvotes: (r.upvotes || 0) + 1 } : r);
+      // FIX: The type from firestore can be inconsistent. Ensure 'replies' is an array before mapping.
+      const replies = (data.replies || []).map(r => r.id === replyId ? { ...r, upvotes: (r.upvotes || 0) + 1 } : r);
       await updateDoc(doc(db, 'forumPosts', postId), { replies: this.cleanData(replies) });
     }
   }
