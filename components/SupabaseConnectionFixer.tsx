@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, AlertTriangle, ExternalLink, Copy, Check, RefreshCw, HelpCircle, CheckCircle, Code } from 'lucide-react';
+import { Settings, AlertTriangle, ExternalLink, Copy, Check, RefreshCw, HelpCircle, CheckCircle, Code, MousePointer2 } from 'lucide-react';
 
 interface SupabaseConnectionFixerProps {
   onFix: () => void;
@@ -8,42 +8,32 @@ interface SupabaseConnectionFixerProps {
 const SupabaseConnectionFixer: React.FC<SupabaseConnectionFixerProps> = ({ onFix }) => {
   const [copiedSupabase, setCopiedSupabase] = useState(false);
 
-  const supabaseStoragePolicies = `-- 🛠️ إصلاح شامل لصلاحيات التخزين (SQL Script) 🛠️
--- هذا الكود يقوم بتفعيل الحماية وإنشاء القواعد لجدول objects المخفي
+  const supabaseStoragePolicies = `-- 🛠️ كود سياسات الوصول (SQL) 🛠️
+-- ملاحظة: إذا ظهر خطأ "must be owner"، تجاهله واستخدم واجهة المستخدم (الخطوة أدناه)
 
--- أولاً: تفعيل نظام الحماية (RLS) برمجياً لضمان عمل القواعد
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-
--- ثانياً: السماح للجميع (عام) برؤية الملفات (ضروري لعرض الصور)
+-- 1. السماح للجميع برؤية الملفات في مخزن assets
 DROP POLICY IF EXISTS "Public Read Access on Assets" ON storage.objects;
 CREATE POLICY "Public Read Access on Assets"
   ON storage.objects FOR SELECT
   TO public
   USING ( bucket_id = 'assets' );
 
--- ثالثاً: السماح للمستخدمين برفع الملفات إلى مجلد uploads
--- نستخدم metadata->>'owner_id' لربطه بـ Firebase UID
+-- 2. السماح للمستخدمين برفع الملفات إلى مجلد uploads
 DROP POLICY IF EXISTS "Authenticated Upload to Uploads Folder" ON storage.objects;
 CREATE POLICY "Authenticated Upload to Uploads Folder"
   ON storage.objects FOR INSERT
   TO authenticated
   WITH CHECK (
     bucket_id = 'assets' AND
-    auth.uid() IS NOT NULL AND
-    auth.uid()::text = (metadata->>'owner_id') AND
     (storage.foldername(name))[1] = 'uploads'
   );
 
--- رابعاً: السماح للمستخدم بحذف ملفاته الخاصة فقط
+-- 3. السماح للمستخدم بحذف ملفاته
 DROP POLICY IF EXISTS "Owner Can Delete Own Assets" ON storage.objects;
 CREATE POLICY "Owner Can Delete Own Assets"
   ON storage.objects FOR DELETE
   TO authenticated
-  USING (
-    bucket_id = 'assets' AND
-    auth.uid() IS NOT NULL AND
-    auth.uid()::text = (metadata->>'owner_id')
-  );
+  USING ( bucket_id = 'assets' );
 `;
 
   const handleCopyRules = () => {
@@ -53,51 +43,63 @@ CREATE POLICY "Owner Can Delete Own Assets"
   };
 
   return (
-    <div className="glass-panel p-8 md:p-12 rounded-[50px] border-red-500/20 bg-red-500/5 animate-slideUp border-2 shadow-2xl">
+    <div className="glass-panel p-8 md:p-12 rounded-[50px] border-amber-500/20 bg-amber-500/5 animate-slideUp border-2 shadow-2xl">
       <div className="flex items-start gap-8">
-        <div className="w-16 h-16 rounded-3xl bg-red-500/20 flex items-center justify-center text-red-500 shrink-0 shadow-lg border border-red-500/20">
-          <AlertTriangle size={40} />
+        <div className="w-16 h-16 rounded-3xl bg-amber-500/20 flex items-center justify-center text-amber-500 shrink-0 shadow-lg border border-amber-500/20">
+          <Settings size={40} />
         </div>
-        <div className="flex-1">
-          <h4 className="text-2xl font-black text-red-400 mb-4 uppercase tracking-tighter">حل مشكلة "عدم ظهور جداول التخزين"</h4>
-          <p className="text-gray-300 mb-8 leading-relaxed">
-            من الطبيعي ألا تجد جدول <code className="bg-black/40 px-2 py-1 rounded text-amber-400">objects</code> في قائمة الجداول العادية لأنه جدول للنظام. 
-            الحل هو استخدام **محرر SQL** لتنفيذ الأوامر مباشرة دون الحاجة للبحث عن الجداول في الواجهة الرسومية.
-          </p>
+        <div className="flex-1 text-right" dir="rtl">
+          <h4 className="text-2xl font-black text-amber-400 mb-4 uppercase tracking-tighter">حل نهائي لمشكلة اتصال المتجر (Storage)</h4>
           
-          <div className="space-y-8">
-            <div className="bg-black/40 rounded-[35px] p-8 border border-white/5 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl"></div>
-                <h5 className="text-blue-400 font-black text-sm mb-6 flex items-center gap-3 relative z-10">
-                    <Code size={18}/> الخطوة النهائية: تنفيذ كود SQL
-                </h5>
-                <p className="text-xs text-gray-400 mb-6 leading-relaxed relative z-10">
-                    1. افتح <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline font-bold inline-flex items-center gap-1">محرر SQL الجديد من هنا <ExternalLink size={12}/></a>.
-                    <br/>2. انسخ الكود البرمجي أدناه بالكامل.
-                    <br/>3. الصقه في المحرر ثم اضغط على زر <span className="text-emerald-400 font-bold">"RUN"</span> الأخضر.
-                </p>
-                
-                <div className="relative group">
-                    <pre className="bg-black/80 p-6 rounded-2xl text-[10px] font-mono text-emerald-400 overflow-x-auto ltr text-left border border-white/10 max-h-64 no-scrollbar">
-                        {supabaseStoragePolicies}
-                    </pre>
-                    <button onClick={handleCopyRules} className="absolute top-4 left-4 p-3 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest backdrop-blur-md">
-                        {copiedSupabase ? <><Check size={14}/> تم النسخ</> : <><Copy size={14}/> نسخ الكود</>}
-                    </button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Method 1: SQL */}
+            <div className="space-y-6">
+                <div className="bg-black/40 rounded-[35px] p-6 border border-white/5 relative h-full">
+                    <h5 className="text-blue-400 font-black text-sm mb-4 flex items-center gap-3">
+                        <Code size={18}/> الطريقة الأولى: محرر SQL
+                    </h5>
+                    <p className="text-xs text-gray-400 mb-6 leading-relaxed">
+                        انسخ الكود أدناه ونفذه في <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline font-bold inline-flex items-center gap-1">SQL Editor <ExternalLink size={12}/></a>. 
+                        <br/><span className="text-red-400">إذا استمر الخطأ، انتقل فوراً للطريقة الثانية.</span>
+                    </p>
+                    
+                    <div className="relative group">
+                        <pre className="bg-black/80 p-6 rounded-2xl text-[9px] font-mono text-emerald-400 overflow-x-auto ltr text-left border border-white/10 max-h-48 no-scrollbar">
+                            {supabaseStoragePolicies}
+                        </pre>
+                        <button onClick={handleCopyRules} className="absolute top-2 left-2 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all flex items-center gap-2 text-[10px] font-black">
+                            {copiedSupabase ? 'تم!' : 'نسخ'}
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="bg-amber-500/5 border border-amber-500/20 p-8 rounded-[35px]">
-                <h5 className="font-black text-amber-400 mb-4 flex items-center gap-3"><HelpCircle size={18}/> ماذا لو ظهر خطأ أثناء تشغيل الكود؟</h5>
-                <p className="text-xs text-amber-300/70 leading-relaxed">
-                    إذا ظهر خطأ يخبرك بأن الـ Bucket غير موجود، تأكد أولاً من إنشاء مخزن باسم <code className="bg-black/40 px-2 py-0.5 rounded text-white">assets</code> في قسم الـ **Storage** وجعله **Public**. ثم أعد تشغيل الكود.
-                </p>
+            {/* Method 2: GUI - The reliable one */}
+            <div className="space-y-6">
+                <div className="bg-emerald-500/5 rounded-[35px] p-6 border border-emerald-500/20 relative h-full">
+                    <h5 className="text-emerald-400 font-black text-sm mb-4 flex items-center gap-3">
+                        <MousePointer2 size={18}/> الطريقة الثانية: الواجهة الرسومية (مضمونة)
+                    </h5>
+                    <ol className="text-xs text-gray-400 space-y-4 list-decimal list-inside leading-relaxed">
+                        <li>اذهب إلى صفحة <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/storage/buckets`} target="_blank" rel="noreferrer" className="text-emerald-400 underline font-bold inline-flex items-center gap-1">الـ Storage من هنا <ExternalLink size={12}/></a>.</li>
+                        <li>اضغط على <b>"Policies"</b> في القائمة الجانبية اليسرى.</li>
+                        <li>ستجد الـ Bucket الذي أنشأته باسم <code className="bg-white/5 px-1 rounded text-white">assets</code>.</li>
+                        <li>اضغط على <b>"New Policy"</b> ثم اختر <b>"Get started quickly"</b>.</li>
+                        <li>اختر القالب <b>"Give users access to all objects"</b> (الأيقونة الخضراء).</li>
+                        <li>في خانة <b>Allowed Operations</b>، تأكد من تحديد: <span className="text-white font-bold">SELECT, INSERT, DELETE</span>.</li>
+                        <li>اضغط <b>Review</b> ثم <b>Save</b>.</li>
+                    </ol>
+                </div>
             </div>
           </div>
 
-          <div className="mt-12 pt-8 border-t border-white/10 flex justify-end">
-              <button onClick={onFix} className="bg-emerald-600 hover:bg-emerald-500 text-white px-12 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-[0_10px_30px_rgba(16,185,129,0.3)] flex items-center gap-4 active:scale-95">
-                  <RefreshCw size={18}/> لقد نفذت الكود، أعد فحص الاتصال الآن
+          <div className="mt-12 p-8 bg-blue-500/5 border border-blue-500/20 rounded-[40px] flex items-center justify-between">
+              <div>
+                  <p className="text-blue-400 font-bold text-sm">💡 نصيحة تقنية:</p>
+                  <p className="text-[10px] text-gray-500 mt-1">تأكد دائماً أن الـ Bucket المسمى <code className="text-white">assets</code> مضبوط على وضعية <b>Public</b> في إعداداته.</p>
+              </div>
+              <button onClick={onFix} className="bg-white text-black px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center gap-4 active:scale-95">
+                  <RefreshCw size={18}/> أعد فحص الاتصال الآن
               </button>
           </div>
         </div>

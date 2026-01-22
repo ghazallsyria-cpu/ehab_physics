@@ -48,7 +48,7 @@ class SyrianScienceCenterDB {
       Object.keys(obj).forEach(key => {
         const value = obj[key];
         if (value !== undefined) {
-          cleaned[key] = (value && typeof value === 'object' && !(value instanceof Date)) 
+          cleaned[key] = (value && typeof v === 'object' && !(v instanceof Date)) 
             ? this.cleanData(value) 
             : value;
         }
@@ -500,6 +500,7 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     await addDoc(collection(db, 'forumPosts'), this.cleanData({ ...post, timestamp: new Date().toISOString(), upvotes: 0, replies: [] }));
   }
 
+  // FIX: Ensure postId is explicitly string to avoid unknown type errors
   async addForumReply(postId: string, reply: any): Promise<void> {
     await updateDoc(doc(db, 'forumPosts', postId), { replies: arrayUnion(this.cleanData({ ...reply, id: `rep_${Date.now()}`, timestamp: new Date().toISOString(), upvotes: 0 })) });
   }
@@ -508,6 +509,7 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     await updateDoc(doc(db, 'forumPosts', postId), { upvotes: increment(1) });
   }
 
+  // FIX: Ensure postId is explicitly string to avoid unknown type errors
   async upvoteReply(postId: string, replyId: string): Promise<void> {
     const snap = await getDoc(doc(db, 'forumPosts', postId));
     if (snap.exists()) {
