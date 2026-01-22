@@ -61,14 +61,12 @@ class SyrianScienceCenterDB {
     if (!db) throw new Error("قاعدة البيانات غير متصلة.");
   }
   
-  // دالة الرفع أصبحت الآن مباشرة تماماً
   async uploadAsset(file: File): Promise<Asset> {
     const cleanName = file.name.replace(/[^\x00-\x7F]/g, "").replace(/\s+/g, "_");
     const fileName = `${Date.now()}_${cleanName}`;
-    
-    // سنستخدم مجلد uploads عام لتجنب مشاكل المعرفات
     const filePath = `uploads/${fileName}`;
     
+    // محاولة الرفع إلى bucket 'assets'
     const { data, error } = await supabase.storage
         .from('assets')
         .upload(filePath, file, {
@@ -77,9 +75,11 @@ class SyrianScienceCenterDB {
         });
 
     if (error) {
-        console.error('Supabase raw error:', error);
-        // إظهار الخطأ الحقيقي للمستخدم بدلاً من رسالة عامة
-        throw new Error(`خطأ Supabase: ${error.message}`);
+        console.error('Supabase Error Details:', error);
+        if (error.message.includes('bucket not found') || (error as any).status === 404) {
+            throw new Error('خطأ: لم يتم العثور على الحاوية "assets" في Supabase. يرجى التوجه للوحة تحكم المدير وتنفيذ كود الإصلاح.');
+        }
+        throw new Error(`خطأ أثناء الرفع: ${error.message}`);
     }
 
     const { data: publicUrlData } = supabase.storage.from('assets').getPublicUrl(filePath);
@@ -136,9 +136,11 @@ class SyrianScienceCenterDB {
 
   async checkSupabaseConnection(): Promise<{ alive: boolean, error?: string }> {
     try {
-      // فحص عام بدون اشتراط مستخدم
-      const { error } = await supabase.storage.from('assets').list('uploads', { limit: 1 });
-      if (error) return { alive: false, error: error.message };
+      const { error } = await supabase.storage.from('assets').list('', { limit: 1 });
+      if (error) {
+        if (error.message.includes('not found')) return { alive: false, error: 'BUCKET_NOT_FOUND' };
+        return { alive: false, error: error.message };
+      }
       return { alive: true };
     } catch (e: any) {
       return { alive: false, error: e.message };
