@@ -62,9 +62,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
   const loadPosts = async (forumId: string) => {
     setIsLoading(true);
     try {
-      const allPosts = await dbService.getForumPosts();
-      // تأمين الفلترة ضد المصفوفات الفارغة أو غير المعرفة
-      const forumPosts = allPosts.filter(p => p.tags && p.tags.includes(forumId));
+      const forumPosts = await dbService.getForumPosts(forumId);
       setPosts(forumPosts);
     } catch (e) {
       console.error("Failed to load forum posts", e);
@@ -128,11 +126,15 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
           tags: [activeForum.id, ...newQuestion.tags.split(',').map(t => t.trim()).filter(Boolean)],
         });
 
+        // تم الحفظ بنجاح، نغلق المودال ونظهر رسالة النجاح
         setSuccessMsg("تم نشر موضوعك في الساحة بنجاح! 🚀");
         setNewQuestion({ title: '', content: '', tags: '' });
         setShowAskModal(false);
-        await loadPosts(activeForum.id);
-        setTimeout(() => setSuccessMsg(null), 3000);
+        
+        // تحديث القائمة في الخلفية لتجنب انتظار الطالب
+        loadPosts(activeForum.id).catch(e => console.error("Update posts failed after creation", e));
+        
+        setTimeout(() => setSuccessMsg(null), 4000);
     } catch (error) {
         console.error("Create post error:", error);
         alert("عذراً، فشل النشر. يرجى التحقق من اتصالك بالإنترنت أو مراجعة إدارة المنصة.");
@@ -163,7 +165,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
         await dbService.addForumReply(selectedPost.id, replyData);
         setReplyContent('');
         
-        const allPosts = await dbService.getForumPosts();
+        const allPosts = await dbService.getForumPosts(activeForum?.id);
         const updatedSelectedPost = allPosts.find(p => p.id === selectedPost.id);
         if (updatedSelectedPost) {
             setSelectedPost(updatedSelectedPost);
@@ -404,7 +406,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
               </div>
             ))
           ) : (
-            <div className="py-40 text-center glass-panel rounded-[60px] border-2 border-dashed border-white/5 opacity-30">
+            <div className="py-40 text-center glass-panel rounded-[60px] border-2 border-dashed border-white/10 opacity-30">
                <span className="text-8xl mb-8 block">📝</span>
                <p className="font-black text-2xl uppercase tracking-[0.4em]">المنتدى هادئ جداً</p>
                <p className="mt-4 italic">بادر بطرح أول سؤال أو فكرة للنقاش هنا.</p>
@@ -490,7 +492,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
       </div>
 
       {showAskModal && (
-        <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-fadeIn">
+        <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-fadeIn" onClick={() => setShowAskModal(false)}>
            <div className="glass-panel w-full max-w-2xl p-14 rounded-[70px] border-white/10 relative shadow-[0_50px_150px_rgba(0,0,0,0.9)] overflow-hidden" onClick={e => e.stopPropagation()}>
               <div className="absolute top-0 right-0 p-16 opacity-[0.03] text-9xl pointer-events-none italic font-black">ASK</div>
               <button onClick={() => setShowAskModal(false)} className="absolute top-10 left-10 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full transition-all hover:scale-110"><X size={24}/></button>

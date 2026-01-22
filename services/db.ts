@@ -327,27 +327,6 @@ class DBService {
 
   // --- 6. Communications & Forums ---
 
-  async getNotifications(uid: string): Promise<AppNotification[]> {
-    this.checkDb();
-    const q = query(collection(db, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
-  }
-
-  async createNotification(note: Omit<AppNotification, 'id'>) {
-    this.checkDb();
-    await addDoc(collection(db, 'notifications'), this.cleanData(note));
-  }
-
-  async markNotificationsAsRead(uid: string) {
-    this.checkDb();
-    const q = query(collection(db, 'notifications'), where('userId', '==', uid), where('isRead', '==', false));
-    const snap = await getDocs(q);
-    for (const d of snap.docs) {
-      await updateDoc(d.ref, { isRead: true });
-    }
-  }
-
   async getForumSections(): Promise<ForumSection[]> {
     this.checkDb();
     const snap = await getDocs(query(collection(db, 'forumSections'), orderBy('order')));
@@ -361,10 +340,28 @@ class DBService {
     }
   }
 
-  async getForumPosts(): Promise<ForumPost[]> {
+  /**
+   * جلب منشورات المنتدى. تدعم الفلترة حسب وسم المنتدى (ID).
+   */
+  async getForumPosts(forumId?: string): Promise<ForumPost[]> {
     this.checkDb();
-    const snap = await getDocs(query(collection(db, 'forumPosts'), orderBy('timestamp', 'desc')));
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
+    let q = query(collection(db, 'forumPosts'), orderBy('timestamp', 'desc'));
+    if (forumId) {
+        q = query(collection(db, 'forumPosts'), where('tags', 'array-contains', forumId), orderBy('timestamp', 'desc'));
+    }
+    try {
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
+    } catch (e) {
+        // Fallback if index is missing: fetch all and filter manually
+        console.warn("Index for forumPosts may be missing, falling back to client filter.");
+        const allSnap = await getDocs(collection(db, 'forumPosts'));
+        const all = allSnap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
+        if (forumId) {
+            return all.filter(p => p.tags && p.tags.includes(forumId)).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        }
+        return all.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
   }
 
   async createForumPost(post: Omit<ForumPost, 'id' | 'timestamp' | 'upvotes' | 'replies'>) {
@@ -410,6 +407,27 @@ class DBService {
     await updateDoc(doc(db, 'forumPosts', postId), {
       upvotes: increment(1)
     });
+  }
+
+  async getNotifications(uid: string): Promise<AppNotification[]> {
+    this.checkDb();
+    const q = query(collection(db, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
+  }
+
+  async createNotification(note: Omit<AppNotification, 'id'>) {
+    this.checkDb();
+    await addDoc(collection(db, 'notifications'), this.cleanData(note));
+  }
+
+  async markNotificationsAsRead(uid: string) {
+    this.checkDb();
+    const q = query(collection(db, 'notifications'), where('userId', '==', uid), where('isRead', '==', false));
+    const snap = await getDocs(q);
+    for (const d of snap.docs) {
+      await updateDoc(d.ref, { isRead: true });
+    }
   }
 
   // --- 7. Live Events & Sync ---
