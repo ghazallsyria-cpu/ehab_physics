@@ -1,11 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, QuizAttempt, PredictiveInsight } from '../types';
+// Updated undefined QuizAttempt to StudentQuizAttempt
+import { User, StudentQuizAttempt, PredictiveInsight } from '../types';
 import { getPerformanceAnalysis } from '../services/gemini';
 
 interface PerformanceAnalysisProps {
   user: User;
-  attempts: QuizAttempt[];
+  // Updated undefined QuizAttempt to StudentQuizAttempt
+  attempts: StudentQuizAttempt[];
 }
 
 const PerformanceAnalysis: React.FC<PerformanceAnalysisProps> = ({ user, attempts }) => {

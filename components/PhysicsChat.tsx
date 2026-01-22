@@ -1,7 +1,10 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { getAdvancedPhysicsInsight } from '../services/gemini';
+import { contentFilter } from '../services/contentFilter'; // استيراد نظام الرقابة
 import { Message } from '../types';
 import katex from 'katex';
+import { ShieldAlert } from 'lucide-react';
 
 interface AiTutorProps {
   grade: string;
@@ -19,14 +22,12 @@ const AiTutor: React.FC<AiTutorProps> = ({ grade, subject }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showThinking, setShowThinking] = useState(true);
+  const [filterError, setFilterError] = useState(false);
   
-  // New state for theme color
   const [themeColor, setThemeColor] = useState('#e2e8f0');
-  
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null); // Ref for the input element
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Color options
   const colorOptions = [
     { name: 'Gray', value: '#e2e8f0' },
     { name: 'Sky', value: '#00d2ff' },
@@ -38,6 +39,15 @@ const AiTutor: React.FC<AiTutorProps> = ({ grade, subject }) => {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+    
+    // فحص مدخلات الطالب
+    const checkInput = contentFilter.filter(input);
+    if (!checkInput.isClean) {
+        setFilterError(true);
+        setTimeout(() => setFilterError(false), 4000);
+        return;
+    }
+
     const userMsg = input;
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMsg, timestamp: new Date() }]);
@@ -45,7 +55,12 @@ const AiTutor: React.FC<AiTutorProps> = ({ grade, subject }) => {
 
     try {
       const { text } = await getAdvancedPhysicsInsight(userMsg, grade, subject);
-      setMessages(prev => [...prev, { role: 'assistant', content: text, timestamp: new Date() }]);
+      
+      // فحص مخرجات الذكاء الاصطناعي (زيادة أمان)
+      const checkOutput = contentFilter.filter(text);
+      const safeText = checkOutput.isClean ? text : checkOutput.cleanedText;
+
+      setMessages(prev => [...prev, { role: 'assistant', content: safeText, timestamp: new Date() }]);
     } catch (e) {
       setMessages(prev => [...prev, { role: 'assistant', content: "عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.", timestamp: new Date() }]);
     } finally {
@@ -58,7 +73,7 @@ const AiTutor: React.FC<AiTutorProps> = ({ grade, subject }) => {
       try {
         return katex.renderToString(math, { throwOnError: false });
       } catch (e) {
-        return match; // return original on error
+        return match;
       }
     });
     return <div dangerouslySetInnerHTML={{ __html: htmlWithMath }} />;
@@ -133,26 +148,34 @@ const AiTutor: React.FC<AiTutorProps> = ({ grade, subject }) => {
         <div ref={scrollRef} />
       </div>
 
-      <div className="p-6 bg-black/60 border-t border-white/10 flex flex-col sm:flex-row gap-4 backdrop-blur-2xl">
-        <input 
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-          onFocus={() => { if(inputRef.current) inputRef.current.style.borderColor = themeColor; }}
-          onBlur={() => { if(inputRef.current) inputRef.current.style.borderColor = ''; }}
-          placeholder="اكتب سؤالك هنا..."
-          className="flex-1 bg-white/5 border border-white/10 rounded-full px-6 py-4 sm:px-10 sm:py-6 text-white outline-none transition-all font-bold text-base sm:text-lg"
-        />
-        <button 
-          onClick={handleSend}
-          disabled={isLoading || !input.trim()}
-          style={{ backgroundColor: themeColor }}
-          className="w-full sm:w-auto text-black px-8 sm:px-16 py-4 sm:py-auto rounded-full font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-30"
-        >
-          {isLoading ? 'جاري الكتابة...' : 'إرسال'}
-        </button>
+      <div className="p-6 bg-black/60 border-t border-white/10 flex flex-col gap-4 backdrop-blur-2xl relative">
+        {filterError && (
+          <div className="absolute top-[-80px] left-6 right-6 bg-red-600 text-white p-4 rounded-2xl flex items-center gap-4 shadow-2xl border-2 border-white/20 animate-slideUp">
+             <ShieldAlert size={24} />
+             <p className="text-xs font-black">عذراً، سؤالك يحتوي على كلمات غير لائقة. يرجى استخدام لغة علمية محترمة.</p>
+          </div>
+        )}
+        <div className="flex flex-col sm:flex-row gap-4 w-full">
+          <input 
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+            onFocus={() => { if(inputRef.current) inputRef.current.style.borderColor = themeColor; }}
+            onBlur={() => { if(inputRef.current) inputRef.current.style.borderColor = ''; }}
+            placeholder="اكتب سؤالك الفيزيائي هنا..."
+            className={`flex-1 bg-white/5 border border-white/10 rounded-full px-6 py-4 sm:px-10 sm:py-6 text-white outline-none transition-all font-bold text-base sm:text-lg ${filterError ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : ''}`}
+          />
+          <button 
+            onClick={handleSend}
+            disabled={isLoading || !input.trim()}
+            style={{ backgroundColor: themeColor }}
+            className="w-full sm:w-auto text-black px-8 sm:px-16 py-4 sm:py-auto rounded-full font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-30"
+          >
+            {isLoading ? 'جاري التحليل...' : 'إرسال'}
+          </button>
+        </div>
       </div>
     </div>
   );

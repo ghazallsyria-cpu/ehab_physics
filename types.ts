@@ -2,7 +2,91 @@
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions' | 'admin-quizzes' | 'attempt_review' | 'admin-content' | 'admin-assets' | 'admin-parents' | 'admin-videos' | 'admin-quiz-attempts' | 'admin-certificates' | 'admin-reviews' | 'admin-pricing' | 'admin-subscriptions' | 'admin-payments-log' | 'admin-payment-settings' | 'admin-email-notifications' | 'admin-internal-messages' | 'admin-forums' | 'verify-certificate' | 'resources-center';
 
-// --- 0. AI & Chat ---
+// --- Community & Social ---
+
+export interface Forum {
+    id: string;
+    title: string;
+    description: string;
+    icon: string; // emoji
+    imageUrl?: string; // صورة الخلفية للقسم
+    order: number;
+}
+
+export interface ForumSection {
+    id: string;
+    title: string;
+    description: string;
+    forums: Forum[];
+    order: number;
+}
+
+export interface ForumReply {
+    id: string;
+    authorEmail: string;
+    authorName: string;
+    content: string;
+    role: UserRole;
+    timestamp: string;
+    upvotes: number;
+}
+
+export interface ForumPost {
+    id: string;
+    authorEmail: string;
+    authorName: string;
+    title: string;
+    content: string;
+    tags: string[];
+    timestamp: string;
+    upvotes: number;
+    isPinned?: boolean; // خاصية التثبيت
+    replies?: ForumReply[];
+}
+
+// ... بقية الـ types كما هي
+export interface User {
+  uid: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  grade: '10' | '11' | '12' | 'uni';
+  subscription: 'free' | 'premium';
+  createdAt: string;
+  progress: {
+    completedLessonIds: string[];
+    points: number;
+    achievements?: string[];
+    strengths?: string[];
+    weaknesses?: string[];
+    lastActivity?: string;
+  };
+  status?: 'active' | 'suspended';
+  jobTitle?: string;
+  photoURL?: string;
+  avatar?: string;
+  specialization?: string;
+  gradesTaught?: string[];
+  yearsExperience?: number;
+  bio?: string;
+  lastSeen?: string;
+  activityLog?: Record<string, number>;
+  linkedStudentUids?: string[];
+  permissions?: TeacherPermission[];
+  weeklyReports?: WeeklyReport[];
+}
+
+export type TeacherPermission = 'create_content' | 'reply_messages' | 'view_analytics' | 'manage_exams';
+
+export interface WeeklyReport {
+    week: string;
+    completedUnits: number;
+    hoursSpent: number;
+    scoreAverage: number;
+    improvementAreas: string[];
+    parentNote?: string;
+}
+
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -34,7 +118,6 @@ export interface PredictiveInsight {
     suggestedPrep: string;
 }
 
-// --- 1. Educational Content ---
 export type ContentBlockType = 'text' | 'image' | 'video' | 'pdf' | 'youtube' | 'audio';
 export type SubjectType = 'Physics' | 'Chemistry' | 'Math' | 'English';
 export type BranchType = 'Scientific' | 'Literary';
@@ -94,11 +177,10 @@ export interface Article {
   content: string;
 }
 
-// --- 2. Exams System ---
 export interface Answer {
   id: string;
   text: string;
-  key?: string; // For A, B, C style keys
+  key?: string;
 }
 
 export type QuestionType = 'mcq' | 'short_answer' | 'essay' | 'file_upload';
@@ -107,12 +189,12 @@ export type QuestionDifficulty = 'Easy' | 'Medium' | 'Hard';
 export interface Question {
   id: string;
   text: string;
-  question_text?: string; // for gemini backward compatibility
+  question_text?: string;
   type: QuestionType;
   choices?: Answer[];
-  answers?: Answer[]; // for backward compatibility
+  answers?: Answer[];
   correctChoiceId?: string;
-  correct_answer?: string; // for gemini
+  correct_answer?: string;
   modelAnswer?: string;
   score: number;
   grade: '10' | '11' | '12' | 'uni';
@@ -137,7 +219,7 @@ export interface Quiz {
   grade: '10' | '11' | '12' | 'uni';
   subject: SubjectType;
   questionIds: string[];
-  duration: number; // in minutes
+  duration: number;
   totalScore: number;
   maxAttempts?: number;
   isPremium?: boolean;
@@ -152,57 +234,11 @@ export interface StudentQuizAttempt {
     totalQuestions: number;
     maxScore: number;
     completedAt: string;
-    answers: Record<string, any>; // questionId -> answerId or text
-    timeSpent: number; // in seconds
+    answers: Record<string, any>;
+    timeSpent: number;
     attemptNumber: number;
     status: 'pending-review' | 'manually-graded' | 'auto-graded';
     manualGrades?: Record<string, { awardedScore: number; feedback?: string }>;
-}
-export type QuizAttempt = StudentQuizAttempt; // Alias for compatibility
-
-
-// --- 3. User & System Management ---
-
-export type TeacherPermission = 'create_content' | 'reply_messages' | 'view_analytics' | 'manage_exams';
-
-export interface WeeklyReport {
-    week: string;
-    completedUnits: number;
-    hoursSpent: number;
-    scoreAverage: number;
-    improvementAreas: string[];
-    parentNote?: string;
-}
-
-export interface User {
-  uid: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  grade: '10' | '11' | '12' | 'uni';
-  subscription: 'free' | 'premium';
-  createdAt: string;
-  progress: {
-    completedLessonIds: string[];
-    points: number;
-    achievements?: string[];
-    strengths?: string[];
-    weaknesses?: string[];
-    lastActivity?: string;
-  };
-  status?: 'active' | 'suspended';
-  jobTitle?: string; // For admin/teacher
-  photoURL?: string;
-  avatar?: string;
-  specialization?: string;
-  gradesTaught?: string[];
-  yearsExperience?: number;
-  bio?: string;
-  lastSeen?: string;
-  activityLog?: Record<string, number>; // date -> minutes
-  linkedStudentUids?: string[]; // for parents
-  permissions?: TeacherPermission[]; // for teachers
-  weeklyReports?: WeeklyReport[];
 }
 
 export interface AppNotification {
@@ -221,7 +257,7 @@ export interface Todo {
     text: string;
     completed: boolean;
     category: 'Study' | 'Homework' | 'Exam' | 'Lab' | 'Review';
-    createdAt: number; // timestamp
+    createdAt: number;
     dueDate?: string;
 }
 
@@ -264,9 +300,6 @@ export interface Asset {
     size: number;
 }
 
-
-// --- 4. Financial System ---
-
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAIL';
 
 export interface SubscriptionPlan {
@@ -306,47 +339,6 @@ export interface SubscriptionCode {
     userId: string | null;
 }
 
-
-// --- 5. Community & Social ---
-
-export interface Forum {
-    id: string;
-    title: string;
-    description: string;
-    icon: string; // emoji
-    order: number;
-}
-
-export interface ForumSection {
-    id: string;
-    title: string;
-    description: string;
-    forums: Forum[];
-    order: number;
-}
-
-export interface ForumReply {
-    id: string;
-    authorEmail: string;
-    authorName: string;
-    content: string;
-    role: UserRole;
-    timestamp: string;
-    upvotes: number;
-}
-
-export interface ForumPost {
-    id: string;
-    authorEmail: string;
-    authorName: string;
-    title: string;
-    content: string;
-    tags: string[];
-    timestamp: string;
-    upvotes: number;
-    replies?: ForumReply[];
-}
-
 export interface StudyGroup {
     id: string;
     name: string;
@@ -354,8 +346,6 @@ export interface StudyGroup {
     membersCount: number;
     activeChallenge: string;
 }
-
-// --- 6. Advanced Features (Labs, Sessions) ---
 
 export interface ExperimentParameter {
     id: string;
@@ -409,7 +399,6 @@ export interface LiveSession {
     isPremium?: boolean;
 }
 
-// --- 7. Certificates ---
 export interface Certificate {
   id: string;
   studentUid: string;
@@ -429,8 +418,6 @@ export interface CertificateTemplate {
     isDefault: boolean;
 }
 
-
-// --- 8. Admin & System ---
 export interface LoggingSettings {
     logStudentProgress: boolean;
     saveAllQuizAttempts: boolean;

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Review, User, TeacherMessage } from '../types';
 import { dbService } from '../services/db';
+import { contentFilter } from '../services/contentFilter'; // استيراد نظام الرقابة
 
 interface TeacherDirectoryProps {
   user: User | null;
@@ -30,7 +31,7 @@ const TeacherDirectory: React.FC<TeacherDirectoryProps> = ({ user }) => {
       );
       setTeachers(relevantTeachers);
     } else {
-      setTeachers(data); // Show all if no user is logged in
+      setTeachers(data);
     }
   };
 
@@ -44,6 +45,14 @@ const TeacherDirectory: React.FC<TeacherDirectoryProps> = ({ user }) => {
   const handleSubmitReview = async () => {
     if (!user) { alert('يجب تسجيل الدخول لتقييم المعلم.'); return; }
     if (!newReview.comment.trim()) { alert('الرجاء كتابة تعليق.'); return; }
+    
+    // فحص التقييم
+    const checkReview = contentFilter.filter(newReview.comment);
+    if (!checkReview.isClean) {
+        alert("⚠️ عذراً، تقييمك يحتوي على كلمات غير لائقة. يرجى تعديله.");
+        return;
+    }
+
     if (!selectedTeacher) return;
 
     setIsSubmitting(true);
@@ -66,16 +75,22 @@ const TeacherDirectory: React.FC<TeacherDirectoryProps> = ({ user }) => {
   const handleSendMessage = async () => {
     if (!messageText.trim() || !user || !selectedTeacher) return;
     
-    let content = messageText;
-    let isRedacted = false;
-    const phoneRegex = /\b\d{8,}\b/g;
-    if (phoneRegex.test(content)) {
-        setMessageStatus('⚠️ تنبيه: يمنع مشاركة أرقام الهواتف. تم حجب الرقم تلقائياً.');
-        content = content.replace(phoneRegex, '[رقم مخفي 🔒]');
-        isRedacted = true;
+    // فحص الرسالة عبر النظام المركزي (الكلمات النابية + بيانات الاتصال)
+    const checkMsg = contentFilter.filter(messageText, { blockSensitive: true });
+    
+    if (!contentFilter.isSafe(messageText)) {
+        setMessageStatus('⚠️ تنبيه: تم رصد محتوى غير لائق في رسالتك. يرجى الالتزام بالمعايير التربوية.');
+        return;
     }
 
-    setMessageStatus('جاري الإرسال...');
+    let content = checkMsg.cleanedText;
+    const isRedacted = checkMsg.detectedWords.includes('رقم هاتف') || checkMsg.detectedWords.includes('بريد إلكتروني');
+
+    if (isRedacted) {
+        setMessageStatus('ℹ️ تنبيه: يمنع تبادل البيانات الشخصية خارج المنصة. تم حجب المعلومات تلقائياً.');
+    } else {
+        setMessageStatus('جاري الإرسال...');
+    }
     
     const newMessage: TeacherMessage = {
         id: `msg_${Date.now()}`, studentId: user.uid, studentName: user.name,
@@ -206,7 +221,7 @@ const TeacherDirectory: React.FC<TeacherDirectoryProps> = ({ user }) => {
             <h3 className="text-xl font-black text-white mb-2">رسالة خاصة</h3>
             <p className="text-xs text-gray-400 mb-6">إلى: {selectedTeacher.name}</p>
             <div className="bg-[#00d2ff]/5 border border-[#00d2ff]/20 p-4 rounded-2xl mb-6">
-                <p className="text-[10px] font-bold text-[#00d2ff] leading-relaxed">🔒 الحماية النشطة: سيتم حجب أي أرقام هواتف أو وسائل تواصل خارجية تلقائياً لضمان سلامة البيئة التعليمية.</p>
+                <p className="text-[10px] font-bold text-[#00d2ff] leading-relaxed">🔒 الحماية النشطة: سيتم حجب أي أرقام هواتف أو ألفاظ غير لائقة تلقائياً لضمان سلامة البيئة التعليمية.</p>
             </div>
             <textarea value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="اكتب استفسارك هنا..." className="w-full h-40 bg-black/40 border border-white/10 rounded-2xl p-4 text-sm text-white outline-none focus:border-[#00d2ff] mb-4" />
             {messageStatus && ( <p className={`text-xs font-bold mb-4 ${messageStatus.includes('⚠️') ? 'text-red-400' : 'text-green-400'}`}>{messageStatus}</p> )}

@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
-import { User, QuizAttempt, Question } from '../types';
+// Updated undefined QuizAttempt to StudentQuizAttempt
+import { User, StudentQuizAttempt, Question } from '../types';
 import { dbService } from '../services/db';
 import { Target, Clock, BarChart, AlertTriangle, CheckCircle, Percent } from 'lucide-react';
 
@@ -8,7 +10,8 @@ interface QuizPerformanceProps {
 }
 
 const QuizPerformance: React.FC<QuizPerformanceProps> = ({ user }) => {
-  const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
+  // Updated undefined QuizAttempt to StudentQuizAttempt
+  const [attempts, setAttempts] = useState<StudentQuizAttempt[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [stats, setStats] = useState({
     totalAttempts: 0,

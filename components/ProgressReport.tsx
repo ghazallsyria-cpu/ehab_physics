@@ -1,14 +1,18 @@
+
 import React, { useEffect, useState } from 'react';
-import { User, WeeklyReport, QuizAttempt } from '../types';
+// Updated undefined QuizAttempt to StudentQuizAttempt
+import { User, WeeklyReport, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
 
 interface ProgressReportProps {
   user: User;
-  attempts: QuizAttempt[];
+  // Updated undefined QuizAttempt to StudentQuizAttempt
+  attempts: StudentQuizAttempt[];
 }
 
 const ProgressReport: React.FC<ProgressReportProps> = ({ user, attempts: initialAttempts }) => {
-  const [attempts, setAttempts] = useState<QuizAttempt[]>(initialAttempts);
+  // Updated undefined QuizAttempt to StudentQuizAttempt
+  const [attempts, setAttempts] = useState<StudentQuizAttempt[]>(initialAttempts);
 
   useEffect(() => {
     const loadAttempts = async () => {
@@ -90,7 +94,7 @@ const ProgressReport: React.FC<ProgressReportProps> = ({ user, attempts: initial
                          <p className="text-sm font-bold text-white"># {att.quizId.split('-')[1] || 'Official'}</p>
                       </div>
                       <div className="text-center">
-                         <p className="text-[8px] text-gray-600 uppercase mb-1">{att.timestamp ? att.timestamp.split('T')[0] : 'N/A'}</p>
+                         <p className="text-[8px] text-gray-600 uppercase mb-1">{att.completedAt ? att.completedAt.split('T')[0] : 'N/A'}</p>
                          <p className="text-lg font-black tabular-nums">{att.score} <span className="text-[10px] text-gray-500">/ {att.maxScore}</span></p>
                       </div>
                       <div className={`w-3 h-3 rounded-full ${att.score / att.maxScore >= 0.9 ? 'bg-green-500' : 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.2)]'}`}></div>

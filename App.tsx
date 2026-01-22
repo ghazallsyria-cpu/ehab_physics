@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { User, ViewState, Lesson, QuizAttempt, Curriculum, Invoice, Quiz, StudentQuizAttempt } from './types';
+// Removed QuizAttempt from imports as it is not exported from types.ts
+import { User, ViewState, Lesson, Curriculum, Invoice, Quiz, StudentQuizAttempt } from './types';
 import { dbService } from './services/db';
 import { Bell, ArrowRight } from 'lucide-react';
 import { auth } from './services/firebase';
