@@ -59,7 +59,6 @@ class DBService {
 
   async initializeSettings() {
     this.checkDb();
-    // Ensures baseline system configurations exist in Firestore.
   }
 
   async getLoggingSettings(): Promise<LoggingSettings> {
@@ -341,37 +340,41 @@ class DBService {
   }
 
   /**
-   * جلب منشورات المنتدى. تدعم الفلترة حسب وسم المنتدى (ID).
+   * جلب منشورات المنتدى مع معالجة ذكية لغياب الفهارس (Indexes).
    */
   async getForumPosts(forumId?: string): Promise<ForumPost[]> {
     this.checkDb();
-    let q = query(collection(db, 'forumPosts'), orderBy('timestamp', 'desc'));
-    if (forumId) {
-        q = query(collection(db, 'forumPosts'), where('tags', 'array-contains', forumId), orderBy('timestamp', 'desc'));
-    }
     try {
+        let q;
+        if (forumId) {
+            // محاولة جلب البيانات مفلترة ومرتبة (تتطلب فهرس مركب)
+            q = query(collection(db, 'forumPosts'), where('tags', 'array-contains', forumId), orderBy('timestamp', 'desc'));
+        } else {
+            q = query(collection(db, 'forumPosts'), orderBy('timestamp', 'desc'));
+        }
         const snap = await getDocs(q);
         return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
-    } catch (e) {
-        // Fallback if index is missing: fetch all and filter manually
-        console.warn("Index for forumPosts may be missing, falling back to client filter.");
+    } catch (e: any) {
+        // Fallback: جلب الكل والفلترة يدوياً في حال لم يتم إنشاء الفهرس في Firestore Console
+        console.warn("Falling back to manual filtering/sorting for ForumPosts due to missing index:", e.message);
         const allSnap = await getDocs(collection(db, 'forumPosts'));
-        const all = allSnap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
+        let all = allSnap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
         if (forumId) {
-            return all.filter(p => p.tags && p.tags.includes(forumId)).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            all = all.filter(p => p.tags && p.tags.includes(forumId));
         }
-        return all.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        return all.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }
   }
 
-  async createForumPost(post: Omit<ForumPost, 'id' | 'timestamp' | 'upvotes' | 'replies'>) {
+  async createForumPost(post: Omit<ForumPost, 'id' | 'timestamp' | 'upvotes' | 'replies'>): Promise<string> {
     this.checkDb();
-    await addDoc(collection(db, 'forumPosts'), {
+    const docRef = await addDoc(collection(db, 'forumPosts'), {
       ...this.cleanData(post),
       timestamp: new Date().toISOString(),
       upvotes: 0,
       replies: []
     });
+    return docRef.id;
   }
 
   async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'timestamp' | 'upvotes'>) {

@@ -62,6 +62,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
   const loadPosts = async (forumId: string) => {
     setIsLoading(true);
     try {
+      // استخدام الدالة المحسنة في dbService التي تتعامل مع غياب الفهارس
       const forumPosts = await dbService.getForumPosts(forumId);
       setPosts(forumPosts);
     } catch (e) {
@@ -100,14 +101,17 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
         return; 
     }
     
-    if (!newQuestion.title.trim() || !newQuestion.content.trim()) {
-        alert('يرجى ملء العنوان والمحتوى.');
+    const titleTrimmed = newQuestion.title.trim();
+    const contentTrimmed = newQuestion.content.trim();
+
+    if (!titleTrimmed || !contentTrimmed) {
+        alert('يرجى كتابة عنوان وشرح للسؤال.');
         return;
     }
 
     // 1. فحص الرقابة
-    const checkTitle = contentFilter.filter(newQuestion.title);
-    const checkContent = contentFilter.filter(newQuestion.content);
+    const checkTitle = contentFilter.filter(titleTrimmed);
+    const checkContent = contentFilter.filter(contentTrimmed);
 
     if (!checkTitle.isClean || !checkContent.isClean) {
         const detected = Array.from(new Set([...checkTitle.detectedWords, ...checkContent.detectedWords])).join(', ');
@@ -118,26 +122,26 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
 
     setIsSubmitting(true);
     try {
-        await dbService.createForumPost({
+        const newPostId = await dbService.createForumPost({
           authorEmail: user.email,
           authorName: user.name || 'طالب مجهول',
-          title: newQuestion.title,
-          content: newQuestion.content,
+          title: titleTrimmed,
+          content: contentTrimmed,
           tags: [activeForum.id, ...newQuestion.tags.split(',').map(t => t.trim()).filter(Boolean)],
         });
 
-        // تم الحفظ بنجاح، نغلق المودال ونظهر رسالة النجاح
+        // تم النشر بنجاح
         setSuccessMsg("تم نشر موضوعك في الساحة بنجاح! 🚀");
         setNewQuestion({ title: '', content: '', tags: '' });
         setShowAskModal(false);
         
-        // تحديث القائمة في الخلفية لتجنب انتظار الطالب
-        loadPosts(activeForum.id).catch(e => console.error("Update posts failed after creation", e));
+        // تحديث القائمة فوراً
+        await loadPosts(activeForum.id);
         
         setTimeout(() => setSuccessMsg(null), 4000);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Create post error:", error);
-        alert("عذراً، فشل النشر. يرجى التحقق من اتصالك بالإنترنت أو مراجعة إدارة المنصة.");
+        alert(`عذراً، فشل النشر: ${error.message || 'مشكلة في الاتصال بالخادم'}`);
     } finally {
         setIsSubmitting(false);
     }
