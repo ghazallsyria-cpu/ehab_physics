@@ -92,6 +92,20 @@ export interface WeeklyReport {
     parentNote?: string;
 }
 
+export interface LoggingSettings {
+    logStudentProgress: boolean;
+    saveAllQuizAttempts: boolean;
+    logAIChatHistory: boolean;
+    archiveTeacherMessages: boolean;
+    forumAccessTier: 'free' | 'premium'; // جديد: صلاحية الساحة
+}
+
+export interface NotificationSettings {
+  pushForLiveSessions: boolean;
+  pushForGradedQuizzes: boolean;
+  pushForAdminAlerts: boolean;
+}
+// ...
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -423,15 +437,6 @@ export interface CertificateTemplate {
     isDefault: boolean;
 }
 
-export interface LoggingSettings {
-    logStudentProgress: boolean;
-    saveAllQuizAttempts: boolean;
-    logAIChatHistory: boolean;
-    archiveTeacherMessages: boolean;
-}
-
-export interface NotificationSettings {
-  pushForLiveSessions: boolean;
-  pushForGradedQuizzes: boolean;
-  pushForAdminAlerts: boolean;
+export interface PaymentSettings {
+    isOnlinePaymentEnabled: boolean;
 }

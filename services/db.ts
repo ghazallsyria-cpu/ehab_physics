@@ -64,7 +64,14 @@ class DBService {
   async getLoggingSettings(): Promise<LoggingSettings> {
     this.checkDb();
     const snap = await getDoc(doc(db, 'settings', 'logging'));
-    return snap.exists() ? snap.data() as LoggingSettings : { logStudentProgress: true, saveAllQuizAttempts: true, logAIChatHistory: true, archiveTeacherMessages: true };
+    // Added missing 'forumAccessTier' to fix LoggingSettings type assignment error
+    return snap.exists() ? snap.data() as LoggingSettings : { 
+      logStudentProgress: true, 
+      saveAllQuizAttempts: true, 
+      logAIChatHistory: true, 
+      archiveTeacherMessages: true,
+      forumAccessTier: 'free' 
+    };
   }
 
   async saveLoggingSettings(settings: LoggingSettings) {
