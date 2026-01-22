@@ -58,9 +58,11 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
 
   const loadPosts = async (forumId: string) => {
     setIsLoading(true);
-    const forumPosts = await dbService.getForumPosts(forumId);
-    setPosts(forumPosts);
-    setIsLoading(false);
+    try {
+        const forumPosts = await dbService.getForumPosts(forumId);
+        setPosts(forumPosts);
+    } catch (e) { console.error(e); }
+    finally { setIsLoading(false); }
   };
 
   const handleForumClick = (forum: ForumType) => {
@@ -77,16 +79,26 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
 
   const handleAsk = async () => {
     if (!user || !activeForum) return;
-    if (!canInteract) { setErrorMsg("🔒 النشر متاح لمشتركي باقة التفوق فقط."); return; }
+    if (!canInteract) { 
+        alert("🔒 النشر متاح لمشتركي باقة التفوق فقط."); 
+        return; 
+    }
     
     const title = newQuestion.title.trim();
     const content = newQuestion.content.trim();
-    if (!title || !content) { setErrorMsg("يرجى ملء جميع الحقول."); return; }
+    if (!title || !content) { 
+        setErrorMsg("يرجى ملء جميع الحقول."); 
+        return; 
+    }
 
     const check = contentFilter.filter(`${title} ${content}`);
-    if (!check.isClean) { setErrorMsg("⚠️ محتوى غير لائق."); return; }
+    if (!check.isClean) { 
+        setErrorMsg("⚠️ محتوى غير لائق."); 
+        return; 
+    }
 
     setIsSubmitting(true);
+    setErrorMsg(null);
     try {
       const postData = {
         authorUid: user.uid,
@@ -101,14 +113,20 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       await dbService.createForumPost(postData);
       setShowAskModal(false);
       setNewQuestion({ title: '', content: '' });
-      loadPosts(activeForum.id);
-    } catch (e) { setErrorMsg("فشل النشر. حاول مرة أخرى."); }
+      await loadPosts(activeForum.id);
+    } catch (e) { 
+        console.error(e);
+        setErrorMsg("فشل النشر. تأكد من اتصالك بالإنترنت."); 
+    }
     finally { setIsSubmitting(false); }
   };
 
   const handleReply = async () => {
     if (!user || !selectedPost || !replyContent.trim()) return;
-    if (!canInteract) { alert("🔒 الردود متاحة للمشتركين فقط."); return; }
+    if (!canInteract) { 
+        alert("🔒 الردود متاحة للمشتركين فقط."); 
+        return; 
+    }
 
     setIsSubmitting(true);
     try {
@@ -120,9 +138,8 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
         role: user.role
       });
       setReplyContent('');
-      loadPosts(activeForum!.id);
-      // تحديث البوست المفتوح حالياً
       const updatedPosts = await dbService.getForumPosts(activeForum!.id);
+      setPosts(updatedPosts);
       setSelectedPost(updatedPosts.find(p => p.id === selectedPost.id) || null);
     } catch (e) { alert("فشل إرسال الرد."); }
     finally { setIsSubmitting(false); }
@@ -139,15 +156,20 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
     return (
       <div className="max-w-6xl mx-auto py-12 animate-fadeIn text-right" dir="rtl">
         <header className="mb-16">
-          <h2 className="text-6xl font-black text-white italic tracking-tighter">ساحة <span className="text-[#fbbf24]">النقاش</span> الأكاديمي</h2>
-          <p className="text-gray-500 text-xl mt-2 font-medium">بيئة آمنة لتبادل المعرفة الفيزيائية بين المعلمين والطلاب.</p>
+          <h2 className="text-4xl md:text-6xl font-black text-white italic tracking-tighter">ساحة <span className="text-[#fbbf24]">النقاش</span> الأكاديمي</h2>
+          <p className="text-gray-500 text-lg md:text-xl mt-2 font-medium">بيئة آمنة لتبادل المعرفة الفيزيائية بين المعلمين والطلاب.</p>
         </header>
-        {isLoading ? <div className="py-20 text-center animate-pulse"><RefreshCw className="w-12 h-12 text-[#fbbf24] animate-spin mx-auto" /></div> : (
+        {isLoading ? (
+            <div className="py-20 text-center animate-pulse">
+                <RefreshCw className="w-12 h-12 text-[#fbbf24] animate-spin mx-auto mb-4" />
+                <p className="text-gray-500 font-bold">جاري تحميل الأقسام...</p>
+            </div>
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {sections.flatMap(s => s.forums).map(forum => (
               <div key={forum.id} onClick={() => handleForumClick(forum)} className="glass-panel p-8 rounded-[40px] border-white/5 hover:border-[#fbbf24]/40 cursor-pointer transition-all group relative overflow-hidden bg-black/20 shadow-xl">
                 <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-3xl mb-6 group-hover:bg-[#fbbf24] group-hover:text-black transition-all">
-                    {forum.imageUrl ? <img src={forum.imageUrl} className="w-full h-full object-cover rounded-2xl" /> : forum.icon}
+                    {forum.imageUrl ? <img src={forum.imageUrl} className="w-full h-full object-cover rounded-2xl" alt={forum.title} /> : forum.icon}
                 </div>
                 <h3 className="text-2xl font-black text-white group-hover:text-[#fbbf24] transition-colors">{forum.title}</h3>
                 <p className="text-gray-500 text-sm line-clamp-2 mt-2 leading-relaxed">{forum.description}</p>
@@ -174,19 +196,23 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {/* قائمة المنشورات */}
         <div className="lg:col-span-8 space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-center bg-black/40 p-4 rounded-[30px] border border-white/5 gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center bg-black/40 p-4 rounded-[30px] border border-white/5 gap-4 shadow-xl">
              <div className="flex gap-2 bg-black/40 p-1.5 rounded-2xl border border-white/5">
                 <button onClick={() => setSortBy('newest')} className={`px-6 py-2 rounded-xl text-[10px] font-black transition-all ${sortBy === 'newest' ? 'bg-white text-black shadow-lg' : 'text-gray-500'}`}>الأحدث</button>
                 <button onClick={() => setSortBy('top')} className={`px-6 py-2 rounded-xl text-[10px] font-black transition-all ${sortBy === 'top' ? 'bg-white text-black shadow-lg' : 'text-gray-500'}`}>الأكثر تفاعلاً</button>
              </div>
-             <button onClick={() => setShowAskModal(true)} className={`px-10 py-4 rounded-2xl font-black text-xs uppercase flex items-center gap-3 transition-all ${canInteract ? 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95 shadow-xl shadow-yellow-500/10' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}>
+             <button 
+                onClick={() => setShowAskModal(true)} 
+                className={`px-10 py-4 rounded-2xl font-black text-xs uppercase flex items-center gap-3 transition-all z-10 shadow-xl ${canInteract ? 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95 shadow-yellow-500/10' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
+             >
                 {canInteract ? <Plus size={18}/> : <Lock size={18}/>} موضوع جديد
              </button>
           </div>
 
-          {isLoading ? <div className="py-20 text-center animate-pulse text-gray-500">جاري تحميل الأسئلة...</div> : sortedPosts.map(post => (
+          {isLoading ? (
+              <div className="py-20 text-center animate-pulse text-gray-500">جاري جلب النقاشات...</div>
+          ) : sortedPosts.map(post => (
             <div key={post.id} onClick={() => setSelectedPost(post)} className={`glass-panel p-8 rounded-[40px] border-2 cursor-pointer transition-all flex gap-8 group relative bg-black/20 ${selectedPost?.id === post.id ? 'border-[#fbbf24] bg-[#fbbf24]/5 shadow-[0_0_40px_rgba(251,191,36,0.1)]' : 'border-white/5 hover:border-white/10'}`}>
               <div className="flex flex-col items-center gap-2 bg-white/5 p-4 rounded-[25px] h-fit border border-white/5 min-w-[70px]">
                 <button onClick={(e) => { e.stopPropagation(); dbService.upvoteForumPost(post.id).then(() => loadPosts(activeForum.id)); }} className="text-gray-500 hover:text-amber-400 hover:scale-125 transition-all active:scale-90"><ArrowUp size={28} /></button>
@@ -208,10 +234,9 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
           {sortedPosts.length === 0 && !isLoading && <div className="py-40 text-center glass-panel rounded-[50px] border-2 border-dashed border-white/10 opacity-30"><MessageSquare size={64} className="mx-auto mb-6 text-gray-600" /><p className="font-black text-xl uppercase tracking-widest">لا توجد مواضيع في هذا القسم حالياً.</p></div>}
         </div>
 
-        {/* عرض المحتوى المحدد (Sidbar View) */}
         <div className="lg:col-span-4 h-fit sticky top-32">
           {selectedPost ? (
-            <div className="glass-panel p-8 rounded-[50px] border-white/10 bg-[#0a1118]/90 flex flex-col max-h-[75vh] shadow-3xl animate-slideUp overflow-hidden">
+            <div className="glass-panel p-8 rounded-[50px] border-white/10 bg-[#0a1118]/90 flex flex-col max-h-[75vh] shadow-3xl animate-slideUp overflow-hidden border-2">
               <div className="flex justify-between items-center mb-8 border-b border-white/5 pb-4">
                 <button onClick={() => setSelectedPost(null)} className="text-[10px] font-black text-gray-500 hover:text-white transition-colors">إغلاق ✕</button>
                 <span className="text-[10px] font-black text-[#fbbf24] uppercase tracking-widest flex items-center gap-2"><Zap size={14} fill="currentColor"/> تفاصيل النقاش</span>
@@ -264,14 +289,14 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
         </div>
       </div>
 
-      {/* مودال طرح سؤال جديد */}
+      {/* مودال طرح سؤال جديد - تم تعديل الـ Z-index وضمان الثبات */}
       {showAskModal && (
-        <div className="fixed inset-0 z-[3000] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-fadeIn" onClick={() => setShowAskModal(false)}>
-          <div className="glass-panel w-full max-w-2xl p-12 rounded-[70px] border-white/10 relative shadow-[0_50px_150px_rgba(0,0,0,0.9)] bg-[#0a1118]" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowAskModal(false)} className="absolute top-10 left-10 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full"><X/></button>
+        <div className="fixed inset-0 z-[5000] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-fadeIn" onClick={() => setShowAskModal(false)}>
+          <div className="glass-panel w-full max-w-2xl p-12 rounded-[70px] border-white/10 relative shadow-[0_50px_150px_rgba(0,0,0,0.9)] bg-[#0a1118] border-2" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowAskModal(false)} className="absolute top-10 left-10 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full transition-colors"><X size={24}/></button>
             <div className="mb-12">
-                <span className="bg-amber-500/10 text-amber-500 px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-500/20">منصة الحوار</span>
-                <h3 className="text-4xl font-black mt-6 text-white leading-tight italic">طرح سؤال في <br/><span className="text-[#fbbf24]">{activeForum.title}</span></h3>
+                <span className="bg-amber-500/10 text-amber-500 px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-500/20">طرح سؤال أكاديمي</span>
+                <h3 className="text-4xl font-black mt-6 text-white leading-tight italic">سؤالك في <br/><span className="text-[#fbbf24]">{activeForum.title}</span></h3>
             </div>
             <div className="space-y-8">
               <div className="space-y-3">

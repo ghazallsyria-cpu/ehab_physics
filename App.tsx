@@ -41,6 +41,7 @@ const AdminAssetManager = lazy(() => import('./components/AdminAssetManager'));
 const AdminQuizManager = lazy(() => import('./components/AdminQuizManager'));
 const PhysicsJourneyMap = lazy(() => import('./components/PhysicsJourneyMap'));
 const ResourcesCenter = lazy(() => import('./components/ResourcesCenter'));
+const AdminManager = lazy(() => import('./components/AdminManager'));
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -130,6 +131,7 @@ const App: React.FC = () => {
       case 'admin-settings': return <AdminSettings />;
       case 'admin-forums': return <AdminForumManager />;
       case 'admin-assets': return <AdminAssetManager />;
+      case 'admin-managers': return <AdminManager />;
       default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
     }
   };
@@ -140,7 +142,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
-      {/* القائمة الجانبية - يتم فصلها بوضوح عن المحتوى */}
+      {/* Sidebar - يتم فصله تماماً في الجوال */}
       <Sidebar 
         currentView={currentView} 
         setView={(v, s) => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: v, subject: s } }))}
@@ -150,8 +152,8 @@ const App: React.FC = () => {
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      {/* الحاوية الرئيسية للمحتوى - محسنة للشاشات الكبيرة جداً */}
-      <div className="flex-1 flex flex-col min-w-0 lg:mr-72 relative z-10 transition-all duration-300">
+      {/* Main Content Area - مضاف هوامش ثابتة في الشاشات الكبيرة لمنع التداخل */}
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 ${isSidebarOpen ? 'lg:mr-72' : 'lg:mr-72'}`}>
         <header className="sticky top-0 z-[100] bg-[#0A2540]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex justify-between items-center shadow-2xl">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 text-white bg-white/5 rounded-2xl hover:bg-white/10 transition-all"><Menu size={24} /></button>
@@ -180,8 +182,8 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* مساحة العرض المركزية - مضاف لها max-width للأجهزة الضخمة */}
-        <main className="flex-1 p-6 lg:p-12 w-full max-w-screen-2xl mx-auto overflow-x-hidden">
+        {/* الحاوية المركزية - max-w-screen-2xl تمنع تمدد العناصر في الشاشات الضخمة */}
+        <main className="flex-1 p-4 md:p-8 lg:p-12 w-full max-w-screen-2xl mx-auto overflow-x-hidden">
           <Suspense fallback={<div className="flex flex-col items-center justify-center h-[50vh] gap-4"><RefreshCw className="w-12 h-12 text-amber-400 animate-spin" /><p className="text-gray-500 text-xs font-bold uppercase">جاري عرض المحتوى...</p></div>}>
             {renderContent()}
           </Suspense>

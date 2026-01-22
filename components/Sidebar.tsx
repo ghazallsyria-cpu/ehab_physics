@@ -73,6 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
             { id: 'dashboard', label: 'لوحة التحكم', icon: '📊' },
             { id: 'admin-students', label: 'إدارة المستخدمين', icon: '👥' },
             { id: 'admin-teachers', label: 'إدارة المعلمين', icon: '👨‍🏫' },
+            { id: 'admin-managers', label: 'إدارة فريق العمل', icon: '🛡️' },
             { id: 'admin-curriculum', label: 'إدارة المسارات', icon: '📚' },
             { id: 'admin-live-sessions', label: 'الجلسات المباشرة', icon: '📡' },
             { id: 'admin-quizzes', label: 'إدارة الاختبارات', icon: '❓' },
@@ -97,7 +98,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
         <div className="p-6">
           <div className="bg-white/[0.03] border border-white/5 p-4 rounded-3xl flex items-center gap-4 relative overflow-hidden group">
              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-600 flex items-center justify-center text-black shadow-lg shadow-amber-500/20 shrink-0 relative z-10 font-black">
+             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-600 flex items-center justify-center text-black shadow-lg shadow-amber-400/20 shrink-0 relative z-10 font-black">
                 {user.name.charAt(0)}
              </div>
              <div className="min-w-0 relative z-10">

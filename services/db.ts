@@ -12,7 +12,7 @@ import {
   HomePageContent, Asset, SubscriptionCode, ForumSection, 
   ForumPost, ForumReply, WeeklyReport, LoggingSettings, 
   NotificationSettings, PaymentSettings, Invoice, AIRecommendation,
-  Unit, Lesson, LiveSession, EducationalResource, PaymentStatus
+  Unit, Lesson, LiveSession, EducationalResource, PaymentStatus, UserRole
 } from '../types';
 
 class DBService {
@@ -44,6 +44,18 @@ class DBService {
     await setDoc(doc(db, 'users', user.uid), this.cleanData(user));
   }
 
+  async updateUserRole(uid: string, role: UserRole) {
+    this.checkDb();
+    await updateDoc(doc(db, 'users', uid), { role });
+  }
+
+  async getAdmins(): Promise<User[]> {
+    this.checkDb();
+    const q = query(collection(db, 'users'), where('role', '==', 'admin'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as User);
+  }
+
   async deleteUser(uid: string) {
     this.checkDb();
     await deleteDoc(doc(db, 'users', uid));
@@ -56,7 +68,7 @@ class DBService {
     return snap.docs.map(d => d.data() as User);
   }
 
-  subscribeToUsers(callback: (users: User[]) => void, role: 'student' | 'teacher') {
+  subscribeToUsers(callback: (users: User[]) => void, role: UserRole) {
     this.checkDb();
     const q = query(collection(db, 'users'), where('role', '==', role));
     return onSnapshot(q, (snap) => {
@@ -81,14 +93,14 @@ class DBService {
   async getForumPosts(forumId?: string): Promise<ForumPost[]> {
     this.checkDb();
     try {
-      let q = collection(db, 'forumPosts');
-      let finalQuery;
+      const postsRef = collection(db, 'forumPosts');
+      let q;
       if (forumId) {
-        finalQuery = query(q, where('tags', 'array-contains', forumId), orderBy('timestamp', 'desc'));
+        q = query(postsRef, where('tags', 'array-contains', forumId), orderBy('timestamp', 'desc'));
       } else {
-        finalQuery = query(q, orderBy('timestamp', 'desc'), limit(50));
+        q = query(postsRef, orderBy('timestamp', 'desc'), limit(50));
       }
-      const snap = await getDocs(finalQuery);
+      const snap = await getDocs(q);
       return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
     } catch (e) {
       console.error("Posts fetch error:", e);
@@ -148,7 +160,6 @@ class DBService {
     return snap.exists() ? snap.data() as NotificationSettings : { pushForLiveSessions: true, pushForGradedQuizzes: true, pushForAdminAlerts: true };
   }
 
-  // Add missing saveNotificationSettings method
   async saveNotificationSettings(settings: NotificationSettings) {
     this.checkDb();
     await setDoc(doc(db, 'settings', 'notifications'), this.cleanData(settings));

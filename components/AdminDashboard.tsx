@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ChevronDown, HeartPulse, LayoutDashboard, Library, MessageSquare, Award, ClipboardList } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ChevronDown, HeartPulse, LayoutDashboard, Library, MessageSquare, Award, ClipboardList, ShieldCheck } from 'lucide-react';
 import { dbService } from '../services/db';
 import SupabaseConnectionFixer from './SupabaseConnectionFixer';
 import EscalatedPostsWidget from './EscalatedPostsWidget';
@@ -31,6 +31,7 @@ const AdminDashboard: React.FC = () => {
     { view: 'admin-quizzes', icon: ClipboardList, title: 'إدارة الاختبارات', description: 'إنشاء وتعديل الاختبارات وبنوك الأسئلة.' },
     { view: 'admin-students', icon: Users, title: 'إدارة الطلاب', description: 'متابعة حسابات الطلاب والاشتراكات.' },
     { view: 'admin-teachers', icon: Briefcase, title: 'إدارة المعلمين', description: 'إدارة صلاحيات المعلمين والحسابات.' },
+    { view: 'admin-managers', icon: ShieldCheck, title: 'إدارة المدراء', description: 'تعيين وتغيير صلاحيات إدارة النظام.' },
     { view: 'admin-forums', icon: MessageSquare, title: 'إدارة المنتديات', description: 'إعداد أقسام ومنتديات النقاش.' },
     { view: 'admin-live-sessions', icon: Video, title: 'إدارة البث', description: 'جدولة حصص Zoom المباشرة.' },
     { view: 'admin-assets', icon: Library, title: 'مكتبة الوسائط', description: 'إدارة صور وملفات الدروس.' },
@@ -74,7 +75,7 @@ const AdminDashboard: React.FC = () => {
                     <span className="text-xs font-bold">{supabaseStatus.alive ? 'متصل' : 'خطأ'}</span>
                  </div>
                  <button onClick={checkHealth} className="w-full py-3 bg-white/5 rounded-xl text-gray-400 hover:text-white transition-all text-xs font-bold flex items-center justify-center gap-2">
-                    <RefreshCw size={14} className={isChecking ? 'animate-spin' : ''}/> تحديث الحالة
+                    <RefreshCw size={14} className={isChecking ? 'animate-spin' : ''} /> تحديث الحالة
                  </button>
               </div>
               <button onClick={() => setShowGuides(!showGuides)} className="w-full mt-6 text-[10px] font-bold text-gray-600 hover:text-blue-400 transition-colors">دليل إصلاح Supabase ▼</button>
