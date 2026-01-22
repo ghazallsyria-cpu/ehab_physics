@@ -150,6 +150,30 @@ class SyrianScienceCenterDB {
     }
   }
 
+  async checkSupabaseConnection(): Promise<{ alive: boolean, error?: string }> {
+    try {
+      if (!auth.currentUser) {
+        return { alive: false, error: 'NO_FIREBASE_USER' };
+      }
+      await this.setSupabaseAuth();
+      
+      const { error } = await supabase.storage.from('assets').list('uploads', { limit: 1 });
+      
+      if (error) {
+        console.error("Supabase connection check error:", error);
+        if (error.message.includes('permission denied') || error.message.includes('security policy')) {
+          return { alive: false, error: 'SUPABASE_PERMISSION_DENIED' };
+        }
+        throw error;
+      }
+      
+      return { alive: true };
+    } catch (e: any) {
+      console.error("Supabase check exception:", e);
+      return { alive: false, error: e.message || 'Unknown Supabase connection error' };
+    }
+  }
+
   async getCurriculum(): Promise<Curriculum[]> {
     this.checkDb();
     const snapshot = await getDocs(collection(db, 'curriculum'));
@@ -304,12 +328,10 @@ class SyrianScienceCenterDB {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
             // FIX: Argument of type 'unknown' is not assignable to parameter of type 'string'.
-            // Explicitly cast `snap.data()` to the `Invoice` type. This ensures that
-            // `invoiceData.userId` is correctly typed as `string`, resolving the error.
-            const invoiceData = snap.data() as Invoice;
+            // Use a type guard to ensure userId is a string before using it.
+            const invoiceData = snap.data();
             const userId = invoiceData.userId;
-            if (userId) {
-                // FIX: Ensure userId is not unknown by casting invoiceData.
+            if (typeof userId === 'string' && userId) {
                 await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
             }
         }
@@ -399,17 +421,17 @@ class SyrianScienceCenterDB {
     const newStatus: PaymentStatus = status === 'SUCCESS' ? 'PAID' : 'FAIL';
     const updateData = { status: newStatus };
     await updateDoc(docRef, updateData);
-    const invoiceData = snapshot.docs[0].data() as Invoice;
+    const invoiceData = snapshot.docs[0].data();
     if (status === 'SUCCESS') {
       // FIX: Argument of type 'unknown' is not assignable to parameter of type 'string'.
-      // By extracting userId and checking for its existence, we satisfy TypeScript's strictness.
+      // By using a type guard, we satisfy TypeScript's strictness.
       const userId = invoiceData.userId;
-      if (userId) {
+      if (typeof userId === 'string' && userId) {
         await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
       }
     }
     // FIX: Construct the return object with the correctly typed `newStatus` to match the `Invoice` type.
-    return { ...invoiceData, id: snapshot.docs[0].id, status: newStatus };
+    return { ...invoiceData, id: snapshot.docs[0].id, status: newStatus } as Invoice;
   }
 
   async getPaymentSettings(): Promise<PaymentSettings> {

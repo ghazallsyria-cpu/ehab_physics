@@ -1,12 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ExternalLink, Copy, Check, ClipboardList, LayoutDashboard, Library, MessageSquare, Award } from 'lucide-react';
 import { dbService } from '../services/db';
 
 const AdminDashboard: React.FC = () => {
-  const [dbStatus, setDbStatus] = useState<{ alive: boolean | null, error?: string }>({ alive: null });
+  const [firestoreStatus, setFirestoreStatus] = useState<{ alive: boolean | null, error?: string }>({ alive: null });
+  const [supabaseStatus, setSupabaseStatus] = useState<{ alive: boolean | null, error?: string }>({ alive: null });
   const [isChecking, setIsChecking] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedFirestore, setCopiedFirestore] = useState(false);
+  const [copiedSupabase, setCopiedSupabase] = useState(false);
 
   const firestoreRules = `rules_version = '2';
 service cloud.firestore {
@@ -17,21 +18,63 @@ service cloud.firestore {
   }
 }`;
 
+  const supabaseStoragePolicies = `
+-- الخطوة 1: أنشئ "Bucket" جديداً في Supabase Storage بالاسم "assets" واجعله عاماً (Public).
+
+-- الخطوة 2: اذهب إلى إعدادات الـ "Policies" الخاصة بالـ Bucket وفعّل "Row Level Security" على جدول "objects".
+
+-- الخطوة 3: اذهب إلى محرر SQL (SQL Editor) ونفّذ الأكواد التالية لإنشاء سياسات الوصول:
+
+-- -- Policy: السماح للجميع بقراءة الملفات
+DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
+CREATE POLICY "Public Read Access" ON storage.objects
+FOR SELECT USING ( bucket_id = 'assets' );
+
+-- -- Policy: السماح للمستخدمين المسجلين فقط برفع الملفات
+DROP POLICY IF EXISTS "Authenticated Upload" ON storage.objects;
+CREATE POLICY "Authenticated Upload" ON storage.objects
+FOR INSERT TO authenticated WITH CHECK (
+  bucket_id = 'assets' AND
+  auth.uid() IS NOT NULL AND
+  auth.uid()::text = (metadata->>'owner_id') AND
+  (storage.foldername(name))[1] = 'uploads'
+);
+
+-- -- Policy: السماح للمالك فقط بحذف ملفاته
+DROP POLICY IF EXISTS "Owner Delete" ON storage.objects;
+CREATE POLICY "Owner Delete" ON storage.objects
+FOR DELETE TO authenticated USING (
+  bucket_id = 'assets' AND
+  auth.uid() IS NOT NULL AND
+  auth.uid()::text = (metadata->>'owner_id')
+);
+`;
+
   useEffect(() => {
     checkHealth();
   }, []);
 
   const checkHealth = async () => {
     setIsChecking(true);
-    const status = await dbService.checkConnection();
-    setDbStatus(status);
+    const [fsStatus, sbStatus] = await Promise.all([
+        dbService.checkConnection(),
+        dbService.checkSupabaseConnection()
+    ]);
+    setFirestoreStatus(fsStatus);
+    setSupabaseStatus(sbStatus);
     setIsChecking(false);
   };
 
-  const handleCopyRules = () => {
-    navigator.clipboard.writeText(firestoreRules);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyRules = (type: 'firestore' | 'supabase') => {
+    if (type === 'firestore') {
+        navigator.clipboard.writeText(firestoreRules);
+        setCopiedFirestore(true);
+        setTimeout(() => setCopiedFirestore(false), 2000);
+    } else {
+        navigator.clipboard.writeText(supabaseStoragePolicies);
+        setCopiedSupabase(true);
+        setTimeout(() => setCopiedSupabase(false), 2000);
+    }
   };
 
   const navigate = (view: string) => {
@@ -60,53 +103,76 @@ service cloud.firestore {
             <p className="text-gray-500 mt-2 font-medium">مرحباً بك في لوحة تحكم المسؤول.</p>
         </div>
         
-        {/* Connection Status Indicator */}
-        <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border transition-all duration-500 ${dbStatus.alive === true ? 'bg-green-500/10 border-green-500/20 text-green-400' : dbStatus.alive === false ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-white/5 border-white/10 text-gray-500'}`}>
-            <div className="flex flex-col items-end">
-                <span className="text-[10px] font-black uppercase tracking-widest">حالة قاعدة البيانات</span>
-                <span className="text-xs font-bold">{isChecking ? 'جاري الفحص...' : dbStatus.alive ? 'متصل وجاهز' : 'خطأ في الصلاحيات'}</span>
+        <div className="flex flex-col md:flex-row items-end gap-4">
+            <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all duration-500 ${firestoreStatus.alive ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                <span className="text-[10px] font-black uppercase">Firestore DB</span>
+                <span className="text-xs font-bold">{isChecking ? '...' : firestoreStatus.alive ? 'متصل' : 'خطأ'}</span>
+                {isChecking ? <RefreshCw className="animate-spin" size={14} /> : firestoreStatus.alive ? <Wifi size={14}/> : <WifiOff size={14}/>}
             </div>
-            {isChecking ? <RefreshCw className="animate-spin" size={20} /> : dbStatus.alive ? <Wifi size={20}/> : <WifiOff size={20}/>}
-            {!isChecking && <button onClick={checkHealth} className="mr-2 p-1.5 hover:bg-white/10 rounded-lg transition-colors" title="إعادة الفحص"><RefreshCw size={14}/></button>}
+            <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all duration-500 ${supabaseStatus.alive ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                <span className="text-[10px] font-black uppercase">Supabase Storage</span>
+                <span className="text-xs font-bold">{isChecking ? '...' : supabaseStatus.alive ? 'متصل' : 'خطأ'}</span>
+                {isChecking ? <RefreshCw className="animate-spin" size={14} /> : supabaseStatus.alive ? <Wifi size={14}/> : <WifiOff size={14}/>}
+            </div>
+            <button onClick={checkHealth} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-colors border border-white/10" title="إعادة الفحص"><RefreshCw size={18} className={isChecking ? 'animate-spin' : ''}/></button>
         </div>
       </header>
 
-      {/* Detailed Error & Fix Section */}
-      {dbStatus.alive === false && (
+      {firestoreStatus.alive === false && (
           <div className="glass-panel p-10 rounded-[40px] border-red-500/20 bg-red-500/5 animate-slideUp">
               <div className="flex items-start gap-6">
-                  <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
-                      <AlertTriangle size={32} />
-                  </div>
+                  <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 shrink-0"><AlertTriangle size={32} /></div>
                   <div className="flex-1">
-                      <h4 className="text-xl font-black text-red-400 mb-2 uppercase tracking-widest">فشل الوصول إلى البيانات</h4>
-                      <p className="text-gray-300 leading-relaxed font-bold italic mb-6">"{dbStatus.error}"</p>
-                      
-                      <div className="bg-black/40 rounded-3xl p-8 border border-white/5 mb-8">
-                         <h5 className="text-amber-400 font-black text-sm mb-4 flex items-center gap-2">
-                             <Settings size={16}/> حل مشكلة الصلاحيات في 3 خطوات:
-                         </h5>
+                      <h4 className="text-xl font-black text-red-400 mb-2 uppercase tracking-widest">فشل الوصول إلى Firestore</h4>
+                      <div className="bg-black/40 rounded-3xl p-8 border border-white/5 mt-6">
+                         <h5 className="text-amber-400 font-black text-sm mb-4 flex items-center gap-2"><Settings size={16}/> حل مشكلة الصلاحيات في 3 خطوات:</h5>
                          <ol className="text-xs text-gray-400 space-y-4 list-decimal list-inside leading-relaxed">
                             <li>افتح <a href={`https://console.firebase.google.com/project/${process.env.VITE_FIREBASE_PROJECT_ID}/firestore/rules`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">Firebase Firestore Rules <ExternalLink size={10}/></a></li>
                             <li>انسخ الكود البرمجي أدناه بالكامل.</li>
                             <li>استبدل القواعد الموجودة هناك بهذا الكود ثم اضغط على **Publish**.</li>
                          </ol>
-                         
                          <div className="mt-6 relative group">
-                            <pre className="bg-black/60 p-5 rounded-xl text-[10px] font-mono text-emerald-400 overflow-x-auto ltr text-left border border-white/10">
-                                {firestoreRules}
-                            </pre>
-                            <button 
-                                onClick={handleCopyRules}
-                                className="absolute top-4 left-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all flex items-center gap-2 text-[10px] font-bold"
-                            >
-                                {copied ? <><Check size={12}/> تم النسخ</> : <><Copy size={12}/> نسخ الكود</>}
+                            <pre className="bg-black/60 p-5 rounded-xl text-[10px] font-mono text-emerald-400 overflow-x-auto ltr text-left border border-white/10">{firestoreRules}</pre>
+                            <button onClick={() => handleCopyRules('firestore')} className="absolute top-4 left-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all flex items-center gap-2 text-[10px] font-bold">
+                                {copiedFirestore ? <><Check size={12}/> تم النسخ</> : <><Copy size={12}/> نسخ الكود</>}
                             </button>
                          </div>
                       </div>
+                  </div>
+              </div>
+          </div>
+      )}
 
-                      <div className="flex justify-end gap-3">
-                          <button onClick={checkHealth} className="bg-red-500 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg">إعادة اختبار الاتصال</button>
+      {supabaseStatus.alive === false && supabaseStatus.error === 'SUPABASE_PERMISSION_DENIED' && (
+          <div className="glass-panel p-10 rounded-[40px] border-red-500/20 bg-red-500/5 animate-slideUp">
+              <div className="flex items-start gap-6">
+                  <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 shrink-0"><AlertTriangle size={32} /></div>
+                  <div className="flex-1">
+                      <h4 className="text-xl font-black text-red-400 mb-2 uppercase tracking-widest">فشل الوصول إلى Supabase Storage</h4>
+                      <p className="text-sm text-gray-300 mb-6">هذا الخطأ يحدث لأن Supabase لا يملك الصلاحيات الكافية للسماح للمستخدمين (المعرفين عبر Firebase) بالوصول للملفات. الحل يتطلب خطوتين في لوحة تحكم Supabase:</p>
+                      <div className="bg-black/40 rounded-3xl p-8 border border-white/5 mb-8">
+                          <h5 className="text-amber-400 font-black text-sm mb-4 flex items-center gap-2"><Settings size={16}/> الخطوة 1: تعريف Firebase كمصدر توثيق (JWT)</h5>
+                          <ol className="text-xs text-gray-400 space-y-4 list-decimal list-inside leading-relaxed">
+                              <li>افتح <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/auth/providers`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">صفحة إعدادات التوثيق <ExternalLink size={10}/></a> في Supabase.</li>
+                              <li>ابحث عن مزود JWT وقم بتفعيله.</li>
+                              <li>املأ الحقول بالقيم التالية بالضبط:
+                                  <ul className="list-disc pr-8 mt-2 space-y-1 text-gray-300 font-mono text-left ltr">
+                                      <li><strong>JWKS URL:</strong> `https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com`</li>
+                                      <li><strong>Issuer:</strong> `https://securetoken.google.com/{process.env.VITE_FIREBASE_PROJECT_ID}`</li>
+                                  </ul>
+                              </li>
+                              <li>اضغط **Save**.</li>
+                          </ol>
+                      </div>
+                      <div className="bg-black/40 rounded-3xl p-8 border border-white/5 mb-8">
+                          <h5 className="text-amber-400 font-black text-sm mb-4 flex items-center gap-2"><Settings size={16}/> الخطوة 2: تطبيق سياسات الأمان على مخزن الملفات</h5>
+                          <p className="text-xs text-gray-400 mb-4 leading-relaxed">اذهب إلى <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">محرر SQL <ExternalLink size={10}/></a>، وانسخ الكود أدناه بالكامل وقم بتنفيذه.</p>
+                          <div className="mt-6 relative group">
+                              <pre className="bg-black/60 p-5 rounded-xl text-[10px] font-mono text-emerald-400 overflow-x-auto ltr text-left border border-white/10">{supabaseStoragePolicies}</pre>
+                              <button onClick={() => handleCopyRules('supabase')} className="absolute top-4 left-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all flex items-center gap-2 text-[10px] font-bold">
+                                  {copiedSupabase ? <><Check size={12}/> تم النسخ</> : <><Copy size={12}/> نسخ الكود</>}
+                              </button>
+                          </div>
                       </div>
                   </div>
               </div>
