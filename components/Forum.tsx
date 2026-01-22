@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, ForumPost, ForumReply, ForumSection, Forum as ForumType } from '../types';
 import { dbService } from '../services/db';
-import { contentFilter } from '../services/contentFilter'; // استيراد نظام الرقابة
+import { contentFilter } from '../services/contentFilter';
 import { 
   ArrowUp, 
   CheckCircle, 
@@ -20,7 +20,8 @@ import {
   Plus,
   RefreshCw,
   X,
-  ShieldAlert
+  ShieldAlert,
+  Send
 } from 'lucide-react';
 
 interface ForumProps {
@@ -37,8 +38,10 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
   const [newQuestion, setNewQuestion] = useState({ title: '', content: '', tags: '' });
   const [replyContent, setReplyContent] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [sortBy, setSortBy] = useState<'newest' | 'top'>('newest');
   const [filterWarning, setFilterWarning] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     loadInitialData();
@@ -60,7 +63,8 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
     setIsLoading(true);
     try {
       const allPosts = await dbService.getForumPosts();
-      const forumPosts = allPosts.filter(p => p.tags.includes(forumId));
+      // تأمين الفلترة ضد المصفوفات الفارغة أو غير المعرفة
+      const forumPosts = allPosts.filter(p => p.tags && p.tags.includes(forumId));
       setPosts(forumPosts);
     } catch (e) {
       console.error("Failed to load forum posts", e);
@@ -94,35 +98,47 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
 
   const handleAsk = async () => {
     if (!user || !activeForum) { alert('يجب تسجيل الدخول واختيار منتدى لطرح سؤال.'); return; }
-    if (!newQuestion.title || !newQuestion.content) return;
+    if (!newQuestion.title.trim() || !newQuestion.content.trim()) {
+        alert('يرجى ملء العنوان والمحتوى.');
+        return;
+    }
 
-    // فحص المحتوى قبل النشر
+    // 1. فحص الرقابة
     const checkTitle = contentFilter.filter(newQuestion.title);
     const checkContent = contentFilter.filter(newQuestion.content);
 
     if (!checkTitle.isClean || !checkContent.isClean) {
-        setFilterWarning(`⚠️ عذراً، يحتوي سؤالك على كلمات غير لائقة (${[...checkTitle.detectedWords, ...checkContent.detectedWords].join(', ')}). يرجى الالتزام بآداب الحوار التعليمي.`);
+        const detected = Array.from(new Set([...checkTitle.detectedWords, ...checkContent.detectedWords])).join(', ');
+        setFilterWarning(`⚠️ عذراً، يحتوي سؤالك على كلمات غير لائقة (${detected}). يرجى الالتزام بآداب الحوار التعليمي.`);
         setTimeout(() => setFilterWarning(null), 5000);
         return;
     }
 
-    await dbService.createForumPost({
-      authorEmail: user.email,
-      authorName: user.name || 'Anonymous',
-      title: newQuestion.title,
-      content: newQuestion.content,
-      tags: [activeForum.id, ...newQuestion.tags.split(',').map(t => t.trim()).filter(Boolean)],
-    });
+    setIsSubmitting(true);
+    try {
+        await dbService.createForumPost({
+          authorEmail: user.email,
+          authorName: user.name || 'طالب مجهول',
+          title: newQuestion.title,
+          content: newQuestion.content,
+          tags: [activeForum.id, ...newQuestion.tags.split(',').map(t => t.trim()).filter(Boolean)],
+        });
 
-    setNewQuestion({ title: '', content: '', tags: '' });
-    setShowAskModal(false);
-    await loadPosts(activeForum.id);
+        setSuccessMsg("تم نشر موضوعك في الساحة بنجاح! 🚀");
+        setNewQuestion({ title: '', content: '', tags: '' });
+        setShowAskModal(false);
+        await loadPosts(activeForum.id);
+        setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (error) {
+        alert("عذراً، فشل النشر. يرجى التحقق من اتصالك بالإنترنت.");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const handleReply = async () => {
-    if (!user || !selectedPost || !replyContent) return;
+    if (!user || !selectedPost || !replyContent.trim()) return;
 
-    // فحص الرد قبل النشر
     const checkReply = contentFilter.filter(replyContent);
     if (!checkReply.isClean) {
         setFilterWarning(`⚠️ الرد يحتوي على كلمات محظورة. يرجى تعديله.`);
@@ -130,34 +146,64 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
         return;
     }
 
-    const replyData = {
-        authorEmail: user.email,
-        authorName: user.name || 'Anonymous',
-        content: replyContent,
-        role: user.role,
-    };
-    
-    setReplyContent('');
-    await dbService.addForumReply(selectedPost.id, replyData);
-    
-    const allPosts = await dbService.getForumPosts();
-    const updatedSelectedPost = allPosts.find(p => p.id === selectedPost.id);
-    if (updatedSelectedPost) {
-        setSelectedPost(updatedSelectedPost);
-        setPosts(prev => prev.map(p => p.id === selectedPost.id ? updatedSelectedPost : p));
+    setIsSubmitting(true);
+    try {
+        const replyData = {
+            authorEmail: user.email,
+            authorName: user.name || 'Anonymous',
+            content: replyContent,
+            role: user.role,
+        };
+        
+        await dbService.addForumReply(selectedPost.id, replyData);
+        setReplyContent('');
+        
+        const allPosts = await dbService.getForumPosts();
+        const updatedSelectedPost = allPosts.find(p => p.id === selectedPost.id);
+        if (updatedSelectedPost) {
+            setSelectedPost(updatedSelectedPost);
+            setPosts(prev => prev.map(p => p.id === selectedPost.id ? updatedSelectedPost : p));
+        }
+    } catch (e) {
+        alert("فشل إرسال الرد.");
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
   const handleTogglePin = async (postId: string, currentPin: boolean) => {
     if (user?.role !== 'admin') return;
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, isPinned: !currentPin } : p));
+    try {
+        await (dbService as any).updateForumPost(postId, { isPinned: !currentPin });
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, isPinned: !currentPin } : p));
+        if (selectedPost?.id === postId) setSelectedPost(prev => prev ? { ...prev, isPinned: !currentPin } : null);
+    } catch (e) {
+        alert("فشل تحديث حالة التثبيت.");
+    }
   };
 
+  // Add comment: Fix missing closing parenthesis for filter function
+  const handleDeletePost = async (postId: string) => {
+    if (user?.role !== 'admin') return;
+    if (!confirm("هل أنت متأكد من حذف هذا المنشور نهائياً؟")) return;
+    
+    try {
+        await (dbService as any).deleteForumPost(postId);
+        setPosts(prev => prev.filter(p => p.id !== postId));
+        if (selectedPost?.id === postId) setSelectedPost(null);
+    } catch (e) {
+        alert("فشل حذف المنشور.");
+    }
+  };
+
+  // Add comment: Add handleUpvotePost function for post interaction
   const handleUpvotePost = async (postId: string) => {
-    await dbService.upvotePost(postId);
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, upvotes: (p.upvotes || 0) + 1 } : p));
-    if(selectedPost?.id === postId) {
-      setSelectedPost(prev => prev ? { ...prev, upvotes: (prev.upvotes || 0) + 1 } : null);
+    try {
+      await dbService.upvoteForumPost(postId);
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, upvotes: (p.upvotes || 0) + 1 } : p));
+      if (selectedPost?.id === postId) setSelectedPost(prev => prev ? { ...prev, upvotes: (prev.upvotes || 0) + 1 } : null);
+    } catch (e) {
+      console.error("Upvote failed", e);
     }
   };
 
@@ -251,6 +297,15 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
         </div>
       )}
 
+      {successMsg && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[1000] w-[90%] max-w-2xl animate-fadeIn">
+            <div className="bg-green-600 text-white p-6 rounded-[30px] shadow-2xl flex items-center gap-6 border-4 border-white/20">
+                <CheckCircle size={40} className="shrink-0" />
+                <p className="font-black text-sm">{successMsg}</p>
+            </div>
+        </div>
+      )}
+
       <button 
         onClick={goBackToDirectory}
         className="flex items-center gap-3 text-gray-500 hover:text-white font-black text-xs uppercase tracking-widest mb-12 transition-all group"
@@ -289,7 +344,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
             </div>
           </div>
 
-          {isLoading ? (
+          {isLoading && posts.length === 0 ? (
             <div className="text-center py-40 animate-pulse text-gray-600 font-black uppercase tracking-[0.4em]">جاري استدعاء المنشورات...</div>
           ) : sortedPosts.length > 0 ? (
             sortedPosts.map(post => (
@@ -305,7 +360,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
                 )}
                 
                 <div className="flex flex-col items-center gap-3">
-                    <button onClick={(e) => { e.stopPropagation(); handleUpvotePost(post.id); }} className="w-14 h-14 rounded-2xl bg-white/5 text-gray-400 hover:text-white hover:bg-[#00d2ff]/20 transition-all flex items-center justify-center border border-white/5 group-hover:scale-105 active:scale-90"><ArrowUp size={24}/></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleUpvotePost(post.id); }} className="w-14 h-14 rounded-2xl bg-white/5 text-gray-400 hover:text-white hover:bg-[#00d2ff]/20 transition-all flex items-center justify-center border border-white/5 group-hover:scale-110 active:scale-90"><ArrowUp size={24}/></button>
                     <span className="font-black text-2xl text-white tabular-nums">{post.upvotes || 0}</span>
                 </div>
 
@@ -320,13 +375,22 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
                         </div>
                         <div className="flex items-center gap-4">
                              {user?.role === 'admin' && (
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleTogglePin(post.id, !!post.isPinned); }} 
-                                    className={`p-3 rounded-xl transition-all ${post.isPinned ? 'bg-[#fbbf24] text-black' : 'bg-white/5 text-gray-500 hover:text-[#fbbf24]'}`}
-                                    title={post.isPinned ? "إلغاء التثبيت" : "تثبيت المنشور"}
-                                >
-                                    {post.isPinned ? <PinOff size={16}/> : <Pin size={16}/>}
-                                </button>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleTogglePin(post.id, !!post.isPinned); }} 
+                                        className={`p-3 rounded-xl transition-all ${post.isPinned ? 'bg-[#fbbf24] text-black' : 'bg-white/5 text-gray-500 hover:text-[#fbbf24]'}`}
+                                        title={post.isPinned ? "إلغاء التثبيت" : "تثبيت المنشور"}
+                                    >
+                                        {post.isPinned ? <PinOff size={16}/> : <Pin size={16}/>}
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleDeletePost(post.id); }} 
+                                        className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                                        title="حذف المنشور"
+                                    >
+                                        <Trash2 size={16}/>
+                                    </button>
+                                </div>
                              )}
                              <span className="bg-white/5 px-5 py-2 rounded-2xl text-[#00d2ff] border border-white/5 flex items-center gap-2 font-black text-[10px]">
                                 <MessageSquare size={14}/> {post.replies?.length || 0} ردود
@@ -337,7 +401,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
               </div>
             ))
           ) : (
-            <div className="py-40 text-center glass-panel rounded-[60px] border-2 border-dashed border-white/5 opacity-30">
+            <div className="py-40 text-center glass-panel rounded-[60px] border-2 border-dashed border-white/10 opacity-30">
                <span className="text-8xl mb-8 block">📝</span>
                <p className="font-black text-2xl uppercase tracking-[0.4em]">المنتدى هادئ جداً</p>
                <p className="mt-4 italic">بادر بطرح أول سؤال أو فكرة للنقاش هنا.</p>
@@ -401,7 +465,14 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
                     placeholder="اكتب ردك هنا لتبادل المعرفة..."
                     className="w-full h-32 bg-black border border-white/5 rounded-[25px] p-6 text-sm outline-none focus:border-[#00d2ff] text-white transition-all shadow-inner no-scrollbar"
                    />
-                   <button onClick={handleReply} disabled={!replyContent.trim()} className="w-full mt-6 bg-[#00d2ff] text-black py-5 rounded-[25px] font-black text-xs uppercase tracking-[0.3em] shadow-2xl disabled:opacity-50 hover:scale-105 active:scale-95 transition-all">إرسال الرد الآن</button>
+                   <button 
+                    onClick={handleReply} 
+                    disabled={!replyContent.trim() || isSubmitting} 
+                    className="w-full mt-6 bg-[#00d2ff] text-black py-5 rounded-[25px] font-black text-xs uppercase tracking-[0.3em] shadow-2xl disabled:opacity-50 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                   >
+                     {isSubmitting ? <RefreshCw className="animate-spin" size={14}/> : <Send size={14}/>}
+                     إرسال الرد الآن
+                   </button>
                 </div>
              </div>
            ) : (
@@ -446,7 +517,14 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
                         className="w-full h-48 bg-black/40 border border-white/5 rounded-[35px] p-10 text-white outline-none focus:border-[#00d2ff] leading-relaxed shadow-inner no-scrollbar italic transition-all"
                     />
                  </div>
-                 <button onClick={handleAsk} className="w-full bg-[#00d2ff] text-black py-7 rounded-[30px] font-black uppercase tracking-[0.4em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all text-xl">نشر الاستفسار في الساحة 🚀</button>
+                 <button 
+                    onClick={handleAsk} 
+                    disabled={isSubmitting}
+                    className="w-full bg-[#00d2ff] text-black py-7 rounded-[30px] font-black uppercase tracking-[0.4em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all text-xl flex items-center justify-center gap-4"
+                 >
+                   {isSubmitting ? <RefreshCw className="animate-spin" size={24}/> : "🚀"}
+                   نشر الاستفسار في الساحة
+                 </button>
               </div>
            </div>
         </div>

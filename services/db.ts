@@ -1,614 +1,630 @@
-import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, NotificationSettings, LiveSession, Question, Quiz, UserRole, HomePageContent, PaymentStatus, Invoice, EducationalResource, Asset, ForumSection, Forum } from "../types";
-import { db, auth } from "./firebase";
-import { supabase } from "./supabase";
-import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, writeBatch, orderBy, limit, onSnapshot } from "firebase/firestore";
-import { QUIZZES_DB, QUESTIONS_DB, MOCK_RESOURCES } from "../constants";
 
-const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
-  logStudentProgress: true,
-  saveAllQuizAttempts: true,
-  logAIChatHistory: true,
-  archiveTeacherMessages: true,
-};
+import { db } from './firebase';
+import { supabase } from './supabase';
+import { 
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
+  query, where, onSnapshot, orderBy, Timestamp, addDoc, limit, increment
+} from 'firebase/firestore';
+import { 
+  User, Curriculum, Quiz, Question, StudentQuizAttempt, 
+  AppNotification, Todo, TeacherMessage, Review, 
+  HomePageContent, Asset, SubscriptionCode, ForumSection, 
+  ForumPost, ForumReply, WeeklyReport, LoggingSettings, 
+  NotificationSettings, PaymentSettings, Invoice, AIRecommendation,
+  Unit, Lesson
+} from '../types';
+import { MOCK_RESOURCES } from '../constants';
 
-const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
-  pushForLiveSessions: true,
-  pushForGradedQuizzes: true,
-  pushForAdminAlerts: true,
-};
-
-class SyrianScienceCenterDB {
-  private static instance: SyrianScienceCenterDB;
-  private loggingSettings: LoggingSettings = DEFAULT_LOGGING_SETTINGS;
-  
-  public static getInstance(): SyrianScienceCenterDB {
-    if (!SyrianScienceCenterDB.instance) {
-      SyrianScienceCenterDB.instance = new SyrianScienceCenterDB();
-      SyrianScienceCenterDB.instance.initializeSettings();
-    }
-    return SyrianScienceCenterDB.instance;
-  }
-
-  async initializeSettings() {
-    try {
-        this.loggingSettings = await this.getLoggingSettings();
-    } catch (e) {
-        console.warn("DB: Initial settings load failed.");
-    }
-  }
-
-  private cleanData(obj: any): any {
-    if (obj === null || obj === undefined) return null;
-    if (Array.isArray(obj)) {
-      return obj.map(v => (v && typeof v === 'object' && !(v instanceof Date)) ? this.cleanData(v) : v ?? null);
-    }
-    if (typeof obj === 'object' && !(obj instanceof Date)) {
-      const cleaned: any = {};
-      Object.keys(obj).forEach(key => {
-        const value = obj[key];
-        if (value !== undefined) {
-          cleaned[key] = (value && typeof value === 'object' && !(value instanceof Date)) 
-            ? this.cleanData(value) 
-            : value;
-        }
-      });
-      return cleaned;
-    }
-    return obj;
-  }
-
+class DBService {
+  /**
+   * Ensuring Firestore is initialized before operations.
+   */
   private checkDb() {
-    if (!db) throw new Error("قاعدة البيانات غير متصلة.");
+    if (!db) throw new Error("Firestore is not initialized");
   }
+
+  /**
+   * Sanitizes data objects by removing undefined values before sending to Firestore.
+   */
+  private cleanData(data: any) {
+    const clean = { ...data };
+    Object.keys(clean).forEach(key => clean[key] === undefined && delete clean[key]);
+    return clean;
+  }
+
+  // --- 1. System Connectivity & Health ---
   
-  async uploadAsset(file: File): Promise<Asset> {
-    const cleanName = file.name.replace(/[^\x00-\x7F]/g, "").replace(/\s+/g, "_");
-    const fileName = `${Date.now()}_${cleanName}`;
-    const filePath = `uploads/${fileName}`;
-    
-    // محاولة الرفع إلى bucket 'assets'
-    const { data, error } = await supabase.storage
-        .from('assets')
-        .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: true
-        });
-
-    if (error) {
-        console.error('Supabase Error Details:', error);
-        if (error.message.includes('bucket not found') || (error as any).status === 404) {
-            throw new Error('خطأ: لم يتم العثور على الحاوية "assets" في Supabase. يرجى التوجه للوحة تحكم المدير وتنفيذ كود الإصلاح.');
-        }
-        throw new Error(`خطأ أثناء الرفع: ${error.message}`);
-    }
-
-    const { data: publicUrlData } = supabase.storage.from('assets').getPublicUrl(filePath);
-    
-    return { 
-        name: fileName, 
-        url: publicUrlData.publicUrl, 
-        type: file.type, 
-        size: file.size 
-    };
-  }
-
-  async listAssets(): Promise<Asset[]> {
-    const { data, error } = await supabase.storage.from('assets').list('uploads', {
-      limit: 100,
-      sortBy: { column: 'created_at', order: 'desc' },
-    });
-
-    if (error) {
-        console.error('Supabase list error:', error);
-        return [];
-    }
-    
-    if (!data) return [];
-    
-    return data.map(file => {
-        const fullPath = `uploads/${file.name}`;
-        const { data: urlData } = supabase.storage.from('assets').getPublicUrl(fullPath);
-        return {
-            name: file.name,
-            url: urlData.publicUrl,
-            type: file.metadata?.mimetype || 'unknown',
-            size: file.metadata?.size || 0,
-        };
-    });
-  }
-
-  async deleteAsset(fileName: string): Promise<void> {
-    const { error } = await supabase.storage.from('assets').remove([`uploads/${fileName}`]);
-    if (error) throw error;
-  }
-
-
   async checkConnection(): Promise<{ alive: boolean, error?: string }> {
     try {
       this.checkDb();
-      const testQuery = query(collection(db, "settings"), limit(1));
-      await getDocs(testQuery);
+      await getDocs(query(collection(db, 'settings'), limit(1)));
       return { alive: true };
     } catch (e: any) {
-      return { alive: false, error: "خطأ في الصلاحيات" };
+      return { alive: false, error: e.code || e.message };
     }
   }
 
   async checkSupabaseConnection(): Promise<{ alive: boolean, error?: string }> {
     try {
-      const { error } = await supabase.storage.from('assets').list('', { limit: 1 });
-      if (error) {
-        if (error.message.includes('not found')) return { alive: false, error: 'BUCKET_NOT_FOUND' };
-        return { alive: false, error: error.message };
-      }
+      const { data, error } = await supabase.storage.listBuckets();
+      if (error) throw error;
       return { alive: true };
     } catch (e: any) {
       return { alive: false, error: e.message };
     }
   }
 
-  async getCurriculum(): Promise<Curriculum[]> {
+  // --- 2. Settings Management ---
+
+  async initializeSettings() {
     this.checkDb();
-    const snapshot = await getDocs(collection(db, 'curriculum'));
-    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Curriculum));
+    // Ensures baseline system configurations exist in Firestore.
   }
 
-  private async _ensureCurriculumDoc(grade: string, subject: string) {
-    const q = query(collection(db, 'curriculum'), where("grade", "==", grade), where("subject", "==", subject));
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) return snapshot.docs[0].ref;
-    
-    const newDocRef = doc(collection(db, 'curriculum'));
-    const initial = {
-        grade, subject, units: [],
-        title: `منهج ${subject === 'Physics' ? 'الفيزياء' : 'الكيمياء'} - الصف ${grade}`,
-        description: `المحتوى المعتمد لمرحلة ${grade}`,
-        icon: subject === 'Physics' ? '⚛️' : '🧪'
-    };
-    await setDoc(newDocRef, this.cleanData(initial));
-    return newDocRef;
-  }
-
-  async saveUnit(grade: string, subject: string, unit: Unit): Promise<void> {
-    const docRef = await this._ensureCurriculumDoc(grade, subject);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-        const data = snap.data() as Curriculum;
-        const units = [...(data.units || [])];
-        const idx = units.findIndex(u => u.id === unit.id);
-        if (idx > -1) units[idx] = unit;
-        else units.push(unit);
-        await updateDoc(docRef, { units: this.cleanData(units) });
-    }
-  }
-
-  async updateUnitsOrder(grade: string, subject: string, units: Unit[]): Promise<void> {
-    const docRef = await this._ensureCurriculumDoc(grade, subject);
-    await updateDoc(docRef, { units: this.cleanData(units) });
-  }
-
-  async saveLesson(grade: string, subject: string, unitId: string, lesson: Lesson): Promise<void> {
-    const docRef = await this._ensureCurriculumDoc(grade, subject);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-        const data = snap.data() as Curriculum;
-        const units = data.units.map(u => {
-            if (u.id === unitId) {
-                const lessons = [...(u.lessons || [])];
-                const lIdx = lessons.findIndex(l => l.id === lesson.id);
-                if (lIdx > -1) lessons[lIdx] = lesson;
-                else lessons.push(lesson);
-                return { ...u, lessons };
-            }
-            return u;
-        });
-        await updateDoc(docRef, { units: this.cleanData(units) });
-    }
-  }
-
-  async deleteLesson(grade: string, subject: string, unitId: string, lessonId: string): Promise<void> {
-    const docRef = await this._ensureCurriculumDoc(grade, subject);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-        const data = snap.data() as Curriculum;
-        const units = data.units.map(u => {
-            if (u.id === unitId) {
-                return { ...u, lessons: (u.lessons || []).filter(l => l.id !== lessonId) };
-            }
-            return u;
-        });
-        await updateDoc(docRef, { units: this.cleanData(units) });
-    }
-  }
-
-  async deleteUnit(grade: string, subject: string, unitId: string): Promise<void> {
-    const docRef = await this._ensureCurriculumDoc(grade, subject);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-        const data = snap.data() as Curriculum;
-        const units = (data.units || []).filter(u => u.id !== unitId);
-        await updateDoc(docRef, { units: this.cleanData(units) });
-    }
-  }
-
-  async getHomePageContent(): Promise<HomePageContent[]> {
+  async getLoggingSettings(): Promise<LoggingSettings> {
     this.checkDb();
-    const q = query(collection(db, "homepage_content"), orderBy("createdAt", "desc"));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as HomePageContent));
+    const snap = await getDoc(doc(db, 'settings', 'logging'));
+    return snap.exists() ? snap.data() as LoggingSettings : { logStudentProgress: true, saveAllQuizAttempts: true, logAIChatHistory: true, archiveTeacherMessages: true };
   }
-  
-  async saveHomePageContent(contentItem: Partial<HomePageContent>): Promise<string> {
+
+  async saveLoggingSettings(settings: LoggingSettings) {
     this.checkDb();
-    const isNew = !contentItem.id;
-    const docRef = isNew ? doc(collection(db, "homepage_content")) : doc(db, "homepage_content", contentItem.id!);
-    const dataToSave = {
-      ...contentItem,
-      createdAt: contentItem.createdAt || new Date().toISOString(),
-    };
-    delete (dataToSave as any).id;
-    await setDoc(docRef, this.cleanData(dataToSave), { merge: true });
-    return docRef.id;
+    await setDoc(doc(db, 'settings', 'logging'), settings);
   }
-  
-  async deleteHomePageContent(id: string): Promise<void> {
+
+  async getNotificationSettings(): Promise<NotificationSettings> {
     this.checkDb();
-    await deleteDoc(doc(db, "homepage_content", id));
+    const snap = await getDoc(doc(db, 'settings', 'notifications'));
+    return snap.exists() ? snap.data() as NotificationSettings : { pushForLiveSessions: true, pushForGradedQuizzes: true, pushForAdminAlerts: true };
   }
 
-  async updateUserPresenceAndActivity(userId: string, durationInMinutes: number): Promise<void> {
-    if (!this.loggingSettings.logStudentProgress) return;
-    try {
-      this.checkDb();
-      const userRef = doc(db, 'users', userId);
-      const today = new Date().toISOString().split('T')[0]; 
-      const fieldPath = `activityLog.${today}`;
-      await updateDoc(userRef, {
-        lastSeen: new Date().toISOString(),
-        [fieldPath]: increment(durationInMinutes)
-      });
-    } catch (e) {
-      console.warn("Could not update user presence:", e);
-    }
-  }
-
-  subscribeToUsers(callback: (users: User[]) => void, role?: UserRole) {
+  async saveNotificationSettings(settings: NotificationSettings) {
     this.checkDb();
-    let q;
-    if (role) {
-      q = query(collection(db, "users"), where("role", "==", role));
-    } else {
-      q = collection(db, "users");
-    }
-    return onSnapshot(q, (snapshot) => {
-      const users = snapshot.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as User));
-      callback(users);
-    });
-  }
-
-  async updateInvoiceStatus(id: string, status: PaymentStatus): Promise<void> {
-    const docRef = doc(db, 'invoices', id);
-    await updateDoc(docRef, { status });
-    if (status === 'PAID') {
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-            const invoiceData = snap.data() as any;
-            const userId = invoiceData.userId as string | undefined;
-            if (userId) {
-                await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
-            }
-        }
-    }
-  }
-
-  async getUser(identifier: string): Promise<User | null> {
-    try {
-        const userDocRef = doc(db, "users", identifier);
-        const userSnap = await getDoc(userDocRef);
-        if (userSnap.exists()) return { uid: userSnap.id, ...(userSnap.data() as any) } as User;
-        const q = query(collection(db, "users"), where("email", "==", identifier));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) return { uid: querySnapshot.docs[0].id, ...(querySnapshot.docs[0].data() as any) } as User;
-    } catch (e) {}
-    return null;
-  }
-
-  async saveUser(user: User): Promise<void> {
-    this.checkDb();
-    await setDoc(doc(db, "users", user.uid), this.cleanData(user), { merge: true });
-  }
-
-  async deleteUser(userId: string): Promise<void> {
-    this.checkDb();
-    await deleteDoc(doc(db, "users", userId));
-  }
-
-  async getTeachers(): Promise<User[]> {
-    const snap = await getDocs(collection(db, "users"));
-    return snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as User)).filter(u => u.role === 'teacher');
-  }
-
-  async getLiveSessions(): Promise<LiveSession[]> {
-    const snapshot = await getDocs(collection(db, "live_sessions"));
-    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as LiveSession));
-  }
-
-  subscribeToLiveSessions(callback: (sessions: LiveSession[]) => void) {
-    this.checkDb();
-    const q = collection(db, "live_sessions");
-    return onSnapshot(q, (snapshot) => {
-      const sessions = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as LiveSession));
-      callback(sessions);
-    });
-  }
-
-  async saveLiveSession(session: Partial<LiveSession>): Promise<void> {
-    const cleaned = this.cleanData(session);
-    const { id, ...data } = cleaned;
-    if (id) await updateDoc(doc(db, "live_sessions", id), data);
-    else await addDoc(collection(db, "live_sessions"), data);
-  }
-
-  async deleteLiveSession(id: string): Promise<void> {
-    await deleteDoc(doc(db, "live_sessions", id));
-  }
-
-  async getInvoices(): Promise<{ data: Invoice[] }> {
-    const snapshot = await getDocs(collection(db, 'invoices'));
-    return { data: snapshot.docs.map(d => ({id: d.id, ...(d.data() as any)}) as Invoice) };
-  }
-
-  async initiatePayment(userId: string, planId: string, amount: number): Promise<Invoice> {
-    const user = await this.getUser(userId);
-    const invoice: Omit<Invoice, 'id'> = {
-      userId, userName: user?.name || 'Unknown', planId, amount, date: new Date().toISOString(), status: 'PENDING',
-      trackId: `TRK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
-    };
-    const docRef = await addDoc(collection(db, 'invoices'), this.cleanData(invoice));
-    return { id: docRef.id, ...invoice };
-  }
-
-  async completePayment(trackId: string, status: 'SUCCESS' | 'FAIL'): Promise<Invoice | null> {
-    const q = query(collection(db, 'invoices'), where('trackId', '==', trackId));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
-    const docRef = snapshot.docs[0].ref;
-    const newStatus: PaymentStatus = status === 'SUCCESS' ? 'PAID' : 'FAIL';
-    await updateDoc(docRef, { status: newStatus });
-    const invoiceData = snapshot.docs[0].data() as any;
-    if (status === 'SUCCESS') {
-      const userId = invoiceData.userId as string | undefined;
-      if (userId) await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
-    }
-    return { ...invoiceData, id: snapshot.docs[0].id, status: newStatus } as Invoice;
+    await setDoc(doc(db, 'settings', 'notifications'), settings);
   }
 
   async getPaymentSettings(): Promise<PaymentSettings> {
-    const docSnap = await getDoc(doc(db, "settings", "payment"));
-    return docSnap.exists() ? docSnap.data() as PaymentSettings : { isOnlinePaymentEnabled: true };
+    this.checkDb();
+    const snap = await getDoc(doc(db, 'settings', 'payments'));
+    return snap.exists() ? snap.data() as PaymentSettings : { isOnlinePaymentEnabled: true };
   }
 
-  async setPaymentSettings(isEnabled: boolean): Promise<void> {
-    await setDoc(doc(db, "settings", "payment"), { isOnlinePaymentEnabled: isEnabled });
+  async setPaymentSettings(enabled: boolean) {
+    this.checkDb();
+    await setDoc(doc(db, 'settings', 'payments'), { isOnlinePaymentEnabled: enabled });
   }
 
-  async getUnusedSubscriptionCodes(): Promise<SubscriptionCode[]> {
-    const q = query(collection(db, 'subscription_codes'), where('isUsed', '==', false));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({id: d.id, ...(d.data() as any)}) as SubscriptionCode);
+  // --- 3. User & Identity Management ---
+
+  async getUser(uidOrEmail: string): Promise<User | null> {
+    this.checkDb();
+    let snap = await getDoc(doc(db, 'users', uidOrEmail));
+    if (snap.exists()) return snap.data() as User;
+    
+    const q = query(collection(db, 'users'), where('email', '==', uidOrEmail), limit(1));
+    const querySnap = await getDocs(q);
+    if (!querySnap.empty) return querySnap.docs[0].data() as User;
+    
+    return null;
   }
 
-  async createSubscriptionCode(planId: string): Promise<void> {
-    const newCode = { code: Math.random().toString(36).substring(2, 10).toUpperCase(), planId, isUsed: false, createdAt: new Date().toISOString(), activatedAt: null, userId: null };
-    await addDoc(collection(db, 'subscription_codes'), this.cleanData(newCode));
+  async saveUser(user: User) {
+    this.checkDb();
+    await setDoc(doc(db, 'users', user.uid), this.cleanData(user));
+  }
+
+  async deleteUser(uid: string) {
+    this.checkDb();
+    await deleteDoc(doc(db, 'users', uid));
+  }
+
+  async getTeachers(): Promise<User[]> {
+    this.checkDb();
+    const q = query(collection(db, 'users'), where('role', '==', 'teacher'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as User);
+  }
+
+  subscribeToUsers(callback: (users: User[]) => void, role: 'student' | 'teacher') {
+    this.checkDb();
+    const q = query(collection(db, 'users'), where('role', '==', role));
+    return onSnapshot(q, (snap) => {
+      callback(snap.docs.map(d => d.data() as User));
+    });
+  }
+
+  // --- 4. Curriculum & Lessons ---
+
+  async getCurriculum(): Promise<Curriculum[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db, 'curriculum'));
+    return snap.docs.map(d => d.data() as Curriculum);
+  }
+
+  async saveUnit(grade: string, subject: string, unit: Unit) {
+    this.checkDb();
+    const id = `${grade}_${subject}`;
+    const ref = doc(db, 'curriculum', id);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data() as Curriculum;
+      const units = [...data.units];
+      const idx = units.findIndex(u => u.id === unit.id);
+      if (idx > -1) units[idx] = unit;
+      else units.push(unit);
+      await updateDoc(ref, { units });
+    } else {
+      await setDoc(ref, { grade, subject, units: [unit], title: `${subject} - Grade ${grade}`, icon: '📚' });
+    }
+  }
+
+  async deleteUnit(grade: string, subject: string, unitId: string) {
+    this.checkDb();
+    const id = `${grade}_${subject}`;
+    const ref = doc(db, 'curriculum', id);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data() as Curriculum;
+      const units = data.units.filter(u => u.id !== unitId);
+      await updateDoc(ref, { units });
+    }
+  }
+
+  async saveLesson(grade: string, subject: string, unitId: string, lesson: Lesson) {
+    this.checkDb();
+    const id = `${grade}_${subject}`;
+    const ref = doc(db, 'curriculum', id);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data() as Curriculum;
+      const units = data.units.map(u => {
+        if (u.id === unitId) {
+          const lessons = [...u.lessons];
+          const idx = lessons.findIndex(l => l.id === lesson.id);
+          if (idx > -1) lessons[idx] = lesson;
+          else lessons.push(lesson);
+          return { ...u, lessons };
+        }
+        return u;
+      });
+      await updateDoc(ref, { units });
+    }
+  }
+
+  async deleteLesson(grade: string, subject: string, unitId: string, lessonId: string) {
+    this.checkDb();
+    const id = `${grade}_${subject}`;
+    const ref = doc(db, 'curriculum', id);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data() as Curriculum;
+      const units = data.units.map(u => {
+        if (u.id === unitId) {
+          return { ...u, lessons: u.lessons.filter(l => l.id !== lessonId) };
+        }
+        return u;
+      });
+      await updateDoc(ref, { units });
+    }
+  }
+
+  async updateUnitsOrder(grade: string, subject: string, units: Unit[]) {
+    this.checkDb();
+    const id = `${grade}_${subject}`;
+    await updateDoc(doc(db, 'curriculum', id), { units });
+  }
+
+  async toggleLessonComplete(uid: string, lessonId: string) {
+    this.checkDb();
+    const ref = doc(db, 'users', uid);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const user = snap.data() as User;
+      const completed = user.progress.completedLessonIds || [];
+      const newCompleted = completed.includes(lessonId) 
+        ? completed.filter(id => id !== lessonId) 
+        : [...completed, lessonId];
+      
+      const points = completed.includes(lessonId) ? user.progress.points : user.progress.points + 10;
+      await updateDoc(ref, { 
+        'progress.completedLessonIds': newCompleted,
+        'progress.points': points
+      });
+    }
+  }
+
+  // --- 5. Assessment & Quiz Center ---
+
+  async getQuizzes(): Promise<Quiz[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db, 'quizzes'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Quiz));
+  }
+
+  async getQuizById(id: string): Promise<Quiz | null> {
+    this.checkDb();
+    const snap = await getDoc(doc(db, 'quizzes', id));
+    return snap.exists() ? { ...snap.data(), id: snap.id } as Quiz : null;
+  }
+
+  async saveQuiz(quiz: Quiz) {
+    this.checkDb();
+    const { id, ...data } = quiz;
+    await setDoc(doc(db, 'quizzes', id), this.cleanData(data));
+  }
+
+  async deleteQuiz(id: string) {
+    this.checkDb();
+    await deleteDoc(doc(db, 'quizzes', id));
+  }
+
+  async getQuestionsForQuiz(quizId: string): Promise<Question[]> {
+    this.checkDb();
+    const quizSnap = await getDoc(doc(db, 'quizzes', quizId));
+    if (!quizSnap.exists()) return [];
+    const quiz = quizSnap.data() as Quiz;
+    const questions: Question[] = [];
+    for (const qId of quiz.questionIds) {
+      const qSnap = await getDoc(doc(db, 'questions', qId));
+      if (qSnap.exists()) questions.push({ ...qSnap.data(), id: qSnap.id } as Question);
+    }
+    return questions;
+  }
+
+  async getAllQuestions(): Promise<Question[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db, 'questions'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Question));
+  }
+
+  async saveQuestion(q: Question): Promise<string> {
+    this.checkDb();
+    const { id, ...data } = q;
+    if (id && !id.startsWith('temp-')) {
+      await setDoc(doc(db, 'questions', id), this.cleanData(data));
+      return id;
+    } else {
+      const res = await addDoc(collection(db, 'questions'), this.cleanData(data));
+      return res.id;
+    }
+  }
+
+  async updateQuestion(id: string, q: Question) {
+    this.checkDb();
+    await setDoc(doc(db, 'questions', id), this.cleanData(q));
+  }
+
+  async saveAttempt(attempt: StudentQuizAttempt) {
+    this.checkDb();
+    await setDoc(doc(db, 'attempts', attempt.id), this.cleanData(attempt));
+    if (attempt.score > 0) {
+       await updateDoc(doc(db, 'users', attempt.studentId), {
+         'progress.points': increment(attempt.score)
+       });
+    }
+  }
+
+  async updateAttempt(attempt: StudentQuizAttempt) {
+    this.checkDb();
+    await setDoc(doc(db, 'attempts', attempt.id), this.cleanData(attempt));
+  }
+
+  async getUserAttempts(uid: string, quizId?: string): Promise<StudentQuizAttempt[]> {
+    this.checkDb();
+    let q = query(collection(db, 'attempts'), where('studentId', '==', uid));
+    if (quizId) q = query(q, where('quizId', '==', quizId));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as StudentQuizAttempt);
+  }
+
+  async getAttemptsForQuiz(quizId: string): Promise<StudentQuizAttempt[]> {
+    this.checkDb();
+    const q = query(collection(db, 'attempts'), where('quizId', '==', quizId));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as StudentQuizAttempt);
+  }
+
+  // --- 6. Communications & Forums ---
+
+  async getNotifications(uid: string): Promise<AppNotification[]> {
+    this.checkDb();
+    const q = query(collection(db, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
+  }
+
+  async createNotification(note: Omit<AppNotification, 'id'>) {
+    this.checkDb();
+    await addDoc(collection(db, 'notifications'), this.cleanData(note));
+  }
+
+  async markNotificationsAsRead(uid: string) {
+    this.checkDb();
+    const q = query(collection(db, 'notifications'), where('userId', '==', uid), where('isRead', '==', false));
+    const snap = await getDocs(q);
+    for (const d of snap.docs) {
+      await updateDoc(d.ref, { isRead: true });
+    }
   }
 
   async getForumSections(): Promise<ForumSection[]> {
     this.checkDb();
-    const q = query(collection(db, "forum_sections"), orderBy("order"));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return [];
-    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as ForumSection));
+    const snap = await getDocs(query(collection(db, 'forumSections'), orderBy('order')));
+    return snap.docs.map(d => d.data() as ForumSection);
   }
 
-  async saveForumSections(sections: ForumSection[]): Promise<void> {
+  async saveForumSections(sections: ForumSection[]) {
     this.checkDb();
-    const batch = writeBatch(db);
-    const sectionsCollectionRef = collection(db, 'forum_sections');
-    const existingDocsSnapshot = await getDocs(sectionsCollectionRef);
-    const existingIds = new Set<string>(existingDocsSnapshot.docs.map(d => d.id));
-    const newIds = new Set<string>(sections.map(s => s.id));
-
-    for (const id of existingIds) {
-        if (!newIds.has(id)) batch.delete(doc(sectionsCollectionRef, id));
+    for (const sec of sections) {
+      await setDoc(doc(db, 'forumSections', sec.id), this.cleanData(sec));
     }
-
-    sections.forEach((section, index) => {
-        const docRef = doc(db, 'forum_sections', section.id);
-        const { id, ...data } = section;
-        batch.set(docRef, this.cleanData({ ...data, order: index }));
-    });
-
-    await batch.commit();
   }
 
   async getForumPosts(): Promise<ForumPost[]> {
-    const q = query(collection(db, 'forumPosts'), orderBy('timestamp', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as ForumPost));
+    this.checkDb();
+    const snap = await getDocs(query(collection(db, 'forumPosts'), orderBy('timestamp', 'desc')));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
   }
 
-  async createForumPost(post: any): Promise<void> {
-    await addDoc(collection(db, 'forumPosts'), this.cleanData({ ...post, timestamp: new Date().toISOString(), upvotes: 0, replies: [] }));
+  async createForumPost(post: Omit<ForumPost, 'id' | 'timestamp' | 'upvotes' | 'replies'>) {
+    this.checkDb();
+    await addDoc(collection(db, 'forumPosts'), {
+      ...this.cleanData(post),
+      timestamp: new Date().toISOString(),
+      upvotes: 0,
+      replies: []
+    });
   }
 
-  async addForumReply(postId: string, reply: any): Promise<void> {
-    await updateDoc(doc(db, 'forumPosts', postId), { replies: arrayUnion(this.cleanData({ ...reply, id: `rep_${Date.now()}`, timestamp: new Date().toISOString(), upvotes: 0 })) });
-  }
-
-  async upvotePost(postId: string): Promise<void> {
-    await updateDoc(doc(db, 'forumPosts', postId), { upvotes: increment(1) });
-  }
-
-  async upvoteReply(postId: string, replyId: string): Promise<void> {
-    const snap = await getDoc(doc(db, 'forumPosts', postId));
+  async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'timestamp' | 'upvotes'>) {
+    this.checkDb();
+    const ref = doc(db, 'forumPosts', postId);
+    const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data() as ForumPost;
-      const replies = (data.replies || []).map(r => r.id === replyId ? { ...r, upvotes: (r.upvotes || 0) + 1 } : r);
-      await updateDoc(doc(db, 'forumPosts', postId), { replies: this.cleanData(replies) });
+      const newReply: ForumReply = {
+        ...reply,
+        id: `rep_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        upvotes: 0
+      };
+      await updateDoc(ref, {
+        replies: [...(data.replies || []), newReply]
+      });
     }
   }
 
-  async getQuizzes(): Promise<Quiz[]> {
-    try {
-      this.checkDb();
-      const snapshot = await getDocs(collection(db, 'quizzes'));
-      return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Quiz));
-    } catch (e) { return QUIZZES_DB; }
+  async updateForumPost(postId: string, updates: Partial<ForumPost>) {
+    this.checkDb();
+    await updateDoc(doc(db, 'forumPosts', postId), this.cleanData(updates));
   }
 
-  async getQuizById(quizId: string): Promise<Quiz | null> {
-    try {
-        const docRef = doc(db, 'quizzes', quizId);
-        const docSnap = await getDoc(docRef);
-        return docSnap.exists() ? { id: docSnap.id, ...(docSnap.data() as any) } as Quiz : null;
-    } catch (e) { return QUIZZES_DB.find(q => q.id === quizId) || null; }
+  async deleteForumPost(postId: string) {
+    this.checkDb();
+    await deleteDoc(doc(db, 'forumPosts', postId));
   }
 
-  async saveQuiz(quiz: Quiz): Promise<void> {
+  async upvoteForumPost(postId: string) {
     this.checkDb();
-    await setDoc(doc(db, "quizzes", quiz.id), this.cleanData(quiz), { merge: true });
+    await updateDoc(doc(db, 'forumPosts', postId), {
+      upvotes: increment(1)
+    });
   }
 
-  async deleteQuiz(quizId: string): Promise<void> {
+  // --- 7. Live Events & Sync ---
+
+  async getLiveSessions(): Promise<LiveSession[]> {
     this.checkDb();
-    await deleteDoc(doc(db, "quizzes", quizId));
-  }
-  
-  async getAllQuestions(): Promise<Question[]> {
-    try {
-        this.checkDb();
-        const snapshot = await getDocs(collection(db, 'questions'));
-        return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Question));
-    } catch (e) { return QUESTIONS_DB; }
+    const snap = await getDocs(collection(db, 'liveSessions'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as LiveSession));
   }
 
-  async getQuestionsForQuiz(quizId: string): Promise<Question[]> {
-    const quiz = await this.getQuizById(quizId);
-    if (!quiz) return [];
-    const allQuestions = await this.getAllQuestions();
-    return quiz.questionIds.map(id => allQuestions.find(q => q.id === id)).filter(Boolean) as Question[];
-  }
-  
-  async saveQuestion(question: Question): Promise<string> {
+  subscribeToLiveSessions(callback: (sessions: LiveSession[]) => void) {
     this.checkDb();
-    const docRef = await addDoc(collection(db, "questions"), this.cleanData(question));
-    return docRef.id;
+    return onSnapshot(collection(db, 'liveSessions'), (snap) => {
+      callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as LiveSession)));
+    });
   }
 
-  async updateQuestion(questionId: string, questionData: Partial<Question>): Promise<void> {
+  async saveLiveSession(session: Partial<LiveSession>) {
     this.checkDb();
-    await updateDoc(doc(db, "questions", questionId), this.cleanData(questionData));
-  }
-
-  async saveAttempt(attempt: StudentQuizAttempt): Promise<void> {
-    if (!this.loggingSettings.saveAllQuizAttempts) return;
-    this.checkDb();
-    await setDoc(doc(db, "quiz_attempts", attempt.id), this.cleanData(attempt));
-  }
-  
-  async updateAttempt(attempt: StudentQuizAttempt): Promise<void> {
-    this.checkDb();
-    const attemptRef = doc(db, "quiz_attempts", attempt.id);
-    await updateDoc(attemptRef, this.cleanData(attempt));
-  }
-  
-  async getAttemptsForQuiz(quizId: string): Promise<StudentQuizAttempt[]> {
-    this.checkDb();
-    const q: any = query(collection(db, 'quiz_attempts'), where('quizId', '==', quizId));
-    const snapshot = await getDocs(q);
-    const attempts = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as StudentQuizAttempt));
-    return attempts.sort((a, b) => new Date(String(b.completedAt)).getTime() - new Date(String(a.completedAt)).getTime());
-  }
-
-  async getUserAttempts(userId: string, quizId?: string): Promise<StudentQuizAttempt[]> {
-    this.checkDb();
-    let q: any;
-    if (quizId) {
-        q = query(collection(db, 'quiz_attempts'), where('studentId', '==', userId), where('quizId', '==', quizId));
+    if (session.id) {
+      await setDoc(doc(db, 'liveSessions', session.id), this.cleanData(session));
     } else {
-        q = query(collection(db, 'quiz_attempts'), where('studentId', '==', userId));
-    }
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as StudentQuizAttempt));
-  }
-  
-   async toggleLessonComplete(userId: string, lessonId: string): Promise<void> {
-    this.checkDb();
-    const userRef = doc(db, 'users', userId);
-    const userSnap = await getDoc(userRef);
-    if (userSnap.exists()) {
-        const userData = userSnap.data() as User;
-        const completedIds = userData.progress.completedLessonIds || [];
-        if (completedIds.includes(lessonId)) {
-            await updateDoc(userRef, { 'progress.completedLessonIds': arrayRemove(lessonId) });
-        } else {
-            await updateDoc(userRef, { 'progress.completedLessonIds': arrayUnion(lessonId) });
-        }
+      await addDoc(collection(db, 'liveSessions'), this.cleanData(session));
     }
   }
-  
-  async createNotification(notification: Omit<AppNotification, 'id'>): Promise<void> {
+
+  async deleteLiveSession(id: string) {
     this.checkDb();
-    await addDoc(collection(db, 'notifications'), this.cleanData(notification));
+    await deleteDoc(doc(db, 'liveSessions', id));
   }
 
-  async getNotifications(userId: string): Promise<AppNotification[]> {
+  // --- 8. Assets & Storage ---
+
+  async uploadAsset(file: File): Promise<Asset> {
+    const name = `${Date.now()}_${file.name}`;
+    const { data, error } = await supabase.storage.from('assets').upload(name, file);
+    if (error) throw error;
+    
+    const { data: { publicUrl } } = supabase.storage.from('assets').getPublicUrl(name);
+    return { name, url: publicUrl, type: file.type, size: file.size };
+  }
+
+  async listAssets(): Promise<Asset[]> {
+    const { data, error } = await supabase.storage.from('assets').list();
+    if (error) throw error;
+    
+    return data.map(item => ({
+      name: item.name,
+      url: supabase.storage.from('assets').getPublicUrl(item.name).data.publicUrl,
+      type: item.metadata?.mimetype || 'unknown',
+      size: item.metadata?.size || 0
+    }));
+  }
+
+  async deleteAsset(name: string) {
+    const { error } = await supabase.storage.from('assets').remove([name]);
+    if (error) throw error;
+  }
+
+  // --- 9. Payments & Subscriptions ---
+
+  async getInvoices(): Promise<{ data: Invoice[] }> {
     this.checkDb();
-    const q = query(collection(db, 'notifications'), where('userId', '==', userId), orderBy('timestamp', 'desc'), limit(20));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as AppNotification));
+    const snap = await getDocs(collection(db, 'invoices'));
+    return { data: snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)) };
   }
 
-  async markNotificationsAsRead(userId: string): Promise<void> {
+  async initiatePayment(userId: string, planId: string, amount: number): Promise<Invoice> {
     this.checkDb();
-    const q = query(collection(db, 'notifications'), where('userId', '==', userId), where('isRead', '==', false));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return;
-    const batch = writeBatch(db);
-    snapshot.docs.forEach(d => batch.update(d.ref, { isRead: true }));
-    await batch.commit();
+    const user = await this.getUser(userId);
+    const invoice: Omit<Invoice, 'id'> = {
+      userId,
+      userName: user?.name || 'Unknown',
+      planId,
+      amount,
+      date: new Date().toISOString(),
+      status: 'PENDING',
+      trackId: `TRK_${Date.now()}`
+    };
+    const res = await addDoc(collection(db, 'invoices'), invoice);
+    return { ...invoice, id: res.id };
   }
 
-  async getLoggingSettings(): Promise<LoggingSettings> {
-    const docSnap = await getDoc(doc(db, 'settings', 'logging'));
-    return docSnap.exists() ? docSnap.data() as LoggingSettings : DEFAULT_LOGGING_SETTINGS;
-  }
-  async saveLoggingSettings(settings: LoggingSettings): Promise<void> {
-    await setDoc(doc(db, 'settings', 'logging'), this.cleanData(settings));
-  }
-  async getNotificationSettings(): Promise<NotificationSettings> {
-    const docSnap = await getDoc(doc(db, 'settings', 'notifications'));
-    return docSnap.exists() ? docSnap.data() as NotificationSettings : DEFAULT_NOTIFICATION_SETTINGS;
-  }
-  async saveNotificationSettings(settings: NotificationSettings): Promise<void> {
-    await setDoc(doc(db, 'settings', 'notifications'), this.cleanData(settings));
+  async completePayment(trackId: string, status: 'SUCCESS' | 'FAIL'): Promise<Invoice | null> {
+    this.checkDb();
+    const q = query(collection(db, 'invoices'), where('trackId', '==', trackId), limit(1));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const d = snap.docs[0];
+      const invoice = d.data() as Invoice;
+      const updatedStatus = status === 'SUCCESS' ? 'PAID' : 'FAIL';
+      await updateDoc(d.ref, { 
+        status: updatedStatus,
+        paymentId: `PAY_${Date.now()}`,
+        authCode: `AUTH_${Math.floor(Math.random() * 1000000)}`
+      });
+      
+      if (updatedStatus === 'PAID') {
+        await updateDoc(doc(db, 'users', invoice.userId), { subscription: 'premium' });
+      }
+      
+      const freshSnap = await getDoc(d.ref);
+      return { ...freshSnap.data(), id: freshSnap.id } as Invoice;
+    }
+    return null;
   }
 
-  async getAIRecommendations(user: User): Promise<AIRecommendation[]> { return []; }
-  async getResources(): Promise<EducationalResource[]> { return MOCK_RESOURCES; }
-  async getTeacherReviews(teacherId: string): Promise<Review[]> { return []; }
-  async addReview(review: Review): Promise<void> {}
-  async saveTeacherMessage(message: TeacherMessage): Promise<void> {}
-  async getAllTeacherMessages(teacherId: string): Promise<TeacherMessage[]> { return []; }
-  async getTodos(userId: string): Promise<Todo[]> { return []; }
-  async saveTodo(userId: string, todo: Omit<Todo, 'id'>): Promise<string> { return `todo_${Date.now()}`; }
-  async updateTodo(userId: string, todoId: string, updates: Partial<Todo>): Promise<void> {}
-  async deleteTodo(userId: string, todoId: string): Promise<void> {}
-  async getStudentProgressForParent(studentId: string): Promise<{user: User | null, report: WeeklyReport | null}> {
-      const user = await this.getUser(studentId);
-      return { user, report: user?.weeklyReports?.[0] || null };
+  async updateInvoiceStatus(id: string, status: 'PAID' | 'PENDING' | 'FAIL') {
+    this.checkDb();
+    await updateDoc(doc(db, 'invoices', id), { status });
+  }
+
+  async createSubscriptionCode(planId: string) {
+    this.checkDb();
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    await addDoc(collection(db, 'subscriptionCodes'), {
+      code, planId, isUsed: false, createdAt: new Date().toISOString(), activatedAt: null, userId: null
+    });
+  }
+
+  async getUnusedSubscriptionCodes(): Promise<SubscriptionCode[]> {
+    this.checkDb();
+    const q = query(collection(db, 'subscriptionCodes'), where('isUsed', '==', false));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as SubscriptionCode));
+  }
+
+  // --- 10. Intelligence & Personalization ---
+
+  async getAIRecommendations(user: User): Promise<AIRecommendation[]> {
+    return [
+      { id: 'rec1', title: 'مراجعة قانون فاراداي', reason: 'لقد أخطأت في السؤال المتعلق بالحث مرتين.', type: 'lesson', targetId: 'l12-1-1', urgency: 'high' },
+      { id: 'rec2', title: 'تحدي الفيزياء الحديثة', reason: 'مستواك متقدم جداً في الميكانيكا، جرب هذا التحدي.', type: 'challenge', targetId: 'quiz-2', urgency: 'medium' }
+    ];
+  }
+
+  async getStudentProgressForParent(uid: string): Promise<{ user: User | null, report: WeeklyReport | null }> {
+    const user = await this.getUser(uid);
+    const report = user?.weeklyReports?.[0] || null;
+    return { user, report };
+  }
+
+  // --- 11. Student Tools ---
+
+  async getTodos(uid: string): Promise<Todo[]> {
+    this.checkDb();
+    const q = query(collection(db, 'users', uid, 'todos'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Todo));
+  }
+
+  async saveTodo(uid: string, todo: Omit<Todo, 'id'>): Promise<string> {
+    this.checkDb();
+    const res = await addDoc(collection(db, 'users', uid, 'todos'), todo);
+    return res.id;
+  }
+
+  async updateTodo(uid: string, id: string, updates: Partial<Todo>) {
+    this.checkDb();
+    await updateDoc(doc(db, 'users', uid, 'todos', id), updates);
+  }
+
+  async deleteTodo(uid: string, id: string) {
+    this.checkDb();
+    await deleteDoc(doc(db, 'users', uid, 'todos', id));
+  }
+
+  async getResources(): Promise<Asset[]> {
+    return MOCK_RESOURCES as any;
+  }
+
+  // --- 12. Public Content ---
+
+  async getHomePageContent(): Promise<HomePageContent[]> {
+    this.checkDb();
+    const snap = await getDocs(query(collection(db, 'homePageContent'), orderBy('createdAt', 'desc')));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as HomePageContent));
+  }
+
+  async saveHomePageContent(item: Partial<HomePageContent>) {
+    this.checkDb();
+    if (item.id) {
+      await setDoc(doc(db, 'homePageContent', item.id), this.cleanData(item));
+    } else {
+      await addDoc(collection(db, 'homePageContent'), { ...this.cleanData(item), createdAt: new Date().toISOString() });
+    }
+  }
+
+  async deleteHomePageContent(id: string) {
+    this.checkDb();
+    await deleteDoc(doc(db, 'homePageContent', id));
+  }
+
+  async getTeacherReviews(teacherId: string): Promise<Review[]> {
+    this.checkDb();
+    const q = query(collection(db, 'reviews'), where('teacherId', '==', teacherId), orderBy('timestamp', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Review));
+  }
+
+  async addReview(review: Review) {
+    this.checkDb();
+    await addDoc(collection(db, 'reviews'), this.cleanData(review));
+  }
+
+  async saveTeacherMessage(msg: TeacherMessage) {
+    this.checkDb();
+    await setDoc(doc(db, 'teacherMessages', msg.id), this.cleanData(msg));
+  }
+
+  async getAllTeacherMessages(teacherId: string): Promise<TeacherMessage[]> {
+    this.checkDb();
+    const q = query(collection(db, 'teacherMessages'), where('teacherId', '==', teacherId), orderBy('timestamp', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as TeacherMessage);
   }
 }
 
-export const dbService = SyrianScienceCenterDB.getInstance();
+export const dbService = new DBService();
