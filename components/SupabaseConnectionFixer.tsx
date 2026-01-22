@@ -8,19 +8,30 @@ interface SupabaseConnectionFixerProps {
 const SupabaseConnectionFixer: React.FC<SupabaseConnectionFixerProps> = ({ onFix }) => {
   const [copiedSupabase, setCopiedSupabase] = useState(false);
 
-  // كود SQL مبسط جداً لا يحتاج لمحاولة تغيير ملكية الجدول
-  const supabaseStoragePolicies = `-- 💡 كود السياسات (انسخه فقط إذا فشلت الطريقة اليدوية)
+  // كود SQL بسيط جداً يركز على السياسات فقط (يتجاوز خطأ الملكية)
+  const supabaseStoragePolicies = `-- 🛠️ كود السياسات (SQL) 🛠️
+-- ملاحظة: إذا ظهر خطأ "must be owner"، تجاهله واستخدم واجهة المستخدم (الخطوة أدناه)
 
--- 1. سياسة القراءة العامة
-CREATE POLICY "Public Access" ON storage.objects FOR SELECT TO public USING (bucket_id = 'assets');
+-- 1. السماح للجميع برؤية الملفات في مخزن assets
+CREATE POLICY "Public Read Access"
+  ON storage.objects FOR SELECT
+  TO public
+  USING ( bucket_id = 'assets' );
 
--- 2. سياسة الرفع للمستخدمين (Firebase Auth)
-CREATE POLICY "Auth Upload" ON storage.objects FOR INSERT TO authenticated 
-WITH CHECK (bucket_id = 'assets' AND (storage.foldername(name))[1] = 'uploads');
+-- 2. السماح للمستخدمين برفع الملفات إلى مجلد uploads
+CREATE POLICY "Authenticated Upload Access"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    bucket_id = 'assets' AND
+    (storage.foldername(name))[1] = 'uploads'
+  );
 
--- 3. سياسة الحذف للمالك
-CREATE POLICY "Owner Delete" ON storage.objects FOR DELETE TO authenticated 
-USING (bucket_id = 'assets');
+-- 3. السماح بحذف الملفات
+CREATE POLICY "Owner Delete Access"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING ( bucket_id = 'assets' );
 `;
 
   const handleCopyRules = () => {
@@ -36,27 +47,27 @@ USING (bucket_id = 'assets');
           <Settings size={40} />
         </div>
         <div className="flex-1">
-          <h4 className="text-2xl font-black text-amber-400 mb-2 uppercase tracking-tighter italic">تجاوز خطأ الصلاحيات (Error 42501)</h4>
+          <h4 className="text-2xl font-black text-amber-400 mb-2 uppercase tracking-tighter italic">حل نهائي لمشكلة الصلاحيات (Error 42501)</h4>
           <p className="text-gray-400 text-sm mb-8 leading-relaxed">
-            ظهور خطأ <code className="text-red-400 bg-red-500/10 px-2 py-0.5 rounded">must be owner</code> يعني أن محرر SQL مقيد. 
-            <strong> يرجى اتباع "الطريقة الأولى" فهي الحل المضمون دائماً.</strong>
+            ظهور الخطأ يعني أن محرر SQL مقيد. 
+            <strong> استخدام واجهة المستخدم الرسومية هو الحل المضمون 100%.</strong>
           </p>
           
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            {/* Method 1: The UI Way (Recommended) */}
+            {/* Method 1: The UI Way (The most reliable one) */}
             <div className="bg-emerald-500/5 rounded-[35px] p-8 border border-emerald-500/20 relative">
                 <div className="absolute -top-4 right-8 bg-emerald-500 text-black px-4 py-1 rounded-full text-[10px] font-black uppercase">موصى به</div>
                 <h5 className="text-emerald-400 font-black text-sm mb-6 flex items-center gap-3">
                     <MousePointer2 size={18}/> الطريقة الأولى: الواجهة الرسومية (حل جذري)
                 </h5>
                 <ol className="text-xs text-gray-300 space-y-4 list-decimal list-inside leading-relaxed pr-2">
-                    <li>اذهب إلى <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/storage/buckets`} target="_blank" rel="noreferrer" className="text-emerald-400 underline font-bold inline-flex items-center gap-1">صفحة الـ Storage <ExternalLink size={12}/></a>.</li>
-                    <li>من القائمة الجانبية، اختر <strong>Policies</strong>.</li>
-                    <li>ستجد الـ Bucket المسمى <code className="bg-white/10 px-1 rounded">assets</code>، اضغط على <strong>New Policy</strong> بجانبه.</li>
-                    <li>اختر <strong>Get started quickly</strong> (الخيار الأخضر).</li>
-                    <li>اختر القالب الأول: <strong>Give users access to all objects...</strong> (Full Access).</li>
+                    <li>اذهب إلى صفحة <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/storage/buckets`} target="_blank" rel="noreferrer" className="text-emerald-400 underline font-bold inline-flex items-center gap-1">Storage <ExternalLink size={12}/></a>.</li>
+                    <li>من القائمة الجانبية، اختر <b>Policies</b>.</li>
+                    <li>ستجد الـ Bucket المسمى <code className="bg-white/10 px-1 rounded text-white">assets</code>، اضغط على <b>New Policy</b> بجانبه.</li>
+                    <li>اختر <b>Get started quickly</b> (الخيار الأخضر).</li>
+                    <li>اختر القالب <b>"Give users access to all objects"</b> (Full Access).</li>
                     <li>في شاشة الإعداد، تأكد من اختيار العمليات: <span className="text-white font-bold">SELECT, INSERT, DELETE</span>.</li>
-                    <li>اضغط <strong>Review</strong> ثم <strong>Save</strong>.</li>
+                    <li>اضغط <b>Review</b> ثم <b>Save</b>.</li>
                 </ol>
             </div>
 
@@ -64,10 +75,10 @@ USING (bucket_id = 'assets');
             <div className="space-y-6">
                 <div className="bg-black/40 rounded-[35px] p-8 border border-white/5 relative h-full">
                     <h5 className="text-blue-400 font-black text-sm mb-4 flex items-center gap-3">
-                        <Code size={18}/> الطريقة الثانية: محرر SQL (للمحترفين)
+                        <Code size={18}/> الطريقة الثانية: محرر SQL
                     </h5>
                     <p className="text-[10px] text-gray-500 mb-6 leading-relaxed">
-                        استخدم هذا الكود في <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">محرر SQL <ExternalLink size={10}/></a> فقط إذا كان لديك صلاحيات Superuser.
+                        انسخ الكود أدناه ونفذه في <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">SQL Editor <ExternalLink size={10}/></a>.
                     </p>
                     
                     <div className="relative group">
@@ -86,8 +97,8 @@ USING (bucket_id = 'assets');
               <div className="flex items-start gap-4">
                   <AlertCircle className="text-blue-400 shrink-0" size={20} />
                   <div className="text-right">
-                      <p className="text-blue-400 font-bold text-sm">تأكد من نوع المخزن (Bucket Type):</p>
-                      <p className="text-[11px] text-gray-500 mt-1">يجب أن يكون الـ Bucket المسمى <code className="text-white">assets</code> مضبوطاً على وضعية <strong>Public</strong> لتعمل الروابط المباشرة في الدروس.</p>
+                      <p className="text-blue-400 font-bold text-sm">تأكد من نوع المخزن (Bucket):</p>
+                      <p className="text-[11px] text-gray-500 mt-1">يجب أن يكون الـ Bucket المسمى <code className="text-white">assets</code> مضبوطاً على وضعية <b>Public</b> لتعمل روابط الصور والفيديوهات للطلاب.</p>
                   </div>
               </div>
               <button onClick={onFix} className="bg-white text-black px-12 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center gap-4 active:scale-95 whitespace-nowrap">

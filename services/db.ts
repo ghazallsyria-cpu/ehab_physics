@@ -1,4 +1,3 @@
-
 import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, NotificationSettings, LiveSession, Question, Quiz, UserRole, HomePageContent, PaymentStatus, Invoice, EducationalResource, Asset, ForumSection, Forum } from "../types";
 import { db, auth } from "./firebase";
 import { supabase } from "./supabase";
@@ -48,7 +47,7 @@ class SyrianScienceCenterDB {
       Object.keys(obj).forEach(key => {
         const value = obj[key];
         if (value !== undefined) {
-          // FIX: Use 'value' instead of the shadowed 'v' from the previous scope
+          // FIXED: Use 'value' instead of the undefined 'v'
           cleaned[key] = (value && typeof value === 'object' && !(value instanceof Date)) 
             ? this.cleanData(value) 
             : value;
@@ -71,8 +70,6 @@ class SyrianScienceCenterDB {
             console.error("Supabase auth error:", error);
             throw new Error("SUPABASE_AUTH_FAILED");
         }
-    } else {
-        console.warn("No Firebase user for Supabase auth.");
     }
   }
 
@@ -154,24 +151,17 @@ class SyrianScienceCenterDB {
 
   async checkSupabaseConnection(): Promise<{ alive: boolean, error?: string }> {
     try {
-      if (!auth.currentUser) {
-        return { alive: false, error: 'NO_FIREBASE_USER' };
-      }
+      if (!auth.currentUser) return { alive: false, error: 'NO_FIREBASE_USER' };
       await this.setSupabaseAuth();
-      
       const { error } = await supabase.storage.from('assets').list('uploads', { limit: 1 });
-      
       if (error) {
-        console.error("Supabase connection check error:", error);
         if (error.message.includes('permission denied') || error.message.includes('security policy')) {
           return { alive: false, error: 'SUPABASE_PERMISSION_DENIED' };
         }
         throw error;
       }
-      
       return { alive: true };
     } catch (e: any) {
-      console.error("Supabase check exception:", e);
       return { alive: false, error: e.message || 'Unknown Supabase connection error' };
     }
   }
@@ -179,8 +169,8 @@ class SyrianScienceCenterDB {
   async getCurriculum(): Promise<Curriculum[]> {
     this.checkDb();
     const snapshot = await getDocs(collection(db, 'curriculum'));
-    // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Curriculum));
+    // Fixed: Explicit casting to any then to Curriculum to handle unknown
+    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Curriculum));
   }
 
   private async _ensureCurriculumDoc(grade: string, subject: string) {
@@ -266,8 +256,8 @@ class SyrianScienceCenterDB {
     this.checkDb();
     const q = query(collection(db, "homepage_content"), orderBy("createdAt", "desc"));
     const snapshot = await getDocs(q);
-    // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as HomePageContent));
+    // Fixed: Explicit casting to handle unknown data properties
+    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as HomePageContent));
   }
   
   async saveHomePageContent(contentItem: Partial<HomePageContent>): Promise<string> {
@@ -278,7 +268,7 @@ class SyrianScienceCenterDB {
       ...contentItem,
       createdAt: contentItem.createdAt || new Date().toISOString(),
     };
-    delete dataToSave.id;
+    delete (dataToSave as any).id;
     await setDoc(docRef, this.cleanData(dataToSave), { merge: true });
     return docRef.id;
   }
@@ -294,16 +284,14 @@ class SyrianScienceCenterDB {
     try {
       this.checkDb();
       const userRef = doc(db, 'users', userId);
-      
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const today = new Date().toISOString().split('T')[0]; 
       const fieldPath = `activityLog.${today}`;
-
       await updateDoc(userRef, {
         lastSeen: new Date().toISOString(),
         [fieldPath]: increment(durationInMinutes)
       });
     } catch (e) {
-      console.warn("Could not update user presence and activity:", e);
+      console.warn("Could not update user presence:", e);
     }
   }
 
@@ -316,11 +304,9 @@ class SyrianScienceCenterDB {
       q = collection(db, "users");
     }
     return onSnapshot(q, (snapshot) => {
-      // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-      const users = snapshot.docs.map(d => ({ uid: d.id, ...d.data() } as User));
+      // Fixed: Explicit casting for User data
+      const users = snapshot.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as User));
       callback(users);
-    }, (error) => {
-      console.error(`Subscription Error for role ${role || 'all'}:`, error);
     });
   }
 
@@ -333,9 +319,8 @@ class SyrianScienceCenterDB {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
             const invoiceData = snap.data() as any;
-            // Explicitly cast to string to avoid 'unknown' type errors during firestore 'doc' calls
             const userId = invoiceData.userId as string | undefined;
-            if (typeof userId === 'string' && userId) {
+            if (userId) {
                 await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
             }
         }
@@ -346,10 +331,10 @@ class SyrianScienceCenterDB {
     try {
         const userDocRef = doc(db, "users", identifier);
         const userSnap = await getDoc(userDocRef);
-        if (userSnap.exists()) return { uid: userSnap.id, ...userSnap.data() } as User;
+        if (userSnap.exists()) return { uid: userSnap.id, ...(userSnap.data() as any) } as User;
         const q = query(collection(db, "users"), where("email", "==", identifier));
         const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) return { uid: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as User;
+        if (!querySnapshot.empty) return { uid: querySnapshot.docs[0].id, ...(querySnapshot.docs[0].data() as any) } as User;
     } catch (e) {}
     return null;
   }
@@ -366,31 +351,20 @@ class SyrianScienceCenterDB {
 
   async getTeachers(): Promise<User[]> {
     const snap = await getDocs(collection(db, "users"));
-    // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snap.docs.map(d => ({ uid: d.id, ...d.data() } as User)).filter(u => u.role === 'teacher');
-  }
-
-  async getAllStudents(): Promise<User[]> {
-    const snap = await getDocs(collection(db, "users"));
-    // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snap.docs.map(d => ({ uid: d.id, ...d.data() } as User)).filter(u => u.role === 'student');
+    return snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as User)).filter(u => u.role === 'teacher');
   }
 
   async getLiveSessions(): Promise<LiveSession[]> {
     const snapshot = await getDocs(collection(db, "live_sessions"));
-    // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as LiveSession));
+    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as LiveSession));
   }
 
   subscribeToLiveSessions(callback: (sessions: LiveSession[]) => void) {
     this.checkDb();
     const q = collection(db, "live_sessions");
     return onSnapshot(q, (snapshot) => {
-      // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-      const sessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as LiveSession));
+      const sessions = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as LiveSession));
       callback(sessions);
-    }, (error) => {
-      console.error("Live Sessions Subscription Error:", error);
     });
   }
 
@@ -407,7 +381,7 @@ class SyrianScienceCenterDB {
 
   async getInvoices(): Promise<{ data: Invoice[] }> {
     const snapshot = await getDocs(collection(db, 'invoices'));
-    return { data: snapshot.docs.map(d => ({id: d.id, ...d.data()}) as Invoice) };
+    return { data: snapshot.docs.map(d => ({id: d.id, ...(d.data() as any)}) as Invoice) };
   }
 
   async initiatePayment(userId: string, planId: string, amount: number): Promise<Invoice> {
@@ -426,15 +400,11 @@ class SyrianScienceCenterDB {
     if (snapshot.empty) return null;
     const docRef = snapshot.docs[0].ref;
     const newStatus: PaymentStatus = status === 'SUCCESS' ? 'PAID' : 'FAIL';
-    const updateData = { status: newStatus };
-    await updateDoc(docRef, updateData);
+    await updateDoc(docRef, { status: newStatus });
     const invoiceData = snapshot.docs[0].data() as any;
     if (status === 'SUCCESS') {
-      // Explicitly cast to string to avoid 'unknown' type errors during firestore 'doc' calls
       const userId = invoiceData.userId as string | undefined;
-      if (typeof userId === 'string' && userId) {
-        await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
-      }
+      if (userId) await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
     }
     return { ...invoiceData, id: snapshot.docs[0].id, status: newStatus } as Invoice;
   }
@@ -451,35 +421,32 @@ class SyrianScienceCenterDB {
   async getUnusedSubscriptionCodes(): Promise<SubscriptionCode[]> {
     const q = query(collection(db, 'subscription_codes'), where('isUsed', '==', false));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({id: d.id, ...d.data()}) as SubscriptionCode);
+    return snapshot.docs.map(d => ({id: d.id, ...(d.data() as any)}) as SubscriptionCode);
   }
 
   async createSubscriptionCode(planId: string): Promise<void> {
     const newCode = { code: Math.random().toString(36).substring(2, 10).toUpperCase(), planId, isUsed: false, createdAt: new Date().toISOString(), activatedAt: null, userId: null };
     await addDoc(collection(db, 'subscription_codes'), this.cleanData(newCode));
   }
-async getForumSections(): Promise<ForumSection[]> {
+
+  async getForumSections(): Promise<ForumSection[]> {
     this.checkDb();
     const q = query(collection(db, "forum_sections"), orderBy("order"));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return [];
-    // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ForumSection));
-}
+    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as ForumSection));
+  }
 
-async saveForumSections(sections: ForumSection[]): Promise<void> {
+  async saveForumSections(sections: ForumSection[]): Promise<void> {
     this.checkDb();
     const batch = writeBatch(db);
     const sectionsCollectionRef = collection(db, 'forum_sections');
-
     const existingDocsSnapshot = await getDocs(sectionsCollectionRef);
     const existingIds = new Set(existingDocsSnapshot.docs.map(d => d.id));
     const newIds = new Set(sections.map(s => s.id));
 
     for (const id of existingIds) {
-        if (!newIds.has(id)) {
-            batch.delete(doc(sectionsCollectionRef, id));
-        }
+        if (!newIds.has(id)) batch.delete(doc(sectionsCollectionRef, id));
     }
 
     sections.forEach((section, index) => {
@@ -489,19 +456,18 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     });
 
     await batch.commit();
-}
+  }
+
   async getForumPosts(): Promise<ForumPost[]> {
     const q = query(collection(db, 'forumPosts'), orderBy('timestamp', 'desc'));
     const snapshot = await getDocs(q);
-    // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ForumPost));
+    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as ForumPost));
   }
 
   async createForumPost(post: any): Promise<void> {
     await addDoc(collection(db, 'forumPosts'), this.cleanData({ ...post, timestamp: new Date().toISOString(), upvotes: 0, replies: [] }));
   }
 
-  // FIX: Ensure postId is explicitly string to avoid unknown type errors
   async addForumReply(postId: string, reply: any): Promise<void> {
     await updateDoc(doc(db, 'forumPosts', postId), { replies: arrayUnion(this.cleanData({ ...reply, id: `rep_${Date.now()}`, timestamp: new Date().toISOString(), upvotes: 0 })) });
   }
@@ -510,13 +476,11 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     await updateDoc(doc(db, 'forumPosts', postId), { upvotes: increment(1) });
   }
 
-  // FIX: Ensure postId is explicitly string to avoid unknown type errors
   async upvoteReply(postId: string, replyId: string): Promise<void> {
     const snap = await getDoc(doc(db, 'forumPosts', postId));
     if (snap.exists()) {
       const data = snap.data() as ForumPost;
-      // FIX: Cast properties to known types to avoid 'unknown' assignment errors
-      const replies = (Array.isArray(data.replies) ? data.replies : []).map((r: ForumReply) => r.id === replyId ? { ...r, upvotes: (Number(r.upvotes) || 0) + 1 } : r);
+      const replies = (data.replies || []).map(r => r.id === replyId ? { ...r, upvotes: (r.upvotes || 0) + 1 } : r);
       await updateDoc(doc(db, 'forumPosts', postId), { replies: this.cleanData(replies) });
     }
   }
@@ -526,19 +490,16 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     try {
       this.checkDb();
       const snapshot = await getDocs(collection(db, 'quizzes'));
-      // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-      return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Quiz));
-    } catch (e) { console.error(e); return QUIZZES_DB; }
+      return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Quiz));
+    } catch (e) { return QUIZZES_DB; }
   }
 
   async getQuizById(quizId: string): Promise<Quiz | null> {
     try {
-        this.checkDb();
         const docRef = doc(db, 'quizzes', quizId);
         const docSnap = await getDoc(docRef);
-        // FIX: Cast docSnap.data() to any before spreading to satisfy TS requirements
         return docSnap.exists() ? { id: docSnap.id, ...(docSnap.data() as any) } as Quiz : null;
-    } catch (e) { console.error(e); return QUIZZES_DB.find(q => q.id === quizId) || null; }
+    } catch (e) { return QUIZZES_DB.find(q => q.id === quizId) || null; }
   }
 
   async saveQuiz(quiz: Quiz): Promise<void> {
@@ -555,17 +516,15 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     try {
         this.checkDb();
         const snapshot = await getDocs(collection(db, 'questions'));
-        // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-        return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Question));
-    } catch (e) { console.error(e); return QUESTIONS_DB; }
+        return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Question));
+    } catch (e) { return QUESTIONS_DB; }
   }
 
   async getQuestionsForQuiz(quizId: string): Promise<Question[]> {
     const quiz = await this.getQuizById(quizId);
     if (!quiz) return [];
     const allQuestions = await this.getAllQuestions();
-    const questionsForQuiz = quiz.questionIds.map(id => allQuestions.find(q => q.id === id)).filter(Boolean) as Question[];
-    return questionsForQuiz;
+    return quiz.questionIds.map(id => allQuestions.find(q => q.id === id)).filter(Boolean) as Question[];
   }
   
   async saveQuestion(question: Question): Promise<string> {
@@ -587,17 +546,16 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
   
   async updateAttempt(attempt: StudentQuizAttempt): Promise<void> {
     this.checkDb();
-    const attemptRef = doc(db, "quiz_attempts", attempt.id);
-    await updateDoc(attemptRef, this.cleanData(attempt));
+    await updateDoc(doc(db, "quiz_attempts", attempt.id), this.cleanData(attempt));
   }
   
   async getAttemptsForQuiz(quizId: string): Promise<StudentQuizAttempt[]> {
     this.checkDb();
     const q = query(collection(db, 'quiz_attempts'), where('quizId', '==', quizId));
     const snapshot = await getDocs(q);
-    // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    const attempts = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as StudentQuizAttempt));
-    return attempts.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+    const attempts = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as StudentQuizAttempt));
+    // Fix: Explicitly cast completedAt to string for Date constructor compatibility
+    return attempts.sort((a, b) => new Date(b.completedAt as string).getTime() - new Date(a.completedAt as string).getTime());
   }
 
   async getUserAttempts(userId: string, quizId?: string): Promise<StudentQuizAttempt[]> {
@@ -609,8 +567,7 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
         q = query(collection(db, 'quiz_attempts'), where('studentId', '==', userId));
     }
     const snapshot = await getDocs(q);
-    // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as StudentQuizAttempt));
+    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as StudentQuizAttempt));
   }
   
    async toggleLessonComplete(userId: string, lessonId: string): Promise<void> {
@@ -636,16 +593,9 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
 
   async getNotifications(userId: string): Promise<AppNotification[]> {
     this.checkDb();
-    const q = query(
-      collection(db, 'notifications'),
-      where('userId', '==', userId),
-      orderBy('timestamp', 'desc'),
-      limit(20) 
-    );
+    const q = query(collection(db, 'notifications'), where('userId', '==', userId), orderBy('timestamp', 'desc'), limit(20));
     const snapshot = await getDocs(q);
-    // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    // FIX: Cast d.data() to any before spreading and cast d.id to string to avoid potential unknown type errors
-    return snapshot.docs.map(d => ({ id: d.id as string, ...(d.data() as any) } as AppNotification));
+    return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as AppNotification));
   }
 
   async markNotificationsAsRead(userId: string): Promise<void> {
@@ -653,11 +603,8 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     const q = query(collection(db, 'notifications'), where('userId', '==', userId), where('isRead', '==', false));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return;
-
     const batch = writeBatch(db);
-    snapshot.docs.forEach(d => {
-      batch.update(d.ref, { isRead: true });
-    });
+    snapshot.docs.forEach(d => batch.update(d.ref, { isRead: true }));
     await batch.commit();
   }
 
@@ -678,7 +625,7 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
   }
 
 
-  // Mocks for unimplemented methods to prevent crashes
+  // Mocks
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> { return []; }
   async getResources(): Promise<EducationalResource[]> { return MOCK_RESOURCES; }
   async getTeacherReviews(teacherId: string): Promise<Review[]> { return []; }
