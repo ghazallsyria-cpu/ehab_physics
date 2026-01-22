@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Quiz, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
@@ -89,6 +90,7 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
               <h3 className="text-2xl font-bold mb-6 border-r-4 border-[#fbbf24] pr-4">{category}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {quizList.map(quiz => {
+                  // FIX: Explicitly type attemptsForThisQuiz to StudentQuizAttempt[] to avoid 'unknown' inference in complex JSX maps
                   const attemptsForThisQuiz: StudentQuizAttempt[] = userAttempts.filter(a => a.quizId === quiz.id).sort((a,b) => (b.attemptNumber || 0) - (a.attemptNumber || 0));
                   return (
                     <div key={quiz.id} className="glass-panel p-8 rounded-[50px] border-white/5 hover:border-[#fbbf24]/40 transition-all relative overflow-hidden group flex flex-col">
@@ -106,7 +108,7 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
                        {attemptsForThisQuiz.length > 0 && (
                           <div className="mb-6 space-y-2 pt-6 border-t border-white/10">
                               <h5 className="text-xs font-bold text-gray-400 mb-2">محاولاتك السابقة:</h5>
-                              {/* FIX: Replaced an invalid JavaScript-style comment ('//') inside JSX with a valid JSX comment ('{/* ... */}'). The original syntax error caused a downstream TypeScript error where `attemptsForThisQuiz` was incorrectly typed as `unknown`, preventing the use of `.map()`. */}
+                              {/* FIX: att is now properly typed as StudentQuizAttempt through the explicit array type above */}
                               {attemptsForThisQuiz.map(att => (
                                   <div key={att.id} className="flex justify-between items-center bg-black/40 p-3 rounded-xl text-xs">
                                       <span className="font-bold">محاولة #{att.attemptNumber}</span>
