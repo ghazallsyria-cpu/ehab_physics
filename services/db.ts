@@ -61,49 +61,25 @@ class SyrianScienceCenterDB {
     if (!db) throw new Error("قاعدة البيانات غير متصلة.");
   }
   
-  private async setSupabaseAuth() {
-    if (auth.currentUser) {
-        try {
-            const token = await auth.currentUser.getIdToken();
-            await supabase.auth.setSession({ 
-                access_token: token, 
-                refresh_token: 'none' 
-            });
-        } catch (e) {
-            console.warn("Supabase auth sync skipped.");
-        }
-    }
-  }
-
-  // --- إدارة الوسائط (Supabase Storage) - نسخة الحل النهائي ---
+  // دالة الرفع أصبحت الآن مباشرة تماماً
   async uploadAsset(file: File): Promise<Asset> {
-    if (!auth.currentUser) throw new Error("يجب تسجيل الدخول للرفع.");
-    
-    // محاولة المزامنة (اختيارية مع السياسة الجديدة)
-    await this.setSupabaseAuth();
-
-    // تطهير اسم الملف من الرموز العربية والمسافات
     const cleanName = file.name.replace(/[^\x00-\x7F]/g, "").replace(/\s+/g, "_");
     const fileName = `${Date.now()}_${cleanName}`;
     
-    // المسار: uploads/{UID}/{FILENAME}
-    const uid = auth.currentUser.uid;
-    const filePath = `uploads/${uid}/${fileName}`;
+    // سنستخدم مجلد uploads عام لتجنب مشاكل المعرفات
+    const filePath = `uploads/${fileName}`;
     
-    console.log(`DB: Attempting upload to: assets/${filePath}`);
-
-    const { data, error } = await supabase.storage.from('assets').upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true
-    });
+    const { data, error } = await supabase.storage
+        .from('assets')
+        .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: true
+        });
 
     if (error) {
-        console.error('Supabase upload error details:', error);
-        // التحقق مما إذا كان الخطأ هو خطأ صلاحيات (RLS)
-        if (error.message.includes('security policy') || error.message.includes('permission denied')) {
-            throw new Error('STORAGE_PERMISSION_DENIED');
-        }
-        throw error;
+        console.error('Supabase raw error:', error);
+        // إظهار الخطأ الحقيقي للمستخدم بدلاً من رسالة عامة
+        throw new Error(`خطأ Supabase: ${error.message}`);
     }
 
     const { data: publicUrlData } = supabase.storage.from('assets').getPublicUrl(filePath);
@@ -117,29 +93,20 @@ class SyrianScienceCenterDB {
   }
 
   async listAssets(): Promise<Asset[]> {
-    if (!auth.currentUser) return [];
-    await this.setSupabaseAuth();
-    
-    const uid = auth.currentUser.uid;
-    const userFolder = `uploads/${uid}`;
-    
-    const { data, error } = await supabase.storage.from('assets').list(userFolder, {
+    const { data, error } = await supabase.storage.from('assets').list('uploads', {
       limit: 100,
       sortBy: { column: 'created_at', order: 'desc' },
     });
 
     if (error) {
         console.error('Supabase list error:', error);
-        if (error.message.includes('permission denied')) {
-            throw new Error('STORAGE_PERMISSION_DENIED');
-        }
         return [];
     }
     
     if (!data) return [];
     
     return data.map(file => {
-        const fullPath = `${userFolder}/${file.name}`;
+        const fullPath = `uploads/${file.name}`;
         const { data: urlData } = supabase.storage.from('assets').getPublicUrl(fullPath);
         return {
             name: file.name,
@@ -151,17 +118,8 @@ class SyrianScienceCenterDB {
   }
 
   async deleteAsset(fileName: string): Promise<void> {
-    if (!auth.currentUser) throw new Error("يجب تسجيل الدخول.");
-    await this.setSupabaseAuth();
-    
-    const uid = auth.currentUser.uid;
-    const filePath = `uploads/${uid}/${fileName}`;
-    
-    const { error } = await supabase.storage.from('assets').remove([filePath]);
-    if (error) {
-        console.error('Supabase delete error:', error);
-        throw error;
-    }
+    const { error } = await supabase.storage.from('assets').remove([`uploads/${fileName}`]);
+    if (error) throw error;
   }
 
 
@@ -178,17 +136,9 @@ class SyrianScienceCenterDB {
 
   async checkSupabaseConnection(): Promise<{ alive: boolean, error?: string }> {
     try {
-      if (!auth.currentUser) return { alive: false, error: 'NO_FIREBASE_USER' };
-      await this.setSupabaseAuth();
-      
-      const { error } = await supabase.storage.from('assets').list(`uploads/${auth.currentUser.uid}`, { limit: 1 });
-      
-      if (error) {
-        if (error.message.includes('permission denied') || error.message.includes('security policy')) {
-          return { alive: false, error: 'SUPABASE_PERMISSION_DENIED' };
-        }
-        return { alive: false, error: error.message };
-      }
+      // فحص عام بدون اشتراط مستخدم
+      const { error } = await supabase.storage.from('assets').list('uploads', { limit: 1 });
+      if (error) return { alive: false, error: error.message };
       return { alive: true };
     } catch (e: any) {
       return { alive: false, error: e.message };
