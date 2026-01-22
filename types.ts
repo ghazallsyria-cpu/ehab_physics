@@ -2,17 +2,23 @@
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions' | 'admin-quizzes' | 'attempt_review' | 'admin-content' | 'admin-assets' | 'admin-parents' | 'admin-videos' | 'admin-quiz-attempts' | 'admin-certificates' | 'admin-reviews' | 'admin-pricing' | 'admin-subscriptions' | 'admin-payments-log' | 'admin-payment-settings' | 'admin-email-notifications' | 'admin-internal-messages' | 'admin-forums' | 'verify-certificate' | 'resources-center';
 
-// --- Community & Social ---
+export interface LoggingSettings {
+    logStudentProgress: boolean;
+    saveAllQuizAttempts: boolean;
+    logAIChatHistory: boolean;
+    archiveTeacherMessages: boolean;
+    forumAccessTier: 'free' | 'premium';
+}
 
 export interface Forum {
     id: string;
     title: string;
     description: string;
-    icon: string; // emoji
-    imageUrl?: string; // صورة الخلفية للقسم
+    icon: string;
+    imageUrl?: string;
     order: number;
-    moderatorUid?: string; //معرّف المشرف
-    moderatorName?: string; // اسم المشرف للعرض
+    moderatorUid?: string;
+    moderatorName?: string;
 }
 
 export interface ForumSection {
@@ -25,7 +31,7 @@ export interface ForumSection {
 
 export interface ForumReply {
     id: string;
-    authorUid: string; // تم الإضافة للإشعارات
+    authorUid: string;
     authorEmail: string;
     authorName: string;
     content: string;
@@ -36,7 +42,7 @@ export interface ForumReply {
 
 export interface ForumPost {
     id: string;
-    authorUid: string; // تم الإضافة للإشعارات
+    authorUid: string;
     authorEmail: string;
     authorName: string;
     title: string;
@@ -49,7 +55,6 @@ export interface ForumPost {
     isEscalated?: boolean; 
 }
 
-// ... بقية الـ types
 export interface User {
   uid: string;
   name: string;
@@ -92,20 +97,12 @@ export interface WeeklyReport {
     parentNote?: string;
 }
 
-export interface LoggingSettings {
-    logStudentProgress: boolean;
-    saveAllQuizAttempts: boolean;
-    logAIChatHistory: boolean;
-    archiveTeacherMessages: boolean;
-    forumAccessTier: 'free' | 'premium'; // جديد: صلاحية الساحة
-}
-
 export interface NotificationSettings {
   pushForLiveSessions: boolean;
   pushForGradedQuizzes: boolean;
   pushForAdminAlerts: boolean;
 }
-// ...
+
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -342,10 +339,6 @@ export interface Invoice {
     trackId: string;
     paymentId?: string;
     authCode?: string;
-}
-
-export interface PaymentSettings {
-    isOnlinePaymentEnabled: boolean;
 }
 
 export interface SubscriptionCode {

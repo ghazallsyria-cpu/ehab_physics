@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, ForumPost, ForumReply, ForumSection, Forum as ForumType, LoggingSettings } from '../types';
 import { dbService } from '../services/db';
@@ -13,12 +12,10 @@ import {
   Clock,
   ArrowRight,
   Pin,
-  Trash2,
   AlertCircle,
   Plus,
   RefreshCw,
   X,
-  ShieldAlert,
   Send,
   Lock,
   Zap,
@@ -81,17 +78,13 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
     loadPosts(forum.id);
   };
 
-  // 🛡️ فحص صلاحية التفاعل بناءً على اشتراك الطالب وإعدادات المنصة
   const canInteract = useMemo(() => {
     if (!user) return false;
     if (user.role === 'admin' || user.role === 'teacher') return true;
-    
-    // إذا كانت الساحة مغلقة للمشتركين فقط
     if (forumSettings?.forumAccessTier === 'premium') {
         return user.subscription === 'premium';
     }
-    
-    return true; // متاح للجميع افتراضياً
+    return true; 
   }, [user, forumSettings]);
 
   const handleAsk = async () => {
@@ -120,7 +113,6 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
     setErrorMsg(null);
 
     try {
-      // 🚀 إرسال البيانات بدقة لضمان النجاح في Firestore
       const postData = {
         authorUid: user.uid,
         authorEmail: user.email,
@@ -168,7 +160,6 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
 
       await dbService.addForumReply(selectedPost.id, replyData);
 
-      // 🔔 إشعار صاحب المنشور
       if (selectedPost.authorUid !== user.uid) {
         await dbService.createNotification({
           userId: selectedPost.authorUid,
@@ -207,7 +198,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       <div className="max-w-6xl mx-auto py-12 animate-fadeIn text-right" dir="rtl">
         <header className="text-center mb-16">
           <h2 className="text-5xl font-black text-white mb-4 italic tracking-tighter">ساحة <span className="text-[#00d2ff]">النقاش</span></h2>
-          <p className="text-gray-500">اختر قسماً للمشاركة في الحوارات العلمية.</p>
+          <p className="text-gray-500 italic">اختر قسماً للمشاركة في الحوارات العلمية.</p>
         </header>
 
         {isLoading ? (
@@ -232,7 +223,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto animate-fadeIn pb-20 text-right" dir="rtl">
+    <div className="max-w-7xl mx-auto animate-fadeIn pb-20 text-right font-['Tajawal']" dir="rtl">
       {successMsg && <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[1000] bg-green-600 text-white px-8 py-4 rounded-full shadow-2xl animate-bounce font-bold">✓ {successMsg}</div>}
       
       <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-8">
@@ -254,9 +245,9 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
              </div>
              <button 
                 onClick={() => { setErrorMsg(null); setShowAskModal(true); }} 
-                className={`px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 transition-all shadow-xl ${canInteract ? 'bg-[#00d2ff] text-black hover:scale-105 active:scale-95' : 'bg-gray-800 text-gray-500 border border-white/5 cursor-not-allowed'}`}
+                className={`px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 transition-all shadow-xl ${canInteract ? 'bg-[#00d2ff] text-black hover:scale-105 active:scale-95' : 'bg-gray-800 text-gray-500 border border-white/5'}`}
              >
-                {canInteract ? <Plus size={18}/> : <Lock size={16}/>}
+                {!canInteract && <Lock size={16}/>}
                 موضوع جديد
              </button>
           </div>
@@ -301,13 +292,6 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
                 <div className="space-y-6">
                   <h3 className="text-2xl font-black text-white leading-tight">{selectedPost.title}</h3>
                   <div className="bg-white/5 p-8 rounded-[35px] text-gray-300 text-base leading-relaxed italic shadow-inner border border-white/5">{selectedPost.content}</div>
-                  <div className="flex items-center gap-4 text-[9px] font-bold text-gray-600">
-                      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-xl">👤</div>
-                      <div>
-                          <p className="text-white font-black">{selectedPost.authorName}</p>
-                          <p className="uppercase">{new Date(selectedPost.timestamp).toLocaleString('ar-KW')}</p>
-                      </div>
-                  </div>
                 </div>
                 
                 <div className="space-y-6 pt-10 border-t border-white/10">
@@ -317,12 +301,10 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
                         <div key={reply.id} className="p-6 bg-white/[0.03] rounded-[25px] border border-white/5 relative group">
                           <div className="flex justify-between items-center mb-3">
                             <span className="text-xs font-black text-white">{reply.authorName}</span>
-                            <span className="text-[8px] text-gray-600 font-mono uppercase">{new Date(reply.timestamp).toLocaleDateString('ar-KW')}</span>
                           </div>
                           <p className="text-xs text-gray-400 leading-relaxed italic">"{reply.content}"</p>
                         </div>
                       ))}
-                      {(!selectedPost.replies || selectedPost.replies.length === 0) && <div className="text-center py-10 text-gray-600 text-xs italic font-bold opacity-30">لا يوجد ردود بعد..</div>}
                   </div>
                 </div>
               </div>
@@ -331,9 +313,9 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
                 <textarea 
                     value={replyContent} 
                     onChange={e => setReplyContent(e.target.value)} 
-                    placeholder={canInteract ? "اكتب ردك الأكاديمي هنا..." : "يجب الاشتراك للقدرة على الرد."}
+                    placeholder={canInteract ? "اكتب ردك الأكاديمي هنا..." : "🔒 يجب الاشتراك للقدرة على الرد."}
                     disabled={!canInteract}
-                    className="w-full bg-black/40 border border-white/10 rounded-[25px] p-6 text-sm text-white outline-none focus:border-[#00d2ff] h-32 shadow-inner no-scrollbar transition-all" 
+                    className="w-full bg-black/40 border border-white/10 rounded-[25px] p-6 text-sm text-white outline-none focus:border-[#00d2ff] h-32 shadow-inner transition-all" 
                 />
                 <button 
                     onClick={handleReply} 
@@ -359,11 +341,11 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       {showAskModal && (
         <div className="fixed inset-0 z-[1100] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-fadeIn" onClick={() => setShowAskModal(false)}>
           <div className="glass-panel w-full max-w-2xl p-14 rounded-[70px] border-white/10 relative shadow-[0_50px_150px_rgba(0,0,0,0.9)] overflow-hidden bg-[#0a1118]" onClick={e => e.stopPropagation()}>
-            <div className="absolute top-0 right-0 p-16 opacity-[0.03] text-9xl pointer-events-none italic font-black">ASK</div>
             <button onClick={() => setShowAskModal(false)} className="absolute top-10 left-10 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full transition-all hover:scale-110"><X size={24}/></button>
             
             <div className="mb-12">
                 <span className="bg-[#00d2ff]/10 text-[#00d2ff] px-5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.4em] border border-[#00d2ff]/20">مساحة الحوار</span>
+                {/* Fixed: Use activeForum instead of undefined activeTopic */}
                 <h3 className="text-4xl font-black mt-6 text-white leading-tight tracking-tighter italic">طرح موضوع جديد في <br/><span className="text-[#00d2ff]">{activeForum.title}</span></h3>
             </div>
 
@@ -384,7 +366,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
                     value={newQuestion.content} 
                     onChange={e => setNewQuestion({...newQuestion, content: e.target.value})} 
                     className="w-full bg-black/40 border border-white/5 rounded-[35px] p-10 text-white outline-none focus:border-[#00d2ff] h-48 leading-relaxed shadow-inner italic transition-all no-scrollbar" 
-                    placeholder="اشرح ما يدور في ذهنك بالتفصيل، يمكنك استخدام لغة علمية..." 
+                    placeholder="اشرح ما يدور في ذهنك بالتفصيل..." 
                 />
               </div>
               {errorMsg && (
@@ -396,14 +378,14 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
               <button 
                 onClick={handleAsk} 
                 disabled={isSubmitting || !canInteract} 
-                className={`w-full py-8 rounded-[35px] font-black uppercase tracking-[0.4em] shadow-[0_20px_50px_rgba(0,0,0,0.4)] transition-all flex items-center justify-center gap-4 text-xl ${canInteract ? 'bg-[#00d2ff] text-black hover:scale-[1.02] active:scale-95' : 'bg-gray-800 text-gray-600 cursor-not-allowed'}`}
+                className={`w-full py-8 rounded-[35px] font-black uppercase tracking-[0.4em] transition-all flex items-center justify-center gap-4 text-xl ${canInteract ? 'bg-[#00d2ff] text-black hover:scale-[1.02] active:scale-95' : 'bg-gray-800 text-gray-600 cursor-not-allowed'}`}
               >
                 {isSubmitting ? <RefreshCw className="animate-spin" size={24}/> : "🚀"} 
                 {canInteract ? 'نشر الموضوع الآن' : 'ميزة المشتركين فقط'}
               </button>
               
               {!canInteract && (
-                <p className="text-center text-[10px] text-amber-500 font-bold uppercase tracking-widest">تحتاج للاشتراك في "باقة التفوق" لتتمكن من النشر ⚡</p>
+                <p className="text-center text-[10px] text-amber-500 font-bold uppercase tracking-widest">يجب الاشتراك في "باقة التفوق" لتتمكن من النشر ⚡</p>
               )}
             </div>
           </div>

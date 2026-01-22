@@ -5,7 +5,6 @@ import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
   query, where, onSnapshot, orderBy, Timestamp, addDoc, limit, increment
 } from 'firebase/firestore';
-// Added LiveSession to imports
 import { 
   User, Curriculum, Quiz, Question, StudentQuizAttempt, 
   AppNotification, Todo, TeacherMessage, Review, 
@@ -17,24 +16,16 @@ import {
 import { MOCK_RESOURCES } from '../constants';
 
 class DBService {
-  /**
-   * Ensuring Firestore is initialized before operations.
-   */
   private checkDb() {
     if (!db) throw new Error("Firestore is not initialized");
   }
 
-  /**
-   * Sanitizes data objects by removing undefined values before sending to Firestore.
-   */
   private cleanData(data: any) {
     const clean = { ...data };
     Object.keys(clean).forEach(key => clean[key] === undefined && delete clean[key]);
     return clean;
   }
 
-  // --- 1. System Connectivity & Health ---
-  
   async checkConnection(): Promise<{ alive: boolean, error?: string }> {
     try {
       this.checkDb();
@@ -55,17 +46,20 @@ class DBService {
     }
   }
 
-  // --- 2. Settings Management ---
-
-  async initializeSettings() {
-    this.checkDb();
-  }
-
   async getLoggingSettings(): Promise<LoggingSettings> {
     this.checkDb();
     const snap = await getDoc(doc(db, 'settings', 'logging'));
-    // Added missing 'forumAccessTier' to fix LoggingSettings type assignment error
-    return snap.exists() ? snap.data() as LoggingSettings : { 
+    if (snap.exists()) {
+        const data = snap.data();
+        return {
+            logStudentProgress: data.logStudentProgress ?? true,
+            saveAllQuizAttempts: data.saveAllQuizAttempts ?? true,
+            logAIChatHistory: data.logAIChatHistory ?? true,
+            archiveTeacherMessages: data.archiveTeacherMessages ?? true,
+            forumAccessTier: data.forumAccessTier ?? 'free'
+        };
+    }
+    return { 
       logStudentProgress: true, 
       saveAllQuizAttempts: true, 
       logAIChatHistory: true, 
@@ -100,8 +94,6 @@ class DBService {
     this.checkDb();
     await setDoc(doc(db, 'settings', 'payments'), { isOnlinePaymentEnabled: enabled });
   }
-
-  // --- 3. User & Identity Management ---
 
   async getUser(uidOrEmail: string): Promise<User | null> {
     this.checkDb();
@@ -139,8 +131,6 @@ class DBService {
       callback(snap.docs.map(d => d.data() as User));
     });
   }
-
-  // --- 4. Curriculum & Lessons ---
 
   async getCurriculum(): Promise<Curriculum[]> {
     this.checkDb();
@@ -240,8 +230,6 @@ class DBService {
     }
   }
 
-  // --- 5. Assessment & Quiz Center ---
-
   async getQuizzes(): Promise<Quiz[]> {
     this.checkDb();
     const snap = await getDocs(collection(db, 'quizzes'));
@@ -331,8 +319,6 @@ class DBService {
     return snap.docs.map(d => d.data() as StudentQuizAttempt);
   }
 
-  // --- 6. Communications & Forums ---
-
   async getForumSections(): Promise<ForumSection[]> {
     this.checkDb();
     const snap = await getDocs(query(collection(db, 'forumSections'), orderBy('order')));
@@ -346,15 +332,11 @@ class DBService {
     }
   }
 
-  /**
-   * جلب منشورات المنتدى مع معالجة ذكية لغياب الفهارس (Indexes).
-   */
   async getForumPosts(forumId?: string): Promise<ForumPost[]> {
     this.checkDb();
     try {
         let q;
         if (forumId) {
-            // محاولة جلب البيانات مفلترة ومرتبة (تتطلب فهرس مركب)
             q = query(collection(db, 'forumPosts'), where('tags', 'array-contains', forumId), orderBy('timestamp', 'desc'));
         } else {
             q = query(collection(db, 'forumPosts'), orderBy('timestamp', 'desc'));
@@ -362,8 +344,7 @@ class DBService {
         const snap = await getDocs(q);
         return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
     } catch (e: any) {
-        // Fallback: جلب الكل والفلترة يدوياً في حال لم يتم إنشاء الفهرس في Firestore Console
-        console.warn("Falling back to manual filtering/sorting for ForumPosts due to missing index:", e.message);
+        console.warn("Fallback to manual filter for ForumPosts:", e.message);
         const allSnap = await getDocs(collection(db, 'forumPosts'));
         let all = allSnap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
         if (forumId) {
@@ -440,8 +421,6 @@ class DBService {
     }
   }
 
-  // --- 7. Live Events & Sync ---
-
   async getLiveSessions(): Promise<LiveSession[]> {
     this.checkDb();
     const snap = await getDocs(collection(db, 'liveSessions'));
@@ -469,8 +448,6 @@ class DBService {
     await deleteDoc(doc(db, 'liveSessions', id));
   }
 
-  // --- 8. Assets & Storage ---
-
   async uploadAsset(file: File): Promise<Asset> {
     const name = `${Date.now()}_${file.name}`;
     const { data, error } = await supabase.storage.from('assets').upload(name, file);
@@ -496,8 +473,6 @@ class DBService {
     const { error } = await supabase.storage.from('assets').remove([name]);
     if (error) throw error;
   }
-
-  // --- 9. Payments & Subscriptions ---
 
   async getInvoices(): Promise<{ data: Invoice[] }> {
     this.checkDb();
@@ -565,8 +540,6 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as SubscriptionCode));
   }
 
-  // --- 10. Intelligence & Personalization ---
-
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> {
     return [
       { id: 'rec1', title: 'مراجعة قانون فاراداي', reason: 'لقد أخطأت في السؤال المتعلق بالحث مرتين.', type: 'lesson', targetId: 'l12-1-1', urgency: 'high' },
@@ -579,8 +552,6 @@ class DBService {
     const report = user?.weeklyReports?.[0] || null;
     return { user, report };
   }
-
-  // --- 11. Student Tools ---
 
   async getTodos(uid: string): Promise<Todo[]> {
     this.checkDb();
@@ -608,8 +579,6 @@ class DBService {
   async getResources(): Promise<Asset[]> {
     return MOCK_RESOURCES as any;
   }
-
-  // --- 12. Public Content ---
 
   async getHomePageContent(): Promise<HomePageContent[]> {
     this.checkDb();

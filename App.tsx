@@ -1,7 +1,7 @@
+
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { User, ViewState, Lesson, Curriculum, Invoice, Quiz, StudentQuizAttempt } from './types';
+import { User, ViewState, Lesson, Curriculum, Quiz, StudentQuizAttempt } from './types';
 import { dbService } from './services/db';
-// Added RefreshCw to the imports from lucide-react
 import { Bell, ArrowRight, Menu, RefreshCw } from 'lucide-react';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -38,7 +38,6 @@ const QuizPerformance = lazy(() => import('./components/QuizPerformance'));
 const AdminSettings = lazy(() => import('./components/AdminSettings'));
 const AdminForumManager = lazy(() => import('./components/AdminForumManager'));
 const AdminAssetManager = lazy(() => import('./components/AdminAssetManager'));
-// Added missing lazy import for AdminQuizManager
 const AdminQuizManager = lazy(() => import('./components/AdminQuizManager'));
 const PhysicsJourneyMap = lazy(() => import('./components/PhysicsJourneyMap'));
 const ResourcesCenter = lazy(() => import('./components/ResourcesCenter'));
@@ -84,10 +83,18 @@ const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const appUser = await dbService.getUser(firebaseUser.uid);
-        if (appUser) {
-          setUser(appUser);
-          if (view === 'landing' || view === 'auth') setViewStack(['dashboard']);
+        try {
+          const appUser = await dbService.getUser(firebaseUser.uid);
+          if (appUser) {
+            setUser(appUser);
+            if (view === 'landing' || view === 'auth') {
+                setViewStack(['dashboard']);
+            }
+          } else {
+            setUser(null);
+          }
+        } catch (e) {
+          console.error("Auth fetch error", e);
         }
       } else {
         setUser(null);
@@ -98,7 +105,13 @@ const App: React.FC = () => {
   }, [view]);
 
   const renderContent = () => {
-    if (!user && view !== 'landing' && view !== 'auth') return null;
+    // إذا كان هناك فحص جاري، نظهر سبينر التحميل
+    if (isAuthLoading) return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <RefreshCw className="w-12 h-12 text-amber-400 animate-spin" />
+        <p className="text-gray-500 font-bold">جاري التحقق من الهوية...</p>
+      </div>
+    );
 
     switch (view) {
       case 'landing': return <LandingPage onStart={() => setViewStack(['auth'])} />;
@@ -106,7 +119,7 @@ const App: React.FC = () => {
       case 'dashboard':
         if (user?.role === 'admin') return <AdminDashboard />;
         if (user?.role === 'teacher') return <TeacherDashboard user={user} />;
-        return user ? <StudentDashboard user={user} /> : null;
+        return user ? <StudentDashboard user={user} /> : <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
       case 'curriculum': return user ? <CurriculumBrowser user={user} subject={activeSubject} /> : null;
       case 'lesson': return activeLesson && user ? <LessonViewer user={user} lesson={activeLesson} /> : null;
       case 'quiz_center': return user ? <QuizCenter user={user} /> : null;
@@ -119,7 +132,7 @@ const App: React.FC = () => {
       case 'subscription': return user ? <BillingCenter user={user} onUpdateUser={setUser} /> : null;
       case 'recommendations': return user ? <Recommendations user={user} /> : null;
       case 'journey-map': return user ? <PhysicsJourneyMap user={user} /> : null;
-      case 'resources-center': return <ResourcesCenter user={user} />;
+      case 'resources-center': return user ? <ResourcesCenter user={user} /> : null;
       case 'reports': return user ? <ProgressReport user={user} attempts={[]} /> : null;
       case 'quiz-performance': return user ? <QuizPerformance user={user} /> : null;
       case 'help-center': return <HelpCenter />;
@@ -131,13 +144,19 @@ const App: React.FC = () => {
       case 'admin-settings': return <AdminSettings />;
       case 'admin-forums': return <AdminForumManager />;
       case 'admin-assets': return <AdminAssetManager />;
-      default: return user ? <StudentDashboard user={user} /> : null;
+      default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
     }
   };
 
-  if (isAuthLoading) return <div className="h-screen bg-[#0A2540] flex items-center justify-center"><div className="w-16 h-16 border-4 border-[#fbbf24] border-t-transparent rounded-full animate-spin"></div></div>;
+  // شاشة التحميل الأولية للموقع
+  if (isAuthLoading && view === 'landing') return (
+    <div className="h-screen bg-[#0A2540] flex items-center justify-center">
+      <div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
 
-  if (view === 'landing' || view === 'auth') {
+  // إذا كنا في صفحة الهبوط أو تسجيل الدخول، نعرضهم بكامل الشاشة
+  if (view === 'landing' || view === 'auth' || !user) {
     return (
       <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal']" dir="rtl">
         <Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>
@@ -147,6 +166,7 @@ const App: React.FC = () => {
     );
   }
 
+  // الهيكل الأساسي بعد تسجيل الدخول
   return (
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative" dir="rtl">
       <Sidebar 
@@ -158,7 +178,7 @@ const App: React.FC = () => {
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      <div className="flex-1 flex flex-col min-w-0 lg:mr-72 relative z-10">
+      <div className="flex-1 flex flex-col min-w-0 lg:mr-72 relative z-10 transition-all">
         <header className="lg:hidden p-4 bg-black/20 flex justify-between items-center sticky top-0 z-[40] backdrop-blur-md">
           <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-white"><Menu /></button>
           <span className="font-black text-xl text-white">SSC</span>
@@ -171,7 +191,12 @@ const App: React.FC = () => {
               <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" /> عودة
             </button>
           )}
-          <Suspense fallback={<div className="flex items-center justify-center h-[50vh]"><div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div></div>}>
+          <Suspense fallback={
+            <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+              <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">جاري تحميل الواجهة...</p>
+            </div>
+          }>
             {renderContent()}
           </Suspense>
         </main>
