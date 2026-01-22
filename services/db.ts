@@ -1,4 +1,3 @@
-
 import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, ForumPost, ForumReply, Review, TeacherMessage, Todo, AppNotification, WeeklyReport, PaymentSettings, SubscriptionCode, LoggingSettings, NotificationSettings, LiveSession, Question, Quiz, UserRole, HomePageContent, PaymentStatus, Invoice, EducationalResource, Asset, ForumSection, Forum } from "../types";
 import { db, auth } from "./firebase";
 import { supabase } from "./supabase";
@@ -48,7 +47,6 @@ class SyrianScienceCenterDB {
       Object.keys(obj).forEach(key => {
         const value = obj[key];
         if (value !== undefined) {
-          // Fix: Corrected variable name 'v' to 'value' to resolve reference error
           cleaned[key] = (value && typeof value === 'object' && !(value instanceof Date)) 
             ? this.cleanData(value) 
             : value;
@@ -67,30 +65,32 @@ class SyrianScienceCenterDB {
     if (auth.currentUser) {
         const token = await auth.currentUser.getIdToken();
         // نحن نقوم بتمرير التوكن لـ Supabase ليعرفه كـ "authenticated"
+        // هذا ضروري جداً لتفعيل قيمة auth.jwt() داخل قاعدة البيانات
         const { error } = await supabase.auth.setSession({ 
             access_token: token, 
-            refresh_token: token // نستخدم نفس التوكن للتبسيط في هذا السياق
+            refresh_token: token 
         });
         if (error) {
-            console.error("Supabase auth error:", error);
-            // لا نرمي خطأ هنا لنسمح بالعمليات العامة
+            console.error("Supabase auth session error:", error);
         }
     }
   }
 
-  // --- إدارة الوسائط (Supabase Storage) - الحل الجذري ---
+  // --- إدارة الوسائط (Supabase Storage) - الحل النهائي ---
   async uploadAsset(file: File): Promise<Asset> {
     if (!auth.currentUser) throw new Error("يجب تسجيل الدخول للرفع.");
+    
+    // 1. مزامنة التوثيق (مهم جداً قبل الرفع)
     await this.setSupabaseAuth();
 
     const cleanName = file.name.replace(/[^\x00-\x7F]/g, "").replace(/\s+/g, "_");
     const fileName = `${Date.now()}_${cleanName}`;
     
-    // الهيكل: uploads/{UID}/{FILENAME}
-    // يجب أن يتطابق تماماً مع السياسة في SQL: (storage.foldername(name))[2]
+    // 2. تحديد المسار المطابق للسياسة: uploads/{UID}/{FILENAME}
     const uid = auth.currentUser.uid;
     const filePath = `uploads/${uid}/${fileName}`;
     
+    // 3. تنفيذ عملية الرفع
     const { data, error } = await supabase.storage.from('assets').upload(filePath, file, {
         cacheControl: '3600',
         upsert: true
