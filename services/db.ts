@@ -95,13 +95,19 @@ class DBService {
     try {
       const postsRef = collection(db, 'forumPosts');
       let q;
+      
+      // تبسيط الاستعلام لتجنب الحاجة لفهارس مركبة فورية
       if (forumId) {
-        q = query(postsRef, where('tags', 'array-contains', forumId), orderBy('timestamp', 'desc'));
+        q = query(postsRef, where('tags', 'array-contains', forumId));
       } else {
-        q = query(postsRef, orderBy('timestamp', 'desc'), limit(50));
+        q = query(postsRef, limit(100));
       }
+      
       const snap = await getDocs(q);
-      return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
+      const results = snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
+      
+      // الترتيب في جهة العميل لضمان العمل دائماً
+      return results.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     } catch (e) {
       console.error("Posts fetch error:", e);
       return [];
@@ -114,9 +120,21 @@ class DBService {
       ...this.cleanData(post),
       timestamp: new Date().toISOString(),
       upvotes: 0,
-      replies: []
+      replies: [],
+      isPinned: false,
+      isEscalated: false
     });
     return docRef.id;
+  }
+
+  async deleteForumPost(postId: string) {
+    this.checkDb();
+    await deleteDoc(doc(db, 'forumPosts', postId));
+  }
+
+  async updateForumPost(postId: string, updates: Partial<ForumPost>) {
+    this.checkDb();
+    await updateDoc(doc(db, 'forumPosts', postId), this.cleanData(updates));
   }
 
   async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'timestamp' | 'upvotes'>) {

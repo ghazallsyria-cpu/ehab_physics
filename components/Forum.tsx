@@ -77,23 +77,29 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
     return true;
   }, [user, forumSettings]);
 
+  const handleOpenAskModal = () => {
+    if (!canInteract) {
+      alert("🔒 عذراً، طرح الأسئلة متاح حالياً لمشتركي باقة التفوق فقط.");
+      return;
+    }
+    setErrorMsg(null);
+    setShowAskModal(true);
+  };
+
   const handleAsk = async () => {
     if (!user || !activeForum) return;
-    if (!canInteract) { 
-        alert("🔒 النشر متاح لمشتركي باقة التفوق فقط."); 
-        return; 
-    }
     
     const title = newQuestion.title.trim();
     const content = newQuestion.content.trim();
+    
     if (!title || !content) { 
-        setErrorMsg("يرجى ملء جميع الحقول."); 
+        setErrorMsg("يرجى كتابة عنوان وسؤال واضح."); 
         return; 
     }
 
     const check = contentFilter.filter(`${title} ${content}`);
     if (!check.isClean) { 
-        setErrorMsg("⚠️ محتوى غير لائق."); 
+        setErrorMsg("⚠️ تنبيه: سؤالك يحتوي على كلمات غير مناسبة سياسة المنصة."); 
         return; 
     }
 
@@ -116,7 +122,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       await loadPosts(activeForum.id);
     } catch (e) { 
         console.error(e);
-        setErrorMsg("فشل النشر. تأكد من اتصالك بالإنترنت."); 
+        setErrorMsg("حدث خطأ أثناء النشر. يرجى التحقق من اتصال الإنترنت."); 
     }
     finally { setIsSubmitting(false); }
   };
@@ -157,7 +163,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       <div className="max-w-6xl mx-auto py-12 animate-fadeIn text-right" dir="rtl">
         <header className="mb-16">
           <h2 className="text-4xl md:text-6xl font-black text-white italic tracking-tighter">ساحة <span className="text-[#fbbf24]">النقاش</span> الأكاديمي</h2>
-          <p className="text-gray-500 text-lg md:text-xl mt-2 font-medium">بيئة آمنة لتبادل المعرفة الفيزيائية بين المعلمين والطلاب.</p>
+          <p className="text-gray-500 text-lg md:text-xl mt-2 font-medium">اختر القسم المناسب لطرح استفساراتك الفيزيائية.</p>
         </header>
         {isLoading ? (
             <div className="py-20 text-center animate-pulse">
@@ -203,15 +209,15 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
                 <button onClick={() => setSortBy('top')} className={`px-6 py-2 rounded-xl text-[10px] font-black transition-all ${sortBy === 'top' ? 'bg-white text-black shadow-lg' : 'text-gray-500'}`}>الأكثر تفاعلاً</button>
              </div>
              <button 
-                onClick={() => setShowAskModal(true)} 
-                className={`px-10 py-4 rounded-2xl font-black text-xs uppercase flex items-center gap-3 transition-all z-10 shadow-xl ${canInteract ? 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95 shadow-yellow-500/10' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
+                onClick={handleOpenAskModal} 
+                className={`px-10 py-4 rounded-2xl font-black text-xs uppercase flex items-center gap-3 transition-all shadow-xl hover:scale-105 active:scale-95 z-[5] ${canInteract ? 'bg-[#fbbf24] text-black shadow-yellow-500/10' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
              >
                 {canInteract ? <Plus size={18}/> : <Lock size={18}/>} موضوع جديد
              </button>
           </div>
 
           {isLoading ? (
-              <div className="py-20 text-center animate-pulse text-gray-500">جاري جلب النقاشات...</div>
+              <div className="py-20 text-center animate-pulse text-gray-500 font-bold">جاري جلب النقاشات...</div>
           ) : sortedPosts.map(post => (
             <div key={post.id} onClick={() => setSelectedPost(post)} className={`glass-panel p-8 rounded-[40px] border-2 cursor-pointer transition-all flex gap-8 group relative bg-black/20 ${selectedPost?.id === post.id ? 'border-[#fbbf24] bg-[#fbbf24]/5 shadow-[0_0_40px_rgba(251,191,36,0.1)]' : 'border-white/5 hover:border-white/10'}`}>
               <div className="flex flex-col items-center gap-2 bg-white/5 p-4 rounded-[25px] h-fit border border-white/5 min-w-[70px]">
@@ -289,27 +295,37 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
         </div>
       </div>
 
-      {/* مودال طرح سؤال جديد - تم تعديل الـ Z-index وضمان الثبات */}
+      {/* Modal - تم رفعه لضمان عدم الاختفاء خلف القائمة الجانبية */}
       {showAskModal && (
-        <div className="fixed inset-0 z-[5000] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-fadeIn" onClick={() => setShowAskModal(false)}>
-          <div className="glass-panel w-full max-w-2xl p-12 rounded-[70px] border-white/10 relative shadow-[0_50px_150px_rgba(0,0,0,0.9)] bg-[#0a1118] border-2" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-fadeIn" onClick={() => setShowAskModal(false)}>
+          <div className="glass-panel w-full max-w-2xl p-10 md:p-14 rounded-[60px] border-white/10 relative shadow-[0_50px_150px_rgba(0,0,0,0.9)] bg-[#0a1118] border-2" onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowAskModal(false)} className="absolute top-10 left-10 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full transition-colors"><X size={24}/></button>
-            <div className="mb-12">
+            <div className="mb-10">
                 <span className="bg-amber-500/10 text-amber-500 px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-500/20">طرح سؤال أكاديمي</span>
-                <h3 className="text-4xl font-black mt-6 text-white leading-tight italic">سؤالك في <br/><span className="text-[#fbbf24]">{activeForum.title}</span></h3>
+                <h3 className="text-3xl font-black mt-6 text-white leading-tight">سؤال جديد في <span className="text-[#fbbf24]">{activeForum.title}</span></h3>
             </div>
-            <div className="space-y-8">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-6">عنوان السؤال</label>
-                <input type="text" value={newQuestion.title} onChange={e => setNewQuestion({...newQuestion, title: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-8 py-5 text-white outline-none focus:border-[#fbbf24] font-bold text-lg shadow-inner" placeholder="اكتب عنواناً معبراً لسؤالك..." />
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">عنوان السؤال</label>
+                <input type="text" value={newQuestion.title} onChange={e => setNewQuestion({...newQuestion, title: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-8 py-5 text-white outline-none focus:border-[#fbbf24] font-bold text-lg" placeholder="مثال: كيف نحسب القوة الدافعة الحثية؟" />
               </div>
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-6">تفاصيل الاستفسار</label>
-                <textarea value={newQuestion.content} onChange={e => setNewQuestion({...newQuestion, content: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-8 text-white outline-none focus:border-blue-400 h-48 leading-relaxed shadow-inner no-scrollbar italic" placeholder="اشرح ما تود السؤال عنه بالتفصيل..." />
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">تفاصيل السؤال</label>
+                <textarea value={newQuestion.content} onChange={e => setNewQuestion({...newQuestion, content: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-8 text-white outline-none focus:border-blue-400 h-48 leading-relaxed italic no-scrollbar" placeholder="اشرح مسألتك أو استفسارك هنا بالتفصيل..." />
               </div>
-              {errorMsg && <div className="p-4 bg-red-600/10 border border-red-600/20 text-red-500 text-xs font-bold rounded-2xl text-center flex items-center justify-center gap-3 animate-shake"><AlertCircle size={18}/> {errorMsg}</div>}
-              <button onClick={handleAsk} disabled={isSubmitting || !canInteract} className={`w-full py-6 rounded-[30px] font-black uppercase tracking-widest shadow-2xl transition-all flex items-center justify-center gap-4 text-xl ${canInteract ? 'bg-[#fbbf24] text-black hover:scale-[1.02] active:scale-95' : 'bg-gray-800 text-gray-600 cursor-not-allowed'}`}>
-                {isSubmitting ? <RefreshCw className="animate-spin" size={24}/> : "🚀 نشر السؤال الآن"}
+              
+              {errorMsg && (
+                <div className="p-4 bg-red-600/10 border border-red-600/20 text-red-500 text-xs font-bold rounded-2xl text-center flex items-center justify-center gap-3 animate-slideUp">
+                  <AlertCircle size={18}/> {errorMsg}
+                </div>
+              )}
+
+              <button 
+                onClick={handleAsk} 
+                disabled={isSubmitting} 
+                className="w-full py-6 rounded-[30px] font-black uppercase tracking-widest shadow-2xl transition-all flex items-center justify-center gap-4 text-lg bg-[#fbbf24] text-black hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+              >
+                {isSubmitting ? <RefreshCw className="animate-spin" size={24}/> : "🚀 نشر السؤال الآن للجميع"}
               </button>
             </div>
           </div>
