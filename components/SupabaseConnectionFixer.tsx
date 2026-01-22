@@ -8,50 +8,55 @@ interface SupabaseConnectionFixerProps {
 const SupabaseConnectionFixer: React.FC<SupabaseConnectionFixerProps> = ({ onFix }) => {
   const [copiedSupabase, setCopiedSupabase] = useState(false);
 
-  // كود SQL متقدم يضمن مطابقة Firebase UID كنص وتجنب تحويله لـ UUID
-  const supabaseStoragePolicies = `-- 🛡️ إعداد سياسات التخزين (Firebase Auth Compatible)
--- نستخدم auth.uid()::text لمطابقة المعرفات النصية القادمة من Firebase
+  // الحل الجذري: تحويل كل شيء إلى نص ::text لمنع خطأ الـ UUID
+  const supabaseStoragePolicies = `-- 🚀 الحل الجذري لمشكلة Firebase UID مع Supabase Storage
+-- قم بتنفيذ هذا الكود في SQL Editor الخاص بـ Supabase
 
--- 1. السماح بالقراءة العامة لجميع الملفات في bucket الـ assets
--- (مطلوب لعمل روابط الصور والفيديوهات للطلاب)
+-- 1. التأكد من وجود الـ Bucket وإعداده كـ Public
+-- ملاحظة: يمكنك القيام بذلك يدوياً من واجهة الاستخدام أيضاً
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('assets', 'assets', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- 2. حذف السياسات القديمة لتجنب التضارب
 DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated User Upload Access" ON storage.objects;
+DROP POLICY IF EXISTS "Owner Delete Access" ON storage.objects;
+DROP POLICY IF EXISTS "Owner Update Access" ON storage.objects;
+
+-- 3. سياسة القراءة: الجميع يمكنهم القراءة (مهم لروابط الصور للطلاب)
 CREATE POLICY "Public Read Access"
 ON storage.objects FOR SELECT
 TO public
 USING ( bucket_id = 'assets' );
 
--- 2. السماح بالرفع فقط للمجلد الخاص بالمستخدم: uploads/USER_ID/
--- نتحقق من الجزء الثاني في المسار ليكون مطابقاً لـ auth.uid()::text
-DROP POLICY IF EXISTS "Authenticated User Upload Access" ON storage.objects;
+-- 4. سياسة الرفع: المقارنة كنص ::text حصراً
+-- نتحقق أن المجلد الثاني في المسار مطابق لـ UID المستخدم
 CREATE POLICY "Authenticated User Upload Access"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
   bucket_id = 'assets' AND
   (storage.foldername(name))[1] = 'uploads' AND
-  (storage.foldername(name))[2] = auth.uid()::text
+  (storage.foldername(name))[2] = (select auth.uid()::text)
 );
 
--- 3. السماح للمستخدم بحذف ملفاته الخاصة فقط
--- نعتمد على بنية المجلد uploads/USER_ID/
-DROP POLICY IF EXISTS "Owner Delete Access" ON storage.objects;
+-- 5. سياسة الحذف: المالك فقط (مقارنة نصية)
 CREATE POLICY "Owner Delete Access"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (
   bucket_id = 'assets' AND
-  (storage.foldername(name))[1] = 'uploads' AND
-  (storage.foldername(name))[2] = auth.uid()::text
+  (storage.foldername(name))[2] = (select auth.uid()::text)
 );
 
--- 4. السماح بالتحديث (Update) للمالك فقط
-DROP POLICY IF EXISTS "Owner Update Access" ON storage.objects;
+-- 6. سياسة التحديث: المالك فقط
 CREATE POLICY "Owner Update Access"
 ON storage.objects FOR UPDATE
 TO authenticated
 USING (
   bucket_id = 'assets' AND
-  (storage.foldername(name))[2] = auth.uid()::text
+  (storage.foldername(name))[2] = (select auth.uid()::text)
 );
 `;
 
@@ -69,19 +74,19 @@ USING (
         </div>
         <div className="flex-1">
           <h4 className="text-2xl font-black text-amber-400 mb-2 uppercase tracking-tighter italic flex items-center gap-3">
-            ضبط سياسات الـ <span className="text-white">RLS</span> (توافق Firebase)
+             الحل النهائي لسياسات <span className="text-white">Supabase</span>
           </h4>
           <p className="text-gray-400 text-sm mb-8 leading-relaxed">
-            لضمان عمل الرفع والحذف بشكل صحيح مع <b>Firebase UID</b>، يجب أن نضمن مقارنة المعرفات كـ <code className="text-amber-400">text</code> وليس <code className="text-red-400">uuid</code>.
+            هذا الكود يجبر النظام على مقارنة المعرفات كـ <code className="text-amber-400">text</code>، مما يحل مشكلة رفض معرفات Firebase (UID) بشكل نهائي.
           </p>
           
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
             <div className="bg-black/40 rounded-[35px] p-8 border border-white/5 relative h-full flex flex-col">
                 <h5 className="text-blue-400 font-black text-sm mb-4 flex items-center gap-3">
-                    <Code size={18}/> كود SQL المحدث (Text Casting)
+                    <Code size={18}/> كود SQL (التوافق الكامل)
                 </h5>
                 <p className="text-[10px] text-gray-500 mb-6 leading-relaxed">
-                    انسخ الكود ونفذه في <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">SQL Editor <ExternalLink size={10}/></a>.
+                    نفذ هذا الكود في <a href="https://supabase.com/dashboard/project/_/sql/new" target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">SQL Editor <ExternalLink size={10}/></a>.
                 </p>
                 
                 <div className="relative group flex-1">
@@ -95,16 +100,19 @@ USING (
             </div>
 
             <div className="bg-emerald-500/5 rounded-[35px] p-8 border border-emerald-500/20 relative">
-                <div className="absolute -top-4 right-8 bg-emerald-500 text-black px-4 py-1 rounded-full text-[10px] font-black uppercase">هام جداً</div>
+                <div className="absolute -top-4 right-8 bg-emerald-500 text-black px-4 py-1 rounded-full text-[10px] font-black uppercase">حل جذري</div>
                 <h5 className="text-emerald-400 font-black text-sm mb-6 flex items-center gap-3">
-                    <AlertCircle size={18}/> لماذا هذا التعديل؟
+                    <AlertCircle size={18}/> ماذا سيفعل هذا الكود؟
                 </h5>
                 <ul className="text-xs text-gray-300 space-y-4 list-disc list-inside leading-relaxed pr-2">
-                    <li>معرفات <b>Firebase</b> لا تتبع تنسيق UUID المعياري دائماً، لذا فاشل تحويلها القسري يسبب خطأ 42501.</li>
-                    <li>استخدام <code className="text-white">auth.uid()::text</code> يحل المشكلة جذرياً بمقارنة النصوص مباشرة.</li>
-                    <li>تم تحديث السياسة لتقييد المستخدم برفع ملفاته داخل مجلد يحمل اسمه حصراً <code className="text-amber-400">uploads/USER_ID/</code>.</li>
-                    <li>تأكد أن الـ Bucket المسمى <code className="text-white">assets</code> هو <b>Public</b>.</li>
+                    <li>سيقوم بتحويل `auth.uid()` إلى `text` ليتطابق مع صيغة Firebase.</li>
+                    <li>سيسمح بالرفع فقط إلى مجلدك الشخصي: `uploads/{'{UID}'}/`.</li>
+                    <li>سيسمح للطلاب بمشاهدة الملفات المرفوعة في الدروس دون مشاكل.</li>
+                    <li>سيمنع أي مستخدم من حذف ملفات غيره.</li>
                 </ul>
+                <div className="mt-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+                    <p className="text-[10px] text-amber-500 leading-relaxed font-bold">⚠️ ملاحظة: تأكد من ضبط "JWT Secret" في Supabase ليتوافق مع Firebase إذا كنت تستخدم التوثيق المتبادل، أو استخدم السياسة النصية أعلاه.</p>
+                </div>
             </div>
           </div>
 
@@ -112,12 +120,12 @@ USING (
               <div className="flex items-start gap-4">
                   <AlertCircle className="text-blue-400 shrink-0" size={20} />
                   <div className="text-right">
-                      <p className="text-blue-400 font-bold text-sm">التطبيق من الواجهة الرسومية:</p>
-                      <p className="text-[11px] text-gray-500 mt-1">إذا واجهت مشكلة في صلاحيات SQL Editor، اذهب إلى <b>Storage {" > "} Policies</b> وأنشئ سياسة جديدة لعمليات (Insert, Delete) تستخدم تعبير: <code className="text-white font-mono">(storage.foldername(name))[2] = auth.uid()::text</code></p>
+                      <p className="text-blue-400 font-bold text-sm">تطبيق الحل الآن:</p>
+                      <p className="text-[11px] text-gray-500 mt-1">بعد تنفيذ الكود أعلاه، اضغط على الزر للتأكد من أن كل شيء يعمل بسلاسة.</p>
                   </div>
               </div>
               <button onClick={onFix} className="bg-white text-black px-12 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center gap-4 active:scale-95 whitespace-nowrap">
-                  <RefreshCw size={18}/> إعادة فحص الاتصال
+                  <RefreshCw size={18}/> فحص نهائي للاتصال
               </button>
           </div>
         </div>
