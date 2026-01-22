@@ -48,7 +48,8 @@ class SyrianScienceCenterDB {
       Object.keys(obj).forEach(key => {
         const value = obj[key];
         if (value !== undefined) {
-          cleaned[key] = (value && typeof v === 'object' && !(v instanceof Date)) 
+          // FIX: Use 'value' instead of the shadowed 'v' from the previous scope
+          cleaned[key] = (value && typeof value === 'object' && !(value instanceof Date)) 
             ? this.cleanData(value) 
             : value;
         }
@@ -179,7 +180,7 @@ class SyrianScienceCenterDB {
     this.checkDb();
     const snapshot = await getDocs(collection(db, 'curriculum'));
     // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Curriculum);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Curriculum));
   }
 
   private async _ensureCurriculumDoc(grade: string, subject: string) {
@@ -266,7 +267,7 @@ class SyrianScienceCenterDB {
     const q = query(collection(db, "homepage_content"), orderBy("createdAt", "desc"));
     const snapshot = await getDocs(q);
     // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as HomePageContent);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as HomePageContent));
   }
   
   async saveHomePageContent(contentItem: Partial<HomePageContent>): Promise<string> {
@@ -316,7 +317,7 @@ class SyrianScienceCenterDB {
     }
     return onSnapshot(q, (snapshot) => {
       // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-      const users = snapshot.docs.map(d => ({ uid: d.id, ...d.data() }) as User);
+      const users = snapshot.docs.map(d => ({ uid: d.id, ...d.data() } as User));
       callback(users);
     }, (error) => {
       console.error(`Subscription Error for role ${role || 'all'}:`, error);
@@ -366,19 +367,19 @@ class SyrianScienceCenterDB {
   async getTeachers(): Promise<User[]> {
     const snap = await getDocs(collection(db, "users"));
     // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snap.docs.map(d => ({ uid: d.id, ...d.data() }) as User).filter(u => u.role === 'teacher');
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() } as User)).filter(u => u.role === 'teacher');
   }
 
   async getAllStudents(): Promise<User[]> {
     const snap = await getDocs(collection(db, "users"));
     // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snap.docs.map(d => ({ uid: d.id, ...d.data() }) as User).filter(u => u.role === 'student');
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() } as User)).filter(u => u.role === 'student');
   }
 
   async getLiveSessions(): Promise<LiveSession[]> {
     const snapshot = await getDocs(collection(db, "live_sessions"));
     // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as LiveSession);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as LiveSession));
   }
 
   subscribeToLiveSessions(callback: (sessions: LiveSession[]) => void) {
@@ -463,7 +464,7 @@ async getForumSections(): Promise<ForumSection[]> {
     const snapshot = await getDocs(q);
     if (snapshot.empty) return [];
     // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as ForumSection);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ForumSection));
 }
 
 async saveForumSections(sections: ForumSection[]): Promise<void> {
@@ -493,7 +494,7 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     const q = query(collection(db, 'forumPosts'), orderBy('timestamp', 'desc'));
     const snapshot = await getDocs(q);
     // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as ForumPost);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ForumPost));
   }
 
   async createForumPost(post: any): Promise<void> {
@@ -526,7 +527,7 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
       this.checkDb();
       const snapshot = await getDocs(collection(db, 'quizzes'));
       // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Quiz);
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Quiz));
     } catch (e) { console.error(e); return QUIZZES_DB; }
   }
 
@@ -555,7 +556,7 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
         this.checkDb();
         const snapshot = await getDocs(collection(db, 'questions'));
         // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-        return snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Question);
+        return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Question));
     } catch (e) { console.error(e); return QUESTIONS_DB; }
   }
 
@@ -595,7 +596,7 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     const q = query(collection(db, 'quiz_attempts'), where('quizId', '==', quizId));
     const snapshot = await getDocs(q);
     // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    const attempts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as StudentQuizAttempt);
+    const attempts = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as StudentQuizAttempt));
     return attempts.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
   }
 
@@ -609,7 +610,7 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     }
     const snapshot = await getDocs(q);
     // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as StudentQuizAttempt);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as StudentQuizAttempt));
   }
   
    async toggleLessonComplete(userId: string, lessonId: string): Promise<void> {
@@ -643,7 +644,8 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     );
     const snapshot = await getDocs(q);
     // Renamed local variable 'doc' to 'd' to avoid shadowing firestore 'doc' function
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as AppNotification);
+    // FIX: Cast d.data() to any before spreading and cast d.id to string to avoid potential unknown type errors
+    return snapshot.docs.map(d => ({ id: d.id as string, ...(d.data() as any) } as AppNotification));
   }
 
   async markNotificationsAsRead(userId: string): Promise<void> {
