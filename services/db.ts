@@ -65,23 +65,24 @@ class SyrianScienceCenterDB {
     if (auth.currentUser) {
         try {
             const token = await auth.currentUser.getIdToken();
-            // ملاحظة: إذا لم ينجح التوثيق هنا بسبب اختلاف الـ Secrets، 
-            // فإن السياسة "النووية" الجديدة ستسمح بالرفع كـ public للمجلد الصحيح.
             await supabase.auth.setSession({ 
                 access_token: token, 
-                refresh_token: 'not_needed' 
+                refresh_token: 'none' 
             });
         } catch (e) {
-            console.warn("Supabase auth sync skipped or failed.");
+            console.warn("Supabase auth sync skipped.");
         }
     }
   }
 
-  // --- إدارة الوسائط (Supabase Storage) ---
+  // --- إدارة الوسائط (Supabase Storage) - نسخة الحل النهائي ---
   async uploadAsset(file: File): Promise<Asset> {
     if (!auth.currentUser) throw new Error("يجب تسجيل الدخول للرفع.");
+    
+    // محاولة المزامنة (اختيارية مع السياسة الجديدة)
     await this.setSupabaseAuth();
 
+    // تطهير اسم الملف من الرموز العربية والمسافات
     const cleanName = file.name.replace(/[^\x00-\x7F]/g, "").replace(/\s+/g, "_");
     const fileName = `${Date.now()}_${cleanName}`;
     
@@ -89,14 +90,19 @@ class SyrianScienceCenterDB {
     const uid = auth.currentUser.uid;
     const filePath = `uploads/${uid}/${fileName}`;
     
+    console.log(`DB: Attempting upload to: assets/${filePath}`);
+
     const { data, error } = await supabase.storage.from('assets').upload(filePath, file, {
         cacheControl: '3600',
         upsert: true
     });
 
     if (error) {
-        console.error('Supabase upload error:', error);
-        // إذا استمر الخطأ، فالمشكلة غالباً في اسم الـ Bucket أو كود SQL لم ينفذ
+        console.error('Supabase upload error details:', error);
+        // التحقق مما إذا كان الخطأ هو خطأ صلاحيات (RLS)
+        if (error.message.includes('security policy') || error.message.includes('permission denied')) {
+            throw new Error('STORAGE_PERMISSION_DENIED');
+        }
         throw error;
     }
 
@@ -124,6 +130,9 @@ class SyrianScienceCenterDB {
 
     if (error) {
         console.error('Supabase list error:', error);
+        if (error.message.includes('permission denied')) {
+            throw new Error('STORAGE_PERMISSION_DENIED');
+        }
         return [];
     }
     
@@ -149,7 +158,10 @@ class SyrianScienceCenterDB {
     const filePath = `uploads/${uid}/${fileName}`;
     
     const { error } = await supabase.storage.from('assets').remove([filePath]);
-    if (error) throw error;
+    if (error) {
+        console.error('Supabase delete error:', error);
+        throw error;
+    }
   }
 
 
@@ -172,7 +184,10 @@ class SyrianScienceCenterDB {
       const { error } = await supabase.storage.from('assets').list(`uploads/${auth.currentUser.uid}`, { limit: 1 });
       
       if (error) {
-          return { alive: false, error: error.message };
+        if (error.message.includes('permission denied') || error.message.includes('security policy')) {
+          return { alive: false, error: 'SUPABASE_PERMISSION_DENIED' };
+        }
+        return { alive: false, error: error.message };
       }
       return { alive: true };
     } catch (e: any) {
