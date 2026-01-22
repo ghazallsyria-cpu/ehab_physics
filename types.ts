@@ -11,6 +11,8 @@ export interface Forum {
     icon: string; // emoji
     imageUrl?: string; // صورة الخلفية للقسم
     order: number;
+    moderatorUid?: string; //معرّف المشرف
+    moderatorName?: string; // اسم المشرف للعرض
 }
 
 export interface ForumSection {
@@ -23,6 +25,7 @@ export interface ForumSection {
 
 export interface ForumReply {
     id: string;
+    authorUid: string; // تم الإضافة للإشعارات
     authorEmail: string;
     authorName: string;
     content: string;
@@ -33,6 +36,7 @@ export interface ForumReply {
 
 export interface ForumPost {
     id: string;
+    authorUid: string; // تم الإضافة للإشعارات
     authorEmail: string;
     authorName: string;
     title: string;
@@ -40,11 +44,12 @@ export interface ForumPost {
     tags: string[];
     timestamp: string;
     upvotes: number;
-    isPinned?: boolean; // خاصية التثبيت
+    isPinned?: boolean;
     replies?: ForumReply[];
+    isEscalated?: boolean; 
 }
 
-// ... بقية الـ types كما هي
+// ... بقية الـ types
 export interface User {
   uid: string;
   name: string;

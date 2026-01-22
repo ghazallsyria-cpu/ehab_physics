@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ExternalLink, Copy, Check, ClipboardList, LayoutDashboard, Library, MessageSquare, Award, ChevronDown, HeartPulse } from 'lucide-react';
 import { dbService } from '../services/db';
 import SupabaseConnectionFixer from './SupabaseConnectionFixer';
+import EscalatedPostsWidget from './EscalatedPostsWidget';
 
 const AdminDashboard: React.FC = () => {
   const [firestoreStatus, setFirestoreStatus] = useState<{ alive: boolean | null, error?: string }>({ alive: null });
@@ -55,6 +57,9 @@ const AdminDashboard: React.FC = () => {
         <p className="text-gray-500 mt-2 font-medium">مرحباً بك في لوحة تحكم المسؤول.</p>
       </header>
       
+      {/* Escalated Posts Widget */}
+      <EscalatedPostsWidget />
+
       {/* System Health & Guides Section */}
       <div className="glass-panel p-8 rounded-[40px] border-white/5 bg-[#0a1118]/80 shadow-xl">
           <div className="flex justify-between items-center mb-6">

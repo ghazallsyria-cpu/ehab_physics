@@ -21,7 +21,9 @@ import {
   RefreshCw,
   X,
   ShieldAlert,
-  Send
+  Send,
+  Flag,
+  Bell
 } from 'lucide-react';
 
 interface ForumProps {
@@ -42,10 +44,22 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
   const [sortBy, setSortBy] = useState<'newest' | 'top'>('newest');
   const [filterWarning, setFilterWarning] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [postError, setPostError] = useState<string | null>(null);
 
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  const handleOpenAskModal = () => {
+    setNewQuestion({ title: '', content: '', tags: '' });
+    setPostError(null);
+    setShowAskModal(true);
+  };
+
+  const handleCloseAskModal = () => {
+    setShowAskModal(false);
+    setPostError(null);
+  };
 
   const loadInitialData = async () => {
     setIsLoading(true);
@@ -62,7 +76,6 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
   const loadPosts = async (forumId: string) => {
     setIsLoading(true);
     try {
-      // استخدام الدالة المحسنة في dbService التي تتعامل مع غياب الفهارس
       const forumPosts = await dbService.getForumPosts(forumId);
       setPosts(forumPosts);
     } catch (e) {
@@ -83,6 +96,13 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
     setPosts([]);
   };
 
+  const isModerator = (forumId?: string) => {
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+    if (user.role === 'teacher' && activeForum?.moderatorUid === user.uid) return true;
+    return false;
+  };
+
   const sortedPosts = useMemo(() => {
     const pinned = posts.filter(p => p.isPinned);
     const regular = posts.filter(p => !p.isPinned);
@@ -101,15 +121,15 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
         return; 
     }
     
+    setPostError(null);
     const titleTrimmed = newQuestion.title.trim();
     const contentTrimmed = newQuestion.content.trim();
 
     if (!titleTrimmed || !contentTrimmed) {
-        alert('يرجى كتابة عنوان وشرح للسؤال.');
+        setPostError('يرجى كتابة عنوان وشرح للسؤال.');
         return;
     }
 
-    // 1. فحص الرقابة
     const checkTitle = contentFilter.filter(titleTrimmed);
     const checkContent = contentFilter.filter(contentTrimmed);
 
@@ -122,7 +142,8 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
 
     setIsSubmitting(true);
     try {
-        const newPostId = await dbService.createForumPost({
+        await dbService.createForumPost({
+          authorUid: user.uid,
           authorEmail: user.email,
           authorName: user.name || 'طالب مجهول',
           title: titleTrimmed,
@@ -130,18 +151,13 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
           tags: [activeForum.id, ...newQuestion.tags.split(',').map(t => t.trim()).filter(Boolean)],
         });
 
-        // تم النشر بنجاح
         setSuccessMsg("تم نشر موضوعك في الساحة بنجاح! 🚀");
-        setNewQuestion({ title: '', content: '', tags: '' });
-        setShowAskModal(false);
-        
-        // تحديث القائمة فوراً
+        handleCloseAskModal();
         await loadPosts(activeForum.id);
-        
         setTimeout(() => setSuccessMsg(null), 4000);
     } catch (error: any) {
         console.error("Create post error:", error);
-        alert(`عذراً، فشل النشر: ${error.message || 'مشكلة في الاتصال بالخادم'}`);
+        setPostError(`فشل النشر: ${error.message || 'مشكلة في الاتصال بالخادم.'}`);
     } finally {
         setIsSubmitting(false);
     }
@@ -160,6 +176,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
     setIsSubmitting(true);
     try {
         const replyData = {
+            authorUid: user.uid,
             authorEmail: user.email,
             authorName: user.name || 'Anonymous',
             content: replyContent,
@@ -167,13 +184,26 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
         };
         
         await dbService.addForumReply(selectedPost.id, replyData);
-        setReplyContent('');
         
+        // 🔔 إرسال إشعار لصاحب المنشور إذا لم يكن هو نفسه صاحب الرد
+        if (selectedPost.authorUid !== user.uid) {
+            await dbService.createNotification({
+                userId: selectedPost.authorUid,
+                title: "رد جديد على منشورك 💬",
+                message: `قام ${user.name} بالرد على موضوعك: "${selectedPost.title}"`,
+                timestamp: new Date().toISOString(),
+                isRead: false,
+                type: 'info',
+                category: 'academic'
+            });
+        }
+
+        setReplyContent('');
         const allPosts = await dbService.getForumPosts(activeForum?.id);
         const updatedSelectedPost = allPosts.find(p => p.id === selectedPost.id);
         if (updatedSelectedPost) {
             setSelectedPost(updatedSelectedPost);
-            setPosts(prev => prev.map(p => p.id === selectedPost.id ? updatedSelectedPost : p));
+            setPosts(allPosts);
         }
     } catch (e) {
         alert("فشل إرسال الرد.");
@@ -182,8 +212,40 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
     }
   };
 
+  const handleEscalate = async (post: ForumPost) => {
+    if (!isModerator()) return;
+    if (!confirm("هل تريد تصعيد هذا المنشور للإدارة لمراجعته؟")) return;
+    
+    setIsSubmitting(true);
+    try {
+        await dbService.updateForumPost(post.id, { isEscalated: true });
+        
+        // 🔔 إرسال إشعار للمديرين
+        const admins = await dbService.getTeachers(); // For demo, assuming teachers with admin role
+        // In a real app, you'd target specifically UIDs with 'admin' role
+        await dbService.createNotification({
+            userId: 'admin_central', // Or a system-wide broadcast
+            title: "🚩 تصعيد منشور للمراجعة",
+            message: `تم تصعيد المنشور "${post.title}" من قبل المشرف ${user?.name}`,
+            timestamp: new Date().toISOString(),
+            isRead: false,
+            type: 'warning',
+            category: 'general'
+        });
+
+        setSuccessMsg("تم تصعيد المنشور للإدارة بنجاح.");
+        loadPosts(activeForum!.id);
+        if (selectedPost?.id === post.id) setSelectedPost({ ...post, isEscalated: true });
+        setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (e) {
+        alert("فشل عملية التصعيد.");
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
   const handleTogglePin = async (postId: string, currentPin: boolean) => {
-    if (user?.role !== 'admin') return;
+    if (!isModerator()) return;
     try {
         await dbService.updateForumPost(postId, { isPinned: !currentPin });
         setPosts(prev => prev.map(p => p.id === postId ? { ...p, isPinned: !currentPin } : p));
@@ -194,13 +256,15 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (user?.role !== 'admin') return;
+    if (!isModerator()) return;
     if (!confirm("هل أنت متأكد من حذف هذا المنشور نهائياً؟")) return;
     
     try {
         await dbService.deleteForumPost(postId);
         setPosts(prev => prev.filter(p => p.id !== postId));
         if (selectedPost?.id === postId) setSelectedPost(null);
+        setSuccessMsg("تم حذف المنشور بنجاح.");
+        setTimeout(() => setSuccessMsg(null), 3000);
     } catch (e) {
         alert("فشل حذف المنشور.");
     }
@@ -267,6 +331,11 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
                       </div>
                       <div className="p-8">
                         <h4 className="text-2xl font-black text-white group-hover:text-[#00d2ff] transition-colors mb-3 leading-tight">{forum.title}</h4>
+                        <div className="flex items-center gap-2 mb-4">
+                            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                                <Users size={12}/> {forum.moderatorName ? `إشراف: ${forum.moderatorName}` : 'نقاش عام'}
+                            </span>
+                        </div>
                         <p className="text-gray-500 text-sm leading-relaxed mb-8 line-clamp-2 italic">"{forum.description || 'منصة للنقاش العلمي وتبادل الخبرات بين الطلاب والمعلمين.'}"</p>
                         
                         <div className="flex items-center justify-between pt-6 border-t border-white/5">
@@ -334,7 +403,7 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
           </div>
         </div>
         <button 
-          onClick={() => setShowAskModal(true)}
+          onClick={handleOpenAskModal}
           className="bg-[#00d2ff] text-black px-12 py-6 rounded-[30px] font-black text-xs uppercase tracking-[0.2em] shadow-[0_15px_40px_rgba(0,210,255,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
         >
           <Plus size={20}/> طرح موضوع جديد
@@ -359,12 +428,18 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
             sortedPosts.map(post => (
               <div 
                 key={post.id} 
-                className={`glass-panel p-8 md:p-10 rounded-[50px] border-2 transition-all cursor-pointer group relative flex gap-8 ${post.isPinned ? 'border-[#fbbf24]/30 bg-[#fbbf24]/5' : (selectedPost?.id === post.id ? 'border-[#00d2ff]/40 bg-[#00d2ff]/5' : 'border-white/5 hover:border-white/10')}`}
+                className={`glass-panel p-8 md:p-10 rounded-[50px] border-2 transition-all cursor-pointer group relative flex gap-8 ${post.isEscalated ? 'border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.1)]' : (post.isPinned ? 'border-[#fbbf24]/30 bg-[#fbbf24]/5' : (selectedPost?.id === post.id ? 'border-[#00d2ff]/40 bg-[#00d2ff]/5' : 'border-white/5 hover:border-white/10'))}`}
                 onClick={() => setSelectedPost(post)}
               >
                 {post.isPinned && (
                     <div className="absolute top-6 left-10 flex items-center gap-2 bg-[#fbbf24] text-black px-4 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg">
                         <Pin size={10} fill="currentColor"/> مثبت
+                    </div>
+                )}
+
+                {post.isEscalated && (
+                    <div className="absolute top-6 left-10 flex items-center gap-2 bg-red-600 text-white px-4 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg">
+                        <ShieldAlert size={10} /> قيد مراجعة الإدارة
                     </div>
                 )}
                 
@@ -383,8 +458,15 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
                             <span className="flex items-center gap-2"><Clock size={14}/> {new Date(post.timestamp).toLocaleDateString('ar-KW')}</span>
                         </div>
                         <div className="flex items-center gap-4">
-                             {user?.role === 'admin' && (
+                             {isModerator() && (
                                 <div className="flex gap-2">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleEscalate(post); }} 
+                                        className="p-3 bg-red-600/10 text-red-500 rounded-xl hover:bg-red-600 hover:text-white transition-all"
+                                        title="تصعيد للإدارة"
+                                    >
+                                        <Flag size={16}/>
+                                    </button>
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); handleTogglePin(post.id, !!post.isPinned); }} 
                                         className={`p-3 rounded-xl transition-all ${post.isPinned ? 'bg-[#fbbf24] text-black' : 'bg-white/5 text-gray-500 hover:text-[#fbbf24]'}`}
@@ -423,7 +505,10 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
              <div className="glass-panel p-8 md:p-10 rounded-[60px] border-[#00d2ff]/30 bg-[#0a1118]/90 space-y-10 sticky top-24 max-h-[85vh] flex flex-col shadow-3xl animate-slideUp">
                 <div className="flex justify-between items-center">
                     <button onClick={() => setSelectedPost(null)} className="text-[10px] font-black text-gray-500 hover:text-white transition-all flex items-center gap-2">✕ إغلاق</button>
-                    {selectedPost.isPinned && <Pin size={14} className="text-[#fbbf24]" fill="currentColor"/>}
+                    <div className="flex gap-2">
+                        {selectedPost.isEscalated && <ShieldAlert size={14} className="text-red-500" />}
+                        {selectedPost.isPinned && <Pin size={14} className="text-[#fbbf24]" fill="currentColor"/>}
+                    </div>
                 </div>
                 <div className="overflow-y-auto no-scrollbar pr-2 flex-1 space-y-10">
                     <div className="border-b border-white/5 pb-10">
@@ -431,12 +516,17 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
                         <div className="p-8 bg-white/[0.02] rounded-[35px] border border-white/5 italic text-gray-300 leading-relaxed text-base shadow-inner">
                             {selectedPost.content}
                         </div>
-                        <div className="mt-6 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-[#00d2ff]/20 flex items-center justify-center text-xl shadow-lg border border-[#00d2ff]/30">👤</div>
-                            <div>
-                                <p className="text-xs font-black text-white">{selectedPost.authorName}</p>
-                                <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">{new Date(selectedPost.timestamp).toLocaleString('ar-KW')}</p>
+                        <div className="mt-6 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-[#00d2ff]/20 flex items-center justify-center text-xl shadow-lg border border-[#00d2ff]/30">👤</div>
+                                <div>
+                                    <p className="text-xs font-black text-white">{selectedPost.authorName}</p>
+                                    <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">{new Date(selectedPost.timestamp).toLocaleString('ar-KW')}</p>
+                                </div>
                             </div>
+                            {user?.uid === selectedPost.authorUid && (
+                                <button onClick={() => handleDeletePost(selectedPost.id)} className="p-2 text-gray-600 hover:text-red-500 transition-colors" title="حذف منشوري"><Trash2 size={16}/></button>
+                            )}
                         </div>
                     </div>
                     
@@ -487,19 +577,19 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
            ) : (
              <div className="glass-panel p-16 rounded-[60px] border-2 border-dashed border-white/5 text-center opacity-30 sticky top-24 bg-black/40">
                 <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-                    <MessageSquare size={40} className="text-gray-600" />
+                    <Bell size={40} className="text-gray-600" />
                 </div>
-                <p className="font-black text-sm uppercase tracking-[0.2em] leading-relaxed italic">اختر منشوراً من القائمة<br/>لمشاهدة التفاصيل والمشاركة في الحوار الأكاديمي</p>
+                <p className="font-black text-sm uppercase tracking-[0.2em] leading-relaxed italic">نظام التنبيهات نشط 🔔<br/>ستتلقى إشعاراً فورياً عند قيام أي شخص بالرد على منشوراتك</p>
              </div>
            )}
         </div>
       </div>
 
       {showAskModal && (
-        <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-fadeIn" onClick={() => setShowAskModal(false)}>
+        <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-fadeIn" onClick={handleCloseAskModal}>
            <div className="glass-panel w-full max-w-2xl p-14 rounded-[70px] border-white/10 relative shadow-[0_50px_150px_rgba(0,0,0,0.9)] overflow-hidden" onClick={e => e.stopPropagation()}>
               <div className="absolute top-0 right-0 p-16 opacity-[0.03] text-9xl pointer-events-none italic font-black">ASK</div>
-              <button onClick={() => setShowAskModal(false)} className="absolute top-10 left-10 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full transition-all hover:scale-110"><X size={24}/></button>
+              <button onClick={handleCloseAskModal} className="absolute top-10 left-10 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full transition-all hover:scale-110"><X size={24}/></button>
               
               <div className="mb-12">
                 <span className="bg-[#00d2ff]/10 text-[#00d2ff] px-5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.4em] border border-[#00d2ff]/20">مساحة الطالب</span>
@@ -534,6 +624,14 @@ const Forum: React.FC<ForumProps> = ({ user, onAskAI }) => {
                    {isSubmitting ? <RefreshCw className="animate-spin" size={24}/> : "🚀"}
                    نشر الاستفسار في الساحة
                  </button>
+
+                 {postError && (
+                    <div className="mt-6 p-4 bg-red-900/50 border border-red-500/30 rounded-[25px] text-center animate-shake">
+                        <p className="text-sm font-bold text-red-400 flex items-center justify-center gap-2">
+                            <AlertCircle size={18} /> {postError}
+                        </p>
+                    </div>
+                 )}
               </div>
            </div>
         </div>

@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { ForumSection, Forum } from '../types';
+import { ForumSection, Forum, User } from '../types';
 import { dbService } from '../services/db';
-import { Plus, Trash2, Edit, Save, X, RefreshCw, ChevronUp, ChevronDown, MessageSquare, GripVertical, PlusCircle, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Edit, Save, X, RefreshCw, ChevronUp, ChevronDown, MessageSquare, GripVertical, PlusCircle, Image as ImageIcon, Users } from 'lucide-react';
 
 const AdminForumManager: React.FC = () => {
     const [sections, setSections] = useState<ForumSection[]>([]);
+    const [teachers, setTeachers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [editingSection, setEditingSection] = useState<Partial<ForumSection> | null>(null);
@@ -18,8 +19,12 @@ const AdminForumManager: React.FC = () => {
 
     const loadData = async () => {
         setIsLoading(true);
-        const data = await dbService.getForumSections();
-        setSections(data);
+        const [sectionsData, teachersData] = await Promise.all([
+            dbService.getForumSections(),
+            dbService.getTeachers()
+        ]);
+        setSections(sectionsData);
+        setTeachers(teachersData);
         setIsLoading(false);
     };
 
@@ -149,7 +154,7 @@ const AdminForumManager: React.FC = () => {
                                                 </div>
                                                 <div>
                                                     <span className="text-lg font-black text-white">{forum.title}</span>
-                                                    <p className="text-[10px] text-gray-500 truncate max-w-[150px]">{forum.description}</p>
+                                                    <p className="text-[10px] text-gray-500 truncate max-w-[150px] flex items-center gap-1">{forum.moderatorName ? <>🔐 {forum.moderatorName}</> : 'بدون إشراف'}</p>
                                                 </div>
                                             </div>
                                             <div className="flex gap-2 opacity-0 group-hover/forum:opacity-100 transition-opacity">
@@ -205,6 +210,29 @@ const AdminForumManager: React.FC = () => {
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-500 uppercase mr-4">اسم المنتدى</label>
                                         <input type="text" placeholder="مثال: استفسارات الوحدة الأولى" value={editingForum.forum.title} onChange={e => setEditingForum({...editingForum, forum: {...editingForum.forum, title: e.target.value}})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-gray-500 uppercase mr-4 flex items-center gap-2"><Users size={12}/> تعيين مشرف</label>
+                                        <select 
+                                            value={editingForum.forum.moderatorUid || ''}
+                                            onChange={e => {
+                                                const selectedTeacher = teachers.find(t => t.uid === e.target.value);
+                                                setEditingForum({
+                                                    ...editingForum, 
+                                                    forum: {
+                                                        ...editingForum.forum, 
+                                                        moderatorUid: selectedTeacher?.uid,
+                                                        moderatorName: selectedTeacher?.name
+                                                    }
+                                                });
+                                            }}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-400 font-bold"
+                                        >
+                                            <option value="">-- بدون مشرف --</option>
+                                            {teachers.map(teacher => (
+                                                <option key={teacher.uid} value={teacher.uid}>{teacher.name}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-500 uppercase mr-4">رابط صورة الغلاف (ImageUrl)</label>
