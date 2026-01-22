@@ -331,7 +331,7 @@ class SyrianScienceCenterDB {
     if (status === 'PAID') {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
-            const invoiceData = snap.data();
+            const invoiceData = snap.data() as any;
             // Explicitly cast to string to avoid 'unknown' type errors during firestore 'doc' calls
             const userId = invoiceData.userId as string | undefined;
             if (typeof userId === 'string' && userId) {
@@ -427,7 +427,7 @@ class SyrianScienceCenterDB {
     const newStatus: PaymentStatus = status === 'SUCCESS' ? 'PAID' : 'FAIL';
     const updateData = { status: newStatus };
     await updateDoc(docRef, updateData);
-    const invoiceData = snapshot.docs[0].data();
+    const invoiceData = snapshot.docs[0].data() as any;
     if (status === 'SUCCESS') {
       // Explicitly cast to string to avoid 'unknown' type errors during firestore 'doc' calls
       const userId = invoiceData.userId as string | undefined;

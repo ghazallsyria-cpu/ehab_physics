@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, AlertTriangle, ExternalLink, Copy, Check, RefreshCw, HelpCircle, CheckCircle } from 'lucide-react';
+import { Settings, AlertTriangle, ExternalLink, Copy, Check, RefreshCw, HelpCircle, CheckCircle, Code } from 'lucide-react';
 
 interface SupabaseConnectionFixerProps {
   onFix: () => void;
@@ -8,23 +8,21 @@ interface SupabaseConnectionFixerProps {
 const SupabaseConnectionFixer: React.FC<SupabaseConnectionFixerProps> = ({ onFix }) => {
   const [copiedSupabase, setCopiedSupabase] = useState(false);
 
-  const supabaseStoragePolicies = `
--- 🚀 SUPABASE STORAGE RLS POLICIES FOR FIREBASE AUTH 🚀
---  bucket: 'assets'
--- These policies MUST be applied via the SQL Editor.
+  const supabaseStoragePolicies = `-- 🛠️ إصلاح شامل لصلاحيات التخزين (SQL Script) 🛠️
+-- هذا الكود يقوم بتفعيل الحماية وإنشاء القواعد لجدول objects المخفي
 
--- 1. PUBLIC READ ACCESS
--- Allows ANYONE (including non-logged-in users) to view and list files.
--- This is crucial for displaying images in your app.
+-- أولاً: تفعيل نظام الحماية (RLS) برمجياً لضمان عمل القواعد
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- ثانياً: السماح للجميع (عام) برؤية الملفات (ضروري لعرض الصور)
 DROP POLICY IF EXISTS "Public Read Access on Assets" ON storage.objects;
 CREATE POLICY "Public Read Access on Assets"
   ON storage.objects FOR SELECT
   TO public
   USING ( bucket_id = 'assets' );
 
--- 2. AUTHENTICATED UPLOAD
--- Allows only logged-in users to UPLOAD files into the 'uploads' folder.
--- It checks if the user's Firebase UID matches the 'owner_id' in the file metadata.
+-- ثالثاً: السماح للمستخدمين برفع الملفات إلى مجلد uploads
+-- نستخدم metadata->>'owner_id' لربطه بـ Firebase UID
 DROP POLICY IF EXISTS "Authenticated Upload to Uploads Folder" ON storage.objects;
 CREATE POLICY "Authenticated Upload to Uploads Folder"
   ON storage.objects FOR INSERT
@@ -36,9 +34,7 @@ CREATE POLICY "Authenticated Upload to Uploads Folder"
     (storage.foldername(name))[1] = 'uploads'
   );
 
--- 3. OWNER CAN DELETE
--- Allows a logged-in user to DELETE only their own files.
--- It checks the 'owner_id' in the metadata against their Firebase UID.
+-- رابعاً: السماح للمستخدم بحذف ملفاته الخاصة فقط
 DROP POLICY IF EXISTS "Owner Can Delete Own Assets" ON storage.objects;
 CREATE POLICY "Owner Can Delete Own Assets"
   ON storage.objects FOR DELETE
@@ -57,61 +53,51 @@ CREATE POLICY "Owner Can Delete Own Assets"
   };
 
   return (
-    <div className="glass-panel p-10 rounded-[40px] border-red-500/20 bg-red-500/5 animate-slideUp">
-      <div className="flex items-start gap-6">
-        <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 shrink-0"><AlertTriangle size={32} /></div>
+    <div className="glass-panel p-8 md:p-12 rounded-[50px] border-red-500/20 bg-red-500/5 animate-slideUp border-2 shadow-2xl">
+      <div className="flex items-start gap-8">
+        <div className="w-16 h-16 rounded-3xl bg-red-500/20 flex items-center justify-center text-red-500 shrink-0 shadow-lg border border-red-500/20">
+          <AlertTriangle size={40} />
+        </div>
         <div className="flex-1">
-          <h4 className="text-xl font-black text-red-400 mb-2 uppercase tracking-widest">إجراء مطلوب: إعداد صلاحيات Supabase</h4>
-          <p className="text-sm text-gray-300 mb-8">لقد اكتشف النظام أن الاتصال بمخزن الملفات (Supabase Storage) فشل بسبب عدم وجود الصلاحيات الكافية. لحل هذه المشكلة، يرجى اتباع الخطوات التالية بدقة في لوحة تحكم مشروع Supabase الخاص بك.</p>
+          <h4 className="text-2xl font-black text-red-400 mb-4 uppercase tracking-tighter">حل مشكلة "عدم ظهور جداول التخزين"</h4>
+          <p className="text-gray-300 mb-8 leading-relaxed">
+            من الطبيعي ألا تجد جدول <code className="bg-black/40 px-2 py-1 rounded text-amber-400">objects</code> في قائمة الجداول العادية لأنه جدول للنظام. 
+            الحل هو استخدام **محرر SQL** لتنفيذ الأوامر مباشرة دون الحاجة للبحث عن الجداول في الواجهة الرسومية.
+          </p>
           
-          <div className="bg-black/40 rounded-3xl p-8 border border-white/5 mb-8">
-            <h5 className="text-amber-400 font-black text-sm mb-4 flex items-center gap-2"><CheckCircle size={16}/> المتطلبات الأساسية (تحقق منها أولاً)</h5>
-            <ol className="text-xs text-gray-400 space-y-4 list-decimal list-inside leading-relaxed">
-                <li>في لوحة تحكم Supabase، اذهب إلى **Storage**. تأكد من وجود "Bucket" باسم `assets` بالضبط.</li>
-                <li>اضغط على النقاط الثلاث بجانب `assets` واختر **Bucket settings**. تأكد من أن خيار **Public bucket** **مفعّل (on)**.</li>
-                <li>اذهب إلى **Authentication** ثم **Policies**. ابحث عن جدول `objects` (داخل `storage` schema) وتأكد من أن **Row Level Security (RLS)** **مفعلة (Enabled)**.</li>
-            </ol>
-          </div>
+          <div className="space-y-8">
+            <div className="bg-black/40 rounded-[35px] p-8 border border-white/5 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl"></div>
+                <h5 className="text-blue-400 font-black text-sm mb-6 flex items-center gap-3 relative z-10">
+                    <Code size={18}/> الخطوة النهائية: تنفيذ كود SQL
+                </h5>
+                <p className="text-xs text-gray-400 mb-6 leading-relaxed relative z-10">
+                    1. افتح <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline font-bold inline-flex items-center gap-1">محرر SQL الجديد من هنا <ExternalLink size={12}/></a>.
+                    <br/>2. انسخ الكود البرمجي أدناه بالكامل.
+                    <br/>3. الصقه في المحرر ثم اضغط على زر <span className="text-emerald-400 font-bold">"RUN"</span> الأخضر.
+                </p>
+                
+                <div className="relative group">
+                    <pre className="bg-black/80 p-6 rounded-2xl text-[10px] font-mono text-emerald-400 overflow-x-auto ltr text-left border border-white/10 max-h-64 no-scrollbar">
+                        {supabaseStoragePolicies}
+                    </pre>
+                    <button onClick={handleCopyRules} className="absolute top-4 left-4 p-3 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest backdrop-blur-md">
+                        {copiedSupabase ? <><Check size={14}/> تم النسخ</> : <><Copy size={14}/> نسخ الكود</>}
+                    </button>
+                </div>
+            </div>
 
-          <div className="bg-black/40 rounded-3xl p-8 border border-white/5 mb-8">
-            <h5 className="text-amber-400 font-black text-sm mb-4 flex items-center gap-2"><Settings size={16}/> الخطوة 1: تعريف Firebase كمصدر توثيق (JWT)</h5>
-            <ol className="text-xs text-gray-400 space-y-4 list-decimal list-inside leading-relaxed">
-                <li>افتح <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/auth/providers`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">صفحة إعدادات التوثيق <ExternalLink size={10}/></a> في Supabase.</li>
-                <li>ابحث عن مزود **JWT** وقم بتفعيله.</li>
-                <li>املأ الحقول بالقيم التالية **بدقة تامة**:
-                    <ul className="list-disc pr-8 mt-2 space-y-2 text-gray-300 font-mono text-left ltr bg-black/40 p-4 rounded-xl border border-white/10">
-                        <li><strong>JWKS URL:</strong> `https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com`</li>
-                        <li><strong>Issuer:</strong> `https://securetoken.google.com/{process.env.VITE_FIREBASE_PROJECT_ID}` <span className="text-amber-500 font-sans text-[10px]">(تأكد من أن معرف المشروع صحيح!)</span></li>
-                    </ul>
-                </li>
-                <li>اضغط **Save**.</li>
-            </ol>
-          </div>
-          
-          <div className="bg-black/40 rounded-3xl p-8 border border-white/5 mb-8">
-            <h5 className="text-amber-400 font-black text-sm mb-4 flex items-center gap-2"><Settings size={16}/> الخطوة 2: تطبيق سياسات الأمان على مخزن الملفات</h5>
-            <p className="text-xs text-gray-400 mb-4 leading-relaxed">اذهب إلى <a href={`https://supabase.com/dashboard/project/${process.env.VITE_SUPABASE_URL?.split('.')[0].replace('https://', '')}/sql/new`} target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-1">محرر SQL <ExternalLink size={10}/></a>، وانسخ الكود أدناه بالكامل وقم بتنفيذه بالضغط على **"RUN"**. (إذا قمت بذلك سابقاً، نفذه مرة أخرى للتأكد).</p>
-            <div className="mt-6 relative group">
-                <pre className="bg-black/60 p-5 rounded-xl text-[10px] font-mono text-emerald-400 overflow-x-auto ltr text-left border border-white/10">{supabaseStoragePolicies}</pre>
-                <button onClick={handleCopyRules} className="absolute top-4 left-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all flex items-center gap-2 text-[10px] font-bold">
-                    {copiedSupabase ? <><Check size={12}/> تم النسخ</> : <><Copy size={12}/> نسخ الكود</>}
-                </button>
+            <div className="bg-amber-500/5 border border-amber-500/20 p-8 rounded-[35px]">
+                <h5 className="font-black text-amber-400 mb-4 flex items-center gap-3"><HelpCircle size={18}/> ماذا لو ظهر خطأ أثناء تشغيل الكود؟</h5>
+                <p className="text-xs text-amber-300/70 leading-relaxed">
+                    إذا ظهر خطأ يخبرك بأن الـ Bucket غير موجود، تأكد أولاً من إنشاء مخزن باسم <code className="bg-black/40 px-2 py-0.5 rounded text-white">assets</code> في قسم الـ **Storage** وجعله **Public**. ثم أعد تشغيل الكود.
+                </p>
             </div>
           </div>
-          
-          <div className="bg-yellow-500/5 border border-yellow-500/20 p-8 rounded-3xl mt-12">
-            <h5 className="font-black text-yellow-400 mb-4 flex items-center gap-2"><HelpCircle size={16}/> لم تنجح الخطوات؟ (استكشاف الأخطاء)</h5>
-            <ul className="text-xs text-yellow-300/80 list-disc pr-5 space-y-2">
-                <li>**تأكد من اسم الـ Bucket:** يجب أن يكون اسمه `assets` بالضبط (أحرف صغيرة).</li>
-                <li>**تأكد من تفعيل RLS:** يجب أن تكون RLS مفعلة على جدول `objects` وليس جدول `buckets`.</li>
-                <li>**تحقق من معرف المشروع:** تأكد من أنك نسخت معرف مشروع Firebase (`VITE_FIREBASE_PROJECT_ID`) بشكل صحيح في حقل `Issuer`. أي خطأ هنا سيفشل العملية كلها.</li>
-                <li>**نفّذ الكود مرة أخرى:** أحياناً لا يتم تطبيق السياسات بشكل صحيح. حاول نسخ ولصق كود SQL مرة أخرى وتشغيله.</li>
-            </ul>
-          </div>
 
-          <div className="mt-10 pt-6 border-t border-white/10 flex justify-end">
-              <button onClick={onFix} className="bg-green-600 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-green-500 transition-all shadow-lg flex items-center gap-3">
-                  <RefreshCw size={14}/> لقد أكملت كل الخطوات، أعد فحص الاتصال
+          <div className="mt-12 pt-8 border-t border-white/10 flex justify-end">
+              <button onClick={onFix} className="bg-emerald-600 hover:bg-emerald-500 text-white px-12 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-[0_10px_30px_rgba(16,185,129,0.3)] flex items-center gap-4 active:scale-95">
+                  <RefreshCw size={18}/> لقد نفذت الكود، أعد فحص الاتصال الآن
               </button>
           </div>
         </div>

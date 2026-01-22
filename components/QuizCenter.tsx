@@ -89,7 +89,8 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
             <div key={category}>
               <h3 className="text-2xl font-bold mb-6 border-r-4 border-[#fbbf24] pr-4">{category}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {quizList.map(quiz => {
+                {/* FIX: Ensure quizList is treated as a Quiz array for mapping */}
+                {(quizList as Quiz[]).map(quiz => {
                   // FIX: Explicitly type attemptsForThisQuiz to StudentQuizAttempt[] to avoid 'unknown' inference in complex JSX maps
                   const attemptsForThisQuiz: StudentQuizAttempt[] = userAttempts.filter(a => a.quizId === quiz.id).sort((a,b) => (b.attemptNumber || 0) - (a.attemptNumber || 0));
                   return (
@@ -109,7 +110,7 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
                           <div className="mb-6 space-y-2 pt-6 border-t border-white/10">
                               <h5 className="text-xs font-bold text-gray-400 mb-2">محاولاتك السابقة:</h5>
                               {/* FIX: att is now properly typed as StudentQuizAttempt through the explicit array type above */}
-                              {attemptsForThisQuiz.map(att => (
+                              {(attemptsForThisQuiz as StudentQuizAttempt[]).map(att => (
                                   <div key={att.id} className="flex justify-between items-center bg-black/40 p-3 rounded-xl text-xs">
                                       <span className="font-bold">محاولة #{att.attemptNumber}</span>
                                       <div className="flex items-center gap-2">
