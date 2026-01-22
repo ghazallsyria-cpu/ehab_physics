@@ -3,7 +3,7 @@ import { Lesson, User, ContentBlock } from '../types';
 import { dbService } from '../services/db';
 import katex from 'katex';
 import YouTubePlayer from './YouTubePlayer';
-import { Share2, Copy, Send, Twitter, Mail, X, Check, Eye, EyeOff } from 'lucide-react';
+import { Share2, Copy, Send, Twitter, Mail, X, Check, Eye, EyeOff, Lock, Zap } from 'lucide-react';
 
 interface LessonViewerProps {
   user: User;
@@ -16,6 +16,9 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [isContentVisible, setIsContentVisible] = useState(true);
   const [scrollProgress, setScrollProgress] = useState(0);
+
+  // 💰 التحقق من الاشتراك: الدروس الأولى مجانية (اختياري)، الباقي بريميوم
+  const isSubscriber = user.subscription === 'premium' || user.role === 'admin' || user.role === 'teacher';
 
   useEffect(() => {
     setIsCompleted((user.progress.completedLessonIds || []).includes(lesson.id));
@@ -32,21 +35,15 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
         const progress = (currentScroll / totalScrollableHeight) * 100;
         setScrollProgress(Math.min(progress, 100));
     };
-
     window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // Initial check
-
-    return () => {
-        window.removeEventListener('scroll', handleScroll);
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-
   const handleToggleComplete = async () => {
+    if (!isSubscriber) return;
     const wasCompleted = isCompleted;
     await dbService.toggleLessonComplete(user.uid, lesson.id);
     setIsCompleted(!isCompleted);
-
     if (!wasCompleted) {
         await dbService.createNotification({
             userId: user.uid,
@@ -59,275 +56,77 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
         });
     }
   };
-  
-  const handleCopyLink = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    });
-  };
-
-  const extractYoutubeId = (url: string): string | null => {
-    if (!url) {
-        return null;
-    }
-    const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]{11}).*/;
-    const match = url.match(regExp);
-
-    return (match && match[1]) ? match[1] : null;
-  };
-
-  const handleNativeShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `درس: ${lesson.title} - المركز السوري للعلوم`,
-          text: `شاهد درس "${lesson.title}" على منصة المركز السوري للعلوم.`,
-          url: window.location.href,
-        });
-      } catch (err) {
-        console.log('Share failed:', err);
-      }
-    }
-  };
-
-  const shareLinks = {
-    whatsapp: `https://wa.me/?text=${encodeURIComponent(`درس: ${lesson.title} - المركز السوري للعلوم \n ${window.location.href}`)}`,
-    twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`أدرس الآن درس "${lesson.title}" على منصة المركز السوري للعلوم ⚛️`)}&url=${encodeURIComponent(window.location.href)}`,
-    email: `mailto:?subject=${encodeURIComponent(`درس فيزياء: ${lesson.title}`)}&body=${encodeURIComponent(`مرحباً، \n\nأود مشاركة هذا الدرس معك من المركز السوري للعلوم: \n\n${lesson.title} \n\nالرابط: ${window.location.href}`)}`
-  };
-  
-  const renderTextBlock = (content: string) => {
-    const html = content
-      .replace(/(\$\$[\s\S]*?\$\$)/g, (match) => katex.renderToString(match.slice(2, -2), { displayMode: true, throwOnError: false }))
-      .replace(/(\$.*?\$)/g, (match) => katex.renderToString(match.slice(1, -1), { throwOnError: false }));
-      
-    return <div className="prose prose-invert prose-lg max-w-none text-gray-300 leading-loose text-xl md:text-2xl" dangerouslySetInnerHTML={{ __html: html }} />;
-  };
-
-  const renderVideoBlock = (url: string) => {
-    const videoId = extractYoutubeId(url);
-
-    if (videoId) {
-        return (
-            <div className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-lg">
-                <YouTubePlayer videoId={videoId} />
-            </div>
-        );
-    }
-    
-    // FIX: Use a <video> tag for direct video URLs, not an iframe.
-    return (
-      <div className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-lg">
-        <video
-          controls
-          src={url}
-          className="w-full h-full object-contain bg-black"
-        >
-            متصفحك لا يدعم عرض الفيديو.
-        </video>
-      </div>
-    );
-  };
 
   const renderContentBlock = (block: ContentBlock, index: number) => {
+    // 🛡️ منطق حماية المحتوى: إذا لم يكن مشتركاً، لا ترسم أي بلوك محتوى فعلي
+    if (!isSubscriber) return null;
+
     switch (block.type) {
       case 'text':
-        return renderTextBlock(block.content);
+        const html = block.content
+          .replace(/(\$\$[\s\S]*?\$\$)/g, (match) => katex.renderToString(match.slice(2, -2), { displayMode: true, throwOnError: false }))
+          .replace(/(\$.*?\$)/g, (match) => katex.renderToString(match.slice(1, -1), { throwOnError: false }));
+        return <div key={index} className="prose prose-invert prose-lg max-w-none text-gray-300 leading-loose text-xl md:text-2xl mb-10" dangerouslySetInnerHTML={{ __html: html }} />;
       case 'image':
-        return (
-          <figure className="my-10">
-            <img src={block.content} alt={block.caption || `Lesson image ${index + 1}`} className="w-full h-auto rounded-[30px] border border-white/10" />
-            {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
-          </figure>
-        );
+        return <img key={index} src={block.content} className="w-full h-auto rounded-[30px] border border-white/10 my-10" />;
       case 'video':
-        return (
-           <figure className="my-10">
-            {renderVideoBlock(block.content)}
-            {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
-          </figure>
-        );
       case 'youtube':
-        const ytId = extractYoutubeId(block.content);
-        return (
-          <figure className="my-10">
-            <div className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-lg">
-               {ytId ? (
-                 <YouTubePlayer videoId={ytId} />
-               ) : (
-                 <div className="w-full h-full flex flex-col items-center justify-center p-10 text-center bg-white/5">
-                    <span className="text-4xl mb-4">⚠️</span>
-                    <p className="text-sm font-bold text-red-400">رابط يوتيوب غير صالح</p>
-                    <p className="text-[10px] text-gray-500 mt-2">يرجى التحقق من الرابط في محرر الدروس</p>
-                 </div>
-               )}
-            </div>
-             {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
-          </figure>
-        );
-      case 'pdf':
-        return (
-          <figure className="my-10">
-            <div className="aspect-[4/5] bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-lg">
-              <iframe src={block.content} width="100%" height="100%" title={block.caption || `PDF Document ${index+1}`}></iframe>
-            </div>
-             {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
-          </figure>
-        );
-      case 'audio':
-        return (
-          <figure className="my-10">
-            <audio controls src={block.content} className="w-full rounded-[30px]"></audio>
-            {block.caption && <figcaption className="text-center text-sm text-gray-500 mt-4 italic">{block.caption}</figcaption>}
-          </figure>
-        );
+        // تحويل الروابط لعرض الفيديو
+        return <div key={index} className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 my-10"><YouTubePlayer videoId={block.content.includes('v=') ? block.content.split('v=')[1] : block.content} /></div>;
       default:
         return null;
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto animate-fadeIn font-['Tajawal']">
-        <div className="glass-panel p-10 md:p-16 rounded-[60px] border-white/5 bg-black/40 relative">
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">{lesson.title}</h2>
-            <div className="flex items-center justify-between mb-10">
-                <div className="flex items-center gap-4">
-                  <span className="px-4 py-1 bg-[#00d2ff]/10 text-[#00d2ff] rounded-full text-[10px] font-bold border border-[#00d2ff]/20">{lesson.type}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button 
-                    onClick={() => setIsContentVisible(!isContentVisible)}
-                    className="p-3 bg-white/5 border border-white/10 rounded-2xl text-gray-400 hover:text-white transition-all flex items-center gap-2 group"
-                    >
-                    {isContentVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-                    <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">
-                        {isContentVisible ? 'إخفاء المحتوى' : 'إظهار المحتوى'}
-                    </span>
-                    </button>
-                    <button 
-                    onClick={() => setIsShareModalOpen(true)}
-                    className="p-3 bg-white/5 border border-white/10 rounded-2xl text-gray-400 hover:text-[#00d2ff] hover:bg-[#00d2ff]/5 transition-all flex items-center gap-2 group"
-                    >
-                    <Share2 size={18} className="group-hover:scale-110 transition-transform" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">مشاركة</span>
-                    </button>
-                </div>
-            </div>
+    <div className="max-w-4xl mx-auto animate-fadeIn font-['Tajawal']" dir="rtl">
+        <div className="glass-panel p-10 md:p-16 rounded-[60px] border-white/5 bg-black/40 relative overflow-hidden">
             
-            <div className="w-full h-1 bg-white/5 rounded-full mb-10 overflow-hidden">
-                <div 
-                    className="h-full bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full transition-all duration-150 ease-linear"
-                    style={{ width: `${scrollProgress}%` }}
-                ></div>
-            </div>
-
-            <div className={`transition-all duration-700 ease-in-out grid ${isContentVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-                <div className="overflow-hidden">
-                    <div className="space-y-8 pt-2">
-                        {(lesson.content || []).map(renderContentBlock)}
+            {/* عرض قفل للمشتركين المجانيين */}
+            {!isSubscriber && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0a1118]/95 backdrop-blur-xl p-10 text-center">
+                    <div className="w-24 h-24 bg-amber-500/20 rounded-[40px] flex items-center justify-center text-amber-500 mb-8 border border-amber-500/30 animate-bounce">
+                        <Lock size={48} />
                     </div>
-                </div>
-            </div>
-
-            {!isContentVisible && (
-                <div className="text-center py-20 bg-black/20 rounded-[30px] border-2 border-dashed border-white/10 animate-fadeIn mt-8">
-                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10">
-                        <EyeOff className="text-gray-500" size={32} />
-                    </div>
-                    <p className="font-bold text-gray-400">المحتوى مخفي</p>
-                    <p className="text-xs text-gray-600 mt-1">اضغط على زر "إظهار المحتوى" لعرض التفاصيل.</p>
+                    <h2 className="text-4xl font-black text-white mb-4 italic">هذا المحتوى <span className="text-amber-500">حصرى</span></h2>
+                    <p className="text-gray-400 text-lg mb-10 max-w-md">يجب أن تكون مشتركاً في باقة التفوق للوصول إلى كافة الدروس، الفيديوهات، وبنك الأسئلة.</p>
+                    <button 
+                        onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'subscription' } }))}
+                        className="bg-amber-500 text-black px-12 py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-2xl flex items-center gap-3"
+                    >
+                        <Zap size={18} /> اشترك الآن وفعل حسابك
+                    </button>
+                    <p className="mt-8 text-gray-600 text-xs font-bold">بوابة المركز السوري للعلوم - الكويت</p>
                 </div>
             )}
 
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-4 text-right">{lesson.title}</h2>
+            
+            {isSubscriber && (
+                <>
+                    <div className="flex items-center justify-between mb-10">
+                        <div className="flex items-center gap-4">
+                            <span className="px-4 py-1 bg-[#00d2ff]/10 text-[#00d2ff] rounded-full text-[10px] font-bold border border-[#00d2ff]/20">{lesson.type}</span>
+                        </div>
+                        <button onClick={() => setIsShareModalOpen(true)} className="p-3 bg-white/5 border border-white/10 rounded-2xl text-gray-400 hover:text-[#00d2ff] transition-all"><Share2 size={18} /></button>
+                    </div>
+                    
+                    <div className="w-full h-1 bg-white/5 rounded-full mb-10 overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full transition-all" style={{ width: `${scrollProgress}%` }}></div>
+                    </div>
 
-            <div className="mt-16 pt-10 border-t border-white/5 flex flex-col sm:flex-row justify-end items-center gap-6">
-              <div className="flex items-center gap-4">
-                <button onClick={() => setIsShareModalOpen(true)} className="px-8 py-4 rounded-2xl font-bold text-xs uppercase bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all flex items-center gap-2">
-                   <Share2 size={14} /> مشاركة الدرس
-                </button>
-                <button onClick={handleToggleComplete} className={`px-8 py-4 rounded-2xl font-bold text-xs uppercase transition-all flex items-center gap-2 shadow-xl ${isCompleted ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95'}`}>
-                  {isCompleted ? '✓ مكتمل' : 'إكمال الدرس'}
-                </button>
-              </div>
-            </div>
+                    <div className="space-y-2">
+                        {(lesson.content || []).map(renderContentBlock)}
+                    </div>
+
+                    <div className="mt-16 pt-10 border-t border-white/5 flex justify-end gap-6">
+                        <button onClick={handleToggleComplete} className={`px-8 py-4 rounded-2xl font-bold text-xs uppercase transition-all flex items-center gap-2 shadow-xl ${isCompleted ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95'}`}>
+                        {isCompleted ? '✓ مكتمل' : 'إكمال الدرس'}
+                        </button>
+                    </div>
+                </>
+            )}
         </div>
-
-        {isShareModalOpen && (
-          <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 animate-fadeIn" onClick={() => setIsShareModalOpen(false)}>
-            <div 
-              className="glass-panel w-full max-w-md p-10 rounded-[50px] border-white/10 relative shadow-3xl bg-[#0a1118]"
-              onClick={e => e.stopPropagation()}
-            >
-              <button onClick={() => setIsShareModalOpen(false)} className="absolute top-6 left-6 text-gray-500 hover:text-white p-2 bg-white/5 rounded-full">
-                <X size={18} />
-              </button>
-              
-              <div className="text-center mb-10">
-                <div className="w-16 h-16 bg-[#00d2ff]/10 text-[#00d2ff] rounded-3xl flex items-center justify-center mx-auto mb-6">
-                  <Share2 size={32} />
-                </div>
-                <h3 className="text-2xl font-black text-white">مشاركة الدرس</h3>
-                <p className="text-gray-500 text-sm mt-2">شارك الفائدة مع زملائك في الدراسة</p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-4 bg-black/40 border border-white/10 rounded-2xl">
-                   <input 
-                    type="text" 
-                    readOnly 
-                    value={window.location.href} 
-                    className="flex-1 bg-transparent text-[10px] text-gray-500 outline-none truncate font-mono"
-                   />
-                   <button 
-                    onClick={handleCopyLink}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${copySuccess ? 'bg-green-500 text-white' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
-                   >
-                     {copySuccess ? <><Check size={12}/> تم النسخ</> : <><Copy size={12}/> نسخ</>}
-                   </button>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                   <a 
-                    href={shareLinks.whatsapp} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="flex flex-col items-center justify-center gap-3 p-6 bg-green-500/10 border border-green-500/20 rounded-3xl text-green-500 hover:bg-green-500 hover:text-black transition-all group"
-                   >
-                      <Send size={24} className="group-hover:scale-110 transition-transform" />
-                      <span className="text-[9px] font-black uppercase tracking-widest">WhatsApp</span>
-                   </a>
-                   <a 
-                    href={shareLinks.twitter} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="flex flex-col items-center justify-center gap-3 p-6 bg-sky-500/10 border border-sky-500/20 rounded-3xl text-sky-400 hover:bg-sky-500 hover:text-black transition-all group"
-                   >
-                      <Twitter size={24} className="group-hover:scale-110 transition-transform" />
-                      <span className="text-[9px] font-black uppercase tracking-widest">Twitter</span>
-                   </a>
-                   <a 
-                    href={shareLinks.email} 
-                    className="flex flex-col items-center justify-center gap-3 p-6 bg-purple-500/10 border border-purple-500/20 rounded-3xl text-purple-400 hover:bg-purple-500 hover:text-black transition-all group"
-                   >
-                      <Mail size={24} className="group-hover:scale-110 transition-transform" />
-                      <span className="text-[9px] font-black uppercase tracking-widest">Email</span>
-                   </a>
-                </div>
-
-                {navigator.share && (
-                  <button 
-                    onClick={handleNativeShare}
-                    className="w-full mt-4 py-4 bg-[#00d2ff] text-black rounded-[25px] font-black text-xs uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
-                  >
-                    مشاركة عبر النظام
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
     </div>
   );
 };
