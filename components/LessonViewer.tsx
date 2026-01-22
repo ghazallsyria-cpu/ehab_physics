@@ -3,7 +3,7 @@ import { Lesson, User, ContentBlock } from '../types';
 import { dbService } from '../services/db';
 import katex from 'katex';
 import YouTubePlayer from './YouTubePlayer';
-import { Share2, Copy, Send, Twitter, Mail, X, Check, Eye, EyeOff, Lock, Zap } from 'lucide-react';
+import { Share2, Copy, Send, Twitter, Mail, X, Check, Eye, EyeOff, Lock, Zap, FileText, Download, ExternalLink } from 'lucide-react';
 
 interface LessonViewerProps {
   user: User;
@@ -17,7 +17,7 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
   const [isContentVisible, setIsContentVisible] = useState(true);
   const [scrollProgress, setScrollProgress] = useState(0);
 
-  // 💰 التحقق من الاشتراك: الدروس الأولى مجانية (اختياري)، الباقي بريميوم
+  // 💰 التحقق من الاشتراك
   const isSubscriber = user.subscription === 'premium' || user.role === 'admin' || user.role === 'teacher';
 
   useEffect(() => {
@@ -58,21 +58,66 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
   };
 
   const renderContentBlock = (block: ContentBlock, index: number) => {
-    // 🛡️ منطق حماية المحتوى: إذا لم يكن مشتركاً، لا ترسم أي بلوك محتوى فعلي
+    // 🛡️ حماية المحتوى
     if (!isSubscriber) return null;
 
     switch (block.type) {
       case 'text':
         const html = block.content
-          .replace(/(\$\$[\s\S]*?\$\$)/g, (match) => katex.renderToString(match.slice(2, -2), { displayMode: true, throwOnError: false }))
+          .replace(/(\$\$[\s\S]*?\Metadata[\s\S]*?\$\$)/g, (match) => katex.renderToString(match.slice(2, -2), { displayMode: true, throwOnError: false }))
           .replace(/(\$.*?\$)/g, (match) => katex.renderToString(match.slice(1, -1), { throwOnError: false }));
         return <div key={index} className="prose prose-invert prose-lg max-w-none text-gray-300 leading-loose text-xl md:text-2xl mb-10" dangerouslySetInnerHTML={{ __html: html }} />;
+      
       case 'image':
-        return <img key={index} src={block.content} className="w-full h-auto rounded-[30px] border border-white/10 my-10" />;
+        return (
+          <div key={index} className="my-10 space-y-4">
+            <img src={block.content} className="w-full h-auto rounded-[30px] border border-white/10 shadow-2xl" alt={block.caption || 'Lesson visual'} />
+            {block.caption && <p className="text-center text-gray-500 text-sm italic">{block.caption}</p>}
+          </div>
+        );
+
+      case 'pdf':
+        return (
+          <div key={index} className="my-10 p-8 md:p-12 glass-panel rounded-[40px] border-2 border-blue-500/20 bg-blue-500/5 flex flex-col md:flex-row items-center gap-8 group hover:border-blue-500/40 transition-all">
+            <div className="w-20 h-20 bg-blue-500 text-white rounded-[25px] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <FileText size={40} />
+            </div>
+            <div className="flex-1 text-center md:text-right">
+                <h4 className="text-xl font-black text-white mb-2">{block.caption || 'ملف PDF ملحق بالدرس'}</h4>
+                <p className="text-gray-500 text-sm font-medium">مذكرة دراسية أو ملخص بصيغة PDF قابلة للتحميل والطباعة.</p>
+            </div>
+            <div className="flex flex-col gap-3 w-full md:w-auto">
+                <a 
+                    href={block.content} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex items-center justify-center gap-3 px-8 py-4 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-400 transition-all shadow-xl"
+                >
+                    <ExternalLink size={16} /> فتح الملف
+                </a>
+                <a 
+                    href={block.content} 
+                    download 
+                    className="flex items-center justify-center gap-3 px-8 py-3 bg-white/5 border border-white/10 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
+                >
+                    <Download size={14} /> تحميل للتحضير
+                </a>
+            </div>
+          </div>
+        );
+
       case 'video':
       case 'youtube':
-        // تحويل الروابط لعرض الفيديو
-        return <div key={index} className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 my-10"><YouTubePlayer videoId={block.content.includes('v=') ? block.content.split('v=')[1] : block.content} /></div>;
+        const videoId = block.content.includes('v=') ? block.content.split('v=')[1] : block.content;
+        return (
+          <div key={index} className="my-10 space-y-4">
+            <div className="aspect-video bg-black rounded-[30px] overflow-hidden border border-white/10 shadow-2xl">
+              <YouTubePlayer videoId={videoId} />
+            </div>
+            {block.caption && <p className="text-center text-gray-500 text-sm italic">{block.caption}</p>}
+          </div>
+        );
+        
       default:
         return null;
     }
