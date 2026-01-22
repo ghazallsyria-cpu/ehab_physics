@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Quiz, Question, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
-import { ClipboardList, PlusCircle, Edit, Trash2, X, Save, RefreshCw, BarChart, Check, Award, MessageSquare } from 'lucide-react';
+import { ClipboardList, PlusCircle, Edit, Trash2, X, Save, RefreshCw, BarChart, Check, Award, MessageSquare, ExternalLink, FileText, Image as ImageIcon } from 'lucide-react';
 import QuestionEditor from './QuestionEditor';
 import katex from 'katex';
 
@@ -115,7 +114,6 @@ const AdminQuizManager: React.FC = () => {
     await loadData();
   };
   
-  // Other handlers from previous state...
   const handleDeleteQuiz = async (quizId: string) => {
     if (window.confirm('هل أنت متأكد من حذف هذا الاختبار؟')) {
       await dbService.deleteQuiz(quizId);
@@ -146,32 +144,116 @@ const AdminQuizManager: React.FC = () => {
   const removeQuestionFromQuiz = (questionId: string) => setQuizQuestions(prev => prev.filter(q => q.id !== questionId));
   const renderMathText = (text: string) => { try { if (!text) return <div/>; const html = text.replace(/\$(.*?)\$/g, (match, math) => katex.renderToString(math, { throwOnError: false })); return <div dangerouslySetInnerHTML={{ __html: html }} />; } catch { return <div>{text}</div>; }};
 
+  const renderAnswerContent = (answer: any) => {
+    if (!answer) return <span className="text-gray-600 italic">لم تتم الإجابة</span>;
+    
+    // التحقق مما إذا كان الرابط هو ملف مرفوع لـ Supabase
+    if (typeof answer === 'string' && (answer.startsWith('http') || answer.includes('supabase.co'))) {
+        const isImage = answer.match(/\.(jpeg|jpg|gif|png)$/i);
+        return (
+            <div className="mt-4 flex flex-col gap-4">
+                <div className="flex items-center gap-3 bg-blue-500/10 p-4 rounded-2xl border border-blue-500/20">
+                    {isImage ? <ImageIcon className="text-blue-400" /> : <FileText className="text-blue-400" />}
+                    <div className="flex-1">
+                        <p className="text-xs font-bold text-blue-400 uppercase tracking-widest">ملف مرفق من الطالب</p>
+                        <p className="text-[10px] text-gray-500 truncate max-w-[200px]">{answer}</p>
+                    </div>
+                    <a href={answer} target="_blank" rel="noreferrer" className="bg-blue-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-blue-600 transition-all shadow-lg">
+                        <ExternalLink size={12} /> فتح المرفق
+                    </a>
+                </div>
+                {isImage && (
+                    <div className="rounded-2xl overflow-hidden border border-white/5 max-w-xs shadow-xl">
+                        <img src={answer} alt="Student answer" className="w-full h-auto opacity-80 hover:opacity-100 transition-opacity cursor-zoom-in" onClick={() => window.open(answer, '_blank')} />
+                    </div>
+                )}
+            </div>
+        );
+    }
+    
+    return <p className="text-sm text-cyan-300 mt-1 italic leading-relaxed">"{answer}"</p>;
+  };
+
   if (reviewingAttempt && viewingAttemptsFor) {
     return (
-        <div className="animate-fadeIn font-['Tajawal'] text-right" dir="rtl">
+        <div className="animate-fadeIn font-['Tajawal'] text-right pb-20" dir="rtl">
             <button onClick={() => setReviewingAttempt(null)} className="flex items-center gap-2 px-6 py-3 mb-6 bg-white/5 text-white rounded-lg text-xs font-bold border border-white/10">← العودة لقائمة المحاولات</button>
-            <div className="glass-panel p-8 rounded-3xl border-white/5">
-                <h3 className="text-xl font-bold">مراجعة محاولة: {reviewingAttempt.studentName}</h3>
-                <div className="space-y-4 mt-6">
+            <div className="glass-panel p-8 md:p-12 rounded-[50px] border-white/5">
+                <div className="flex justify-between items-center mb-10 border-b border-white/5 pb-6">
+                    <div>
+                        <h3 className="text-2xl font-black">مراجعة وتصحيح: <span className="text-[#fbbf24]">{reviewingAttempt.studentName}</span></h3>
+                        <p className="text-gray-500 text-xs mt-1">اختبار: {viewingAttemptsFor.title} • محاولة رقم {reviewingAttempt.attemptNumber}</p>
+                    </div>
+                    <div className="text-left">
+                        <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">وقت التسليم</p>
+                        <p className="text-sm font-bold text-white tabular-nums">{new Date(reviewingAttempt.completedAt).toLocaleString('ar-KW')}</p>
+                    </div>
+                </div>
+
+                <div className="space-y-8">
                     {quizQuestions.map((q, idx) => {
                       const userAnswer = reviewingAttempt.answers[q.id];
                       const gradeInfo = manualGrades[q.id] || { awardedScore: 0, feedback: '' };
                       return (
-                        <div key={q.id} className="p-4 bg-black/40 rounded-2xl border border-white/5">
-                           <p className="font-bold">({idx+1}) {renderMathText(q.text)}</p>
-                           <p className="text-xs text-gray-400 mt-2">الإجابة النموذجية: {q.modelAnswer || q.correctChoiceId}</p>
-                           <p className="text-sm text-cyan-300 mt-1 italic">إجابة الطالب: {userAnswer || "لم تتم الإجابة"}</p>
-                           {q.type !== 'mcq' && (
-                             <div className="flex gap-4 mt-4 pt-4 border-t border-white/10">
-                               <input type="number" max={q.score} value={gradeInfo.awardedScore} onChange={e => setManualGrades({...manualGrades, [q.id]: {...gradeInfo, awardedScore: Math.min(q.score, Number(e.target.value)) }})} className="bg-white/10 w-24 p-2 rounded" placeholder={`الدرجة/${q.score}`} />
-                               <input type="text" value={gradeInfo.feedback} onChange={e => setManualGrades({...manualGrades, [q.id]: {...gradeInfo, feedback: e.target.value }})} className="flex-1 bg-white/10 p-2 rounded" placeholder="ملاحظات (اختياري)" />
-                             </div>
-                           )}
+                        <div key={q.id} className="p-8 bg-black/40 rounded-[40px] border border-white/5 relative overflow-hidden group">
+                           <div className="flex justify-between items-start mb-6">
+                                <div className="flex items-center gap-4">
+                                    <span className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center font-black text-[#fbbf24]">{idx+1}</span>
+                                    <h4 className="text-lg font-bold text-white">{renderMathText(q.text)}</h4>
+                                </div>
+                                <span className="px-4 py-1 bg-white/5 rounded-full text-[9px] font-black text-gray-500 uppercase tracking-widest">{q.type}</span>
+                           </div>
+
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest block">إجابة الطالب:</label>
+                                    <div className="bg-white/[0.02] p-6 rounded-[30px] border border-white/5">
+                                        {renderAnswerContent(userAnswer)}
+                                    </div>
+                                    <div className="p-4 bg-green-500/5 rounded-2xl border border-green-500/10">
+                                        <label className="text-[8px] font-black text-green-500 uppercase block mb-1">الإجابة النموذجية:</label>
+                                        <p className="text-xs text-gray-400">{q.modelAnswer || q.correctChoiceId}</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest block">التقييم اليدوي:</label>
+                                    <div className="flex flex-col gap-4">
+                                        <div className="relative">
+                                            <input 
+                                                type="number" 
+                                                max={q.score} 
+                                                value={gradeInfo.awardedScore} 
+                                                onChange={e => setManualGrades({...manualGrades, [q.id]: {...gradeInfo, awardedScore: Math.min(q.score, Number(e.target.value)) }})} 
+                                                className="w-full bg-black/60 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#fbbf24] font-black text-xl tabular-nums" 
+                                                placeholder={`الدرجة المستحقة`} 
+                                            />
+                                            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 font-bold">/ {q.score}</span>
+                                        </div>
+                                        <textarea 
+                                            value={gradeInfo.feedback} 
+                                            onChange={e => setManualGrades({...manualGrades, [q.id]: {...gradeInfo, feedback: e.target.value }})} 
+                                            className="w-full bg-black/60 border border-white/10 rounded-2xl p-4 text-sm text-white outline-none focus:border-[#fbbf24] h-24" 
+                                            placeholder="أضف ملاحظات تصحيحية للطالب هنا..." 
+                                        />
+                                    </div>
+                                </div>
+                           </div>
                         </div>
                       )
                     })}
                 </div>
-                <button onClick={handleSaveReview} disabled={isLoading} className="mt-6 w-full py-4 bg-green-500 text-black font-bold rounded-lg">{isLoading ? 'جاري الحفظ...':'حفظ المراجعة والدرجة النهائية'}</button>
+
+                <div className="mt-12 p-8 bg-[#fbbf24]/5 border border-[#fbbf24]/20 rounded-[40px] flex flex-col md:flex-row justify-between items-center gap-8">
+                    <div className="text-center md:text-right">
+                        <h4 className="text-lg font-black text-[#fbbf24]">اعتماد الدرجة النهائية</h4>
+                        <p className="text-xs text-gray-500 mt-1">سيتم إرسال إشعار فوري للطالب بالنتيجة والملاحظات.</p>
+                    </div>
+                    <button onClick={handleSaveReview} disabled={isLoading} className="w-full md:w-auto bg-[#fbbf24] text-black px-12 py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3">
+                        {isLoading ? <RefreshCw className="animate-spin" /> : <Save size={18}/>}
+                        حفظ المراجعة والاعتماد
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -192,14 +274,14 @@ const AdminQuizManager: React.FC = () => {
                     <thead className="border-b border-white/10 text-xs font-bold text-gray-500 uppercase"><tr className="text-right"><th className="p-4">اسم الطالب</th><th className="p-4 text-center">النتيجة</th><th className="p-4 text-center">الحالة</th><th className="p-4 text-center">الإجراء</th></tr></thead>
                     <tbody>
                         {quizAttempts.map(att => (
-                            <tr key={att.id} className="border-b border-white/5">
+                            <tr key={att.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                                 <td className="p-4 font-bold">{att.studentName}</td>
                                 <td className="p-4 text-center font-mono">{att.score} / {att.maxScore}</td>
                                 <td className="p-4 text-center">
-                                    <span className={`text-[8px] font-bold px-2 py-1 rounded ${att.status === 'pending-review' ? 'bg-yellow-500/10 text-yellow-400' : att.status === 'manually-graded' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{att.status}</span>
+                                    <span className={`text-[8px] font-bold px-2 py-1 rounded ${att.status === 'pending-review' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : att.status === 'manually-graded' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-gray-500/10 text-gray-400'}`}>{att.status}</span>
                                 </td>
                                 <td className="p-4 text-center">
-                                    <button onClick={() => handleReviewAttempt(att)} className="text-xs font-bold bg-white/10 px-3 py-1 rounded">مراجعة وتصحيح</button>
+                                    <button onClick={() => handleReviewAttempt(att)} className="text-xs font-bold bg-[#fbbf24] text-black px-4 py-2 rounded-xl hover:scale-105 transition-all">مراجعة وتصحيح</button>
                                 </td>
                             </tr>
                         ))}
@@ -224,7 +306,6 @@ const AdminQuizManager: React.FC = () => {
     );
   }
 
-  // Main list view
   return (
     <div className="animate-fadeIn font-['Tajawal'] text-right" dir="rtl">
       <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8"><h2 className="text-3xl font-black text-white">إدارة <span className="text-[#fbbf24]">الاختبارات</span></h2><div className="flex gap-4"><button onClick={loadData} className="p-4 bg-white/5 rounded-2xl text-white hover:bg-white/10 transition-all border border-white/10"><RefreshCw size={20} className={isLoading ? 'animate-spin' : ''}/></button><button onClick={handleCreateNewQuiz} className="bg-[#fbbf24] text-black px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-all flex items-center gap-2"><PlusCircle size={18} /> إنشاء اختبار جديد</button></div></header>
