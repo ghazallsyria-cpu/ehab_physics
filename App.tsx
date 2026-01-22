@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { User, ViewState, Lesson, Quiz, StudentQuizAttempt } from './types';
 import { dbService } from './services/db';
-import { Bell, ArrowRight, Menu, RefreshCw, ChevronLeft, LayoutDashboard, User as UserIcon, LogOut } from 'lucide-react';
+import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, User as UserIcon, LogOut } from 'lucide-react';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
@@ -41,14 +41,13 @@ const AdminAssetManager = lazy(() => import('./components/AdminAssetManager'));
 const AdminQuizManager = lazy(() => import('./components/AdminQuizManager'));
 const PhysicsJourneyMap = lazy(() => import('./components/PhysicsJourneyMap'));
 const ResourcesCenter = lazy(() => import('./components/ResourcesCenter'));
-const PaymentCertificate = lazy(() => import('./components/PaymentCertificate'));
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [viewStack, setViewStack] = useState<ViewState[]>(['landing']);
-  const view = viewStack[viewStack.length - 1];
   
+  const currentView = viewStack[viewStack.length - 1];
   const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
@@ -56,11 +55,36 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  // مستشعر الحالة - يعمل مرة واحدة عند التشغيل
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const appUser = await dbService.getUser(firebaseUser.uid);
+          if (appUser) {
+            setUser(appUser);
+            // توجيه تلقائي للداشبورد إذا كان المستخدم قد دخل المنصة مسبقاً
+            setViewStack(prev => {
+                if (prev.includes('landing') || prev.includes('auth')) return ['dashboard'];
+                return prev;
+            });
+          }
+        } catch (e) {
+          console.error("Auth error:", e);
+        }
+      } else {
+        setUser(null);
+      }
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // مستمع لأحداث التنقل
   useEffect(() => {
     const handleViewChange = (event: Event) => {
       const { view: newView, lesson, quiz, attempt, subject } = (event as CustomEvent).detail;
       if (newView) {
-        // إذا كانت الوجهة هي الداشبورد، نصفر المكدس لضمان عدم وجود مسارات معلقة
         if (newView === 'dashboard') {
           setViewStack(['dashboard']);
         } else {
@@ -75,90 +99,36 @@ const App: React.FC = () => {
     };
 
     const handleGoBack = () => setViewStack(prev => prev.length > 1 ? prev.slice(0, -1) : prev);
-    const handleResetToDashboard = () => setViewStack(['dashboard']);
 
     window.addEventListener('change-view', handleViewChange);
     window.addEventListener('go-back', handleGoBack);
-    window.addEventListener('reset-to-dashboard', handleResetToDashboard);
-
     return () => {
       window.removeEventListener('change-view', handleViewChange);
       window.removeEventListener('go-back', handleGoBack);
-      window.removeEventListener('reset-to-dashboard', handleResetToDashboard);
     };
   }, []);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          const appUser = await dbService.getUser(firebaseUser.uid);
-          if (appUser) {
-            setUser(appUser);
-            // توجيه تلقائي للداشبورد إذا كان المستخدم قد سجل دخوله وكان في صفحة الهبوط
-            if (viewStack[0] === 'landing' || viewStack[0] === 'auth') {
-              setViewStack(['dashboard']);
-            }
-          }
-        } catch (e) {
-          console.error("Auth sync error:", e);
-        }
-      } else {
-        setUser(null);
-      }
-      setIsAuthLoading(false);
-    });
-    return () => unsubscribe();
-  }, [viewStack]);
-
-  const getViewTitle = (v: ViewState): string => {
-    switch (v) {
-      case 'curriculum': return 'المناهج الدراسية';
-      case 'lesson': return activeLesson?.title || 'عرض الدرس';
-      case 'quiz_center': return 'مركز الاختبارات';
-      case 'quiz_player': return activeQuiz?.title || 'الاختبار جاري';
-      case 'attempt_review': return 'مراجعة المحاولة';
-      case 'discussions': return 'ساحة النقاش';
-      case 'ai-chat': return 'المساعد الذكي';
-      case 'virtual-lab': return 'المختبر الافتراضي';
-      case 'live-sessions': return 'الجلسات المباشرة';
-      case 'subscription': return 'باقات الاشتراك';
-      case 'recommendations': return 'توصيات التعلم';
-      case 'journey-map': return 'خريطة الرحلة';
-      case 'resources-center': return 'المكتبة الرقمية';
-      case 'reports': return 'تقارير الأداء';
-      case 'admin-students': return 'إدارة الطلاب';
-      case 'admin-teachers': return 'إدارة المعلمين';
-      case 'admin-curriculum': return 'إدارة المحتوى';
-      case 'admin-quizzes': return 'إدارة الاختبارات';
-      case 'admin-financials': return 'التقارير المالية';
-      case 'admin-settings': return 'إعدادات النظام';
-      default: return 'الرئيسية';
-    }
-  };
 
   const renderContent = () => {
     if (isAuthLoading) {
       return (
-        <div className="flex flex-col items-center justify-center h-[60vh] gap-6">
+        <div className="flex flex-col items-center justify-center h-[70vh] gap-6">
           <div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-400 font-bold animate-pulse">جاري تحضير الواجهة...</p>
+          <p className="text-gray-400 font-bold animate-pulse">جاري التحقق من الهوية...</p>
         </div>
       );
     }
 
-    // إذا لم يكن المستخدم مسجلاً، دائماً اظهر صفحة الهبوط أو الدخول
-    if (!user && view !== 'landing' && view !== 'auth') {
-        return <LandingPage onStart={() => setViewStack(['auth'])} />;
+    if (!user && currentView !== 'landing' && currentView !== 'auth') {
+      return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
     }
 
-    switch (view) {
+    switch (currentView) {
       case 'landing': return <LandingPage onStart={() => setViewStack(['auth'])} />;
       case 'auth': return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
       case 'dashboard':
         if (user?.role === 'admin') return <AdminDashboard />;
         if (user?.role === 'teacher') return <TeacherDashboard user={user} />;
-        return user ? <StudentDashboard user={user} /> : null;
+        return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
       case 'curriculum': return user ? <CurriculumBrowser user={user} subject={activeSubject} /> : null;
       case 'lesson': return activeLesson && user ? <LessonViewer user={user} lesson={activeLesson} /> : null;
       case 'quiz_center': return user ? <QuizCenter user={user} /> : null;
@@ -183,15 +153,11 @@ const App: React.FC = () => {
       case 'admin-settings': return <AdminSettings />;
       case 'admin-forums': return <AdminForumManager />;
       case 'admin-assets': return <AdminAssetManager />;
-      case 'payment-certificate': return user && activeAttempt ? <PaymentCertificate user={user} invoice={activeAttempt as any} /> : null;
-      default: 
-        // الحالة الافتراضية لمنع الصفحات البيضاء
-        return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
+      default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
     }
   };
 
-  // تنسيق الصفحات العامة (Landing & Auth)
-  if (view === 'landing' || view === 'auth' || !user) {
+  if (currentView === 'landing' || currentView === 'auth') {
     return (
       <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal']" dir="rtl">
         <Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>
@@ -201,11 +167,10 @@ const App: React.FC = () => {
     );
   }
 
-  // تنسيق الصفحات الداخلية للمنصة بعد تسجيل الدخول
   return (
-    <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative" dir="rtl">
+    <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
       <Sidebar 
-        currentView={view} 
+        currentView={currentView} 
         setView={(v, s) => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: v, subject: s } }))}
         user={user!} 
         onLogout={() => signOut(auth).then(() => setViewStack(['landing']))}
@@ -214,13 +179,10 @@ const App: React.FC = () => {
       />
       
       <div className="flex-1 flex flex-col min-w-0 lg:mr-72 relative z-10 transition-all">
-        {/* شريط الملاحة العلوي الثابت - يحتوي على زر الرجوع */}
         <header className="sticky top-0 z-[40] bg-[#0A2540]/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex justify-between items-center shadow-lg">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-white bg-white/5 rounded-xl"><Menu size={20} /></button>
-            
-            {/* زر الرجوع الذكي */}
-            {viewStack.length > 1 && view !== 'dashboard' ? (
+            {viewStack.length > 1 && currentView !== 'dashboard' ? (
               <button 
                 onClick={() => window.dispatchEvent(new CustomEvent('go-back'))}
                 className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-2xl transition-all border border-white/10 group"
@@ -230,32 +192,24 @@ const App: React.FC = () => {
               </button>
             ) : (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-400 text-black rounded-xl flex items-center justify-center shadow-lg"><LayoutDashboard size={20}/></div>
-                <h1 className="font-black text-white text-lg tracking-tight uppercase">الرئيسية</h1>
+                <div className="w-10 h-10 bg-amber-400 text-black rounded-xl flex items-center justify-center shadow-lg shadow-amber-400/20"><LayoutDashboard size={20}/></div>
+                <h1 className="font-black text-white text-lg tracking-tight">الرئيسية</h1>
               </div>
             )}
           </div>
 
           <div className="flex items-center gap-4">
-             {/* عنوان الصفحة الحالية */}
-             {view !== 'dashboard' && (
-                <h2 className="hidden md:block text-gray-400 text-xs font-bold uppercase tracking-widest border-r border-white/10 pr-4">
-                    {getViewTitle(view)}
-                </h2>
-             )}
-             
              <button onClick={() => setShowNotifications(true)} className="p-2.5 text-gray-400 hover:text-white bg-white/5 rounded-xl relative transition-all">
                <Bell size={20} />
                <span className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full border-2 border-[#0A2540]"></span>
              </button>
-             
              <div className="hidden sm:flex items-center gap-3 bg-white/5 p-1.5 pr-4 rounded-2xl border border-white/5">
                 <div className="text-right">
                     <p className="text-[10px] font-black text-white leading-none">{user?.name.split(' ')[0]}</p>
                     <p className="text-[8px] text-gray-500 font-bold uppercase mt-1">{user?.role}</p>
                 </div>
                 <div className="w-8 h-8 rounded-xl bg-black/40 flex items-center justify-center text-xs border border-white/10 text-amber-400 font-black">
-                    {user?.name.charAt(0)}
+                    {user?.name?.charAt(0)}
                 </div>
              </div>
           </div>
