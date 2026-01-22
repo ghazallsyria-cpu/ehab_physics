@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ForumSection, Forum, User, LoggingSettings } from '../types';
 import { dbService } from '../services/db';
-import { Plus, Trash2, Edit, Save, X, RefreshCw, ChevronUp, ChevronDown, MessageSquare, PlusCircle, Image as ImageIcon, Users, ShieldCheck, Zap, Globe } from 'lucide-react';
+import { Plus, Trash2, Edit, Save, X, RefreshCw, ChevronUp, ChevronDown, MessageSquare, PlusCircle, Database, ShieldCheck, Zap, Globe } from 'lucide-react';
 
 const AdminForumManager: React.FC = () => {
     const [sections, setSections] = useState<ForumSection[]>([]);
@@ -33,6 +33,20 @@ const AdminForumManager: React.FC = () => {
             console.error("Load error:", e);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleInitialize = async () => {
+        if (!confirm("سيتم إنشاء الجداول الأساسية ومنشور ترحيبي لضمان عمل قاعدة البيانات. هل تود الاستمرار؟")) return;
+        setIsSaving(true);
+        try {
+            await dbService.initializeForumSystem();
+            setMessage({ text: "تمت تهيئة الجداول (Collections) بنجاح ✅", type: 'success' });
+            await loadData();
+        } catch (e) {
+            setMessage({ text: "فشلت التهيئة.", type: 'error' });
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -94,9 +108,10 @@ const AdminForumManager: React.FC = () => {
                     <h2 className="text-4xl font-black text-white flex items-center gap-4 italic uppercase tracking-tighter">
                         <MessageSquare className="text-[#fbbf24]" size={32} /> إدارة <span className="text-[#fbbf24]">المنتديات والنقاشات</span>
                     </h2>
-                    <p className="text-gray-500 mt-2">تحكم في هيكل الأقسام، صلاحيات الطلاب، وتعيين المشرفين.</p>
+                    <p className="text-gray-500 mt-2">تحكم في هيكل الأقسام، وصلاحيات الطلاب.</p>
                 </div>
                 <div className="flex gap-4">
+                    <button onClick={handleInitialize} className="bg-red-500/10 border border-red-500/30 text-red-400 px-6 py-4 rounded-2xl font-black text-xs uppercase flex items-center gap-2 hover:bg-red-500 hover:text-white transition-all"><Database size={18} /> تهيئة الجداول</button>
                     <button onClick={addSection} className="bg-white/5 border border-white/10 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase flex items-center gap-2 hover:bg-white/10 transition-all"><PlusCircle size={18} /> قسم رئيسي</button>
                     <button onClick={handleSaveEverything} disabled={isSaving} className="bg-[#fbbf24] text-black px-10 py-4 rounded-2xl font-black text-xs uppercase flex items-center gap-3 shadow-2xl hover:scale-105 active:scale-95 transition-all">
                         {isSaving ? <RefreshCw className="animate-spin" size={18}/> : <Save size={18} />} حفظ التغييرات
@@ -146,6 +161,7 @@ const AdminForumManager: React.FC = () => {
                 <div className="py-40 text-center animate-pulse"><RefreshCw className="w-12 h-12 text-[#fbbf24] animate-spin mx-auto mb-6" /></div>
             ) : (
                 <div className="space-y-10">
+                    {sections.length === 0 && <div className="text-center py-20 opacity-30 italic">لا توجد أقسام بعد. اضغط على "تهيئة الجداول" أو "قسم رئيسي" للبدء.</div>}
                     {sections.map((section, index) => (
                         <div key={section.id} className="glass-panel p-8 rounded-[40px] border border-white/5 bg-black/20 group relative overflow-hidden">
                             <div className="flex justify-between items-start mb-8 border-b border-white/5 pb-6">

@@ -26,6 +26,46 @@ class DBService {
     return clean;
   }
 
+  // --- تهيئة النظام (Critical Fix) ---
+  async initializeForumSystem() {
+    this.checkDb();
+    // 1. إنشاء قسم افتراضي لضمان وجود مجموعة forumSections
+    const defaultSection: ForumSection = {
+      id: 'sec_physics_12',
+      title: 'قسم الصف الثاني عشر',
+      description: 'نقاشات الفيزياء المتقدمة لطلاب الثاني عشر',
+      order: 0,
+      forums: [
+        { id: 'f_general', title: 'المنتدى العام', description: 'اسأل عن أي شيء في الفيزياء', icon: '⚛️', order: 0 }
+      ]
+    };
+    await setDoc(doc(db, 'forumSections', defaultSection.id), defaultSection);
+
+    // 2. إنشاء منشور ترحيبي لضمان وجود مجموعة forumPosts
+    const welcomePost: Omit<ForumPost, 'id'> = {
+      authorUid: 'system',
+      authorEmail: 'admin@ssc.com',
+      authorName: 'إدارة المنصة',
+      title: 'مرحباً بكم في ساحة النقاش',
+      content: 'هذه الساحة مخصصة لتبادل المعرفة. يمكنك طرح سؤالك الآن.',
+      tags: ['f_general'],
+      timestamp: new Date().toISOString(),
+      upvotes: 1,
+      replies: [],
+      isPinned: true
+    };
+    await addDoc(collection(db, 'forumPosts'), welcomePost);
+    
+    // 3. تهيئة الإعدادات
+    await setDoc(doc(db, 'settings', 'logging'), { 
+      logStudentProgress: true, 
+      saveAllQuizAttempts: true, 
+      logAIChatHistory: true, 
+      archiveTeacherMessages: true, 
+      forumAccessTier: 'free' 
+    });
+  }
+
   // --- إدارة المستخدمين ---
   async getUser(uidOrEmail: string): Promise<User | null> {
     this.checkDb();
@@ -76,7 +116,7 @@ class DBService {
     });
   }
 
-  // --- ساحة النقاش (المطورة) ---
+  // --- ساحة النقاش ---
   async getForumSections(): Promise<ForumSection[]> {
     this.checkDb();
     const snap = await getDocs(query(collection(db, 'forumSections'), orderBy('order')));
@@ -95,18 +135,13 @@ class DBService {
     try {
       const postsRef = collection(db, 'forumPosts');
       let q;
-      
-      // تبسيط الاستعلام لتجنب الحاجة لفهارس مركبة فورية
       if (forumId) {
         q = query(postsRef, where('tags', 'array-contains', forumId));
       } else {
         q = query(postsRef, limit(100));
       }
-      
       const snap = await getDocs(q);
       const results = snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
-      
-      // الترتيب في جهة العميل لضمان العمل دائماً
       return results.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     } catch (e) {
       console.error("Posts fetch error:", e);
