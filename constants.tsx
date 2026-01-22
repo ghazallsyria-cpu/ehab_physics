@@ -1,5 +1,5 @@
 
-import { Curriculum, Quiz, Question, Answer, SubscriptionPlan, Article, StudyGroup, PhysicsExperiment, PhysicsEquation } from './types';
+import { Curriculum, Quiz, Question, Answer, SubscriptionPlan, Article, StudyGroup, PhysicsExperiment, PhysicsEquation, EducationalResource } from './types';
 
 // --- 1. Educational Content Data ---
 export const CURRICULUM_DATA: Curriculum[] = [
@@ -13,7 +13,7 @@ export const CURRICULUM_DATA: Curriculum[] = [
       {
         id: 'u12-1',
         title: 'الوحدة 1: الكهرومغناطيسية',
-        description: 'الحث، المحولات، والموجات الكهرومغناطيسية.',
+        description: 'الحث، المحولات، والموجات الكهرومغناطيسية والتيار المتردد.',
         lessons: [
           { 
             id: 'l12-1-1', 
@@ -28,6 +28,16 @@ export const CURRICULUM_DATA: Curriculum[] = [
           },
           { 
             id: 'l12-1-2', 
+            title: 'قانون لنز وتحديد اتجاه التيار الحثي', 
+            type: 'THEORY', 
+            duration: '12 د', 
+            content: [{
+              type: 'text',
+              content: 'ينص قانون لنز على أن التيار الحثي المتولد في دائرة كهربائية مغلقة يكون له اتجاه بحيث يقاوم التغير في التدفق المغناطيسي الذي سببه. الإشارة السالبة في قانون فاراداي هي تعبير رياضي عن قانون لنز.'
+            }]
+          },
+          { 
+            id: 'l12-1-3', 
             title: 'مثال على المحولات', 
             type: 'EXAMPLE', 
             duration: '10 د', 
@@ -62,6 +72,43 @@ export const CURRICULUM_DATA: Curriculum[] = [
             content: [{
               type: 'text',
               content: 'مفهوم تكميم الطاقة. طاقة الفوتون: $$ E = hf $$'
+            }]
+          },
+          { 
+            id: 'l12-2-3', 
+            title: 'التأثير الكهروضوئي', 
+            type: 'THEORY', 
+            duration: '22 د', 
+            content: [{
+              type: 'text',
+              content: 'انبعاث الإلكترونات من سطح الفلز عند سقوط ضوء بتردد مناسب عليه. معادلة أينشتاين: $$ K_{max} = hf - \\phi $$'
+            }]
+          },
+        ]
+      },
+      {
+        id: 'u12-3',
+        title: 'الوحدة 3: الفيزياء النووية',
+        description: 'تركيب النواة، النشاط الإشعاعي، التفاعلات النووية، والطاقة النووية.',
+        lessons: [
+          { 
+            id: 'l12-3-1', 
+            title: 'تركيب النواة وخصائصها', 
+            type: 'THEORY', 
+            duration: '15 د', 
+            content: [{
+              type: 'text',
+              content: 'تتكون النواة من بروتونات ونيوترونات. العدد الذري (Z) هو عدد البروتونات، والعدد الكتلي (A) هو مجموع البروتونات والنيوترونات.'
+            }],
+          },
+          { 
+            id: 'l12-3-2', 
+            title: 'النشاط الإشعاعي الطبيعي', 
+            type: 'THEORY', 
+            duration: '18 د', 
+            content: [{
+              type: 'text',
+              content: 'انبعاث جسيمات ألفا ($$\\alpha$$) وبيتا ($$\\beta$$) وأشعة جاما ($$\\gamma$$) من الأنوية غير المستقرة.'
             }]
           },
         ]
@@ -313,6 +360,17 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 ];
 
 export const PRICING_PLANS = SUBSCRIPTION_PLANS;
+
+// --- 4. Digital Library Resources ---
+export const MOCK_RESOURCES: EducationalResource[] = [
+    { id: 'res-1', grade: '12', type: 'summary', title: 'ملخص شامل لوحدة الكهرومغناطيسية', size: '2.5 MB', year: 2023, term: '1', downloadCount: 1204, url: '#' },
+    { id: 'res-2', grade: '12', type: 'exam', title: 'امتحان تجريبي للفترة الدراسية الأولى 2022', size: '1.8 MB', year: 2022, term: '1', downloadCount: 3450, url: '#' },
+    { id: 'res-3', grade: '11', type: 'worksheet', title: 'ورقة عمل: قوانين نيوتن وتطبيقاتها', size: '800 KB', year: 2023, term: '1', downloadCount: 980, url: '#' },
+    { id: 'res-4', grade: '10', type: 'book', title: 'الكتاب المدرسي المعتمد - فيزياء الصف العاشر', size: '25 MB', year: 2023, term: '1', downloadCount: 5620, url: '#' },
+    { id: 'res-5', grade: '12', type: 'exam', title: 'امتحان نهاية العام 2021 مع نموذج الإجابة', size: '3.1 MB', year: 2021, term: '2', downloadCount: 8910, url: '#' },
+    { id: 'res-6', grade: '12', type: 'summary', title: 'مذكرة قوانين الفيزياء الحديثة والنووية', size: '1.2 MB', year: 2024, term: '2', downloadCount: 2103, url: '#' },
+];
+
 
 // --- 6. New Mock Data ---
 

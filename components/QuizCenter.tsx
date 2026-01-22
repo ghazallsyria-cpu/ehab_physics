@@ -106,7 +106,7 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
                        {attemptsForThisQuiz.length > 0 && (
                           <div className="mb-6 space-y-2 pt-6 border-t border-white/10">
                               <h5 className="text-xs font-bold text-gray-400 mb-2">محاولاتك السابقة:</h5>
-                              {/* FIX: Replaced an invalid JavaScript-style comment ('//') inside JSX with a valid JSX comment ('{/* ... * /}'). The original syntax error caused a downstream TypeScript error where `attemptsForThisQuiz` was incorrectly typed as `unknown`, preventing the use of `.map()`. */}
+                              {/* FIX: Replaced an invalid JavaScript-style comment ('//') inside JSX with a valid JSX comment ('{/* ... */}'). The original syntax error caused a downstream TypeScript error where `attemptsForThisQuiz` was incorrectly typed as `unknown`, preventing the use of `.map()`. */}
                               {attemptsForThisQuiz.map(att => (
                                   <div key={att.id} className="flex justify-between items-center bg-black/40 p-3 rounded-xl text-xs">
                                       <span className="font-bold">محاولة #{att.attemptNumber}</span>

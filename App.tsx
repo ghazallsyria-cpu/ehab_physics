@@ -46,6 +46,7 @@ const AdminAssetManager = lazy(() => import('./components/AdminAssetManager'));
 const AdminForumManager = lazy(() => import('./components/AdminForumManager'));
 const AdminCertificates = lazy(() => import('./components/AdminCertificates'));
 const CertificateVerificationPage = lazy(() => import('./components/CertificateVerificationPage'));
+const ResourcesCenter = lazy(() => import('./components/ResourcesCenter'));
 
 
 const App: React.FC = () => {
@@ -262,6 +263,8 @@ const App: React.FC = () => {
           return <PhysicsJourneyMap user={user} />;
         case 'help-center':
             return <HelpCenter />;
+        case 'resources-center':
+            return <ResourcesCenter user={user} />;
         // Admin Views
         case 'admin-curriculum':
           return user.role === 'admin' ? <AdminCurriculumManager /> : <StudentDashboard user={user} />;

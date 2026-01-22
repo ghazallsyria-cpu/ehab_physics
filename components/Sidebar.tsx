@@ -33,6 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
           ]},
           { label: 'الأدوات', items: [
             { id: 'quiz_center', label: 'مركز الاختبارات', icon: '⚡' },
+            { id: 'resources-center', label: 'المكتبة الرقمية', icon: '📚' },
             { id: 'discussions', label: 'ساحة النقاش', icon: '💬' },
             { id: 'ai-chat', label: 'المساعد الذكي', icon: '🤖' },
           ]},

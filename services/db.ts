@@ -2,7 +2,7 @@ import { User, Curriculum, Unit, Lesson, StudentQuizAttempt, AIRecommendation, F
 import { db, auth } from "./firebase";
 import { supabase } from "./supabase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, addDoc, query, where, updateDoc, arrayUnion, arrayRemove, increment, writeBatch, orderBy, limit, onSnapshot } from "firebase/firestore";
-import { QUIZZES_DB, QUESTIONS_DB } from "../constants";
+import { QUIZZES_DB, QUESTIONS_DB, MOCK_RESOURCES } from "../constants";
 
 const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
   logStudentProgress: true,
@@ -502,8 +502,9 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
     const snap = await getDoc(doc(db, 'forumPosts', postId));
     if (snap.exists()) {
       const data = snap.data() as ForumPost;
-      // FIX: Ensure 'replies' is an array before mapping to prevent runtime errors if Firestore data is inconsistent. This resolves an 'unknown' type error.
-      const replies = (Array.isArray(data.replies) ? data.replies : []).map(r => r.id === replyId ? { ...r, upvotes: (r.upvotes || 0) + 1 } : r);
+      // FIX: Ensure 'replies' is an array before mapping to prevent runtime errors if Firestore data is inconsistent.
+      // By adding an explicit type to `r`, we prevent TypeScript from inferring it as `any` or `unknown`, improving type safety.
+      const replies = (Array.isArray(data.replies) ? data.replies : []).map((r: ForumReply) => r.id === replyId ? { ...r, upvotes: (r.upvotes || 0) + 1 } : r);
       await updateDoc(doc(db, 'forumPosts', postId), { replies: this.cleanData(replies) });
     }
   }
@@ -662,7 +663,7 @@ async saveForumSections(sections: ForumSection[]): Promise<void> {
 
   // Mocks for unimplemented methods to prevent crashes
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> { return []; }
-  async getResources(): Promise<EducationalResource[]> { return []; }
+  async getResources(): Promise<EducationalResource[]> { return MOCK_RESOURCES; }
   async getTeacherReviews(teacherId: string): Promise<Review[]> { return []; }
   async addReview(review: Review): Promise<void> {}
   async saveTeacherMessage(message: TeacherMessage): Promise<void> {}
