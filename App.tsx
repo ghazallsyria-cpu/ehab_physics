@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { User, ViewState, Lesson, Curriculum, Quiz, StudentQuizAttempt } from './types';
+import { User, ViewState, Lesson, Quiz, StudentQuizAttempt } from './types';
 import { dbService } from './services/db';
-import { Bell, ArrowRight, Menu, RefreshCw } from 'lucide-react';
+import { Bell, ArrowRight, Menu, RefreshCw, ChevronLeft, LayoutDashboard, User as UserIcon } from 'lucide-react';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
@@ -58,7 +58,14 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleViewChange = (event: Event) => {
       const { view: newView, lesson, quiz, attempt, subject } = (event as CustomEvent).detail;
-      if (newView) setViewStack(prev => [...prev, newView]);
+      if (newView) {
+        // إذا كانت الوجهة هي الداشبورد، نصفر المكدس
+        if (newView === 'dashboard') {
+          setViewStack(['dashboard']);
+        } else {
+          setViewStack(prev => [...prev, newView]);
+        }
+      }
       if (subject) setActiveSubject(subject);
       if (lesson) setActiveLesson(lesson);
       if (quiz) setActiveQuiz(quiz);
@@ -87,14 +94,13 @@ const App: React.FC = () => {
           const appUser = await dbService.getUser(firebaseUser.uid);
           if (appUser) {
             setUser(appUser);
-            if (view === 'landing' || view === 'auth') {
-                setViewStack(['dashboard']);
+            // الانتقال التلقائي بعد النجاح
+            if (viewStack.includes('landing') || viewStack.includes('auth')) {
+              setViewStack(['dashboard']);
             }
-          } else {
-            setUser(null);
           }
         } catch (e) {
-          console.error("Auth fetch error", e);
+          console.error("Auth sync error", e);
         }
       } else {
         setUser(null);
@@ -102,16 +108,51 @@ const App: React.FC = () => {
       setIsAuthLoading(false);
     });
     return () => unsubscribe();
-  }, [view]);
+  }, [viewStack]);
+
+  const getViewTitle = (v: ViewState): string => {
+    switch (v) {
+      case 'curriculum': return 'المناهج الدراسية';
+      case 'lesson': return activeLesson?.title || 'عرض الدرس';
+      case 'quiz_center': return 'مركز الاختبارات';
+      case 'quiz_player': return activeQuiz?.title || 'الاختبار';
+      case 'attempt_review': return 'مراجعة المحاولة';
+      case 'discussions': return 'ساحة النقاش';
+      case 'ai-chat': return 'المساعد الذكي';
+      case 'virtual-lab': return 'المختبر الافتراضي';
+      case 'live-sessions': return 'الجلسات المباشرة';
+      case 'subscription': return 'باقات الاشتراك';
+      case 'recommendations': return 'توصيات الذكاء الاصطناعي';
+      case 'journey-map': return 'خريطة التعلم';
+      case 'resources-center': return 'المكتبة الرقمية';
+      case 'reports': return 'تقارير الأداء';
+      case 'quiz-performance': return 'تحليل النتائج';
+      case 'help-center': return 'دليل الاستخدام';
+      case 'admin-students': return 'إدارة الطلاب';
+      case 'admin-teachers': return 'إدارة المعلمين';
+      case 'admin-curriculum': return 'إدارة المحتوى';
+      case 'admin-quizzes': return 'إدارة الاختبارات';
+      case 'admin-financials': return 'التقارير المالية';
+      case 'admin-settings': return 'إعدادات المنصة';
+      case 'admin-forums': return 'إدارة المنتديات';
+      case 'admin-assets': return 'مكتبة الوسائط';
+      default: return 'الرئيسية';
+    }
+  };
 
   const renderContent = () => {
-    // إذا كان هناك فحص جاري، نظهر سبينر التحميل
-    if (isAuthLoading) return (
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <RefreshCw className="w-12 h-12 text-amber-400 animate-spin" />
-        <p className="text-gray-500 font-bold">جاري التحقق من الهوية...</p>
-      </div>
-    );
+    if (isAuthLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center h-[70vh] gap-6">
+          <div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(251,191,36,0.2)]"></div>
+          <p className="text-gray-400 font-bold animate-pulse">جاري تحضير بيئتك التعليمية...</p>
+        </div>
+      );
+    }
+
+    if (!user && view !== 'landing' && view !== 'auth') {
+      return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
+    }
 
     switch (view) {
       case 'landing': return <LandingPage onStart={() => setViewStack(['auth'])} />;
@@ -119,22 +160,22 @@ const App: React.FC = () => {
       case 'dashboard':
         if (user?.role === 'admin') return <AdminDashboard />;
         if (user?.role === 'teacher') return <TeacherDashboard user={user} />;
-        return user ? <StudentDashboard user={user} /> : <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
-      case 'curriculum': return user ? <CurriculumBrowser user={user} subject={activeSubject} /> : null;
-      case 'lesson': return activeLesson && user ? <LessonViewer user={user} lesson={activeLesson} /> : null;
-      case 'quiz_center': return user ? <QuizCenter user={user} /> : null;
-      case 'quiz_player': return activeQuiz && user ? <QuizPlayer user={user} quiz={activeQuiz} onFinish={() => setViewStack(['quiz_center'])} /> : null;
-      case 'attempt_review': return activeAttempt && user ? <AttemptReview user={user} attempt={activeAttempt} /> : null;
-      case 'discussions': return <Forum user={user} />;
-      case 'ai-chat': return user ? <AiTutor grade={user.grade} subject={activeSubject} /> : null;
-      case 'virtual-lab': return user ? <LabHub user={user} /> : null;
-      case 'live-sessions': return user ? <LiveSessions user={user} /> : null;
-      case 'subscription': return user ? <BillingCenter user={user} onUpdateUser={setUser} /> : null;
-      case 'recommendations': return user ? <Recommendations user={user} /> : null;
-      case 'journey-map': return user ? <PhysicsJourneyMap user={user} /> : null;
-      case 'resources-center': return user ? <ResourcesCenter user={user} /> : null;
-      case 'reports': return user ? <ProgressReport user={user} attempts={[]} /> : null;
-      case 'quiz-performance': return user ? <QuizPerformance user={user} /> : null;
+        return <StudentDashboard user={user!} />;
+      case 'curriculum': return <CurriculumBrowser user={user!} subject={activeSubject} />;
+      case 'lesson': return activeLesson ? <LessonViewer user={user!} lesson={activeLesson} /> : null;
+      case 'quiz_center': return <QuizCenter user={user!} />;
+      case 'quiz_player': return activeQuiz ? <QuizPlayer user={user!} quiz={activeQuiz} onFinish={() => setViewStack(['quiz_center'])} /> : null;
+      case 'attempt_review': return activeAttempt ? <AttemptReview user={user!} attempt={activeAttempt} /> : null;
+      case 'discussions': return <Forum user={user!} />;
+      case 'ai-chat': return <AiTutor grade={user!.grade} subject={activeSubject} />;
+      case 'virtual-lab': return <LabHub user={user!} />;
+      case 'live-sessions': return <LiveSessions user={user!} />;
+      case 'subscription': return <BillingCenter user={user!} onUpdateUser={setUser} />;
+      case 'recommendations': return <Recommendations user={user!} />;
+      case 'journey-map': return <PhysicsJourneyMap user={user!} />;
+      case 'resources-center': return <ResourcesCenter user={user!} />;
+      case 'reports': return <ProgressReport user={user!} attempts={[]} />;
+      case 'quiz-performance': return <QuizPerformance user={user!} />;
       case 'help-center': return <HelpCenter />;
       case 'admin-students': return <AdminStudentManager />;
       case 'admin-teachers': return <AdminTeacherManager />;
@@ -144,19 +185,11 @@ const App: React.FC = () => {
       case 'admin-settings': return <AdminSettings />;
       case 'admin-forums': return <AdminForumManager />;
       case 'admin-assets': return <AdminAssetManager />;
-      default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
+      default: return <StudentDashboard user={user!} />;
     }
   };
 
-  // شاشة التحميل الأولية للموقع
-  if (isAuthLoading && view === 'landing') return (
-    <div className="h-screen bg-[#0A2540] flex items-center justify-center">
-      <div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-    </div>
-  );
-
-  // إذا كنا في صفحة الهبوط أو تسجيل الدخول، نعرضهم بكامل الشاشة
-  if (view === 'landing' || view === 'auth' || !user) {
+  if (view === 'landing' || view === 'auth') {
     return (
       <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal']" dir="rtl">
         <Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>
@@ -166,9 +199,8 @@ const App: React.FC = () => {
     );
   }
 
-  // الهيكل الأساسي بعد تسجيل الدخول
   return (
-    <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative" dir="rtl">
+    <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-x-hidden" dir="rtl">
       <Sidebar 
         currentView={view} 
         setView={(v, s) => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: v, subject: s } }))}
@@ -179,18 +211,41 @@ const App: React.FC = () => {
       />
       
       <div className="flex-1 flex flex-col min-w-0 lg:mr-72 relative z-10 transition-all">
-        <header className="lg:hidden p-4 bg-black/20 flex justify-between items-center sticky top-0 z-[40] backdrop-blur-md">
-          <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-white"><Menu /></button>
-          <span className="font-black text-xl text-white">SSC</span>
-          <button onClick={() => setShowNotifications(true)} className="p-2 text-white relative"><Bell /></button>
+        {/* Navigation Header - Fixed for all pages except Dashboards to ensure "Back" is always present */}
+        <header className="sticky top-0 z-[40] bg-[#0A2540]/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-white bg-white/5 rounded-xl"><Menu size={20} /></button>
+            
+            {viewStack.length > 1 && view !== 'dashboard' ? (
+              <button 
+                onClick={() => window.dispatchEvent(new CustomEvent('go-back'))}
+                className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-2xl transition-all border border-white/10 group"
+              >
+                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                <span className="font-bold text-sm">رجوع</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-400 text-black rounded-xl flex items-center justify-center shadow-lg"><LayoutDashboard size={20}/></div>
+                <h1 className="font-black text-white text-lg tracking-tight">الرئيسية</h1>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4">
+             {view !== 'dashboard' && <h2 className="hidden md:block text-gray-400 text-xs font-bold uppercase tracking-widest border-r border-white/10 pr-4">{getViewTitle(view)}</h2>}
+             <button onClick={() => setShowNotifications(true)} className="p-2.5 text-gray-400 hover:text-white bg-white/5 rounded-xl relative transition-all">
+               <Bell size={20} />
+               <span className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full border-2 border-[#0A2540]"></span>
+             </button>
+             <div className="hidden sm:flex items-center gap-3 bg-white/5 p-1.5 pr-4 rounded-2xl border border-white/5">
+                <span className="text-[10px] font-black text-gray-400">{user?.name.split(' ')[0]}</span>
+                <div className="w-8 h-8 rounded-xl bg-black/40 flex items-center justify-center text-xs border border-white/10 text-white"><UserIcon size={14}/></div>
+             </div>
+          </div>
         </header>
 
-        <main className="flex-1 p-6 md:p-10">
-          {viewStack.length > 1 && view !== 'dashboard' && (
-            <button onClick={() => window.dispatchEvent(new CustomEvent('go-back'))} className="mb-8 flex items-center gap-2 text-gray-400 hover:text-white font-bold transition-all group">
-              <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" /> عودة
-            </button>
-          )}
+        <main className="flex-1 p-6 md:p-10 max-w-7xl mx-auto w-full">
           <Suspense fallback={
             <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
               <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>

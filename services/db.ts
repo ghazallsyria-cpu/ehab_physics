@@ -48,16 +48,20 @@ class DBService {
 
   async getLoggingSettings(): Promise<LoggingSettings> {
     this.checkDb();
-    const snap = await getDoc(doc(db, 'settings', 'logging'));
-    if (snap.exists()) {
-        const data = snap.data();
-        return {
-            logStudentProgress: data.logStudentProgress ?? true,
-            saveAllQuizAttempts: data.saveAllQuizAttempts ?? true,
-            logAIChatHistory: data.logAIChatHistory ?? true,
-            archiveTeacherMessages: data.archiveTeacherMessages ?? true,
-            forumAccessTier: data.forumAccessTier ?? 'free'
-        };
+    try {
+        const snap = await getDoc(doc(db, 'settings', 'logging'));
+        if (snap.exists()) {
+            const data = snap.data();
+            return {
+                logStudentProgress: data.logStudentProgress ?? true,
+                saveAllQuizAttempts: data.saveAllQuizAttempts ?? true,
+                logAIChatHistory: data.logAIChatHistory ?? true,
+                archiveTeacherMessages: data.archiveTeacherMessages ?? true,
+                forumAccessTier: data.forumAccessTier ?? 'free'
+            };
+        }
+    } catch (e) {
+        console.warn("Could not fetch logging settings, using defaults.");
     }
     return { 
       logStudentProgress: true, 

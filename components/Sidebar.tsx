@@ -16,6 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
   const navigate = (view: ViewState, subject?: 'Physics' | 'Chemistry') => {
     const detail: { view: ViewState, subject?: 'Physics' | 'Chemistry' } = { view };
     if (subject) detail.subject = subject;
+    // النقر من السايدبار يعتبر انتقالاً رئيساً لذا نصفر الـ stack في App.tsx عبر فحص الوجهة
     window.dispatchEvent(new CustomEvent('change-view', { detail }));
     if (window.innerWidth < 1024) onClose?.();
   };
@@ -67,20 +68,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
             { id: 'dashboard', label: 'لوحة التحكم', icon: '📊' },
             { id: 'admin-students', label: 'إدارة المستخدمين', icon: '👥' },
             { id: 'admin-teachers', label: 'إدارة المعلمين', icon: '👨‍🏫' },
-            { id: 'admin-parents', label: 'أولياء الأمور', icon: '👨‍👩‍👧‍👦' },
             { id: 'admin-curriculum', label: 'إدارة المسارات', icon: '📚' },
-            { id: 'admin-videos', label: 'فيديوهات الدروس', icon: '📹' },
             { id: 'admin-live-sessions', label: 'الجلسات المباشرة', icon: '📡' },
             { id: 'admin-quizzes', label: 'إدارة الاختبارات', icon: '❓' },
-            { id: 'admin-quiz-attempts', label: 'محاولات الاختبارات', icon: '📋' },
-            { id: 'admin-certificates', label: 'الشهادات', icon: '📜' },
-            { id: 'admin-reviews', label: 'آراء الطلاب', icon: '💬' },
-            { id: 'admin-pricing', label: 'إدارة الأسعار', icon: '💲' },
-            { id: 'admin-subscriptions', label: 'الاشتراكات', icon: '💳' },
-            { id: 'admin-payments-log', label: 'سجل المدفوعات', icon: '🧾' },
-            { id: 'admin-payment-settings', label: 'إعدادات الدفع', icon: '⚙️' },
-            { id: 'admin-email-notifications', label: 'إشعارات البريد', icon: '📧' },
-            { id: 'admin-internal-messages', label: 'الرسائل الداخلية', icon: '✉️' },
+            { id: 'admin-assets', label: 'مكتبة الوسائط', icon: '🖼️' },
+            { id: 'admin-financials', label: 'التقارير المالية', icon: '🧾' },
+            { id: 'admin-settings', label: 'إعدادات المنصة', icon: '⚙️' },
           ]}
         ];
       default:
@@ -95,48 +88,43 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
       {isOpen && (
         <div className="fixed inset-0 bg-blue-950/80 backdrop-blur-sm z-[55] lg:hidden transition-opacity" onClick={onClose} />
       )}
-      <div className={`fixed inset-y-0 right-0 z-[60] w-72 bg-blue-950/95 backdrop-blur-2xl border-l border-white/5 flex flex-col transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) shadow-[0_0_50px_rgba(0,0,0,0.5)] ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
-        <div className="p-6 pb-2">
-          <div className="bg-white/[0.03] border border-white/5 p-4 rounded-3xl flex items-center gap-4 mb-6 relative overflow-hidden group">
+      <div className={`fixed inset-y-0 right-0 z-[60] w-72 bg-[#0A2540] border-l border-white/5 flex flex-col transition-transform duration-500 shadow-[0_0_50px_rgba(0,0,0,0.5)] ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
+        <div className="p-6">
+          <div className="bg-white/[0.03] border border-white/5 p-4 rounded-3xl flex items-center gap-4 relative overflow-hidden group">
              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-             <div className="w-12 h-12 rounded-[18px] sm:rounded-[25px] bg-gradient-to-tr from-amber-500 to-yellow-600 flex items-center justify-center text-black shadow-lg shadow-amber-500/20 shrink-0 relative z-10 font-bold text-lg transition-all duration-300 group-hover:scale-105 group-hover:bg-gradient-none group-hover:bg-slate-200">
+             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-600 flex items-center justify-center text-black shadow-lg shadow-amber-500/20 shrink-0 relative z-10 font-black">
                 {user.name.charAt(0)}
              </div>
              <div className="min-w-0 relative z-10">
                 <h3 className="font-bold text-white truncate text-sm">{user.name}</h3>
-                <div className="flex items-center gap-1.5 mt-1">
-                   <div className={`w-2 h-2 rounded-full ${user.subscription === 'premium' ? 'bg-amber-400' : 'bg-gray-500'}`}></div>
-                   <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider truncate">
-                     {user.role}
-                   </span>
-                </div>
+                <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest">{user.role}</span>
              </div>
           </div>
         </div>
+
         <nav className="flex-1 px-4 overflow-y-auto no-scrollbar space-y-8 pb-10">
           {navItems.map((group, idx) => (
-            <div key={idx} className="animate-slideUp" style={{animationDelay: `${idx * 0.05}s`}}>
-              <p className="px-4 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 opacity-80">{group.label}</p>
+            <div key={idx}>
+              <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mb-3">{group.label}</p>
               <div className="space-y-1">
                 {group.items.map((item: any) => (
                   <button
                     key={item.id + (item.subject || '')}
                     onClick={() => navigate(item.id as ViewState, item.subject)}
-                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden ${currentView === item.id && (!item.subject || item.subject === 'Physics') ? 'bg-gradient-to-r from-amber-500/20 to-yellow-600/5 text-amber-400 border border-amber-500/10' : 'text-slate-400 hover:bg-white/[0.03] hover:text-white border border-transparent'}`}
+                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group ${currentView === item.id && (!item.subject || item.subject === 'Physics') ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/10' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
                   >
-                    <span className={`text-lg transition-transform duration-300 ${currentView === item.id ? 'scale-110 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]' : 'group-hover:scale-110'}`}>{item.icon}</span>
+                    <span className="text-lg">{item.icon}</span>
                     <span className="font-bold text-[13px] tracking-wide">{item.label}</span>
-                    {currentView === item.id && (!item.subject || item.subject === 'Physics') && ( <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-amber-400 shadow-[0_0_15px_#fbbf24]"></div> )}
                   </button>
                 ))}
               </div>
             </div>
           ))}
         </nav>
-        <div className="p-6 border-t border-white/5 bg-blue-950">
-          <button onClick={onLogout} className="w-full flex items-center justify-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 text-slate-400 transition-all group">
-            <span className="text-sm group-hover:-translate-x-1 transition-transform">🚪</span>
-            <span className="font-black text-xs uppercase tracking-widest">تسجيل الخروج</span>
+
+        <div className="p-6 border-t border-white/5 bg-black/20">
+          <button onClick={onLogout} className="w-full flex items-center justify-center gap-3 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all font-black text-xs uppercase tracking-widest">
+            <span>🚪</span> تسجيل الخروج
           </button>
         </div>
       </div>
