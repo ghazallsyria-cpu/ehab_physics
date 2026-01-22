@@ -1,8 +1,7 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Asset } from '../types';
 import { dbService } from '../services/db';
-import { UploadCloud, FileText, Copy, CopyCheck, Trash2, RefreshCw, Library, AlertCircle, ExternalLink, Settings, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { UploadCloud, FileText, Copy, CopyCheck, Trash2, RefreshCw, Library, AlertCircle, CheckCircle2, ExternalLink } from 'lucide-react';
 import SupabaseConnectionFixer from './SupabaseConnectionFixer';
 
 const AdminAssetManager: React.FC = () => {
@@ -23,7 +22,7 @@ const AdminAssetManager: React.FC = () => {
         setStorageRulesError(false);
         try {
             const data = await dbService.listAssets();
-            setAssets(data.sort((a, b) => b.name.localeCompare(a.name)));
+            setAssets(data);
         } catch (e: any) {
             console.error(e);
             if (e.message === 'STORAGE_PERMISSION_DENIED' || e.message?.includes('security policy')) {
@@ -49,7 +48,7 @@ const AdminAssetManager: React.FC = () => {
             if (e.message === 'STORAGE_PERMISSION_DENIED' || e.message?.includes('security policy')) {
                 setStorageRulesError(true);
             } else {
-                setMessage({ text: 'حدث خطأ أثناء الرفع. تحقق من حجم الملف.', type: 'error' });
+                setMessage({ text: 'حدث خطأ أثناء الرفع. تحقق من الصلاحيات.', type: 'error' });
             }
         } finally {
             setIsUploading(false);
@@ -66,7 +65,7 @@ const AdminAssetManager: React.FC = () => {
             await loadAssets();
         } catch(e) {
              console.error("Delete failed", e);
-             setMessage({ text: 'فشل حذف الملف. قد لا تملك الصلاحية.', type: 'error' });
+             setMessage({ text: 'فشل حذف الملف.', type: 'error' });
         }
         setTimeout(() => setMessage(null), 3000);
     };
@@ -94,12 +93,12 @@ const AdminAssetManager: React.FC = () => {
                         <Library size={32} />
                     </div>
                     <div>
-                        <h2 className="text-3xl font-black text-white italic">مكتبة <span className="text-[#fbbf24]">الوسائط</span></h2>
-                        <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-1">تخزين آمن عبر Supabase Storage</p>
+                        <h2 className="text-3xl font-black text-white italic">مكتبة <span className="text-[#fbbf24]">الوسائط العامة</span></h2>
+                        <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-1">إدارة الملفات التعليمية عبر Supabase Public Storage</p>
                     </div>
                 </div>
                 <button onClick={loadAssets} className="p-4 bg-white/5 rounded-2xl text-white hover:bg-white/10 transition-all border border-white/10 flex items-center gap-2 group">
-                    <RefreshCw size={20} className={isLoading ? 'animate-spin' : 'group-active:rotate-180 transition-transform'} />
+                    <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
                     <span className="text-xs font-bold">تحديث</span>
                 </button>
             </header>
@@ -125,15 +124,15 @@ const AdminAssetManager: React.FC = () => {
                             <>
                                 <RefreshCw className="w-16 h-16 mb-4 text-[#fbbf24] animate-spin" />
                                 <p className="mb-2 text-xl font-black text-[#fbbf24] uppercase italic tracking-tighter">جاري الرفع السحابي...</p>
-                                <p className="text-xs text-gray-500">يرجى عدم إغلاق الصفحة</p>
+                                <p className="text-xs text-gray-500">سيتم توليد روابط عامة للطلاب فور الانتهاء</p>
                             </>
                         ) : (
                             <>
                                 <div className="w-20 h-20 bg-white/5 rounded-[30px] flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                                     <UploadCloud className="text-gray-400 group-hover:text-[#fbbf24] transition-colors" size={40}/>
                                 </div>
-                                <p className="mb-2 text-lg font-bold text-gray-300">اضغط هنا أو اسحب الملفات للرفع</p>
-                                <p className="text-xs text-gray-600 font-bold uppercase tracking-widest">Images • Videos • PDF • Audio</p>
+                                <p className="mb-2 text-lg font-bold text-gray-300">اضغط لرفع ملفات الدروس (صور، فيديوهات، PDF)</p>
+                                <p className="text-xs text-gray-600 font-bold uppercase tracking-widest">التخزين يتم في Bucket الـ Assets العام</p>
                             </>
                         )}
                     </div>
@@ -152,7 +151,7 @@ const AdminAssetManager: React.FC = () => {
                         ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center text-gray-600 p-6 bg-gradient-to-br from-white/5 to-transparent">
                                 <FileText size={48} className="opacity-40 group-hover:opacity-100 group-hover:text-blue-400 transition-all" />
-                                <p className="text-[10px] font-black mt-4 text-center break-all line-clamp-2 uppercase tracking-tight">{asset.name.split('_').slice(1).join('_') || asset.name}</p>
+                                <p className="text-[10px] font-black mt-4 text-center break-all line-clamp-2 uppercase tracking-tight">{asset.name.split('_').pop()}</p>
                             </div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent flex flex-col justify-end p-5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-4 group-hover:translate-y-0">
@@ -161,7 +160,7 @@ const AdminAssetManager: React.FC = () => {
                             <div className="flex gap-2">
                                 <button onClick={() => handleCopy(asset.url)} className="flex-1 py-2.5 bg-white text-black rounded-xl hover:bg-[#fbbf24] transition-all flex items-center justify-center gap-2 shadow-lg">
                                     {copiedUrl === asset.url ? <CopyCheck size={14}/> : <Copy size={14}/>}
-                                    <span className="text-[10px] font-black uppercase tracking-tighter">{copiedUrl === asset.url ? 'تم!' : 'نسخ'}</span>
+                                    <span className="text-[10px] font-black uppercase tracking-tighter">{copiedUrl === asset.url ? 'تم!' : 'نسخ الرابط'}</span>
                                 </button>
                                 <button onClick={() => handleDelete(asset)} className="p-2.5 bg-red-500/20 backdrop-blur-md rounded-xl text-red-400 hover:bg-red-500 hover:text-white transition-all border border-red-500/20">
                                     <Trash2 size={16} />

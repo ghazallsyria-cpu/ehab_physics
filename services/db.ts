@@ -47,7 +47,6 @@ class SyrianScienceCenterDB {
       Object.keys(obj).forEach(key => {
         const value = obj[key];
         if (value !== undefined) {
-          // FIXED: Use 'value' instead of the undefined 'v'
           cleaned[key] = (value && typeof value === 'object' && !(value instanceof Date)) 
             ? this.cleanData(value) 
             : value;
@@ -74,15 +73,21 @@ class SyrianScienceCenterDB {
   }
 
   // --- Asset Management (Supabase Storage) ---
+  // تم التعديل ليكون متوافقاً مع السياسات العامة والخاصة
   async uploadAsset(file: File): Promise<Asset> {
     if (!auth.currentUser) throw new Error("AUTH_REQUIRED");
     await this.setSupabaseAuth();
 
-    const fileName = `${Date.now()}_${file.name}`;
-    const filePath = `uploads/${fileName}`;
+    // تنظيف اسم الملف من الأحرف الخاصة والمسافات
+    const cleanName = file.name.replace(/[^\x00-\x7F]/g, "").replace(/\s+/g, "_");
+    const fileName = `${Date.now()}_${cleanName}`;
+    
+    // هيكل المجلدات: uploads/{UID}/{FILENAME}
+    const filePath = `uploads/${auth.currentUser.uid}/${fileName}`;
     
     const { error } = await supabase.storage.from('assets').upload(filePath, file, {
-        metadata: { owner_id: auth.currentUser.uid }
+        cacheControl: '3600',
+        upsert: true
     });
 
     if (error) {
@@ -93,14 +98,26 @@ class SyrianScienceCenterDB {
         throw error;
     }
 
+    // جلب الرابط العام فوراً (Bucket is Public)
     const { data } = supabase.storage.from('assets').getPublicUrl(filePath);
-    return { name: fileName, url: data.publicUrl, type: file.type, size: file.size };
+    
+    return { 
+        name: fileName, 
+        url: data.publicUrl, 
+        type: file.type, 
+        size: file.size 
+    };
   }
 
   async listAssets(): Promise<Asset[]> {
-    const { data, error } = await supabase.storage.from('assets').list('uploads', {
+    if (!auth.currentUser) return [];
+    await this.setSupabaseAuth();
+    
+    // سحب الملفات الخاصة بالمستخدم الحالي فقط من مجلده
+    const userFolder = `uploads/${auth.currentUser.uid}`;
+    
+    const { data, error } = await supabase.storage.from('assets').list(userFolder, {
       limit: 100,
-      offset: 0,
       sortBy: { column: 'created_at', order: 'desc' },
     });
 
@@ -115,7 +132,9 @@ class SyrianScienceCenterDB {
     if (!data) return [];
     
     return data.map(file => {
-        const { data: publicUrlData } = supabase.storage.from('assets').getPublicUrl(`uploads/${file.name}`);
+        // بناء الرابط العام لكل ملف في القائمة
+        const fullPath = `${userFolder}/${file.name}`;
+        const { data: publicUrlData } = supabase.storage.from('assets').getPublicUrl(fullPath);
         return {
             name: file.name,
             url: publicUrlData.publicUrl,
@@ -129,7 +148,7 @@ class SyrianScienceCenterDB {
     if (!auth.currentUser) throw new Error("AUTH_REQUIRED");
     await this.setSupabaseAuth();
     
-    const filePath = `uploads/${fileName}`;
+    const filePath = `uploads/${auth.currentUser.uid}/${fileName}`;
     const { error } = await supabase.storage.from('assets').remove([filePath]);
     if (error) {
         console.error('Supabase delete error:', error);
@@ -153,7 +172,9 @@ class SyrianScienceCenterDB {
     try {
       if (!auth.currentUser) return { alive: false, error: 'NO_FIREBASE_USER' };
       await this.setSupabaseAuth();
-      const { error } = await supabase.storage.from('assets').list('uploads', { limit: 1 });
+      
+      const { error } = await supabase.storage.from('assets').list(`uploads/${auth.currentUser.uid}`, { limit: 1 });
+      
       if (error) {
         if (error.message.includes('permission denied') || error.message.includes('security policy')) {
           return { alive: false, error: 'SUPABASE_PERMISSION_DENIED' };
@@ -169,7 +190,6 @@ class SyrianScienceCenterDB {
   async getCurriculum(): Promise<Curriculum[]> {
     this.checkDb();
     const snapshot = await getDocs(collection(db, 'curriculum'));
-    // Fixed: Explicit casting to any then to Curriculum to handle unknown
     return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Curriculum));
   }
 
@@ -251,12 +271,10 @@ class SyrianScienceCenterDB {
     }
   }
 
-  // --- Homepage Content Management ---
   async getHomePageContent(): Promise<HomePageContent[]> {
     this.checkDb();
     const q = query(collection(db, "homepage_content"), orderBy("createdAt", "desc"));
     const snapshot = await getDocs(q);
-    // Fixed: Explicit casting to handle unknown data properties
     return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as HomePageContent));
   }
   
@@ -278,7 +296,6 @@ class SyrianScienceCenterDB {
     await deleteDoc(doc(db, "homepage_content", id));
   }
 
-  // --- Presence and User Management ---
   async updateUserPresenceAndActivity(userId: string, durationInMinutes: number): Promise<void> {
     if (!this.loggingSettings.logStudentProgress) return;
     try {
@@ -304,14 +321,11 @@ class SyrianScienceCenterDB {
       q = collection(db, "users");
     }
     return onSnapshot(q, (snapshot) => {
-      // Fixed: Explicit casting for User data
       const users = snapshot.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as User));
       callback(users);
     });
   }
 
-
-  // --- Financial & Other methods ---
   async updateInvoiceStatus(id: string, status: PaymentStatus): Promise<void> {
     const docRef = doc(db, 'invoices', id);
     await updateDoc(docRef, { status });
@@ -442,8 +456,8 @@ class SyrianScienceCenterDB {
     const batch = writeBatch(db);
     const sectionsCollectionRef = collection(db, 'forum_sections');
     const existingDocsSnapshot = await getDocs(sectionsCollectionRef);
-    const existingIds = new Set(existingDocsSnapshot.docs.map(d => d.id));
-    const newIds = new Set(sections.map(s => s.id));
+    const existingIds = new Set<string>(existingDocsSnapshot.docs.map(d => d.id));
+    const newIds = new Set<string>(sections.map(s => s.id));
 
     for (const id of existingIds) {
         if (!newIds.has(id)) batch.delete(doc(sectionsCollectionRef, id));
@@ -485,7 +499,6 @@ class SyrianScienceCenterDB {
     }
   }
 
-  // --- Quiz & Question Methods ---
   async getQuizzes(): Promise<Quiz[]> {
     try {
       this.checkDb();
@@ -546,21 +559,21 @@ class SyrianScienceCenterDB {
   
   async updateAttempt(attempt: StudentQuizAttempt): Promise<void> {
     this.checkDb();
-    await updateDoc(doc(db, "quiz_attempts", attempt.id), this.cleanData(attempt));
+    const attemptRef = doc(db, "quiz_attempts", attempt.id);
+    await updateDoc(attemptRef, this.cleanData(attempt));
   }
   
   async getAttemptsForQuiz(quizId: string): Promise<StudentQuizAttempt[]> {
     this.checkDb();
-    const q = query(collection(db, 'quiz_attempts'), where('quizId', '==', quizId));
+    const q: any = query(collection(db, 'quiz_attempts'), where('quizId', '==', quizId));
     const snapshot = await getDocs(q);
     const attempts = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) } as StudentQuizAttempt));
-    // Fix: Explicitly cast completedAt to string for Date constructor compatibility
-    return attempts.sort((a, b) => new Date(b.completedAt as string).getTime() - new Date(a.completedAt as string).getTime());
+    return attempts.sort((a, b) => new Date(String(b.completedAt)).getTime() - new Date(String(a.completedAt)).getTime());
   }
 
   async getUserAttempts(userId: string, quizId?: string): Promise<StudentQuizAttempt[]> {
     this.checkDb();
-    let q;
+    let q: any;
     if (quizId) {
         q = query(collection(db, 'quiz_attempts'), where('studentId', '==', userId), where('quizId', '==', quizId));
     } else {
@@ -585,7 +598,6 @@ class SyrianScienceCenterDB {
     }
   }
   
-  // --- Notification System ---
   async createNotification(notification: Omit<AppNotification, 'id'>): Promise<void> {
     this.checkDb();
     await addDoc(collection(db, 'notifications'), this.cleanData(notification));
@@ -608,7 +620,6 @@ class SyrianScienceCenterDB {
     await batch.commit();
   }
 
-  // --- Settings ---
   async getLoggingSettings(): Promise<LoggingSettings> {
     const docSnap = await getDoc(doc(db, 'settings', 'logging'));
     return docSnap.exists() ? docSnap.data() as LoggingSettings : DEFAULT_LOGGING_SETTINGS;
@@ -624,8 +635,6 @@ class SyrianScienceCenterDB {
     await setDoc(doc(db, 'settings', 'notifications'), this.cleanData(settings));
   }
 
-
-  // Mocks
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> { return []; }
   async getResources(): Promise<EducationalResource[]> { return MOCK_RESOURCES; }
   async getTeacherReviews(teacherId: string): Promise<Review[]> { return []; }
