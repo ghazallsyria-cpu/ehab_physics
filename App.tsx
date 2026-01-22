@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { User, ViewState, Lesson, Curriculum, Invoice, Quiz, StudentQuizAttempt } from './types';
 import { dbService } from './services/db';
-import { Bell, ArrowRight, Menu } from 'lucide-react';
+// Added RefreshCw to the imports from lucide-react
+import { Bell, ArrowRight, Menu, RefreshCw } from 'lucide-react';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
@@ -24,7 +24,6 @@ const QuizCenter = lazy(() => import('./components/QuizCenter'));
 const QuizPlayer = lazy(() => import('./components/QuizPlayer'));
 const AttemptReview = lazy(() => import('./components/AttemptReview'));
 const BillingCenter = lazy(() => import('./components/BillingCenter'));
-const PaymentCertificate = lazy(() => import('./components/PaymentCertificate'));
 const Forum = lazy(() => import('./components/Forum'));
 const Recommendations = lazy(() => import('./components/Recommendations'));
 const LabHub = lazy(() => import('./components/LabHub'));
@@ -37,15 +36,11 @@ const AdminTeacherManager = lazy(() => import('./components/AdminTeacherManager'
 const AdminFinancials = lazy(() => import('./components/AdminFinancials'));
 const QuizPerformance = lazy(() => import('./components/QuizPerformance'));
 const AdminSettings = lazy(() => import('./components/AdminSettings'));
-const PhysicsJourneyMap = lazy(() => import('./components/PhysicsJourneyMap'));
-const AdminLiveSessions = lazy(() => import('./components/AdminLiveSessions'));
-const AdminQuizManager = lazy(() => import('./components/AdminQuizManager'));
-const AdminContentManager = lazy(() => import('./components/AdminContentManager'));
-const FloatingNav = lazy(() => import('./components/FloatingNav'));
-const AdminAssetManager = lazy(() => import('./components/AdminAssetManager'));
 const AdminForumManager = lazy(() => import('./components/AdminForumManager'));
-const AdminCertificates = lazy(() => import('./components/AdminCertificates'));
-const CertificateVerificationPage = lazy(() => import('./components/CertificateVerificationPage'));
+const AdminAssetManager = lazy(() => import('./components/AdminAssetManager'));
+// Added missing lazy import for AdminQuizManager
+const AdminQuizManager = lazy(() => import('./components/AdminQuizManager'));
+const PhysicsJourneyMap = lazy(() => import('./components/PhysicsJourneyMap'));
 const ResourcesCenter = lazy(() => import('./components/ResourcesCenter'));
 
 const App: React.FC = () => {
@@ -58,20 +53,17 @@ const App: React.FC = () => {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeAttempt, setActiveAttempt] = useState<StudentQuizAttempt | null>(null);
-  const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const handleViewChange = (event: Event) => {
-      const { view: newView, lesson, quiz, attempt, invoice, subject } = (event as CustomEvent).detail;
+      const { view: newView, lesson, quiz, attempt, subject } = (event as CustomEvent).detail;
       if (newView) setViewStack(prev => [...prev, newView]);
       if (subject) setActiveSubject(subject);
       if (lesson) setActiveLesson(lesson);
       if (quiz) setActiveQuiz(quiz);
       if (attempt) setActiveAttempt(attempt);
-      if (invoice) setActiveInvoice(invoice);
       window.scrollTo(0, 0);
     };
 
@@ -106,7 +98,11 @@ const App: React.FC = () => {
   }, [view]);
 
   const renderContent = () => {
+    if (!user && view !== 'landing' && view !== 'auth') return null;
+
     switch (view) {
+      case 'landing': return <LandingPage onStart={() => setViewStack(['auth'])} />;
+      case 'auth': return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
       case 'dashboard':
         if (user?.role === 'admin') return <AdminDashboard />;
         if (user?.role === 'teacher') return <TeacherDashboard user={user} />;
@@ -115,35 +111,44 @@ const App: React.FC = () => {
       case 'lesson': return activeLesson && user ? <LessonViewer user={user} lesson={activeLesson} /> : null;
       case 'quiz_center': return user ? <QuizCenter user={user} /> : null;
       case 'quiz_player': return activeQuiz && user ? <QuizPlayer user={user} quiz={activeQuiz} onFinish={() => setViewStack(['quiz_center'])} /> : null;
+      case 'attempt_review': return activeAttempt && user ? <AttemptReview user={user} attempt={activeAttempt} /> : null;
       case 'discussions': return <Forum user={user} />;
       case 'ai-chat': return user ? <AiTutor grade={user.grade} subject={activeSubject} /> : null;
       case 'virtual-lab': return user ? <LabHub user={user} /> : null;
       case 'live-sessions': return user ? <LiveSessions user={user} /> : null;
       case 'subscription': return user ? <BillingCenter user={user} onUpdateUser={setUser} /> : null;
-      case 'admin-curriculum': return <AdminCurriculumManager />;
+      case 'recommendations': return user ? <Recommendations user={user} /> : null;
+      case 'journey-map': return user ? <PhysicsJourneyMap user={user} /> : null;
+      case 'resources-center': return <ResourcesCenter user={user} />;
+      case 'reports': return user ? <ProgressReport user={user} attempts={[]} /> : null;
+      case 'quiz-performance': return user ? <QuizPerformance user={user} /> : null;
+      case 'help-center': return <HelpCenter />;
       case 'admin-students': return <AdminStudentManager />;
       case 'admin-teachers': return <AdminTeacherManager />;
-      case 'admin-financials': return <AdminFinancials />;
+      case 'admin-curriculum': return <AdminCurriculumManager />;
       case 'admin-quizzes': return <AdminQuizManager />;
+      case 'admin-financials': return <AdminFinancials />;
+      case 'admin-settings': return <AdminSettings />;
       case 'admin-forums': return <AdminForumManager />;
       case 'admin-assets': return <AdminAssetManager />;
-      case 'admin-settings': return <AdminSettings />;
-      case 'resources-center': return <ResourcesCenter user={user} />;
-      default: return <StudentDashboard user={user!} />;
+      default: return user ? <StudentDashboard user={user} /> : null;
     }
   };
 
-  if (isAuthLoading) return <div className="h-screen bg-[#0A2540] flex items-center justify-center"><div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div></div>;
+  if (isAuthLoading) return <div className="h-screen bg-[#0A2540] flex items-center justify-center"><div className="w-16 h-16 border-4 border-[#fbbf24] border-t-transparent rounded-full animate-spin"></div></div>;
 
-  if (!user && view !== 'landing' && view !== 'auth') {
-    return <Suspense fallback={<div/>}><Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} /></Suspense>;
+  if (view === 'landing' || view === 'auth') {
+    return (
+      <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal']" dir="rtl">
+        <Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>
+          {renderContent()}
+        </Suspense>
+      </div>
+    );
   }
 
-  if (view === 'landing') return <Suspense fallback={<div/>}><LandingPage onStart={() => setViewStack(['auth'])} /></Suspense>;
-  if (view === 'auth') return <Suspense fallback={<div/>}><Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} /></Suspense>;
-
   return (
-    <div className="min-h-screen bg-[#0A2540] text-right flex flex-col lg:flex-row relative" dir="rtl">
+    <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative" dir="rtl">
       <Sidebar 
         currentView={view} 
         setView={(v, s) => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: v, subject: s } }))}
@@ -153,12 +158,11 @@ const App: React.FC = () => {
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      {/* Container with dynamic margin for sidebar */}
-      <div className="flex-1 flex flex-col min-w-0 lg:mr-72 relative z-10 transition-all duration-500">
+      <div className="flex-1 flex flex-col min-w-0 lg:mr-72 relative z-10">
         <header className="lg:hidden p-4 bg-black/20 flex justify-between items-center sticky top-0 z-[40] backdrop-blur-md">
           <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-white"><Menu /></button>
           <span className="font-black text-xl text-white">SSC</span>
-          <button onClick={() => setShowNotifications(true)} className="p-2 text-white relative"><Bell />{unreadCount > 0 && <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />}</button>
+          <button onClick={() => setShowNotifications(true)} className="p-2 text-white relative"><Bell /></button>
         </header>
 
         <main className="flex-1 p-6 md:p-10">
@@ -173,8 +177,7 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      {showNotifications && <NotificationPanel user={user!} onClose={() => setShowNotifications(false)} />}
-      <FloatingNav />
+      {showNotifications && user && <NotificationPanel user={user} onClose={() => setShowNotifications(false)} />}
       <PWAPrompt user={user} />
     </div>
   );

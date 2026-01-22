@@ -9,12 +9,10 @@ import {
   MessageSquare, 
   ChevronLeft, 
   ChevronRight, 
-  LayoutGrid, 
   Users, 
   Clock,
   ArrowRight,
   Pin,
-  PinOff,
   Trash2,
   AlertCircle,
   Plus,
@@ -22,10 +20,9 @@ import {
   X,
   ShieldAlert,
   Send,
-  Flag,
-  Bell,
   Lock,
-  Zap
+  Zap,
+  Bell
 } from 'lucide-react';
 
 interface ForumProps {
@@ -84,20 +81,18 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
     loadPosts(forum.id);
   };
 
-  // 🛡️ فحص الصلاحيات
+  // 🛡️ فحص صلاحية التفاعل بناءً على اشتراك الطالب وإعدادات المنصة
   const canInteract = useMemo(() => {
     if (!user) return false;
     if (user.role === 'admin' || user.role === 'teacher') return true;
+    
+    // إذا كانت الساحة مغلقة للمشتركين فقط
     if (forumSettings?.forumAccessTier === 'premium') {
         return user.subscription === 'premium';
     }
+    
     return true; // متاح للجميع افتراضياً
   }, [user, forumSettings]);
-
-  const isModerator = () => {
-    if (!user) return false;
-    return user.role === 'admin' || (user.role === 'teacher' && activeForum?.moderatorUid === user.uid);
-  };
 
   const handleAsk = async () => {
     if (!user || !activeForum) return;
@@ -125,7 +120,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
     setErrorMsg(null);
 
     try {
-      // 🚀 إرسال البيانات بدقة لضمان النجاح
+      // 🚀 إرسال البيانات بدقة لضمان النجاح في Firestore
       const postData = {
         authorUid: user.uid,
         authorEmail: user.email,
@@ -173,6 +168,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
 
       await dbService.addForumReply(selectedPost.id, replyData);
 
+      // 🔔 إشعار صاحب المنشور
       if (selectedPost.authorUid !== user.uid) {
         await dbService.createNotification({
           userId: selectedPost.authorUid,
@@ -215,7 +211,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
         </header>
 
         {isLoading ? (
-          <div className="text-center py-20"><RefreshCw className="animate-spin mx-auto text-blue-400" size={40} /></div>
+          <div className="text-center py-20"><RefreshCw className="animate-spin mx-auto text-[#00d2ff]" size={40} /></div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {sections.flatMap(s => s.forums).map(forum => (
