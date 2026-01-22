@@ -327,10 +327,9 @@ class SyrianScienceCenterDB {
     if (status === 'PAID') {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
-            // FIX: Argument of type 'unknown' is not assignable to parameter of type 'string'.
-            // Use a type guard to ensure userId is a string before using it.
             const invoiceData = snap.data();
             const userId = invoiceData.userId;
+            // FIX: Add type guard to ensure userId is a string before using it as a document ID.
             if (typeof userId === 'string' && userId) {
                 await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
             }
@@ -417,20 +416,17 @@ class SyrianScienceCenterDB {
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     const docRef = snapshot.docs[0].ref;
-    // FIX: Explicitly define `newStatus` with `PaymentStatus` type to prevent type inference issues.
     const newStatus: PaymentStatus = status === 'SUCCESS' ? 'PAID' : 'FAIL';
     const updateData = { status: newStatus };
     await updateDoc(docRef, updateData);
     const invoiceData = snapshot.docs[0].data();
     if (status === 'SUCCESS') {
-      // FIX: Argument of type 'unknown' is not assignable to parameter of type 'string'.
-      // By using a type guard, we satisfy TypeScript's strictness.
       const userId = invoiceData.userId;
+      // FIX: Add type guard to ensure userId is a string before using it as a document ID.
       if (typeof userId === 'string' && userId) {
         await updateDoc(doc(db, 'users', userId), { subscription: 'premium' });
       }
     }
-    // FIX: Construct the return object with the correctly typed `newStatus` to match the `Invoice` type.
     return { ...invoiceData, id: snapshot.docs[0].id, status: newStatus } as Invoice;
   }
 
