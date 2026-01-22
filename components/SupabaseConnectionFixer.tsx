@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Settings, ExternalLink, RefreshCw, Code, MousePointer2, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
 
@@ -114,7 +113,7 @@ USING (
                   <AlertCircle className="text-blue-400 shrink-0" size={20} />
                   <div className="text-right">
                       <p className="text-blue-400 font-bold text-sm">التطبيق من الواجهة الرسومية:</p>
-                      <p className="text-[11px] text-gray-500 mt-1">إذا واجهت مشكلة في صلاحيات SQL Editor، اذهب إلى <b>Storage > Policies</b> وأنشئ سياسة جديدة لعمليات (Insert, Delete) تستخدم تعبير: <code className="text-white font-mono">(storage.foldername(name))[2] = auth.uid()::text</code></p>
+                      <p className="text-[11px] text-gray-500 mt-1">إذا واجهت مشكلة في صلاحيات SQL Editor، اذهب إلى <b>Storage &gt; Policies</b> وأنشئ سياسة جديدة لعمليات (Insert, Delete) تستخدم تعبير: <code className="text-white font-mono">(storage.foldername(name))[2] = auth.uid()::text</code></p>
                   </div>
               </div>
               <button onClick={onFix} className="bg-white text-black px-12 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center gap-4 active:scale-95 whitespace-nowrap">
