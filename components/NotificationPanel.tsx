@@ -14,31 +14,22 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ user, onClose }) 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchNotifications = async () => {
-      setIsLoading(true);
-      try {
-        const data = await dbService.getNotifications(user.uid);
-        setNotifications(data);
-      } catch (error) {
-        console.error("Failed to load notifications:", error);
-      } finally {
+    // مراقبة لحظية للإشعارات
+    const unsubscribe = dbService.subscribeToNotifications(user.uid, (notes) => {
+        setNotifications(notes);
         setIsLoading(false);
-      }
-    };
-    fetchNotifications();
+    });
+
+    return () => unsubscribe();
   }, [user.uid]);
 
   const handleMarkAllAsRead = async () => {
-    // Optimistic UI update
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     try {
       await dbService.markNotificationsAsRead(user.uid);
     } catch (error) {
       console.error("Failed to mark notifications as read:", error);
-      // Optional: Revert UI on failure
     }
   };
-
 
   const getIconForType = (type: AppNotification['type']) => {
     switch(type) {
@@ -49,7 +40,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ user, onClose }) 
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]" onClick={onClose}>
       <div 
         className="absolute top-24 right-4 md:right-10 w-[95%] max-w-md h-auto max-h-[70vh] flex flex-col glass-panel rounded-[40px] border-white/10 shadow-2xl animate-slideUp overflow-hidden"
         onClick={e => e.stopPropagation()}
@@ -59,18 +50,22 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ user, onClose }) 
           <button onClick={handleMarkAllAsRead} className="text-[10px] font-bold text-gray-400 hover:text-white flex items-center gap-1.5"><CheckCheck size={12}/> وضع علامة مقروء للكل</button>
         </header>
         <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3">
-          {isLoading ? <div className="p-10 text-center text-gray-500">جاري التحميل...</div> :
-           notifications.map(note => (
-            <div key={note.id} className={`p-4 rounded-2xl flex gap-4 transition-all ${note.isRead ? 'opacity-50' : 'bg-sky-500/5'}`}>
-              <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-lg shrink-0">{getIconForType(note.type)}</div>
-              <div>
-                <p className={`font-bold text-sm ${note.isRead ? 'text-gray-400' : 'text-white'}`}>{note.title}</p>
-                <p className="text-xs text-gray-400">{note.message}</p>
+          {isLoading ? (
+            <div className="p-10 text-center text-gray-500">جاري التحميل...</div>
+          ) : notifications.length > 0 ? (
+            notifications.map(note => (
+              <div key={note.id} className={`p-4 rounded-2xl flex gap-4 transition-all ${note.isRead ? 'opacity-50' : 'bg-sky-500/5 border border-sky-500/20'}`}>
+                <div className="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-lg shrink-0">{getIconForType(note.type)}</div>
+                <div>
+                  <p className={`font-bold text-sm ${note.isRead ? 'text-gray-400' : 'text-white'}`}>{note.title}</p>
+                  <p className="text-xs text-gray-400 mt-1 leading-relaxed">{note.message}</p>
+                  <p className="text-[8px] text-gray-600 mt-2 font-mono uppercase">{new Date(note.timestamp).toLocaleTimeString('ar-KW')}</p>
+                </div>
               </div>
-            </div>
-           ))
-          }
-           {notifications.length === 0 && !isLoading && <div className="p-10 text-center text-gray-500 italic">لا توجد إشعارات جديدة.</div>}
+            ))
+          ) : (
+            <div className="p-10 text-center text-gray-500 italic">لا توجد إشعارات حالياً.</div>
+          )}
         </div>
       </div>
     </div>

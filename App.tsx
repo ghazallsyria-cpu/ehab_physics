@@ -75,22 +75,30 @@ const App: React.FC = () => {
     };
     window.addEventListener('branding-updated', handleBrandingUpdate);
     
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let unsubscribeUser: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        try {
-          const appUser = await dbService.getUser(firebaseUser.uid);
-          if (appUser) {
-            setUser(appUser);
-            if (viewStack.includes('landing') || viewStack.includes('auth')) {
-                setViewStack(['dashboard']);
+        // المراقبة اللحظية لبيانات المستخدم لضمان تحديث الاشتراك فوراً
+        unsubscribeUser = dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
+            if (updatedUser) {
+                setUser(updatedUser);
+                if (viewStack.includes('landing') || viewStack.includes('auth')) {
+                    setViewStack(['dashboard']);
+                }
             }
-          }
-        } catch (e) { console.error("Auth error:", e); }
-      } else { setUser(null); }
-      setIsAuthLoading(false);
+            setIsAuthLoading(false);
+        });
+      } else {
+        if (unsubscribeUser) unsubscribeUser();
+        setUser(null);
+        setIsAuthLoading(false);
+      }
     });
+
     return () => {
-        unsubscribe();
+        unsubscribeAuth();
+        if (unsubscribeUser) unsubscribeUser();
         window.removeEventListener('branding-updated', handleBrandingUpdate);
     };
   }, []);

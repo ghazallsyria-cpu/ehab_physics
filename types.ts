@@ -8,6 +8,16 @@ export interface AppBranding {
     primaryColor?: string;
 }
 
+export interface InvoiceSettings {
+    headerText: string;
+    footerText: string;
+    accentColor: string;
+    showSignature: boolean;
+    signatureName: string;
+    showWatermark: boolean;
+    watermarkText: string;
+}
+
 export interface LoggingSettings {
     logStudentProgress: boolean;
     saveAllQuizAttempts: boolean;
@@ -65,7 +75,7 @@ export interface User {
   uid: string;
   name: string;
   email: string;
-  phone?: string; // الحقل الجديد
+  phone?: string; 
   role: UserRole;
   grade: '10' | '11' | '12' | 'uni';
   subscription: 'free' | 'premium';

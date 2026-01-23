@@ -17,15 +17,9 @@ import {
   ExternalLink,
   ChevronLeft,
   Printer,
-  // Added Calendar import to fix line 243
   Calendar
 } from 'lucide-react';
 import PaymentCertificate from './PaymentCertificate';
-
-interface BillingCenterProps {
-  user: User;
-  invoice: Invoice;
-}
 
 const DEFAULT_PLANS: SubscriptionPlan[] = [
   {
@@ -56,24 +50,27 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
 
   useEffect(() => {
     const fetchData = async () => {
-      setIsLoadingPlans(true);
       try {
-        const [settings, plans, invoiceData] = await Promise.all([
+        const [settings, plans] = await Promise.all([
           dbService.getPaymentSettings(),
-          dbService.getSubscriptionPlans(),
-          dbService.getInvoices(user.uid)
+          dbService.getSubscriptionPlans()
         ]);
         setPaymentSettings(settings);
         setSubscriptionPlans(plans.length > 0 ? plans : DEFAULT_PLANS);
-        setInvoices(invoiceData.data);
       } catch (e) {
-        console.error("Failed to fetch billing data", e);
         setSubscriptionPlans(DEFAULT_PLANS);
       } finally {
         setIsLoadingPlans(false);
       }
     };
     fetchData();
+
+    // مراقبة لحظية للفواتير
+    const unsubscribeInvoices = dbService.subscribeToInvoices(user.uid, (updatedInvoices) => {
+        setInvoices(updatedInvoices);
+    });
+
+    return () => unsubscribeInvoices();
   }, [user.uid]);
 
   const handlePlanAction = async (plan: SubscriptionPlan) => {
@@ -97,17 +94,14 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
         
         window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
         
-        // تسجيل فاتورة "قيد الانتظار" لإظهارها في سجل الطالب
+        // تسجيل فاتورة "قيد الانتظار"
         await dbService.initiatePayment(user.uid, plan.id, dynamicPrice);
-        const invoiceData = await dbService.getInvoices(user.uid);
-        setInvoices(invoiceData.data);
         return;
     }
 
     setIsProcessing(true);
     try {
-      const invoice = await dbService.initiatePayment(user.uid, plan.id, dynamicPrice);
-      window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'payment-gateway', invoice } }));
+      await dbService.initiatePayment(user.uid, plan.id, dynamicPrice);
     } catch (e) {
       alert("حدث خطأ أثناء تهيئة عملية الدفع.");
     } finally {

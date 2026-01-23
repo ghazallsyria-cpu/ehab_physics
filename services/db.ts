@@ -14,7 +14,7 @@ import {
   NotificationSettings, PaymentSettings, Invoice, AIRecommendation,
   Unit, Lesson, LiveSession, EducationalResource, PaymentStatus, UserRole,
   AppBranding, Article, PhysicsExperiment, PhysicsEquation, StudyGroup,
-  SubscriptionPlan
+  SubscriptionPlan, InvoiceSettings
 } from '../types';
 
 class DBService {
@@ -26,6 +26,38 @@ class DBService {
     const clean = { ...data };
     Object.keys(clean).forEach(key => (clean[key] === undefined || clean[key] === null) && delete clean[key]);
     return clean;
+  }
+
+  // --- المراقبة اللحظية للمستخدم ---
+  subscribeToUser(uid: string, callback: (user: User | null) => void) {
+    this.checkDb();
+    return onSnapshot(doc(db!, 'users', uid), (snap) => {
+      if (snap.exists()) callback(snap.data() as User);
+      else callback(null);
+    });
+  }
+
+  // --- إعدادات تصميم الفاتورة ---
+  async getInvoiceSettings(): Promise<InvoiceSettings> {
+    this.checkDb();
+    try {
+        const snap = await getDoc(doc(db!, 'settings', 'invoice_design'));
+        if (snap.exists()) return snap.data() as InvoiceSettings;
+    } catch (e) {}
+    return {
+        headerText: 'إيصال دفع رقمي معتمد',
+        footerText: 'يُعتبر هذا المستند إثباتاً رسمياً لعملية الدفع والاشتراك في منصة المركز السوري للعلوم. جميع المعاملات تخضع لسياسة الخصوصية وشروط الاستخدام.',
+        accentColor: '#fbbf24',
+        showSignature: true,
+        signatureName: 'إدارة المركز السوري للعلوم',
+        showWatermark: true,
+        watermarkText: 'SSC KUWAIT'
+    };
+  }
+
+  async saveInvoiceSettings(settings: InvoiceSettings) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'invoice_design'), this.cleanData(settings));
   }
 
   // --- الإحصائيات المالية المتقدمة ---
@@ -372,6 +404,16 @@ class DBService {
     return snap.exists() ? { ...snap.data(), id: snap.id } as Quiz : null;
   }
 
+  // --- مراقبة الإشعارات لحظياً ---
+  subscribeToNotifications(uid: string, callback: (notes: AppNotification[]) => void) {
+    this.checkDb();
+    const q = query(collection(db!, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'), limit(20));
+    return onSnapshot(q, (snap) => {
+      callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification)));
+    });
+  }
+
+  // FIX: Added getNotifications method to allow one-time retrieval of user notifications
   async getNotifications(uid: string): Promise<AppNotification[]> {
     this.checkDb();
     const q = query(collection(db!, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'), limit(20));
@@ -556,6 +598,15 @@ class DBService {
   async deleteInvoice(id: string) {
     this.checkDb();
     await deleteDoc(doc(db!, 'invoices', id));
+  }
+
+  // --- مراقبة الفواتير لحظياً ---
+  subscribeToInvoices(uid: string, callback: (invoices: Invoice[]) => void) {
+    this.checkDb();
+    const q = query(collection(db!, 'invoices'), where('userId', '==', uid), orderBy('date', 'desc'));
+    return onSnapshot(q, (snap) => {
+        callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)));
+    });
   }
 
   async getInvoices(userId?: string): Promise<{ data: Invoice[] }> {
