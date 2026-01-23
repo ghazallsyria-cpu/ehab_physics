@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import anime from 'animejs';
 import { dbService } from '../services/db';
 import { PaymentSettings, SubscriptionPlan } from '../types';
-import { CheckCircle, Zap, ShieldCheck, ChevronLeft, Smartphone } from 'lucide-react';
+import { CheckCircle, Zap, ShieldCheck, ChevronLeft, Smartphone, MessageCircle } from 'lucide-react';
 
 interface LandingPageProps {
   onStart: () => void;
@@ -105,6 +105,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  const openWhatsAppHelp = () => {
+    const num = paymentSettings?.womdaPhoneNumber || "55315661";
+    window.open(`https://wa.me/965${num}?text=مرحباً، أود الاستفسار عن باقات التفوق.`, '_blank');
+  };
+
   return (
     <div className="relative min-h-screen w-full bg-[#000000] overflow-x-hidden flex flex-col items-center font-['Cairo'] pb-32" dir="rtl">
       <style>{`
@@ -151,6 +156,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
           <div className="text-center mb-20">
               <h2 className="text-4xl md:text-6xl font-black text-white italic mb-4">باقات <span className="text-[#fbbf24]">التفوق</span></h2>
               <p className="text-gray-500 text-lg">اختر الباقة المناسبة لمستقبلك الدراسي</p>
+              
+              {!paymentSettings?.isOnlinePaymentEnabled && (
+                 <div className="mt-8 bg-green-500/10 border border-green-500/20 px-6 py-2 rounded-full inline-flex items-center gap-3">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <span className="text-green-400 text-xs font-bold font-['Tajawal']">التفعيل متاح حالياً عبر واتساب / ومض</span>
+                 </div>
+              )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -184,8 +196,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                       ))}
                   </ul>
 
-                  <button onClick={onStart} className="w-full py-6 bg-[#fbbf24] text-black rounded-[30px] font-black text-sm uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl">
-                      سجل الآن للتفعيل
+                  <button onClick={onStart} className="w-full py-6 bg-[#fbbf24] text-black rounded-[30px] font-black text-sm uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-3">
+                      {!paymentSettings?.isOnlinePaymentEnabled && <MessageCircle size={18} />}
+                      {!paymentSettings?.isOnlinePaymentEnabled ? 'سجل واشترك عبر واتساب' : 'سجل الآن للتفعيل'}
                   </button>
               </div>
 
@@ -227,16 +240,28 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                       <Smartphone size={40} />
                   </div>
                   <div>
-                      <h4 className="text-2xl font-black text-white mb-1 uppercase tracking-tight">الدفع السريع عبر <span className="text-blue-400 italic">ومض / Womda</span></h4>
-                      <p className="text-gray-500 text-sm font-bold">للتفعيل الفوري عبر تحويل بنكي واتساب</p>
+                      <h4 className="text-2xl font-black text-white mb-1 uppercase tracking-tight">التفعيل اليدوي عبر <span className="text-blue-400 italic">ومض / Womda</span></h4>
+                      <p className="text-gray-500 text-sm font-bold">حول الإيصال وفعل حسابك خلال دقائق</p>
                   </div>
               </div>
               <div className="bg-black/60 px-10 py-6 rounded-3xl border border-white/5 shadow-inner">
-                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">رقم الاستقبال المعتمد</p>
+                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">رقم الاستقبال (965+)</p>
                   <p className="text-4xl font-black text-white font-mono tracking-tighter tabular-nums">{paymentSettings?.womdaPhoneNumber || '55315661'}</p>
               </div>
           </div>
       </section>
+
+      {/* WhatsApp Floating Action Button */}
+      <button 
+        onClick={openWhatsAppHelp}
+        className="fixed bottom-10 right-10 z-[100] w-16 h-16 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all shadow-green-500/40 group"
+        title="تحدث معنا عبر واتساب"
+      >
+        <MessageCircle size={32} fill="white" className="text-[#25D366]" />
+        <div className="absolute right-20 bg-white text-black px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-gray-200">
+           تحدث مع فريق التفعيل الآن
+        </div>
+      </button>
       
       <footer className="mt-32 text-gray-700 text-[10px] font-black uppercase tracking-[0.6em] text-center">
           © {new Date().getFullYear()} المركز السوري للعلوم • الكويت
