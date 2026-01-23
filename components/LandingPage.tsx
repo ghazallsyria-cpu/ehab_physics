@@ -105,9 +105,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  const openWhatsAppHelp = () => {
-    const num = paymentSettings?.womdaPhoneNumber || "55315661";
-    window.open(`https://wa.me/965${num}?text=مرحباً، أود الاستفسار عن باقات التفوق.`, '_blank');
+  const handlePlanClick = (planName: string, price: number) => {
+    if (!paymentSettings?.isOnlinePaymentEnabled) {
+        const phoneNumber = "965" + (paymentSettings?.womdaPhoneNumber || "55315661");
+        const message = encodeURIComponent(
+            `مرحباً، أود الاستفسار عن الاشتراك في باقة: *${planName}*\nالمعلنة بسعر: *${price} د.ك*\nأنا طالب مهتم بالتسجيل في المنصة.`
+        );
+        window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+    } else {
+        onStart(); // التوجه لصفحة التسجيل
+    }
   };
 
   return (
@@ -196,9 +203,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                       ))}
                   </ul>
 
-                  <button onClick={onStart} className="w-full py-6 bg-[#fbbf24] text-black rounded-[30px] font-black text-sm uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-3">
-                      {!paymentSettings?.isOnlinePaymentEnabled && <MessageCircle size={18} />}
-                      {!paymentSettings?.isOnlinePaymentEnabled ? 'سجل واشترك عبر واتساب' : 'سجل الآن للتفعيل'}
+                  <button 
+                    onClick={() => handlePlanClick("باقة التفوق (Premium)", paymentSettings?.planPrices.premium || 35)} 
+                    className={`w-full py-6 rounded-[30px] font-black text-sm uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-3 ${!paymentSettings?.isOnlinePaymentEnabled ? 'bg-green-500 text-white shadow-green-500/20' : 'bg-[#fbbf24] text-black'}`}
+                  >
+                      {!paymentSettings?.isOnlinePaymentEnabled ? <MessageCircle size={18} fill="currentColor" /> : null}
+                      {!paymentSettings?.isOnlinePaymentEnabled ? 'اشترك عبر واتساب' : 'سجل الآن للتفعيل'}
                   </button>
               </div>
 
@@ -228,7 +238,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                   </ul>
 
                   <button onClick={onStart} className="w-full py-6 bg-white/5 text-white rounded-[30px] border border-white/10 font-black text-sm uppercase tracking-widest hover:bg-white hover:text-black transition-all">
-                      تجربة المنصة
+                      تجربة المنصة مجاناً
                   </button>
               </div>
           </div>
@@ -241,7 +251,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                   </div>
                   <div>
                       <h4 className="text-2xl font-black text-white mb-1 uppercase tracking-tight">التفعيل اليدوي عبر <span className="text-blue-400 italic">ومض / Womda</span></h4>
-                      <p className="text-gray-500 text-sm font-bold">حول الإيصال وفعل حسابك خلال دقائق</p>
+                      <p className="text-gray-500 text-sm font-bold">حول القيمة وأرسل الإيصال للتفعيل الفوري</p>
                   </div>
               </div>
               <div className="bg-black/60 px-10 py-6 rounded-3xl border border-white/5 shadow-inner">
@@ -253,7 +263,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
 
       {/* WhatsApp Floating Action Button */}
       <button 
-        onClick={openWhatsAppHelp}
+        onClick={() => {
+            const num = paymentSettings?.womdaPhoneNumber || "55315661";
+            window.open(`https://wa.me/965${num}?text=مرحباً، أود الاستفسار عن باقات التفوق.`, '_blank');
+        }}
         className="fixed bottom-10 right-10 z-[100] w-16 h-16 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all shadow-green-500/40 group"
         title="تحدث معنا عبر واتساب"
       >
