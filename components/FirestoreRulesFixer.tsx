@@ -68,8 +68,8 @@ service cloud.firestore {
                 <div className="bg-amber-500/10 border-2 border-amber-500/30 p-8 rounded-[40px] flex items-start gap-6">
                     <ShieldAlert className="text-amber-500 shrink-0" size={32} />
                     <div className="text-sm leading-relaxed text-gray-300">
-                        <p className="text-white font-black mb-2 text-lg">لماذا فشل الحذف؟</p>
-                        <p>بشكل افتراضي، يمنع Firebase أي عملية حذف (Delete) ما لم يتم ذكرها صراحة في القواعد. الكود أدناه يضيف صلاحية `delete: if isAdmin()` لكافة أقسام المنهج.</p>
+                        <p className="text-white font-black mb-2 text-lg">لماذا قد يفشل الحذف؟</p>
+                        <p>بشكل افتراضي، يمنع Firebase أي عملية حذف (Delete) ما لم يتم ذكرها صراحة في القواعد. الكود أدناه يضيف صلاحية `delete: if isAdmin()` لكافة أقسام المنهج والجداول الرئيسية.</p>
                     </div>
                 </div>
 

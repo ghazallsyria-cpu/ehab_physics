@@ -20,7 +20,8 @@ const AdminPaymentManager: React.FC = () => {
             const data = await dbService.getPaymentSettings();
             setSettings(data);
         } catch (e) {
-            console.error(e);
+            console.error("Failed to load settings:", e);
+            setMessage({ text: 'حدث خطأ أثناء تحميل الإعدادات.', type: 'error' });
         } finally {
             setIsLoading(false);
         }
@@ -35,7 +36,8 @@ const AdminPaymentManager: React.FC = () => {
             // تحديث محلي فوري للمنصة
             window.dispatchEvent(new CustomEvent('finance-updated', { detail: settings }));
         } catch (e) {
-            setMessage({ text: 'فشل الحفظ.', type: 'error' });
+            console.error("Failed to save settings:", e);
+            setMessage({ text: 'فشل الحفظ. يرجى التحقق من اتصالك بالإنترنت.', type: 'error' });
         } finally {
             setIsSaving(false);
             setTimeout(() => setMessage(null), 3000);
@@ -44,15 +46,22 @@ const AdminPaymentManager: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="py-40 text-center">
-                <RefreshCw className="w-12 h-12 text-[#fbbf24] animate-spin mx-auto mb-6" />
+            <div className="py-40 text-center flex flex-col items-center">
+                <RefreshCw className="w-12 h-12 text-[#fbbf24] animate-spin mb-6" />
                 <p className="text-gray-500 font-bold uppercase tracking-widest">جاري تحميل النظام المالي...</p>
             </div>
         );
     }
 
+    // تأمين أن settings لا تسبب خطأ إذا كانت null للحظة
+    const safeSettings = settings || { 
+        isOnlinePaymentEnabled: true, 
+        womdaPhoneNumber: '', 
+        planPrices: { premium: 0, basic: 0 } 
+    };
+
     return (
-        <div className="max-w-4xl mx-auto py-8 animate-fadeIn font-['Tajawal'] text-right" dir="rtl">
+        <div className="max-w-4xl mx-auto py-8 animate-fadeIn font-['Tajawal'] text-right pb-20" dir="rtl">
             <header className="mb-12 border-r-4 border-emerald-500 pr-8">
                 <h2 className="text-4xl font-black text-white flex items-center gap-4 italic uppercase tracking-tighter">
                     <Banknote className="text-emerald-500" size={32} /> إعدادات <span className="text-emerald-500">الدفع والاشتراكات</span>
@@ -60,15 +69,20 @@ const AdminPaymentManager: React.FC = () => {
                 <p className="text-gray-500 mt-2 font-medium">تحكم في أسعار الباقات، رقم خدمة ومض، وحالة بوابة الدفع الإلكتروني.</p>
             </header>
 
-            {message && <div className={`mb-8 p-5 rounded-3xl text-sm font-bold border flex items-center gap-3 animate-slideUp ${message.type === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}> {message.text} </div>}
+            {message && (
+                <div className={`mb-8 p-5 rounded-3xl text-sm font-bold border flex items-center gap-3 animate-slideUp ${message.type === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                    <AlertCircle size={18} />
+                    {message.text}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 gap-10">
                 {/* 1. حالة بوابة الدفع */}
-                <div className="glass-panel p-10 rounded-[50px] border-white/5 bg-black/40">
+                <div className="glass-panel p-10 rounded-[50px] border-white/5 bg-black/40 shadow-xl">
                     <div className="flex justify-between items-center mb-8">
                         <div className="flex items-center gap-4">
-                            <div className={`p-4 rounded-2xl ${settings?.isOnlinePaymentEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                                {settings?.isOnlinePaymentEnabled ? <Power size={24}/> : <PowerOff size={24}/>}
+                            <div className={`p-4 rounded-2xl ${safeSettings.isOnlinePaymentEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                {safeSettings.isOnlinePaymentEnabled ? <Power size={24}/> : <PowerOff size={24}/>}
                             </div>
                             <div>
                                 <h3 className="text-xl font-black text-white">بوابة الدفع الإلكتروني</h3>
@@ -76,13 +90,13 @@ const AdminPaymentManager: React.FC = () => {
                             </div>
                         </div>
                         <button 
-                            onClick={() => setSettings({...settings!, isOnlinePaymentEnabled: !settings?.isOnlinePaymentEnabled})}
-                            className={`px-10 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${settings?.isOnlinePaymentEnabled ? 'bg-emerald-500 text-black' : 'bg-red-500 text-white'}`}
+                            onClick={() => setSettings({...safeSettings, isOnlinePaymentEnabled: !safeSettings.isOnlinePaymentEnabled})}
+                            className={`px-10 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${safeSettings.isOnlinePaymentEnabled ? 'bg-emerald-500 text-black shadow-lg' : 'bg-red-500 text-white shadow-lg'}`}
                         >
-                            {settings?.isOnlinePaymentEnabled ? 'نشطة الآن' : 'معطلة حالياً'}
+                            {safeSettings.isOnlinePaymentEnabled ? 'نشطة الآن' : 'معطلة حالياً'}
                         </button>
                     </div>
-                    {!settings?.isOnlinePaymentEnabled && (
+                    {!safeSettings.isOnlinePaymentEnabled && (
                         <div className="bg-amber-400/10 border border-amber-400/20 p-4 rounded-2xl flex items-center gap-3">
                             <AlertCircle className="text-amber-400 shrink-0" size={18} />
                             <p className="text-xs text-amber-400 font-bold">تنبيه: سيتم توجيه جميع الطلاب للدفع اليدوي (ومض) والواتساب بدلاً من البطاقات البنكية.</p>
@@ -91,51 +105,53 @@ const AdminPaymentManager: React.FC = () => {
                 </div>
 
                 {/* 2. رقم ومض */}
-                <div className="glass-panel p-10 rounded-[50px] border-white/5 bg-black/40">
+                <div className="glass-panel p-10 rounded-[50px] border-white/5 bg-black/40 shadow-xl">
                     <div className="flex items-center gap-4 mb-8">
                         <Smartphone className="text-[#00d2ff]" />
                         <h3 className="text-xl font-black text-white">إعدادات خدمة ومض (Womda)</h3>
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">رقم الهاتف لاستقبال التحويلات</label>
-                        <input 
-                            type="text" 
-                            value={settings?.womdaPhoneNumber || ''} 
-                            onChange={e => setSettings({...settings!, womdaPhoneNumber: e.target.value})}
-                            className="w-full bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-[#00d2ff] font-bold text-xl tabular-nums ltr text-left"
-                            placeholder="965XXXXXXXX"
-                        />
-                        <p className="text-[10px] text-gray-600 mt-2 italic mr-4">* سيظهر هذا الرقم للطالب في واجهة الدفع اليدوي وفي الصفحة الرئيسية فوراً.</p>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4 mb-2 block">رقم الهاتف لاستقبال التحويلات</label>
+                            <input 
+                                type="text" 
+                                value={safeSettings.womdaPhoneNumber} 
+                                onChange={e => setSettings({...safeSettings, womdaPhoneNumber: e.target.value})}
+                                className="w-full bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-[#00d2ff] font-bold text-xl tabular-nums ltr text-left shadow-inner"
+                                placeholder="965XXXXXXXX"
+                            />
+                        </div>
+                        <p className="text-[10px] text-gray-600 italic mr-4 leading-relaxed">* سيظهر هذا الرقم للطالب في واجهة الدفع اليدوي وفي الصفحة الرئيسية فوراً بعد الحفظ.</p>
                     </div>
                 </div>
 
                 {/* 3. أسعار الباقات */}
-                <div className="glass-panel p-10 rounded-[50px] border-white/5 bg-black/40">
+                <div className="glass-panel p-10 rounded-[50px] border-white/5 bg-black/40 shadow-xl">
                     <div className="flex items-center gap-4 mb-8">
                         <Zap className="text-[#fbbf24]" />
                         <h3 className="text-xl font-black text-white">تسعير الباقات التعليمية</h3>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-3">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">سعر باقة التفوق (Premium)</label>
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4 block">سعر باقة التفوق (Premium)</label>
                             <div className="relative">
                                 <input 
                                     type="number" 
-                                    value={settings?.planPrices.premium || 0} 
-                                    onChange={e => setSettings({...settings!, planPrices: {...settings!.planPrices, premium: Number(e.target.value)}})}
-                                    className="w-full bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-[#fbbf24] font-black text-2xl tabular-nums"
+                                    value={safeSettings.planPrices.premium} 
+                                    onChange={e => setSettings({...safeSettings, planPrices: {...safeSettings.planPrices, premium: Number(e.target.value)}})}
+                                    className="w-full bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-[#fbbf24] font-black text-2xl tabular-nums shadow-inner"
                                 />
                                 <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 font-bold">د.ك</span>
                             </div>
                         </div>
                         <div className="space-y-3">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">سعر الباقة الأساسية (Basic)</label>
-                            <div className="relative opacity-50">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4 block">سعر الباقة الأساسية (Basic)</label>
+                            <div className="relative">
                                 <input 
                                     type="number" 
-                                    readOnly
-                                    value={settings?.planPrices.basic || 0} 
-                                    className="w-full bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none font-black text-2xl tabular-nums cursor-not-allowed"
+                                    value={safeSettings.planPrices.basic} 
+                                    onChange={e => setSettings({...safeSettings, planPrices: {...safeSettings.planPrices, basic: Number(e.target.value)}})}
+                                    className="w-full bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-white/20 font-black text-2xl tabular-nums shadow-inner"
                                 />
                                 <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 font-bold">د.ك</span>
                             </div>
@@ -143,13 +159,14 @@ const AdminPaymentManager: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex justify-end pt-6">
                     <button 
                         onClick={handleSave} 
                         disabled={isSaving}
-                        className="bg-emerald-500 text-black px-16 py-6 rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-4"
+                        className="bg-emerald-500 text-black px-16 py-6 rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-4 group"
                     >
-                        {isSaving ? <RefreshCw className="animate-spin" /> : <Save />} حفظ الإعدادات وتحديث الموقع
+                        {isSaving ? <RefreshCw className="animate-spin" /> : <Save className="group-hover:scale-110 transition-transform" />} 
+                        حفظ كافة التغييرات وتحديث الموقع
                     </button>
                 </div>
             </div>

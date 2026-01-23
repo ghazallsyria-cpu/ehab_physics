@@ -13,7 +13,7 @@ import {
   ForumPost, ForumReply, WeeklyReport, LoggingSettings, 
   NotificationSettings, PaymentSettings, Invoice, AIRecommendation,
   Unit, Lesson, LiveSession, EducationalResource, PaymentStatus, UserRole,
-  AppBranding, Article, PhysicsExperiment, PhysicsEquation, StudyGroup,
+  AppBranding, Article, PhysicsExperiment, PhysicsExperiment as PhysicsExperimentType, PhysicsEquation, StudyGroup,
   SubscriptionPlan
 } from '../types';
 
@@ -50,7 +50,7 @@ class DBService {
     await setDoc(doc(db!, 'settings', 'branding'), this.cleanData(branding));
   }
 
-  // --- المناهج ---
+  // --- المحتوى التعليمي ---
   async getCurriculum(): Promise<Curriculum[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'curriculum'));
@@ -64,7 +64,7 @@ class DBService {
     const snap = await getDoc(ref);
     if (!snap.exists()) return;
     const data = snap.data() as Curriculum;
-    const units = data.units.map(u => {
+    const units = (data.units || []).map(u => {
       if (u.id === unitId) {
         const lessons = [...(u.lessons || [])];
         const idx = lessons.findIndex(l => l.id === lesson.id);
@@ -100,7 +100,7 @@ class DBService {
     const id = `${grade}_${subject}`;
     const ref = doc(db!, 'curriculum', id);
     const snap = await getDoc(ref);
-    if (!snap.exists()) throw new Error("Document not found");
+    if (!snap.exists()) throw new Error("المستند غير موجود في قاعدة البيانات.");
     const data = snap.data() as Curriculum;
     const units = (data.units || []).filter(u => u.id !== unitId);
     await updateDoc(ref, { units });
@@ -111,7 +111,7 @@ class DBService {
     const id = `${grade}_${subject}`;
     const ref = doc(db!, 'curriculum', id);
     const snap = await getDoc(ref);
-    if (!snap.exists()) throw new Error("Document not found");
+    if (!snap.exists()) throw new Error("المستند غير موجود في قاعدة البيانات.");
     const data = snap.data() as Curriculum;
     const units = (data.units || []).map(u => {
       if (u.id === unitId) return { ...u, lessons: (u.lessons || []).filter(l => l.id !== lessonId) };
@@ -128,16 +128,25 @@ class DBService {
   // --- الإعدادات المالية ---
   async getPaymentSettings(): Promise<PaymentSettings> {
     this.checkDb();
-    try {
-        const snap = await getDoc(doc(db!, 'settings', 'payments'));
-        if (snap.exists()) return snap.data() as PaymentSettings;
-    } catch (e) {}
-    // Default safe values
-    return { 
+    const defaultSettings: PaymentSettings = { 
         isOnlinePaymentEnabled: true, 
         womdaPhoneNumber: '55315661', 
         planPrices: { premium: 35, basic: 15 } 
     };
+    try {
+        const snap = await getDoc(doc(db!, 'settings', 'payments'));
+        if (snap.exists()) {
+            const data = snap.data() as PaymentSettings;
+            return {
+                ...defaultSettings,
+                ...data,
+                planPrices: { ...defaultSettings.planPrices, ...(data.planPrices || {}) }
+            };
+        }
+    } catch (e) {
+        console.error("Error fetching payment settings:", e);
+    }
+    return defaultSettings;
   }
 
   async savePaymentSettings(settings: PaymentSettings) {
@@ -395,10 +404,10 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as Article));
   }
 
-  async getExperiments(): Promise<PhysicsExperiment[]> {
+  async getExperiments(): Promise<PhysicsExperimentType[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'experiments'));
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as PhysicsExperiment));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as PhysicsExperimentType));
   }
 
   async getEquations(): Promise<PhysicsEquation[]> {

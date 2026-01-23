@@ -113,7 +113,7 @@ const AdminCurriculumManager: React.FC = () => {
     } catch (e: any) {
       console.error(e);
       setSaveStatus('error');
-      setErrorMessage("فشل الحذف: قد لا تملك صلاحية 'Admin' في قاعدة البيانات.");
+      setErrorMessage(e.message || "فشل الحذف: قد لا تملك صلاحية 'Admin' في قاعدة البيانات أو المستند غير موجود.");
     }
     setTimeout(() => { setSaveStatus('idle'); setErrorMessage(null); }, 4000);
   };
@@ -127,7 +127,7 @@ const AdminCurriculumManager: React.FC = () => {
       setSaveStatus('success');
     } catch (e: any) {
       setSaveStatus('error');
-      setErrorMessage("فشل حذف الدرس. يرجى مراجعة مركز الأمان.");
+      setErrorMessage(e.message || "فشل حذف الدرس. يرجى مراجعة مركز الأمان.");
     }
     setTimeout(() => { setSaveStatus('idle'); setErrorMessage(null); }, 4000);
   };
@@ -222,7 +222,7 @@ const AdminCurriculumManager: React.FC = () => {
                 <div className="flex gap-3">
                   <button onClick={() => setEditingUnit(unit)} className="p-4 bg-white/5 rounded-2xl text-white hover:bg-[#00d2ff] hover:text-black transition-all" title="تعديل الوحدة"><Edit size={18}/></button>
                   <button onClick={() => deleteUnit(unit.id)} className="p-4 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all border border-red-500/20" title="حذف الوحدة نهائياً"><Trash2 size={18}/></button>
-                  <button onClick={() => handleAddLesson(unit.id)} className="px-6 py-4 bg-green-500/10 rounded-2xl text-green-400 hover:bg-green-500 hover:text-black transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 border border-green-500/20">
+                  <button onClick={() => handleAddLesson(unit.id)} className="px-6 py-4 bg-green-500/10 rounded-2xl text-green-400 group-hover:bg-green-500 group-hover:text-black transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 border border-green-500/20">
                     <Plus size={16}/> إضافة درس
                   </button>
                 </div>

@@ -78,10 +78,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, branding,
             { id: 'admin-teachers', label: 'إدارة المعلمين', icon: '👨‍🏫' },
             { id: 'admin-managers', label: 'إدارة فريق العمل', icon: '🛡️' },
             { id: 'admin-curriculum', label: 'إدارة المسارات', icon: '📚' },
-            { id: 'admin-live-sessions', label: 'الجلسات المباشرة', icon: '📡' },
-            { id: 'admin-quizzes', label: 'إدارة الاختبارات', icon: '❓' },
-            { id: 'admin-assets', label: 'مكتبة الوسائط', icon: '🖼️' },
+          ]},
+          { label: 'النظام والمالية', items: [
+            { id: 'admin-payment-manager', label: 'إدارة الدفع والأسعار', icon: '💳' },
             { id: 'admin-financials', label: 'التقارير المالية', icon: '🧾' },
+            { id: 'admin-live-sessions', label: 'الجلسات المباشرة', icon: '📡' },
+            { id: 'admin-assets', label: 'مكتبة الوسائط', icon: '🖼️' },
             { id: 'admin-settings', label: 'إعدادات المنصة', icon: '⚙️' },
           ]}
         ];
