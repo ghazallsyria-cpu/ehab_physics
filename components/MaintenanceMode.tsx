@@ -89,10 +89,8 @@ const MaintenanceMode: React.FC = () => {
 
   const handleLaunchSequence = () => {
     setIsLaunched(true);
-    // حركة احتفالية فور الانتهاء (مثل السنة الجديدة)
-    const tl = anime.timeline({
-        easing: 'easeOutExpo'
-    });
+    // حركة احتفالية فور الانتهاء
+    const tl = anime.timeline({ easing: 'easeOutExpo' });
 
     tl.add({
         targets: '.launch-overlay',
@@ -221,7 +219,7 @@ const MaintenanceMode: React.FC = () => {
       </button>
 
       <footer className="absolute bottom-6 w-full px-12 flex justify-between items-center opacity-20 pointer-events-none">
-         <p className="text-[7px] font-black uppercase tracking-[0.4em]">Syrian Science Center • Auto-Launch v6.0</p>
+         <p className="text-[7px] font-black uppercase tracking-[0.4em]">Syrian Science Center • Auto-Launch v12.0</p>
          <div className="flex gap-4"><Sparkles size={12} className="text-blue-500/50" /><Orbit size={12} className="text-cyan-500/50" /></div>
       </footer>
     </div>

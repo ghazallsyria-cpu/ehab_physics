@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { User, ViewState, Lesson, Quiz, StudentQuizAttempt, AppBranding, MaintenanceSettings } from './types';
 import { dbService } from './services/db';
-import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, User as UserIcon, LogOut, ShieldAlert } from 'lucide-react';
+import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, ShieldAlert } from 'lucide-react';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
@@ -72,7 +72,6 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // 🔑 مفتاح عبور معقد للمدراء فقط (Quantum Key)
   const QUANTUM_BYPASS_KEY = 'ssc_core_secure_v4_8822';
 
   useEffect(() => {
@@ -144,13 +143,11 @@ const App: React.FC = () => {
       </div>
     );
 
-    // 🛑 فحص الصيانة الصارم مع التجاوز التلقائي (Auto-Bypass)
     if (maintenance?.isMaintenanceActive) {
         const now = Date.now();
         const targetTime = maintenance.expectedReturnTime ? new Date(maintenance.expectedReturnTime).getTime() : 0;
         const isTimeOver = targetTime > 0 && now >= targetTime;
 
-        // إذا انتهى الوقت، تفتح المنصة للجميع تلقائياً
         if (!isTimeOver) {
             if (user?.role === 'student') return <MaintenanceMode />;
             if (!user && !hasBypass) return <MaintenanceMode />;
@@ -252,7 +249,6 @@ const App: React.FC = () => {
 
           <div className="flex items-center gap-4">
              {hasBypass && <div className="hidden sm:flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full"><ShieldAlert size={12} className="text-amber-500"/><span className="text-[8px] font-black text-amber-500 uppercase">Admin Access Active</span></div>}
-             <button onClick={() => setShowNotifications(true)} className="p-3 text-gray-400 hover:text-white bg-white/5 rounded-2xl relative transition-all border border-white/5"><Bell size={20} /><span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full border-2 border-[#0A2540] animate-pulse"></span></button>
              <div className="hidden sm:flex items-center gap-3 bg-black/20 p-2 pr-5 rounded-3xl border border-white/5 shadow-inner">
                 <div className="text-right">
                     <p className="text-[10px] font-black text-white leading-none truncate max-w-[80px]">{user?.name}</p>
