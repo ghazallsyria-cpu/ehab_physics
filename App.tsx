@@ -67,29 +67,26 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    // 1. فحص الرابط السري فوراً
     const searchParams = new URLSearchParams(window.location.search);
     if (searchParams.get('admin') === 'true' || searchParams.get('master') === 'true') {
         sessionStorage.setItem('ssc_admin_bypass', 'true');
     }
 
-    // 2. مزامنة حالة الصيانة لحظياً
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
         setMaintenance(settings);
     });
 
-    // 3. مزامنة الهوية البصرية
     dbService.getAppBranding().then(setBranding);
     const handleBrandingUpdate = (e: any) => { if (e.detail) setBranding(e.detail); };
     window.addEventListener('branding-updated', handleBrandingUpdate);
     
-    // 4. مراقبة حالة تسجيل الدخول
     let unsubscribeUser: (() => void) | null = null;
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         unsubscribeUser = dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
             if (updatedUser) {
                 setUser(updatedUser);
+                // إذا كنا في صفحة الصيانة وحدث تسجيل دخول ناجح (عبر عبور سري)، نفتح الداشبورد
                 if (viewStack.includes('landing') || viewStack.includes('auth')) {
                     setViewStack(['dashboard']);
                 }
@@ -136,15 +133,37 @@ const App: React.FC = () => {
   const renderContent = () => {
     const isBypassActive = sessionStorage.getItem('ssc_admin_bypass') === 'true';
 
-    // حماية الصيانة
+    // حماية الصيانة الصارمة
     if (maintenance?.isMaintenanceActive && !isBypassActive) {
         const canBypass = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
+        // إذا كان طالباً، حتى لو حاول العبور برابط سري، سنمنعه من رؤية المحتوى إذا لم يسجل دخوله كمسؤول
         if (!canBypass && currentView !== 'auth') {
             return <MaintenanceMode />;
         }
     }
 
-    if (isAuthLoading) return <div className="flex flex-col items-center justify-center h-[70vh] gap-6"><RefreshCw className="w-16 h-16 text-amber-400 animate-spin" /><p className="text-gray-400 font-bold animate-pulse">جاري تأمين الاتصال...</p></div>;
+    // إذا تم العبور ولكن المستخدم "طالب"، نجبره على تسجيل دخول مسؤول أو معلم
+    if (maintenance?.isMaintenanceActive && isBypassActive && user && user.role === 'student' && currentView !== 'auth') {
+        return (
+            <div className="fixed inset-0 z-[5000] bg-black flex flex-col items-center justify-center p-8 text-center font-['Tajawal']" dir="rtl">
+                <div className="w-20 h-20 bg-amber-500/10 rounded-3xl flex items-center justify-center text-amber-500 mb-6 border border-amber-500/20">
+                    <LogOut size={40} />
+                </div>
+                <h3 className="text-2xl font-black text-white mb-4 italic">دخول مقيد للطلاب</h3>
+                <p className="text-gray-400 max-w-sm mb-8 leading-relaxed">
+                    عذراً، العبور السري مخصص للمدراء والمعلمين فقط أثناء الصيانة. يرجى تسجيل الخروج والدخول بحساب إداري.
+                </p>
+                <button 
+                    onClick={() => { sessionStorage.removeItem('ssc_admin_bypass'); signOut(auth); }}
+                    className="bg-white text-black px-12 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all"
+                >
+                    العودة لصفحة الصيانة
+                </button>
+            </div>
+        );
+    }
+
+    if (isAuthLoading) return <div className="flex flex-col items-center justify-center h-[70vh] gap-6"><RefreshCw className="w-16 h-16 text-amber-400 animate-spin" /><p className="text-gray-400 font-bold animate-pulse">جاري فحص حالة النظام...</p></div>;
 
     if (!user && currentView !== 'landing' && currentView !== 'auth') return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
 
@@ -203,7 +222,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
       {maintenance?.isMaintenanceActive && (
           <div className="fixed top-0 left-0 right-0 z-[1000] bg-amber-500 text-black text-[9px] font-black py-1.5 text-center uppercase tracking-[0.2em] pointer-events-none shadow-xl">
-              تنبيه: أنت في وضع "العبور السري" للمدير • المنصة مغلقة حالياً للطلاب
+              تنبيه: أنت في وضع "العبور المباشر للمدير" • المنصة مقفلة أمام الطلاب
           </div>
       )}
       

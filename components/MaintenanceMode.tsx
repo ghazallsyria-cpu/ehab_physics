@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import anime from 'animejs';
 import { MaintenanceSettings, AppBranding } from '../types';
-import { RefreshCw, Atom, Lock, ShieldCheck, Sparkles, Zap, Timer } from 'lucide-react';
+import { RefreshCw, Atom, ShieldCheck, Timer, Zap, Sparkles, Orbit } from 'lucide-react';
 import { dbService } from '../services/db';
 
 const MaintenanceMode: React.FC = () => {
@@ -17,7 +17,7 @@ const MaintenanceMode: React.FC = () => {
   useEffect(() => {
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((data) => {
         setSettings(data);
-        // إذا قام المدير بإغلاق وضع الصيانة من لوحة التحكم، نفتح المنصة فوراً
+        // إذا قام المدير بإغلاق وضع الصيانة يدوياً من لوحة التحكم، نفتح المنصة فوراً للطلاب
         if (data && !data.isMaintenanceActive) {
             handleAutoOpen();
         }
@@ -28,13 +28,13 @@ const MaintenanceMode: React.FC = () => {
         setShowSecretButton(true);
     }
 
-    // أنيميشن الخلفية (جزيئات تطفو)
+    // إنشاء جزيئات خلفية متحركة (Physics Particles)
     const createParticles = () => {
         if (!containerRef.current) return;
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 40; i++) {
             const dot = document.createElement('div');
-            dot.className = 'absolute bg-blue-500/10 rounded-full pointer-events-none';
-            const size = Math.random() * 5 + 2;
+            dot.className = 'absolute bg-blue-400/20 rounded-full pointer-events-none blur-[1px]';
+            const size = Math.random() * 4 + 1;
             dot.style.width = `${size}px`;
             dot.style.height = `${size}px`;
             dot.style.left = `${Math.random() * 100}%`;
@@ -43,10 +43,11 @@ const MaintenanceMode: React.FC = () => {
             
             anime({
                 targets: dot,
-                translateY: [0, anime.random(-300, 300)],
-                translateX: [0, anime.random(-300, 300)],
-                opacity: [0, 0.5, 0],
-                duration: anime.random(5000, 15000),
+                translateY: [0, anime.random(-500, 500)],
+                translateX: [0, anime.random(-500, 500)],
+                opacity: [0, 0.6, 0],
+                scale: [1, 2],
+                duration: anime.random(6000, 15000),
                 loop: true,
                 easing: 'easeInOutQuad'
             });
@@ -67,7 +68,7 @@ const MaintenanceMode: React.FC = () => {
 
       if (diff <= 0) {
         clearInterval(timer);
-        handleAutoOpen(); // الفتح التلقائي عند انتهاء الوقت
+        handleAutoOpen();
       } else {
         setTimeLeft({
           d: Math.floor(diff / (1000 * 60 * 60 * 24)),
@@ -85,144 +86,172 @@ const MaintenanceMode: React.FC = () => {
       if (isOpening) return;
       setIsOpening(true);
       
-      // تأثير بصري "الانفجار الضوئي" عند الافتتاح
-      anime({
+      // تأثير الانفجار العظيم (Big Bang Effect)
+      const tl = anime.timeline({
+          easing: 'easeOutExpo'
+      });
+
+      tl.add({
+          targets: '.quantum-core',
+          scale: 0.1,
+          rotate: '1080deg',
+          duration: 1200
+      }).add({
           targets: '.opening-flash',
-          opacity: [0, 1, 0],
-          duration: 1500,
-          easing: 'easeOutExpo',
+          opacity: [0, 1],
+          duration: 1000,
           complete: () => {
-              window.location.reload(); // إعادة تحميل لتحديث حالة التطبيق بالكامل
+              // إعادة توجيه نظيفة للجذر لإزالة أي بارامترات مثل ?admin=true
+              window.location.href = window.location.origin; 
           }
       });
-  };
-
-  // Add missing goToLogin function to handle the secret admin bypass
-  const goToLogin = () => {
-      handleAutoOpen();
   };
 
   const handleLogoClick = (e: React.MouseEvent) => {
       const newCount = clickCount + 1;
       setClickCount(newCount);
       
-      // تأثير "موجة رادارية" عند النقر
-      const ripple = document.createElement('div');
-      ripple.className = 'absolute rounded-full border-2 border-blue-400/50 pointer-events-none';
-      ripple.style.left = `${e.nativeEvent.offsetX}px`;
-      ripple.style.top = `${e.nativeEvent.offsetY}px`;
-      ripple.style.width = '10px';
-      ripple.style.height = '10px';
-      (e.currentTarget as HTMLElement).appendChild(ripple);
-
+      // تأثير بصري للنبض الكوانتومي
       anime({
-          targets: ripple,
-          width: 200,
-          height: 200,
-          left: e.nativeEvent.offsetX - 100,
-          top: e.nativeEvent.offsetY - 100,
-          opacity: 0,
-          duration: 800,
-          easing: 'easeOutQuart',
-          complete: () => ripple.remove()
+          targets: '.maintenance-logo',
+          scale: [1, 1.1, 1],
+          filter: ['brightness(1)', 'brightness(2)', 'brightness(1)'],
+          duration: 400
       });
 
       if (newCount >= 5) {
           sessionStorage.setItem('ssc_admin_bypass', 'true');
           setShowSecretButton(true);
+          if ("vibrate" in navigator) navigator.vibrate(200);
+          
           anime({
-              targets: '.maintenance-logo',
-              scale: [1, 1.2, 1],
-              rotate: '360deg',
-              duration: 1000
+              targets: '.secret-btn-reveal',
+              opacity: [0, 1],
+              translateY: [20, 0],
+              duration: 800,
+              easing: 'easeOutElastic(1, .8)'
           });
       }
   };
 
-  const TimeBlock = ({ value, label, color }: { value: number, label: string, color: string }) => (
+  const goToLogin = () => {
+      window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'auth' } }));
+  };
+
+  const TimeBlock = ({ value, label, sublabel }: { value: number, label: string, sublabel: string }) => (
     <div className="flex flex-col items-center">
-        <div className={`w-20 h-24 md:w-28 md:h-32 bg-white/[0.02] border-2 border-${color}-500/20 rounded-[30px] flex items-center justify-center relative overflow-hidden backdrop-blur-xl shadow-2xl transition-all hover:border-${color}-400/50 group`}>
-            <div className={`absolute inset-0 bg-gradient-to-t from-${color}-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity`}></div>
-            <span className={`text-4xl md:text-6xl font-black text-white tabular-nums z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]`}>
-                {String(value).padStart(2, '0')}
-            </span>
+        <div className="relative group">
+            <div className="absolute inset-[-10px] bg-blue-500/10 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="w-24 h-28 md:w-32 md:h-36 bg-gradient-to-b from-white/[0.05] to-transparent border border-white/10 rounded-[35px] flex items-center justify-center backdrop-blur-2xl shadow-2xl relative overflow-hidden group-hover:border-blue-400/50 transition-all">
+                <div className="absolute top-0 left-0 w-full h-1/2 bg-white/5 pointer-events-none"></div>
+                <span className="text-5xl md:text-7xl font-black text-white tabular-nums tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                    {String(value).padStart(2, '0')}
+                </span>
+            </div>
         </div>
-        <span className="text-[9px] font-black text-gray-500 uppercase tracking-[0.3em] mt-4 italic">{label}</span>
+        <div className="mt-4 text-center">
+            <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] italic leading-none">{label}</p>
+            <p className="text-[7px] text-gray-600 font-bold uppercase tracking-[0.2em] mt-1">{sublabel}</p>
+        </div>
     </div>
   );
 
   if (!settings) return null;
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-[9999] bg-[#010304] flex flex-col items-center justify-center font-['Tajawal'] text-white overflow-hidden text-right" dir="rtl">
+    <div ref={containerRef} className="fixed inset-0 z-[9999] bg-[#000407] flex flex-col items-center justify-center font-['Tajawal'] text-white overflow-hidden text-right" dir="rtl">
       
-      {/* طبقة الوميض عند الافتتاح */}
+      {/* طبقة الوميض النهائي */}
       <div className="opening-flash fixed inset-0 bg-white z-[10000] opacity-0 pointer-events-none"></div>
 
-      {/* المدارات الفيزيائية الخلفية */}
-      <div className="absolute w-[800px] h-[800px] opacity-20 pointer-events-none">
-          <div className="absolute inset-0 border border-blue-500/20 rounded-full animate-spin-slow"></div>
-          <div className="absolute inset-20 border border-cyan-500/10 rounded-full animate-spin-slow-reverse"></div>
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-blue-400 rounded-full blur-sm"></div>
+      {/* خلفية فيزيائية متحركة */}
+      <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] border border-blue-500/10 rounded-full animate-ping-slow"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-cyan-500/10 rounded-full animate-ping-slow" style={{animationDelay: '2s'}}></div>
       </div>
 
-      <div className="relative z-10 max-w-4xl w-full px-8 text-center flex flex-col items-center">
-        <div 
-            onClick={handleLogoClick}
-            className="maintenance-logo w-32 h-32 md:w-40 md:h-40 bg-white/[0.03] border-2 border-white/10 rounded-[50px] flex items-center justify-center mb-10 shadow-[0_0_60px_rgba(255,255,255,0.03)] relative group overflow-hidden cursor-pointer transition-all active:scale-90"
-        >
-            <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            {branding?.logoUrl ? (
-                <img src={branding.logoUrl} className="w-3/4 h-3/4 object-contain pointer-events-none" alt="Logo" />
-            ) : (
-                <Atom size={64} className="text-blue-400 animate-spin-slow pointer-events-none" />
-            )}
+      <div className="relative z-10 max-w-5xl w-full px-8 flex flex-col items-center">
+        
+        {/* الشعار الكوانتومي */}
+        <div className="quantum-core relative mb-16">
+            <div className="absolute inset-[-40px] border border-blue-500/10 rounded-full animate-spin-slow"></div>
+            <div className="absolute inset-[-20px] border border-blue-400/20 rounded-full animate-spin-slow-reverse"></div>
+            <div 
+                onClick={handleLogoClick}
+                className="maintenance-logo w-36 h-36 md:w-48 md:h-48 bg-[#0a1118] border-2 border-white/10 rounded-[60px] flex items-center justify-center shadow-[0_0_80px_rgba(59,130,246,0.1)] relative group overflow-hidden cursor-pointer transition-all active:scale-90"
+            >
+                <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                {branding?.logoUrl ? (
+                    <img src={branding.logoUrl} className="w-2/3 h-2/3 object-contain pointer-events-none relative z-10" alt="Logo" />
+                ) : (
+                    <Atom size={80} className="text-blue-400 animate-spin-slow pointer-events-none relative z-10" />
+                )}
+                
+                {clickCount > 0 && (
+                    <div className="absolute bottom-4 text-[8px] font-black text-blue-500/40 uppercase tracking-widest animate-pulse">
+                        Shield: {clickCount}/5
+                    </div>
+                )}
+            </div>
         </div>
 
-        <div className="space-y-4 mb-16">
-            <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-none italic">
-                نحن في حالة <span className="text-blue-400 text-glow-cyan">تحديث</span>
+        <div className="text-center mb-16 space-y-6">
+            <div className="inline-flex items-center gap-3 bg-blue-500/10 px-6 py-2 rounded-full border border-blue-500/20 mb-4 animate-slideUp">
+                <Zap size={14} className="text-blue-400 animate-pulse" />
+                <span className="text-[10px] font-black text-blue-300 uppercase tracking-widest italic">Core Synchronization Active</span>
+            </div>
+            <h1 className="text-6xl md:text-9xl font-black text-white tracking-tighter leading-none italic uppercase">
+                تحديث <span className="text-blue-400 drop-shadow-[0_0_30px_rgba(59,130,246,0.4)]">المصادم</span>
             </h1>
-            <p className="text-lg md:text-xl text-gray-500 max-w-xl mx-auto leading-relaxed font-medium italic">
+            <p className="text-xl md:text-2xl text-gray-500 max-w-2xl mx-auto leading-relaxed font-medium italic opacity-80">
                 {settings.maintenanceMessage}
             </p>
         </div>
 
         {settings.showCountdown && (
-            <div className="flex gap-4 md:gap-8 mb-20 animate-slideUp">
-                <TimeBlock value={timeLeft.d} label="أيام" color="blue" />
-                <TimeBlock value={timeLeft.h} label="ساعات" color="cyan" />
-                <TimeBlock value={timeLeft.m} label="دقائق" color="blue" />
-                <TimeBlock value={timeLeft.s} label="ثواني" color="amber" />
+            <div className="flex gap-4 md:gap-10 mb-20 animate-slideUp">
+                <TimeBlock value={timeLeft.d} label="الأيام" sublabel="Days" />
+                <TimeBlock value={timeLeft.h} label="الساعات" sublabel="Hours" />
+                <TimeBlock value={timeLeft.m} label="الدقائق" sublabel="Minutes" />
+                <TimeBlock value={timeLeft.s} label="الثواني" sublabel="Seconds" />
             </div>
         )}
 
-        <div className="flex flex-col items-center gap-8">
-            <div className="flex items-center gap-4 bg-blue-500/5 px-10 py-5 rounded-[25px] border border-blue-500/10 shadow-inner group">
-                <Timer className="text-blue-400 group-hover:rotate-12 transition-transform" size={20}/>
-                <span className="text-xs font-black text-gray-300 tracking-widest uppercase">
-                    موعد الفتح: {new Date(settings.expectedReturnTime).toLocaleTimeString('ar-KW', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+        <div className="flex flex-col items-center gap-10">
+            <div className="flex items-center gap-4 bg-white/[0.02] border border-white/5 px-10 py-6 rounded-[30px] shadow-inner backdrop-blur-md">
+                <div className="w-10 h-10 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400">
+                    <Timer size={20} />
+                </div>
+                <div className="text-right">
+                    <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-1">الافتتاح الرسمي للمنصة</p>
+                    <p className="text-sm font-black text-white tabular-nums">
+                        {new Date(settings.expectedReturnTime).toLocaleDateString('ar-KW', { day: 'numeric', month: 'long' })} | {new Date(settings.expectedReturnTime).toLocaleTimeString('ar-KW', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                </div>
             </div>
             
-            <div className="flex gap-4">
-                {showSecretButton && (
+            {showSecretButton && (
+                <div className="secret-btn-reveal">
                     <button 
                         onClick={goToLogin}
-                        className="flex items-center gap-4 text-amber-400 hover:text-white transition-all text-xs font-black uppercase tracking-[0.2em] bg-amber-400/10 px-10 py-4 rounded-2xl border border-amber-400/20 animate-bounce shadow-[0_0_30px_rgba(251,191,36,0.2)]"
+                        className="flex items-center gap-4 text-amber-400 hover:text-white transition-all text-xs font-black uppercase tracking-[0.2em] bg-amber-400/10 px-12 py-5 rounded-2xl border-2 border-amber-400/20 animate-bounce shadow-[0_0_50px_rgba(251,191,36,0.2)]"
                     >
-                        <ShieldCheck size={18}/> دخول الإدارة المركزية
+                        <ShieldCheck size={20}/> دخول الإدارة المركزية
                     </button>
-                )}
-            </div>
+                </div>
+            )}
         </div>
       </div>
 
-      <footer className="absolute bottom-10 opacity-20 flex flex-col items-center gap-2">
-         <div className="flex gap-6 mb-2">
-            <Zap size={14}/> <Atom size={14}/> <Sparkles size={14}/>
+      <footer className="absolute bottom-10 w-full px-12 flex justify-between items-center opacity-20">
+         <div className="flex items-center gap-4">
+             <div className="h-px w-20 bg-gray-500"></div>
+             <p className="text-[8px] font-black uppercase tracking-[0.5em]">Quantum System Core v3.5</p>
          </div>
-         <p className="text-[8px] font-black uppercase tracking-[0.8em]">Syrian Science Center • Quantum Core v2</p>
+         <div className="flex gap-4">
+            <Sparkles size={14}/>
+            <Orbit size={14}/>
+         </div>
       </footer>
     </div>
   );
