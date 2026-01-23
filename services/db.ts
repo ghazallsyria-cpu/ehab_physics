@@ -50,7 +50,7 @@ class DBService {
     await setDoc(doc(db!, 'settings', 'branding'), this.cleanData(branding));
   }
 
-  // --- المحتوى التعليمي ---
+  // --- المناهج ---
   async getCurriculum(): Promise<Curriculum[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'curriculum'));
@@ -125,7 +125,27 @@ class DBService {
     await updateDoc(doc(db!, 'curriculum', `${grade}_${subject}`), { units });
   }
 
-  // --- بقية الدالات كما هي ---
+  // --- الإعدادات المالية ---
+  async getPaymentSettings(): Promise<PaymentSettings> {
+    this.checkDb();
+    try {
+        const snap = await getDoc(doc(db!, 'settings', 'payments'));
+        if (snap.exists()) return snap.data() as PaymentSettings;
+    } catch (e) {}
+    // Default safe values
+    return { 
+        isOnlinePaymentEnabled: true, 
+        womdaPhoneNumber: '55315661', 
+        planPrices: { premium: 35, basic: 15 } 
+    };
+  }
+
+  async savePaymentSettings(settings: PaymentSettings) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'payments'), this.cleanData(settings));
+  }
+
+  // --- المستخدمون ---
   async getUser(uidOrEmail: string): Promise<User | null> {
     this.checkDb();
     try {
@@ -242,17 +262,6 @@ class DBService {
   async saveNotificationSettings(settings: NotificationSettings) {
     this.checkDb();
     await setDoc(doc(db!, 'settings', 'notifications'), this.cleanData(settings));
-  }
-
-  async getPaymentSettings(): Promise<PaymentSettings> {
-    this.checkDb();
-    const snap = await getDoc(doc(db!, 'settings', 'payments'));
-    return snap.exists() ? snap.data() as PaymentSettings : { isOnlinePaymentEnabled: true, womdaPhoneNumber: '55315661', planPrices: { premium: 35, basic: 15 } };
-  }
-
-  async savePaymentSettings(settings: PaymentSettings) {
-    this.checkDb();
-    await setDoc(doc(db!, 'settings', 'payments'), this.cleanData(settings));
   }
 
   async getQuizzes(): Promise<Quiz[]> {
@@ -562,7 +571,6 @@ class DBService {
   }
 
   // --- تهيئة نظام المنتديات ---
-  // Added initializeForumSystem to DBService to fix error in AdminForumManager.tsx
   async initializeForumSystem() {
     this.checkDb();
     

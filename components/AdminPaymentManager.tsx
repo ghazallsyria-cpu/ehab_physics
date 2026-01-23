@@ -31,7 +31,9 @@ const AdminPaymentManager: React.FC = () => {
         setIsSaving(true);
         try {
             await dbService.savePaymentSettings(settings);
-            setMessage({ text: 'تم حفظ الإعدادات المالية بنجاح ✅', type: 'success' });
+            setMessage({ text: 'تم حفظ الإعدادات المالية بنجاح. سيتم تحديث الأسعار ورقم ومض في الصفحة الرئيسية فوراً ✅', type: 'success' });
+            // تحديث محلي فوري للمنصة
+            window.dispatchEvent(new CustomEvent('finance-updated', { detail: settings }));
         } catch (e) {
             setMessage({ text: 'فشل الحفظ.', type: 'error' });
         } finally {
@@ -103,7 +105,7 @@ const AdminPaymentManager: React.FC = () => {
                             className="w-full bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-[#00d2ff] font-bold text-xl tabular-nums ltr text-left"
                             placeholder="965XXXXXXXX"
                         />
-                        <p className="text-[10px] text-gray-600 mt-2 italic mr-4">* سيظهر هذا الرقم للطالب في واجهة الدفع اليدوي عند الحاجة.</p>
+                        <p className="text-[10px] text-gray-600 mt-2 italic mr-4">* سيظهر هذا الرقم للطالب في واجهة الدفع اليدوي وفي الصفحة الرئيسية فوراً.</p>
                     </div>
                 </div>
 
@@ -126,14 +128,14 @@ const AdminPaymentManager: React.FC = () => {
                                 <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 font-bold">د.ك</span>
                             </div>
                         </div>
-                        <div className="space-y-3 opacity-50">
+                        <div className="space-y-3">
                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">سعر الباقة الأساسية (Basic)</label>
-                            <div className="relative">
+                            <div className="relative opacity-50">
                                 <input 
                                     type="number" 
+                                    readOnly
                                     value={settings?.planPrices.basic || 0} 
-                                    onChange={e => setSettings({...settings!, planPrices: {...settings!.planPrices, basic: Number(e.target.value)}})}
-                                    className="w-full bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-gray-500 font-black text-2xl tabular-nums"
+                                    className="w-full bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none font-black text-2xl tabular-nums cursor-not-allowed"
                                 />
                                 <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 font-bold">د.ك</span>
                             </div>
@@ -147,7 +149,7 @@ const AdminPaymentManager: React.FC = () => {
                         disabled={isSaving}
                         className="bg-emerald-500 text-black px-16 py-6 rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-4"
                     >
-                        {isSaving ? <RefreshCw className="animate-spin" /> : <Save />} حفظ كافة الإعدادات المالية
+                        {isSaving ? <RefreshCw className="animate-spin" /> : <Save />} حفظ الإعدادات وتحديث الموقع
                     </button>
                 </div>
             </div>
