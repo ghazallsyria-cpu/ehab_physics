@@ -26,15 +26,15 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
   const [selectedInvoiceForCert, setSelectedInvoiceForCert] = useState<Invoice | null>(null);
 
   useEffect(() => {
-    // جلب الإعدادات فوراً
     dbService.getPaymentSettings().then(s => s && setPaymentSettings(s));
 
-    // الاشتراك في الفواتير (Subscription) هو الأضمن لعدم تعليق الصفحة
     const unsubscribe = dbService.subscribeToInvoices(user.uid, (data) => {
         setInvoices(data || []);
     });
 
-    return () => unsubscribe();
+    return () => {
+        if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, [user.uid]);
 
   if (selectedInvoiceForCert) {
@@ -69,7 +69,7 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
                   </div>
 
                   <div className="text-6xl font-black text-white tracking-tighter mb-10 tabular-nums">
-                      <span className="text-[#fbbf24]">{paymentSettings.planPrices.premium}</span>
+                      <span className="text-[#fbbf24]">{paymentSettings?.planPrices?.premium || 35}</span>
                       <span className="text-sm text-gray-500 mr-2 uppercase">د.ك</span>
                   </div>
 
@@ -82,7 +82,7 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
                   <button 
                       onClick={() => {
                           const msg = encodeURIComponent(`مرحباً إدارة المركز، أرغب في تفعيل باقة التفوق.\nالاسم: ${user.name}\nالهاتف: ${user.phone}`);
-                          window.open(`https://wa.me/965${paymentSettings.womdaPhoneNumber}?text=${msg}`, '_blank');
+                          window.open(`https://wa.me/965${paymentSettings?.womdaPhoneNumber || '55315661'}?text=${msg}`, '_blank');
                       }}
                       className="w-full py-6 bg-[#fbbf24] text-black rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all"
                   >

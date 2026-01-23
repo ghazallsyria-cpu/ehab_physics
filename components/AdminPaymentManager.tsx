@@ -42,7 +42,6 @@ const AdminPaymentManager: React.FC = () => {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            // جلب البيانات بشكل منفرد لضمان عدم تعليق الصفحة في حال فشل أحدها
             const pay = await dbService.getPaymentSettings();
             if (pay) setSettings(pay);
             
@@ -136,7 +135,7 @@ const AdminPaymentManager: React.FC = () => {
                             </div>
                             <input 
                                 type="text" 
-                                value={settings.womdaPhoneNumber} 
+                                value={settings?.womdaPhoneNumber || ''} 
                                 onChange={e => setSettings({...settings, womdaPhoneNumber: e.target.value})}
                                 className="w-full bg-black/60 border border-white/10 rounded-2xl px-6 py-4 text-white font-black text-2xl tabular-nums ltr text-left outline-none focus:border-emerald-500"
                                 placeholder="965XXXXXXXX"
@@ -146,7 +145,12 @@ const AdminPaymentManager: React.FC = () => {
                         <div className="glass-panel p-10 rounded-[50px] border-white/5 bg-black/40 flex flex-col justify-center">
                             <h3 className="text-xl font-black text-white mb-8 flex items-center gap-3"><Zap size={24} className="text-amber-400"/> تسعير الباقة</h3>
                             <div className="relative">
-                                <input type="number" value={settings.planPrices.premium} onChange={e => setSettings({...settings, planPrices: {...settings.planPrices, premium: Number(e.target.value)}})} className="w-full bg-black/60 border border-white/10 rounded-3xl px-8 py-6 text-white font-black text-4xl tabular-nums outline-none focus:border-amber-400" />
+                                <input 
+                                    type="number" 
+                                    value={settings?.planPrices?.premium || 0} 
+                                    onChange={e => setSettings({...settings, planPrices: { ...(settings.planPrices || {premium: 35, basic: 0}), premium: Number(e.target.value)}})} 
+                                    className="w-full bg-black/60 border border-white/10 rounded-3xl px-8 py-6 text-white font-black text-4xl tabular-nums outline-none focus:border-amber-400" 
+                                />
                                 <span className="absolute left-8 top-1/2 -translate-y-1/2 text-gray-600 font-bold text-lg">د.ك</span>
                             </div>
                         </div>
@@ -156,11 +160,11 @@ const AdminPaymentManager: React.FC = () => {
                         <div className="lg:col-span-4 space-y-6">
                             <div className="glass-panel p-8 rounded-[40px] border-white/5 bg-black/20 space-y-6">
                                 <h4 className="text-sm font-black text-emerald-500 uppercase tracking-widest">تخصيص الإيصال</h4>
-                                <input type="text" value={invoiceSettings.headerText} onChange={e => setInvoiceSettings({...invoiceSettings, headerText: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs text-white" placeholder="ترويسة الإيصال" />
-                                <input type="text" value={invoiceSettings.watermarkText} onChange={e => setInvoiceSettings({...invoiceSettings, watermarkText: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs text-white" placeholder="العلامة المائية" />
+                                <input type="text" value={invoiceSettings?.headerText || ''} onChange={e => setInvoiceSettings({...invoiceSettings, headerText: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs text-white" placeholder="ترويسة الإيصال" />
+                                <input type="text" value={invoiceSettings?.watermarkText || ''} onChange={e => setInvoiceSettings({...invoiceSettings, watermarkText: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs text-white" placeholder="العلامة المائية" />
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs text-gray-400">لون الهوية:</span>
-                                    <input type="color" value={invoiceSettings.accentColor} onChange={e => setInvoiceSettings({...invoiceSettings, accentColor: e.target.value})} className="w-12 h-12 rounded-full overflow-hidden bg-transparent cursor-pointer" />
+                                    <input type="color" value={invoiceSettings?.accentColor || '#fbbf24'} onChange={e => setInvoiceSettings({...invoiceSettings, accentColor: e.target.value})} className="w-12 h-12 rounded-full overflow-hidden bg-transparent cursor-pointer" />
                                 </div>
                             </div>
                         </div>
