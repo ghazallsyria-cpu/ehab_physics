@@ -13,7 +13,7 @@ import {
   ForumPost, ForumReply, WeeklyReport, LoggingSettings, 
   NotificationSettings, PaymentSettings, Invoice, AIRecommendation,
   Unit, Lesson, LiveSession, EducationalResource, PaymentStatus, UserRole,
-  AppBranding
+  AppBranding, Article, PhysicsExperiment, PhysicsEquation, StudyGroup
 } from '../types';
 
 class DBService {
@@ -475,6 +475,30 @@ class DBService {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'resources'));
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as EducationalResource));
+  }
+
+  async getArticles(): Promise<Article[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db!, 'articles'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Article));
+  }
+
+  async getExperiments(): Promise<PhysicsExperiment[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db!, 'experiments'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as PhysicsExperiment));
+  }
+
+  async getEquations(): Promise<PhysicsEquation[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db!, 'equations'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as PhysicsEquation));
+  }
+
+  async getStudyGroups(): Promise<StudyGroup[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db!, 'studyGroups'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as StudyGroup));
   }
 
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> {

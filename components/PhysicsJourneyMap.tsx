@@ -1,17 +1,33 @@
 
-import React, { useMemo } from 'react';
-import { PHYSICS_TOPICS } from '../constants';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, Unit, Lesson, Curriculum } from '../types';
+import { dbService } from '../services/db';
+import { RefreshCw, Map } from 'lucide-react';
 
 interface PhysicsJourneyMapProps {
   user: User;
 }
 
 const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
+  const [curriculums, setCurriculums] = useState<Curriculum[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const data = await dbService.getCurriculum();
+        setCurriculums(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
   
-  const activeTopic: Curriculum | undefined = useMemo(() => 
-    PHYSICS_TOPICS.find(t => t.grade === user.grade && t.subject === 'Physics'), 
-  [user.grade]);
+  const activeTopic = curriculums.find(t => t.grade === user.grade && t.subject === 'Physics');
 
   const navigateToLesson = (lesson: Lesson) => {
     if (!activeTopic) return;
@@ -25,7 +41,7 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
         return { progressPercent: 0, nextLesson: null, activeUnitId: null };
     }
 
-    const allLessons = activeTopic.units.flatMap(u => u.lessons);
+    const allLessons = activeTopic.units.flatMap(u => u.lessons || []);
     if (allLessons.length === 0) {
         return { progressPercent: 0, nextLesson: null, activeUnitId: activeTopic.units[0]?.id || null };
     }
@@ -35,7 +51,7 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
     
     const next = allLessons.find(l => !completedIds.includes(l.id));
     
-    const currentUnit = activeTopic.units.find(u => u.lessons.some(l => l.id === next?.id)) || activeTopic.units[activeTopic.units.length - 1];
+    const currentUnit = activeTopic.units.find(u => (u.lessons || []).some(l => l.id === next?.id)) || activeTopic.units[activeTopic.units.length - 1];
 
     return {
       progressPercent: Math.round((completedCount / allLessons.length) * 100),
@@ -44,16 +60,16 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
     };
   }, [activeTopic, user.progress.completedLessonIds]);
 
-  if (!activeTopic) {
+  if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto py-20 text-center text-white opacity-50">
-        <h2 className="text-3xl font-black">المسار غير متوفر لهذا الصف</h2>
-      </div>
+        <div className="py-40 text-center animate-pulse">
+            <RefreshCw className="w-12 h-12 text-[#fbbf24] animate-spin mx-auto mb-6" />
+            <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">جاري رسم خريطتك التعليمية...</p>
+        </div>
     );
   }
 
-  // Handle case where grade exists but has no units
-  if (!activeTopic.units || activeTopic.units.length === 0) {
+  if (!activeTopic || !activeTopic.units || activeTopic.units.length === 0) {
       return (
         <div className="max-w-3xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white">
           <header className="mb-16 relative">
@@ -64,9 +80,9 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
               </div>
             </div>
           </header>
-          <div className="py-32 text-center opacity-40 border-2 border-dashed border-white/5 rounded-[50px]">
+          <div className="py-32 text-center opacity-40 border-2 border-dashed border-white/5 rounded-[50px] bg-black/20">
              <span className="text-6xl mb-6 block">🚧</span>
-             <p className="font-black text-sm uppercase tracking-[0.4em]">خريطة الرحلة لهذا الصف قيد الإنشاء</p>
+             <p className="font-black text-sm uppercase tracking-[0.4em]">خريطة الرحلة لهذا الصف بانتظار إضافة المنهج</p>
           </div>
         </div>
       );
@@ -76,7 +92,7 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
     <div className="max-w-3xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white">
       
       <header className="mb-16 relative">
-        <div className="glass-panel p-8 rounded-[40px] border-[#00d2ff]/20 bg-gradient-to-r from-[#0A2540] to-black relative overflow-hidden">
+        <div className="glass-panel p-8 rounded-[40px] border-[#00d2ff]/20 bg-gradient-to-r from-[#0A2540] to-black relative overflow-hidden shadow-2xl">
            <div className="absolute top-0 right-0 w-64 h-64 bg-[#00d2ff]/10 rounded-full blur-[80px]"></div>
            
            <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
@@ -126,7 +142,8 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
 
          <div className="space-y-16">
             {activeTopic.units.map((unit, unitIndex) => {
-               const isCompleted = unit.lessons.every(l => (user.progress.completedLessonIds || []).includes(l.id));
+               const lessons = unit.lessons || [];
+               const isCompleted = lessons.length > 0 && lessons.every(l => (user.progress.completedLessonIds || []).includes(l.id));
                const isActive = unit.id === activeUnitId;
                const isLocked = !isActive && !isCompleted && unitIndex > (activeTopic.units.findIndex(u => u.id === activeUnitId));
 
@@ -152,7 +169,7 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
                           <p className="text-xs text-gray-400 mb-6 line-clamp-2">{unit.description}</p>
 
                           <div className="space-y-3">
-                             {unit.lessons.map((lesson, lIdx) => {
+                             {lessons.map((lesson, lIdx) => {
                                 const isLessonDone = (user.progress.completedLessonIds || []).includes(lesson.id);
                                 const isLessonActive = nextLesson?.id === lesson.id;
                                 
@@ -176,6 +193,7 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
                                    </div>
                                 )
                              })}
+                             {lessons.length === 0 && <p className="text-[10px] text-gray-600 italic">لا توجد دروس مضافة لهذه الوحدة.</p>}
                           </div>
                        </div>
                     </div>
@@ -188,7 +206,7 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
       </div>
 
       <div className="text-center mt-20 opacity-40">
-         <p className="text-[10px] font-black uppercase tracking-[0.5em]">نهاية المسار الحالي</p>
+         <p className="text-[10px] font-black uppercase tracking-[0.5em]">نهاية المسار المتاح</p>
          <div className="h-12 w-1 bg-gradient-to-t from-transparent to-gray-700 mx-auto mt-4 rounded-full"></div>
       </div>
     </div>

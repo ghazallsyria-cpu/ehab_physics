@@ -65,6 +65,7 @@ export interface User {
   uid: string;
   name: string;
   email: string;
+  phone?: string; // الحقل الجديد
   role: UserRole;
   grade: '10' | '11' | '12' | 'uni';
   subscription: 'free' | 'premium';

@@ -1,10 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { CURRICULUM_DATA } from '../constants';
 import { User, Unit, Lesson, Curriculum } from '../types';
 import { dbService } from '../services/db';
-// Add RefreshCw to the imports from lucide-react to fix line 73 error
-import { Check, Play, Lock, Zap, RefreshCw } from 'lucide-react';
+import { Check, Play, Lock, Zap, RefreshCw, BookOpen } from 'lucide-react';
 
 interface CurriculumBrowserProps {
   user: User;
@@ -21,22 +19,22 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
   const isSubscriber = user.subscription === 'premium' || user.role === 'admin' || user.role === 'teacher';
 
   useEffect(() => {
-    const fetchCurriculum = async () => {
-      setIsLoading(true);
-      try {
-        const data = await dbService.getCurriculum();
-        setDbCurriculum(data);
-      } catch (e) {
-        setDbCurriculum(CURRICULUM_DATA);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchCurriculum();
   }, []);
 
-  const activeTopic = dbCurriculum.find(t => t.grade === selectedGrade && t.subject === subject) 
-                    || CURRICULUM_DATA.find(t => t.grade === selectedGrade && t.subject === subject);
+  const fetchCurriculum = async () => {
+    setIsLoading(true);
+    try {
+      const data = await dbService.getCurriculum();
+      setDbCurriculum(data);
+    } catch (e) {
+      console.error("Load failed", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const activeTopic = dbCurriculum.find(t => t.grade === selectedGrade && t.subject === subject);
   
   const navigateToLesson = (lesson: Lesson) => {
     if (!isSubscriber) {
@@ -63,7 +61,7 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
           <button
             key={grade}
             onClick={() => { setSelectedGrade(grade); setExpandedUnitId(null); }}
-            className={`px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${selectedGrade === grade ? 'bg-[#fbbf24] text-black shadow-lg' : 'bg-white/5 text-gray-500'}`}
+            className={`px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${selectedGrade === grade ? 'bg-[#fbbf24] text-black shadow-lg' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}
           >
             الصف {grade}
           </button>
@@ -72,9 +70,8 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
 
       {isLoading ? (
         <div className="py-32 text-center animate-pulse">
-          {/* Fixed: RefreshCw is now correctly imported from lucide-react */}
           <RefreshCw className="w-12 h-12 text-[#fbbf24] animate-spin mx-auto mb-6" />
-          <p className="text-gray-500 font-bold">جاري تحميل المنهج...</p>
+          <p className="text-gray-500 font-bold">جاري تحميل المنهج المعتمد...</p>
         </div>
       ) : activeTopic && activeTopic.units && activeTopic.units.length > 0 ? (
         <div className="max-w-3xl mx-auto space-y-6">
@@ -109,9 +106,10 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
           ))}
         </div>
       ) : (
-        <div className="py-40 text-center opacity-30">
-          <span className="text-8xl mb-8 block">📚</span>
-          <p className="font-black text-sm uppercase tracking-widest">المحتوى قيد التجهيز</p>
+        <div className="py-40 text-center opacity-30 border-2 border-dashed border-white/5 rounded-[60px] max-w-xl mx-auto bg-black/20">
+          <BookOpen size={64} className="mx-auto mb-6 text-gray-600" />
+          <p className="font-black text-lg uppercase tracking-widest mb-2">المنهج غير متوفر حالياً</p>
+          <p className="text-sm text-gray-500">سيقوم المدير أو المعلم بإضافة محتوى الوحدة الأولى قريباً.</p>
         </div>
       )}
     </div>

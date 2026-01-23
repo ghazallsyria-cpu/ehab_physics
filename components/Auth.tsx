@@ -4,6 +4,7 @@ import { User } from '../types';
 import { dbService } from '../services/db';
 import { auth, googleProvider } from '../services/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile, signInWithPopup, signInWithRedirect } from 'firebase/auth';
+import { Phone } from 'lucide-react';
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -16,6 +17,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState(''); // الحالة الجديدة للهاتف
   const [grade, setGrade] = useState<'10'|'11'|'12'>('12');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' });
@@ -52,14 +54,11 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
     setIsLoading(true);
     setMessage({ text: '', type: '' });
     try {
-      // المحاولة الأولى عبر النافذة المنبثقة
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
       await processFirebaseUser(firebaseUser);
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
-      
-      // إذا كان الخطأ هو إغلاق النافذة، نحاول عبر Redirect
       if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-by-user') {
           setMessage({ text: 'تم إغلاق النافذة، جاري محاولة تسجيل الدخول البديل...', type: 'error' });
           try {
@@ -106,8 +105,15 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: name });
         const newUser: User = {
-            uid: userCredential.user.uid, name, email, role: 'student', grade,
-            status: 'active', subscription: 'free', createdAt: new Date().toISOString(),
+            uid: userCredential.user.uid, 
+            name, 
+            email, 
+            phone: phone.trim() || undefined, // حفظ الهاتف إذا وُجد
+            role: 'student', 
+            grade,
+            status: 'active', 
+            subscription: 'free', 
+            createdAt: new Date().toISOString(),
             progress: { completedLessonIds: [], achievements: [], points: 0 }
         };
         await dbService.saveUser(newUser);
@@ -146,10 +152,43 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
             ) : ( 
             <>
               <form onSubmit={handleAuth} className="space-y-4"> 
-                {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الاسم الكامل</label> <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all" placeholder="الاسم الثلاثي" /> </div> )} 
-                <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label> <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all ltr text-left" placeholder="name@example.com" /> </div> 
-                <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">كلمة المرور</label> <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all ltr text-left" placeholder="••••••••" /> </div> 
-                {isRegistering && ( <div> <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الصف الدراسي</label> <select value={grade} onChange={e => setGrade(e.target.value as any)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all"> <option value="10">الصف العاشر</option> <option value="11">الصف الحادي عشر</option> <option value="12">الصف الثاني عشر</option> </select> </div> )} 
+                {isRegistering && ( 
+                  <div> 
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الاسم الكامل</label> 
+                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all" placeholder="الاسم الثلاثي" required={isRegistering} /> 
+                  </div> 
+                )} 
+                <div> 
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label> 
+                  <input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all ltr text-left" placeholder="name@example.com" required /> 
+                </div> 
+                
+                {isRegistering && (
+                  <div> 
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">رقم الموبايل (اختياري)</label> 
+                    <div className="relative">
+                      <Phone className="absolute top-1/2 left-4 -translate-y-1/2 text-gray-600" size={16} />
+                      <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl pr-5 pl-12 py-4 text-white outline-none focus:border-amber-400 transition-all ltr text-left" placeholder="965XXXXXXXX" /> 
+                    </div>
+                    <p className="text-[9px] text-gray-500 mt-1 font-bold">يُستخدم لإرسال كود التفعيل والرسائل الهامة عبر الواتساب.</p>
+                  </div> 
+                )}
+
+                <div> 
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">كلمة المرور</label> 
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all ltr text-left" placeholder="••••••••" required /> 
+                </div> 
+
+                {isRegistering && ( 
+                  <div> 
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">الصف الدراسي</label> 
+                    <select value={grade} onChange={e => setGrade(e.target.value as any)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all"> 
+                      <option value="10">الصف العاشر</option> 
+                      <option value="11">الصف الحادي عشر</option> 
+                      <option value="12">الصف الثاني عشر</option> 
+                    </select> 
+                  </div> 
+                )} 
                 {!isRegistering && ( <div className="flex justify-end"> <button type="button" onClick={() => setIsResetMode(true)} className="text-[10px] font-bold text-gray-500 hover:text-amber-400">نسيت كلمة المرور؟</button> </div> )} 
                 <button type="submit" disabled={isLoading} className="w-full bg-amber-400 text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 mt-6 shadow-lg">{isLoading ? 'جاري المعالجة...' : isRegistering ? 'إنشاء الحساب' : 'دخول'}</button> 
               </form>
