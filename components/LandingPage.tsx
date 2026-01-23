@@ -37,7 +37,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   useEffect(() => {
     if (isLoading) return;
 
-    // 1. تحريك الشعار والعناوين
     const timeline = anime.timeline({ easing: 'easeOutExpo' });
     timeline
       .add({
@@ -73,7 +72,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         offset: '-=500'
       });
 
-    // 2. تحريك الأشكال الخلفية
     if (shapesRef.current) {
       shapesRef.current.innerHTML = '';
       for (let i = 0; i < 20; i++) {
@@ -104,24 +102,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   }, [isLoading]);
 
   const renderHero = () => {
-    const mainTitle = slides[currentIndex]?.title || "منصة فيزياء الكويت";
-    const mainContent = slides[currentIndex]?.content || "المنصة التعليمية الأولى لتدريس المنهج المطور";
+    const mainTitle = slides[currentIndex]?.title || "المركز السوري للعلوم";
+    const mainContent = slides[currentIndex]?.content || "المنصة التعليمية الرائدة في تدريس الفيزياء والعلوم المتقدمة.";
+    const defaultImg = "https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png";
     
     return (
       <div className="min-h-[90vh] relative overflow-hidden flex items-center justify-center text-center">
         <div ref={shapesRef} className="background-shapes"></div>
         <div className="absolute inset-0 z-0">
-          {slides.length > 0 ? (
-            <div className="w-full h-full bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url(${slides[currentIndex].imageUrl})` }} />
-          ) : (
-            <div className="w-full h-full bg-[#0A2540]" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0A2540] via-[#0A2540]/60 to-transparent" />
+          <div className="w-full h-full bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url(${slides[currentIndex]?.imageUrl || defaultImg})` }} />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0A2540] via-[#0A2540]/80 to-transparent" />
         </div>
 
         <div className="relative z-10 p-8 flex flex-col items-center">
           <div className="logo-anim w-24 h-24 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[35px] flex items-center justify-center mb-8 shadow-2xl opacity-0">
-            <img src="https://i.ibb.co/yBGp3sN/ssc-logo-final.png" className="w-16 h-16 object-contain" alt="Logo" />
+            <img src={defaultImg} className="w-16 h-16 object-contain" alt="SSC Logo" />
           </div>
 
           <div className="title">
@@ -138,7 +133,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
 
           <div className="btn-anim opacity-0">
             <button onClick={onStart} className="bg-amber-400 text-blue-950 px-16 py-6 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-amber-300 transition-all shadow-2xl hover:scale-105 active:scale-95">
-              ابدأ رحلة التعلم الآن
+              دخول البوابة التعليمية
             </button>
           </div>
         </div>

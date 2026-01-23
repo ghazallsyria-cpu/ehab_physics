@@ -50,7 +50,10 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [viewStack, setViewStack] = useState<ViewState[]>(['landing']);
-  const [branding, setBranding] = useState<AppBranding>({ logoUrl: 'https://i.ibb.co/yBGp3sN/ssc-logo-final.png', appName: 'فيزياء الكويت' });
+  const [branding, setBranding] = useState<AppBranding>({ 
+    logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
+    appName: 'المركز السوري للعلوم' 
+  });
   
   const currentView = viewStack[viewStack.length - 1];
   const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
@@ -61,14 +64,12 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    // جلب إعدادات الهوية عند التحميل
     const loadBranding = async () => {
         const data = await dbService.getAppBranding();
         setBranding(data);
     };
     loadBranding();
 
-    // استماع لتحديثات الهوية اللحظية من الإعدادات
     const handleBrandingUpdate = (e: any) => {
         if (e.detail) setBranding(e.detail);
     };
@@ -165,20 +166,17 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
-      {/* Sidebar - يتم تمرير الهوية إليه */}
       <Sidebar 
         currentView={currentView} 
         setView={(v, s) => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: v, subject: s } }))}
         user={user!} 
         branding={branding}
-        // Added activeSubject to Sidebar component props to resolve tracking dependency
         activeSubject={activeSubject}
         onLogout={() => signOut(auth).then(() => setViewStack(['landing']))}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      {/* Main Content Area */}
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 ${isSidebarOpen ? 'lg:mr-72' : 'lg:mr-72'}`}>
         <header className="sticky top-0 z-[100] bg-[#0A2540]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex justify-between items-center shadow-2xl">
           <div className="flex items-center gap-4">
@@ -193,7 +191,7 @@ const App: React.FC = () => {
                 <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
                     {branding.logoUrl ? <img src={branding.logoUrl} className="w-full h-full object-contain p-1" /> : <LayoutDashboard size={20} className="text-amber-400" />}
                 </div>
-                <h1 className="font-black text-white text-lg tracking-tight uppercase">{branding.appName.split(' ')[0]} <span className="text-amber-400">{branding.appName.split(' ').slice(1).join(' ')}</span></h1>
+                <h1 className="font-black text-white text-lg tracking-tight uppercase">المركز <span className="text-amber-400">السوري للعلوم</span></h1>
               </div>
             )}
           </div>

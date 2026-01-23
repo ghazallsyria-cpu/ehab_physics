@@ -36,8 +36,8 @@ class DBService {
       if (snap.exists()) return snap.data() as AppBranding;
     } catch (e) {}
     return { 
-        logoUrl: 'https://i.ibb.co/yBGp3sN/ssc-logo-final.png', 
-        appName: 'فيزياء الكويت' 
+        logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
+        appName: 'المركز السوري للعلوم' 
     };
   }
 
@@ -83,7 +83,6 @@ class DBService {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'subscriptionPlans'));
     if (snap.empty) {
-        // إذا كانت فارغة، قم بتهيئتها بالقيم الافتراضية مرة واحدة
         await this.initializeFinancialSystem();
         const retrySnap = await getDocs(collection(db!, 'subscriptionPlans'));
         return retrySnap.docs.map(d => d.data() as SubscriptionPlan);
@@ -114,7 +113,7 @@ class DBService {
       const welcomePost: Omit<ForumPost, 'id'> = {
         authorUid: 'system',
         authorEmail: 'admin@ssc.com',
-        authorName: 'إدارة المنصة',
+        authorName: 'المركز السوري للعلوم',
         title: 'مرحباً بكم في ساحة النقاش',
         content: 'هذه الساحة مخصصة لتبادل المعرفة. يمكنك طرح سؤالك الآن.',
         tags: ['f_general'],
@@ -139,7 +138,7 @@ class DBService {
     }
   }
 
-  // --- إدارة المستخدمين ---
+  // ... (باقي الدوال تبقى كما هي)
   async getUser(uidOrEmail: string): Promise<User | null> {
     this.checkDb();
     try {
@@ -192,7 +191,6 @@ class DBService {
     });
   }
 
-  // --- ساحة النقاش ---
   async getForumSections(): Promise<ForumSection[]> {
     this.checkDb();
     const snap = await getDocs(query(collection(db!, 'forumSections'), orderBy('order')));
@@ -279,7 +277,6 @@ class DBService {
     await updateDoc(doc(db!, 'forumPosts', postId), { upvotes: increment(1) });
   }
 
-  // --- الإعدادات ---
   async getLoggingSettings(): Promise<LoggingSettings> {
     this.checkDb();
     try {
@@ -326,7 +323,6 @@ class DBService {
     await setDoc(doc(db!, 'settings', 'payments'), this.cleanData(settings));
   }
 
-  // --- المحتوى التعليمي ---
   async getCurriculum(): Promise<Curriculum[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'curriculum'));
@@ -401,7 +397,6 @@ class DBService {
     await updateDoc(ref, { units });
   }
 
-  // --- الاختبارات ---
   async getQuizzes(): Promise<Quiz[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'quizzes'));
@@ -478,7 +473,6 @@ class DBService {
     return (snap && snap.exists()) ? ({ ...snap.data(), id: snap.id } as Quiz) : null;
   }
 
-  // --- الإشعارات والمصادر الأخرى ---
   async getNotifications(uid: string): Promise<AppNotification[]> {
     this.checkDb();
     const q = query(collection(db!, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'), limit(20));
@@ -630,9 +624,6 @@ class DBService {
     return { ...invoice, id: docRef.id };
   }
 
-  /**
-   * إنشاء فاتورة يدوية (من قبل المدير) وتفعيل الاشتراك فوراً
-   */
   async createManualInvoice(userId: string, planId: string, amount: number): Promise<Invoice> {
     this.checkDb();
     const user = await this.getUser(userId);
@@ -654,11 +645,7 @@ class DBService {
     };
 
     const docRef = await addDoc(collection(db!, 'invoices'), invoice);
-    
-    // 1. تفعيل اشتراك الطالب فوراً
     await updateDoc(doc(db!, 'users', userId), { subscription: 'premium' });
-
-    // 2. إرسال إشعار للطالب
     await this.createNotification({
       userId,
       title: "تم تفعيل اشتراكك! ⚡",
