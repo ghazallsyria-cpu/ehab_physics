@@ -29,9 +29,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
     const particlesContainer = document.querySelector('.particles');
     if (particlesContainer) {
       particlesContainer.innerHTML = '';
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 40; i++) {
         const dot = document.createElement('div');
-        dot.style.cssText = `width: 2px; height: 2px; left: ${Math.random() * 100}vw; top: ${Math.random() * 100}vh; position: absolute; background: white; border-radius: 50%; opacity: 0;`;
+        const size = Math.random() * 3 + 1;
+        dot.style.cssText = `width: ${size}px; height: ${size}px; left: ${Math.random() * 100}vw; top: ${Math.random() * 100}vh; position: absolute; background: white; border-radius: 50%; opacity: 0; pointer-events: none;`;
         particlesContainer.appendChild(dot);
         anime({ targets: dot, opacity: [0, 0.4, 0], scale: [0, 1.5, 0], duration: anime.random(3000, 7000), loop: true, delay: anime.random(0, 2000) });
       }
@@ -96,7 +97,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         <p className="title-reveal text-lg md:text-2xl text-slate-400 font-medium tracking-widest mb-12 italic opacity-0">بوابتك للتميز العلمي في الكويت</p>
         
         <div className="title-reveal opacity-0 mb-24">
-            <button onClick={onStart} className="group relative px-16 py-6 bg-transparent overflow-hidden border-2 border-[#38bdf8] text-[#38bdf8] rounded-full font-black text-xl uppercase transition-all duration-500 hover:text-black">
+            <button onClick={onStart} className="group relative px-16 py-6 bg-transparent overflow-hidden border-2 border-[#38bdf8] text-[#38bdf8] rounded-full font-black text-xl uppercase transition-all duration-500 hover:text-black shadow-2xl">
               <span className="absolute inset-0 w-full h-full bg-[#38bdf8] -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></span>
               <span className="relative z-10 flex items-center gap-4">دخول المنصة <ChevronLeft className="group-hover:-translate-x-2 transition-transform" /></span>
             </button>

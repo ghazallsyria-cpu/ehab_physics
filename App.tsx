@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { User, ViewState, Lesson, Quiz, StudentQuizAttempt, AppBranding } from './types';
+import { User, ViewState, Lesson, Quiz, StudentQuizAttempt, AppBranding, MaintenanceSettings } from './types';
 import { dbService } from './services/db';
 import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, User as UserIcon, LogOut } from 'lucide-react';
 import { auth } from './services/firebase';
@@ -10,6 +10,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import Sidebar from './components/Sidebar';
 import PWAPrompt from './components/PWAPrompt';
 import NotificationPanel from './components/NotificationPanel';
+import MaintenanceMode from './components/MaintenanceMode';
 
 // Lazy-loaded Components
 const LandingPage = lazy(() => import('./components/LandingPage'));
@@ -54,6 +55,7 @@ const App: React.FC = () => {
     logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
     appName: 'المركز السوري للعلوم' 
   });
+  const [maintenance, setMaintenance] = useState<MaintenanceSettings | null>(null);
   
   const currentView = viewStack[viewStack.length - 1];
   const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
@@ -64,11 +66,20 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    const loadBranding = async () => {
-        const data = await dbService.getAppBranding();
-        setBranding(data);
+    const loadInitialSettings = async () => {
+        const [brandData, maintenanceData] = await Promise.all([
+            dbService.getAppBranding(),
+            dbService.getMaintenanceSettings()
+        ]);
+        setBranding(brandData);
+        setMaintenance(maintenanceData);
     };
-    loadBranding();
+    loadInitialSettings();
+
+    // الاشتراك في تغييرات وضع الصيانة فورياً
+    const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
+        setMaintenance(settings);
+    });
 
     const handleBrandingUpdate = (e: any) => {
         if (e.detail) setBranding(e.detail);
@@ -79,7 +90,6 @@ const App: React.FC = () => {
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // المراقبة اللحظية لبيانات المستخدم لضمان تحديث الاشتراك فوراً
         unsubscribeUser = dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
             if (updatedUser) {
                 setUser(updatedUser);
@@ -98,6 +108,7 @@ const App: React.FC = () => {
 
     return () => {
         unsubscribeAuth();
+        unsubscribeMaintenance();
         if (unsubscribeUser) unsubscribeUser();
         window.removeEventListener('branding-updated', handleBrandingUpdate);
     };
@@ -127,6 +138,16 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     if (isAuthLoading) return <div className="flex flex-col items-center justify-center h-[70vh] gap-6"><RefreshCw className="w-16 h-16 text-amber-400 animate-spin" /><p className="text-gray-400 font-bold animate-pulse">جاري تحضير المنصة...</p></div>;
+    
+    // فحص وضع الصيانة
+    // يُسمح للمدير دائماً، ويُسمح للمعلم إذا كانت الإعدادات تسمح بذلك
+    if (maintenance?.isMaintenanceActive) {
+        const canBypass = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
+        if (!canBypass) {
+            return <MaintenanceMode settings={maintenance} />;
+        }
+    }
+
     if (!user && currentView !== 'landing' && currentView !== 'auth') return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
 
     switch (currentView) {
@@ -168,12 +189,19 @@ const App: React.FC = () => {
     }
   };
 
-  if (currentView === 'landing' || currentView === 'auth') {
+  if (currentView === 'landing' || currentView === 'auth' || (maintenance?.isMaintenanceActive && user?.role !== 'admin' && !(user?.role === 'teacher' && maintenance.allowTeachers))) {
     return <div className="min-h-screen bg-[#000000] text-right font-['Tajawal']" dir="rtl"><Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>{renderContent()}</Suspense></div>;
   }
 
   return (
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
+      {/* عرض شريط أحمر للمدير إذا كانت الصيانة مفعلة لتذكيره */}
+      {maintenance?.isMaintenanceActive && (
+          <div className="fixed top-0 left-0 right-0 z-[9999] bg-red-600 text-white text-[10px] font-black py-1 text-center uppercase tracking-widest pointer-events-none">
+              نظام الصيانة نشط حالياً • المنصة مقفلة عن الطلاب
+          </div>
+      )}
+      
       <Sidebar 
         currentView={currentView} 
         setView={(v, s) => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: v, subject: s } }))}

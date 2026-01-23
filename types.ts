@@ -2,12 +2,20 @@
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions' | 'admin-quizzes' | 'attempt_review' | 'admin-content' | 'admin-assets' | 'admin-parents' | 'admin-videos' | 'admin-quiz-attempts' | 'admin-certificates' | 'admin-reviews' | 'admin-pricing' | 'admin-subscriptions' | 'admin-payments-log' | 'admin-payment-settings' | 'admin-email-notifications' | 'admin-internal-messages' | 'admin-forums' | 'admin-forum-posts' | 'admin-security-fix' | 'verify-certificate' | 'resources-center' | 'admin-managers' | 'admin-payment-manager';
 
+export interface MaintenanceSettings {
+    isMaintenanceActive: boolean;
+    expectedReturnTime: string; // ISO String
+    maintenanceMessage: string;
+    showCountdown: boolean;
+    allowTeachers: boolean; // السماح للمعلمين بالدخول أثناء الصيانة
+}
+
 export interface AppBranding {
     logoUrl: string;
     appName: string;
     primaryColor?: string;
 }
-
+// ... بقية الـ interfaces كما هي في الملف الأصلي دون تغيير
 export interface User {
   uid: string;
   name: string;
@@ -207,8 +215,6 @@ export interface PaymentSettings {
     };
 }
 
-/** Added missing types below for application support **/
-
 export type QuestionType = 'mcq' | 'short_answer' | 'essay' | 'file_upload';
 export type SubjectType = 'Physics' | 'Chemistry' | 'Math' | 'English';
 export type BranchType = 'Scientific' | 'Literary';
@@ -243,7 +249,7 @@ export interface Quiz {
   subject: SubjectType;
   category: string;
   questionIds: string[];
-  duration: number; // in minutes
+  duration: number; 
   totalScore: number;
   isPremium: boolean;
   maxAttempts?: number;
@@ -259,7 +265,7 @@ export interface StudentQuizAttempt {
   maxScore: number;
   completedAt: string;
   answers: Record<string, any>;
-  timeSpent: number; // in seconds
+  timeSpent: number; 
   attemptNumber: number;
   status: 'pending-review' | 'manually-graded' | 'auto-graded';
   manualGrades?: Record<string, { awardedScore: number; feedback?: string }>;

@@ -1,4 +1,3 @@
-
 import { db, auth } from './firebase'; 
 import { supabase } from './supabase';
 import { 
@@ -14,7 +13,7 @@ import {
   NotificationSettings, PaymentSettings, Invoice, AIRecommendation,
   Unit, Lesson, LiveSession, EducationalResource, PaymentStatus, UserRole,
   AppBranding, Article, PhysicsExperiment, PhysicsEquation, StudyGroup,
-  SubscriptionPlan, InvoiceSettings
+  SubscriptionPlan, InvoiceSettings, MaintenanceSettings
 } from '../types';
 
 class DBService {
@@ -28,44 +27,35 @@ class DBService {
     return clean;
   }
 
-  // --- Connection & Health ---
-  async checkConnection() {
-    try {
-      this.checkDb();
-      await getDocs(query(collection(db!, 'settings'), limit(1)));
-      return { alive: true };
-    } catch (e: any) {
-      return { alive: false, error: e.message };
-    }
-  }
-
-  async checkSupabaseConnection() {
-    try {
-      const { data, error } = await supabase.storage.listBuckets();
-      if (error) throw error;
-      return { alive: true };
-    } catch (e: any) {
-      return { alive: false, error: e.message };
-    }
-  }
-
-  // --- Users & Roles ---
-  subscribeToUser(uid: string, callback: (user: User | null) => void) {
+  // --- Maintenance Mode ---
+  async getMaintenanceSettings(): Promise<MaintenanceSettings> {
     this.checkDb();
-    return onSnapshot(doc(db!, 'users', uid), (snap) => {
-      if (snap.exists()) callback(snap.data() as User);
-      else callback(null);
+    try {
+        const snap = await getDoc(doc(db!, 'settings', 'maintenance'));
+        if (snap.exists()) return snap.data() as MaintenanceSettings;
+    } catch (e) {}
+    return {
+        isMaintenanceActive: false,
+        expectedReturnTime: new Date(Date.now() + 86400000).toISOString(),
+        maintenanceMessage: "نقوم حالياً بتطوير أدوات المساعد الذكي والمختبر الافتراضي لتقديم تجربة تعليمية أفضل.",
+        showCountdown: true,
+        allowTeachers: false
+    };
+  }
+
+  async saveMaintenanceSettings(settings: MaintenanceSettings) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'maintenance'), this.cleanData(settings));
+  }
+
+  subscribeToMaintenance(callback: (settings: MaintenanceSettings) => void) {
+    this.checkDb();
+    return onSnapshot(doc(db!, 'settings', 'maintenance'), (snap) => {
+        if (snap.exists()) callback(snap.data() as MaintenanceSettings);
     });
   }
 
-  subscribeToUsers(callback: (users: User[]) => void, role: UserRole) {
-    this.checkDb();
-    const q = query(collection(db!, 'users'), where('role', '==', role));
-    return onSnapshot(q, (snap) => {
-      callback(snap.docs.map(d => ({ ...d.data(), uid: d.id } as User)));
-    });
-  }
-
+  // --- إحصائيات الطلاب الحقيقية ---
   async getStudentGradeStats() {
     this.checkDb();
     try {
@@ -85,11 +75,41 @@ class DBService {
     }
   }
 
+  // --- البحث المتقدم عن المستخدم (ID, Email, or Phone) ---
+  async getUser(identifier: string): Promise<User | null> {
+    this.checkDb();
+    if (!identifier) return null;
+    
+    try {
+        const snap = await getDoc(doc(db!, 'users', identifier));
+        if (snap.exists()) return snap.data() as User;
+
+        const qEmail = query(collection(db!, 'users'), where('email', '==', identifier), limit(1));
+        const snapEmail = await getDocs(qEmail);
+        if (!snapEmail.empty) return snapEmail.docs[0].data() as User;
+
+        const cleanPhone = identifier.replace(/\s+/g, '').replace('+965', '').replace('965', '');
+        const qPhone = query(collection(db!, 'users'), where('phone', 'in', [identifier, cleanPhone, `965${cleanPhone}`]), limit(1));
+        const snapPhone = await getDocs(qPhone);
+        if (!snapPhone.empty) return snapPhone.docs[0].data() as User;
+
+    } catch (e) {
+        console.error("Search User Error:", e);
+    }
+    return null;
+  }
+
   // --- Financials & Subscriptions ---
   async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
     this.checkDb();
     try {
         const snap = await getDocs(collection(db!, 'subscriptionPlans'));
+        if (snap.empty) {
+            return [
+                { id: 'plan_premium', name: 'باقة التفوق (Premium)', price: 35, tier: 'premium', duration: 'term', features: ['دخول كامل لجميع الدروس', 'مشاهدة فيديوهات Veo', 'بنك الأسئلة المطور', 'تواصل مباشر مع المعلم'] },
+                { id: 'plan_basic', name: 'الباقة الأساسية (Basic)', price: 0, tier: 'free', duration: 'monthly', features: ['معاينة الوحدة الأولى', 'المساعد الذكي المحدود'] }
+            ];
+        }
         return snap.docs.map(d => ({ ...d.data(), id: d.id } as SubscriptionPlan));
     } catch (e) { return []; }
   }
@@ -105,6 +125,54 @@ class DBService {
         womdaPhoneNumber: '55315661',
         planPrices: { premium: 35, basic: 0 }
     };
+  }
+
+  async savePaymentSettings(settings: PaymentSettings) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'payment'), this.cleanData(settings));
+  }
+
+  async checkConnection() {
+    try { this.checkDb(); await getDocs(query(collection(db!, 'settings'), limit(1))); return { alive: true }; }
+    catch (e: any) { return { alive: false, error: e.message }; }
+  }
+
+  async checkSupabaseConnection() {
+    try { const { data, error } = await supabase.storage.listBuckets(); if (error) throw error; return { alive: true }; }
+    catch (e: any) { return { alive: false, error: e.message }; }
+  }
+
+  subscribeToUser(uid: string, callback: (user: User | null) => void) {
+    this.checkDb();
+    return onSnapshot(doc(db!, 'users', uid), (snap) => {
+      if (snap.exists()) callback(snap.data() as User);
+      else callback(null);
+    });
+  }
+
+  subscribeToUsers(callback: (users: User[]) => void, role: UserRole) {
+    this.checkDb();
+    const q = query(collection(db!, 'users'), where('role', '==', role));
+    return onSnapshot(q, (snap) => {
+      callback(snap.docs.map(d => ({ ...d.data(), uid: d.id } as User)));
+    });
+  }
+
+  async getAppBranding(): Promise<AppBranding> {
+    this.checkDb();
+    try {
+        const snap = await getDoc(doc(db!, 'settings', 'branding'));
+        if (snap.exists()) return snap.data() as AppBranding;
+    } catch (e) {}
+    return { 
+      logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
+      appName: 'المركز السوري للعلوم' 
+    };
+  }
+
+  async saveAppBranding(branding: AppBranding) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'branding'), this.cleanData(branding));
   }
 
   async getInvoiceSettings(): Promise<InvoiceSettings> {
@@ -124,28 +192,11 @@ class DBService {
     };
   }
 
-  async getAppBranding(): Promise<AppBranding> {
+  async saveInvoiceSettings(settings: InvoiceSettings) {
     this.checkDb();
-    try {
-        const snap = await getDoc(doc(db!, 'settings', 'branding'));
-        if (snap.exists()) return snap.data() as AppBranding;
-    } catch (e) {}
-    return { 
-      logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
-      appName: 'المركز السوري للعلوم' 
-    };
+    await setDoc(doc(db!, 'settings', 'invoice_design'), this.cleanData(settings));
   }
 
-  // Fix: Added subscribeToInvoices
-  subscribeToInvoices(uid: string, callback: (invoices: Invoice[]) => void) {
-    this.checkDb();
-    const q = query(collection(db!, 'invoices'), where('userId', '==', uid), orderBy('date', 'desc'));
-    return onSnapshot(q, (snap) => {
-      callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)));
-    });
-  }
-
-  // Fix: Added initiatePayment
   async initiatePayment(userId: string, planId: string, amount: number) {
     this.checkDb();
     const invoice: Omit<Invoice, 'id'> = {
@@ -160,77 +211,20 @@ class DBService {
     await addDoc(collection(db!, 'invoices'), this.cleanData(invoice));
   }
 
-  async getCurriculum(): Promise<Curriculum[]> {
+  subscribeToInvoices(uid: string, callback: (invoices: Invoice[]) => void) {
     this.checkDb();
-    const snap = await getDocs(collection(db!, 'curriculum'));
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Curriculum));
-  }
-
-  async saveUser(user: User) {
-    this.checkDb();
-    await setDoc(doc(db!, 'users', user.uid), this.cleanData(user), { merge: true });
-  }
-
-  async getUser(uidOrEmail: string): Promise<User | null> {
-    this.checkDb();
-    try {
-        let snap = await getDoc(doc(db!, 'users', uidOrEmail));
-        if (snap.exists()) return snap.data() as User;
-        const qEmail = query(collection(db!, 'users'), where('email', '==', uidOrEmail), limit(1));
-        const querySnapEmail = await getDocs(qEmail);
-        if (!querySnapEmail.empty) return querySnapEmail.docs[0].data() as User;
-    } catch (e) {}
-    return null;
-  }
-
-  async savePaymentSettings(settings: PaymentSettings) {
-    this.checkDb();
-    await setDoc(doc(db!, 'settings', 'payment'), this.cleanData(settings));
-  }
-
-  async saveInvoiceSettings(settings: InvoiceSettings) {
-    this.checkDb();
-    await setDoc(doc(db!, 'settings', 'invoice_design'), this.cleanData(settings));
-  }
-
-  async saveAppBranding(branding: AppBranding) {
-    this.checkDb();
-    await setDoc(doc(db!, 'settings', 'branding'), this.cleanData(branding));
-  }
-
-  async getQuizzes(): Promise<Quiz[]> {
-    this.checkDb();
-    const snap = await getDocs(collection(db!, 'quizzes'));
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Quiz));
-  }
-
-  async getAllQuestions(): Promise<Question[]> {
-    this.checkDb();
-    const snap = await getDocs(collection(db!, 'questions'));
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Question));
+    const q = query(collection(db!, 'invoices'), where('userId', '==', uid));
+    return onSnapshot(q, (snap) => {
+      const list = snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice));
+      list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      callback(list);
+    });
   }
 
   async getInvoices(): Promise<{ data: Invoice[] }> {
     this.checkDb();
     const snap = await getDocs(query(collection(db!, 'invoices'), orderBy('date', 'desc')));
     return { data: snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)) };
-  }
-
-  async getAdvancedFinancialStats() {
-    const { data: invoices } = await this.getInvoices();
-    const paid = invoices.filter(i => i.status === 'PAID');
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const month = today.substring(0, 7);
-    const year = today.substring(0, 4);
-
-    return {
-      daily: paid.filter(i => i.date.startsWith(today)).reduce((s, i) => s + i.amount, 0),
-      monthly: paid.filter(i => i.date.startsWith(month)).reduce((s, i) => s + i.amount, 0),
-      yearly: paid.filter(i => i.date.startsWith(year)).reduce((s, i) => s + i.amount, 0),
-      total: paid.reduce((s, i) => s + i.amount, 0),
-      pending: invoices.filter(i => i.status === 'PENDING').length
-    };
   }
 
   async deleteInvoice(id: string) {
@@ -246,9 +240,7 @@ class DBService {
       trackId: 'MANUAL-' + Math.random().toString(36).substring(7).toUpperCase()
     };
     const docRef = await addDoc(collection(db!, 'invoices'), invoice);
-    if (user) {
-        await this.updateStudentSubscription(userId, planId === 'plan_premium' ? 'premium' : 'free', amount);
-    }
+    await this.updateStudentSubscription(userId, 'premium', amount);
     return { ...invoice, id: docRef.id };
   }
 
@@ -257,7 +249,29 @@ class DBService {
     await updateDoc(doc(db!, 'users', uid), { subscription: tier });
   }
 
-  // --- Forum ---
+  async getStudentProgressForParent(uid: string) {
+    const user = await this.getUser(uid);
+    return { user, report: user?.weeklyReports?.[0] || null };
+  }
+
+  async getCurriculum(): Promise<Curriculum[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db!, 'curriculum'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Curriculum));
+  }
+
+  async getQuizzes(): Promise<Quiz[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db!, 'quizzes'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Quiz));
+  }
+
+  async getAllQuestions(): Promise<Question[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db!, 'questions'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Question));
+  }
+
   async getForumSections(): Promise<ForumSection[]> {
     this.checkDb();
     const snap = await getDocs(query(collection(db!, 'forumSections'), orderBy('order')));
@@ -266,74 +280,10 @@ class DBService {
 
   async getForumPosts(forumId?: string): Promise<ForumPost[]> {
     this.checkDb();
-    let q = query(collection(db!, 'forumPosts'), orderBy('timestamp', 'desc'));
-    if (forumId) q = query(q, where('tags', 'array-contains', forumId));
+    const postsRef = collection(db!, 'forumPosts');
+    let q = forumId ? query(postsRef, where('tags', 'array-contains', forumId)) : query(postsRef, limit(100));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
-  }
-
-  // Fix: Added createForumPost
-  async createForumPost(post: Omit<ForumPost, 'id'>) {
-    this.checkDb();
-    await addDoc(collection(db!, 'forumPosts'), this.cleanData(post));
-  }
-
-  // Fix: Added addForumReply
-  async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'timestamp' | 'upvotes'>) {
-    this.checkDb();
-    const fullReply = {
-      ...reply,
-      id: 'rep_' + Date.now(),
-      timestamp: new Date().toISOString(),
-      upvotes: 0
-    };
-    const postRef = doc(db!, 'forumPosts', postId);
-    const snap = await getDoc(postRef);
-    if (snap.exists()) {
-      const data = snap.data() as ForumPost;
-      const replies = data.replies || [];
-      replies.push(fullReply);
-      await updateDoc(postRef, { replies });
-    }
-  }
-
-  // Fix: Added initializeForumSystem
-  async initializeForumSystem() {
-    this.checkDb();
-    const sections = [
-      { title: 'القسم العام', description: 'نقاشات عامة حول العلوم والفيزياء.', order: 0, forums: [
-        { id: 'general-discussions', title: 'نقاشات مفتوحة', description: 'تحدث مع زملائك في أي موضوع علمي.', icon: '🌍', order: 0 }
-      ]}
-    ];
-    for (const sec of sections) {
-       await addDoc(collection(db!, 'forumSections'), sec);
-    }
-  }
-
-  // Fix: Added saveForumSections
-  async saveForumSections(sections: ForumSection[]) {
-    this.checkDb();
-    const batch = writeBatch(db!);
-    const existing = await getDocs(collection(db!, 'forumSections'));
-    existing.forEach(d => batch.delete(d.ref));
-    
-    sections.forEach(sec => {
-      const newRef = doc(collection(db!, 'forumSections'));
-      batch.set(newRef, this.cleanData(sec));
-    });
-    await batch.commit();
-  }
-
-  // Fix: Added updateForumPost
-  async updateForumPost(postId: string, updates: Partial<ForumPost>) {
-    this.checkDb();
-    await updateDoc(doc(db!, 'forumPosts', postId), this.cleanData(updates));
-  }
-
-  // Fix: Added deleteForumPost
-  async deleteForumPost(postId: string) {
-    this.checkDb();
-    await deleteDoc(doc(db!, 'forumPosts', postId));
   }
 
   async getLoggingSettings(): Promise<LoggingSettings> {
@@ -355,7 +305,6 @@ class DBService {
     return { pushForLiveSessions: true, pushForGradedQuizzes: true, pushForAdminAlerts: true };
   }
 
-  // Fix: Added saveNotificationSettings
   async saveNotificationSettings(settings: NotificationSettings) {
     this.checkDb();
     await setDoc(doc(db!, 'settings', 'notifications'), this.cleanData(settings));
@@ -368,13 +317,19 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), uid: d.id } as User));
   }
 
+  async getAdmins(): Promise<User[]> {
+    this.checkDb();
+    const q = query(collection(db!, 'users'), where('role', '==', 'admin'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), uid: d.id } as User));
+  }
+
   async getLiveSessions(): Promise<LiveSession[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'liveSessions'));
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as LiveSession));
   }
 
-  // Fix: Added subscribeToLiveSessions
   subscribeToLiveSessions(callback: (sessions: LiveSession[]) => void) {
     this.checkDb();
     return onSnapshot(collection(db!, 'liveSessions'), (snap) => {
@@ -382,7 +337,6 @@ class DBService {
     });
   }
 
-  // Fix: Added saveLiveSession
   async saveLiveSession(session: Partial<LiveSession>) {
     this.checkDb();
     if (session.id) {
@@ -392,7 +346,6 @@ class DBService {
     }
   }
 
-  // Fix: Added deleteLiveSession
   async deleteLiveSession(id: string) {
     this.checkDb();
     await deleteDoc(doc(db!, 'liveSessions', id));
@@ -428,7 +381,6 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as StudyGroup));
   }
 
-  // --- Todos ---
   async getTodos(uid: string): Promise<Todo[]> {
     this.checkDb();
     const q = query(collection(db!, 'users', uid, 'todos'), orderBy('createdAt', 'desc'));
@@ -436,20 +388,17 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as Todo));
   }
 
-  // Fix: Added saveTodo
   async saveTodo(uid: string, todo: Omit<Todo, 'id'>): Promise<string> {
     this.checkDb();
     const docRef = await addDoc(collection(db!, 'users', uid, 'todos'), this.cleanData(todo));
     return docRef.id;
   }
 
-  // Fix: Added updateTodo
   async updateTodo(uid: string, todoId: string, updates: Partial<Todo>) {
     this.checkDb();
     await updateDoc(doc(db!, 'users', uid, 'todos', todoId), this.cleanData(updates));
   }
 
-  // Fix: Added deleteTodo
   async deleteTodo(uid: string, todoId: string) {
     this.checkDb();
     await deleteDoc(doc(db!, 'users', uid, 'todos', todoId));
@@ -457,42 +406,40 @@ class DBService {
 
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> {
     return [
-        { id: 'rec1', title: 'تحسين فهم المتجهات', reason: 'لقد واجهت صعوبة في الاختبار الأخير للمتجهات.', type: 'lesson', targetId: 'lesson-vectors', urgency: 'high' },
-        { id: 'rec2', title: 'تحدي قوانين نيوتن', reason: 'أنت متفوق في هذا القسم، جرب هذا التحدي!', type: 'challenge', targetId: 'quiz-newton-adv', urgency: 'medium' }
+      { id: 'rec1', title: 'مراجعة قوانين نيوتن', reason: 'تحتاج لتقوية مهاراتك في الميكانيكا', type: 'lesson', targetId: 'l11-1-1', urgency: 'high' },
+      { id: 'rec2', title: 'اختبار الحث الكهرومغناطيسي', reason: 'أكملت دروس الوحدة الأولى بنجاح', type: 'quiz', targetId: 'quiz-1', urgency: 'medium' }
     ];
+  }
+
+  async uploadAsset(file: File): Promise<Asset> {
+    const name = `${Date.now()}_${file.name}`;
+    const { error } = await supabase.storage.from('assets').upload(name, file);
+    if (error) throw error;
+    const publicUrl = supabase.storage.from('assets').getPublicUrl(name).data.publicUrl;
+    return { name, url: publicUrl, type: file.type, size: file.size };
   }
 
   async listAssets(): Promise<Asset[]> {
     const { data, error } = await supabase.storage.from('assets').list();
     if (error) throw error;
     return data.map(item => ({
-        name: item.name,
-        url: supabase.storage.from('assets').getPublicUrl(item.name).data.publicUrl,
-        type: item.metadata?.mimetype || 'application/octet-stream',
-        size: item.metadata?.size || 0
+      name: item.name,
+      url: supabase.storage.from('assets').getPublicUrl(item.name).data.publicUrl,
+      type: item.metadata?.mimetype || 'unknown',
+      size: item.metadata?.size || 0
     }));
   }
 
-  async uploadAsset(file: File): Promise<Asset> {
-    const name = `${Date.now()}_${file.name}`;
-    const { data, error } = await supabase.storage.from('assets').upload(name, file);
-    if (error) throw error;
-    const { data: { publicUrl } } = supabase.storage.from('assets').getPublicUrl(name);
-    return { name, url: publicUrl, type: file.type, size: file.size };
-  }
-
   async deleteAsset(name: string) {
-    const { error } = await supabase.storage.from('assets').remove([name]);
-    if (error) throw error;
+    await supabase.storage.from('assets').remove([name]);
   }
 
   async getHomePageContent(): Promise<HomePageContent[]> {
     this.checkDb();
-    const snap = await getDocs(collection(db!, 'homePageContent'));
+    const snap = await getDocs(query(collection(db!, 'homePageContent'), orderBy('createdAt', 'desc')));
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as HomePageContent));
   }
 
-  // Fix: Added saveHomePageContent
   async saveHomePageContent(content: Partial<HomePageContent>) {
     this.checkDb();
     if (content.id) {
@@ -502,67 +449,65 @@ class DBService {
     }
   }
 
-  // Fix: Added deleteHomePageContent
   async deleteHomePageContent(id: string) {
     this.checkDb();
     await deleteDoc(doc(db!, 'homePageContent', id));
   }
 
-  // --- Additional Methods for UI fixes ---
-  // Fix: Added getUserAttempts
-  async getUserAttempts(uid: string, quizId?: string): Promise<StudentQuizAttempt[]> {
-    this.checkDb();
-    let q = query(collection(db!, 'quizAttempts'), where('studentId', '==', uid));
-    if (quizId) q = query(q, where('quizId', '==', quizId));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as StudentQuizAttempt));
+  async getAdvancedFinancialStats() {
+    const { data: invoices } = await this.getInvoices();
+    const paid = invoices.filter(i => i.status === 'PAID');
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const month = today.substring(0, 7);
+    const year = today.substring(0, 4);
+
+    return {
+      daily: paid.filter(i => i.date.startsWith(today)).reduce((s, i) => s + i.amount, 0),
+      monthly: paid.filter(i => i.date.startsWith(month)).reduce((s, i) => s + i.amount, 0),
+      yearly: paid.filter(i => i.date.startsWith(year)).reduce((s, i) => s + i.amount, 0),
+      total: paid.reduce((s, i) => s + i.amount, 0),
+      pending: invoices.filter(i => i.status === 'PENDING').length
+    };
   }
 
-  // Fix: Added getAttemptsForQuiz
-  async getAttemptsForQuiz(quizId: string): Promise<StudentQuizAttempt[]> {
+  /**
+   * Correct implementation of saveUser with merge: true.
+   */
+  async saveUser(user: User) {
     this.checkDb();
-    const q = query(collection(db!, 'quizAttempts'), where('quizId', '==', quizId), orderBy('completedAt', 'desc'));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as StudentQuizAttempt));
+    await setDoc(doc(db!, 'users', user.uid), this.cleanData(user), { merge: true });
   }
 
-  // Fix: Added updateAttempt
-  async updateAttempt(attempt: StudentQuizAttempt) {
+  async updateUserRole(uid: string, role: UserRole) {
     this.checkDb();
-    await updateDoc(doc(db!, 'quizAttempts', attempt.id), this.cleanData(attempt));
+    await updateDoc(doc(db!, 'users', uid), { role });
   }
 
-  // Fix: Added saveAttempt
-  async saveAttempt(attempt: StudentQuizAttempt) {
+  async deleteUser(uid: string) {
     this.checkDb();
-    await setDoc(doc(db!, 'quizAttempts', attempt.id), this.cleanData(attempt));
-    if (attempt.score > 0) {
-      await updateDoc(doc(db!, 'users', attempt.studentId), {
-        'progress.points': increment(attempt.score)
-      });
-    }
+    await deleteDoc(doc(db!, 'users', uid));
   }
 
-  // Fix: Added getQuizById
+  /**
+   * Correct implementation of saveQuiz with merge: true.
+   */
+  async saveQuiz(quiz: Quiz) {
+    this.checkDb();
+    await setDoc(doc(db!, 'quizzes', quiz.id), this.cleanData(quiz), { merge: true });
+  }
+
+  async deleteQuiz(id: string) {
+    this.checkDb();
+    await deleteDoc(doc(db!, 'quizzes', id));
+  }
+
   async getQuizById(id: string): Promise<Quiz | null> {
     this.checkDb();
     const snap = await getDoc(doc(db!, 'quizzes', id));
     return snap.exists() ? ({ ...snap.data(), id: snap.id } as Quiz) : null;
   }
 
-  // Fix: Added saveQuiz
-  async saveQuiz(quiz: Quiz) {
-    this.checkDb();
-    await setDoc(doc(db!, 'quizzes', quiz.id), this.cleanData(quiz), { merge: true });
-  }
-
-  // Fix: Added deleteQuiz
-  async deleteQuiz(id: string) {
-    this.checkDb();
-    await deleteDoc(doc(db!, 'quizzes', id));
-  }
-
-  // Fix: Added getQuestionsForQuiz
   async getQuestionsForQuiz(quizId: string): Promise<Question[]> {
     this.checkDb();
     const quiz = await this.getQuizById(quizId);
@@ -572,20 +517,17 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as Question));
   }
 
-  // Fix: Added saveQuestion
   async saveQuestion(question: Question): Promise<string> {
     this.checkDb();
     const docRef = await addDoc(collection(db!, 'questions'), this.cleanData(question));
     return docRef.id;
   }
 
-  // Fix: Added updateQuestion
   async updateQuestion(id: string, updates: Partial<Question>) {
     this.checkDb();
     await updateDoc(doc(db!, 'questions', id), this.cleanData(updates));
   }
 
-  // Fix: Added subscribeToNotifications
   subscribeToNotifications(uid: string, callback: (notifications: AppNotification[]) => void) {
     this.checkDb();
     const q = query(collection(db!, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'), limit(50));
@@ -594,13 +536,11 @@ class DBService {
     });
   }
 
-  // Fix: Added createNotification
   async createNotification(notification: Omit<AppNotification, 'id'>) {
     this.checkDb();
     await addDoc(collection(db!, 'notifications'), this.cleanData(notification));
   }
 
-  // Fix: Added getNotifications
   async getNotifications(uid: string): Promise<AppNotification[]> {
     this.checkDb();
     const q = query(collection(db!, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'));
@@ -608,7 +548,6 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
   }
 
-  // Fix: Added markNotificationsAsRead
   async markNotificationsAsRead(uid: string) {
     this.checkDb();
     const q = query(collection(db!, 'notifications'), where('userId', '==', uid), where('isRead', '==', false));
@@ -618,7 +557,6 @@ class DBService {
     await batch.commit();
   }
 
-  // Fix: Added toggleLessonComplete
   async toggleLessonComplete(uid: string, lessonId: string) {
     this.checkDb();
     const userRef = doc(db!, 'users', uid);
@@ -634,7 +572,6 @@ class DBService {
     });
   }
 
-  // Fix: Added saveLesson
   async saveLesson(curriculumId: string, unitId: string, lesson: Lesson) {
     this.checkDb();
     const curRef = doc(db!, 'curriculum', curriculumId);
@@ -650,7 +587,6 @@ class DBService {
     await updateDoc(curRef, { units: data.units });
   }
 
-  // Fix: Added saveUnit
   async saveUnit(curriculumId: string, unit: Unit, grade: string, subject: string) {
     this.checkDb();
     const curRef = doc(db!, 'curriculum', curriculumId);
@@ -665,13 +601,11 @@ class DBService {
     await updateDoc(curRef, { units: data.units });
   }
 
-  // Fix: Added updateUnitsOrder
   async updateUnitsOrder(curriculumId: string, units: Unit[]) {
     this.checkDb();
     await updateDoc(doc(db!, 'curriculum', curriculumId), { units });
   }
 
-  // Fix: Added deleteUnit
   async deleteUnit(curriculumId: string, unitId: string) {
     this.checkDb();
     const curRef = doc(db!, 'curriculum', curriculumId);
@@ -682,7 +616,6 @@ class DBService {
     await updateDoc(curRef, { units: data.units });
   }
 
-  // Fix: Added deleteLesson
   async deleteLesson(curriculumId: string, unitId: string, lessonId: string) {
     this.checkDb();
     const curRef = doc(db!, 'curriculum', curriculumId);
@@ -696,8 +629,7 @@ class DBService {
     }
   }
 
-  // Fix: Added getStudentProgressForParent
-  async getStudentProgressForParent(uid: string) {
+  async getStudentProgressForParent_old(uid: string) {
       this.checkDb();
       const user = await this.getUser(uid);
       const reports = user?.weeklyReports || [];
@@ -705,7 +637,6 @@ class DBService {
       return { user, report: latestReport };
   }
 
-  // Fix: Added getTeacherReviews
   async getTeacherReviews(teacherId: string): Promise<Review[]> {
     this.checkDb();
     const q = query(collection(db!, 'reviews'), where('teacherId', '==', teacherId), orderBy('timestamp', 'desc'));
@@ -713,19 +644,16 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as Review));
   }
 
-  // Fix: Added addReview
   async addReview(review: Review) {
     this.checkDb();
     await addDoc(collection(db!, 'reviews'), this.cleanData(review));
   }
 
-  // Fix: Added saveTeacherMessage
   async saveTeacherMessage(message: TeacherMessage) {
     this.checkDb();
     await addDoc(collection(db!, 'teacherMessages'), this.cleanData(message));
   }
 
-  // Fix: Added getAllTeacherMessages
   async getAllTeacherMessages(teacherId: string): Promise<TeacherMessage[]> {
     this.checkDb();
     const q = query(collection(db!, 'teacherMessages'), where('teacherId', '==', teacherId), orderBy('timestamp', 'desc'));
@@ -733,24 +661,81 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as TeacherMessage));
   }
 
-  // Fix: Added deleteUser
-  async deleteUser(uid: string) {
+  async initializeForumSystem() {
     this.checkDb();
-    await deleteDoc(doc(db!, 'users', uid));
+    const sections = [
+      { title: 'القسم العام', description: 'نقاشات عامة حول العلوم والفيزياء.', order: 0, forums: [
+        { id: 'general-discussions', title: 'نقاشات مفتوحة', description: 'تحدث مع زملائك في أي موضوع علمي.', icon: '🌍', order: 0 }
+      ]}
+    ];
+    for (const sec of sections) {
+       await addDoc(collection(db!, 'forumSections'), sec);
+    }
   }
 
-  // Fix: Added getAdmins
-  async getAdmins(): Promise<User[]> {
+  async saveForumSections(sections: ForumSection[]) {
     this.checkDb();
-    const q = query(collection(db!, 'users'), where('role', '==', 'admin'));
+    const batch = writeBatch(db!);
+    const existing = await getDocs(collection(db!, 'forumSections'));
+    existing.forEach(d => batch.delete(d.ref));
+    
+    sections.forEach(sec => {
+      const newRef = doc(collection(db!, 'forumSections'));
+      batch.set(newRef, this.cleanData(sec));
+    });
+    await batch.commit();
+  }
+
+  async updateForumPost(postId: string, updates: Partial<ForumPost>) {
+    this.checkDb();
+    await updateDoc(doc(db!, 'forumPosts', postId), this.cleanData(updates));
+  }
+
+  async deleteForumPost(postId: string) {
+    this.checkDb();
+    await deleteDoc(doc(db!, 'forumPosts', postId));
+  }
+
+  async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'timestamp' | 'upvotes'>) {
+    this.checkDb();
+    const postRef = doc(db!, 'forumPosts', postId);
+    const snap = await getDoc(postRef);
+    if (snap.exists()) {
+      const data = snap.data() as ForumPost;
+      const replies = data.replies || [];
+      replies.push({ ...reply, id: `rep_${Date.now()}`, timestamp: new Date().toISOString(), upvotes: 0 });
+      await updateDoc(postRef, { replies });
+    }
+  }
+
+  async createForumPost(post: Omit<ForumPost, 'id'>) {
+    this.checkDb();
+    await addDoc(collection(db!, 'forumPosts'), this.cleanData(post));
+  }
+
+  async saveAttempt(attempt: StudentQuizAttempt) {
+    this.checkDb();
+    await setDoc(doc(db!, 'attempts', attempt.id), this.cleanData(attempt));
+  }
+
+  async getUserAttempts(uid: string, quizId?: string): Promise<StudentQuizAttempt[]> {
+    this.checkDb();
+    let q = query(collection(db!, 'attempts'), where('studentId', '==', uid));
+    if (quizId) q = query(q, where('quizId', '==', quizId));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ ...d.data(), uid: d.id } as User));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as StudentQuizAttempt));
   }
 
-  // Fix: Added updateUserRole
-  async updateUserRole(uid: string, role: UserRole) {
+  async getAttemptsForQuiz(quizId: string): Promise<StudentQuizAttempt[]> {
     this.checkDb();
-    await updateDoc(doc(db!, 'users', uid), { role });
+    const q = query(collection(db!, 'attempts'), where('quizId', '==', quizId));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as StudentQuizAttempt));
+  }
+
+  async updateAttempt(attempt: StudentQuizAttempt) {
+    this.checkDb();
+    await updateDoc(doc(db!, 'attempts', attempt.id), this.cleanData(attempt));
   }
 }
 

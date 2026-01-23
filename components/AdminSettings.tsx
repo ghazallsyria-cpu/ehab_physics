@@ -1,13 +1,18 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { LoggingSettings, NotificationSettings, AppBranding } from '../types';
+import { LoggingSettings, NotificationSettings, AppBranding, MaintenanceSettings } from '../types';
 import { dbService } from '../services/db';
-import { Database, Save, AlertCircle, RefreshCw, Bell, MessageSquare, ShieldCheck, Zap, Image as ImageIcon, Upload } from 'lucide-react';
+import { 
+    Database, Save, AlertCircle, RefreshCw, Bell, MessageSquare, 
+    ShieldCheck, Zap, Image as ImageIcon, Upload, Hammer, 
+    Clock, Power, PowerOff, Layout 
+} from 'lucide-react';
 
 const AdminSettings: React.FC = () => {
   const [settings, setSettings] = useState<LoggingSettings | null>(null);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
   const [branding, setBranding] = useState<AppBranding | null>(null);
+  const [maintenance, setMaintenance] = useState<MaintenanceSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -21,14 +26,16 @@ const AdminSettings: React.FC = () => {
 
   const loadSettings = async () => {
     setIsLoading(true);
-    const [loggingData, notificationData, brandingData] = await Promise.all([
+    const [loggingData, notificationData, brandingData, maintenanceData] = await Promise.all([
         dbService.getLoggingSettings(),
         dbService.getNotificationSettings(),
-        dbService.getAppBranding()
+        dbService.getAppBranding(),
+        dbService.getMaintenanceSettings()
     ]);
     setSettings(loggingData);
     setNotificationSettings(notificationData);
     setBranding(brandingData);
+    setMaintenance(maintenanceData);
     setIsLoading(false);
   };
 
@@ -55,17 +62,17 @@ const AdminSettings: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!settings || !notificationSettings || !branding) return;
+    if (!settings || !notificationSettings || !branding || !maintenance) return;
     setIsSaving(true);
     setMessage(null);
     try {
       await Promise.all([
           dbService.saveLoggingSettings(settings),
           dbService.saveNotificationSettings(notificationSettings),
-          dbService.saveAppBranding(branding)
+          dbService.saveAppBranding(branding),
+          dbService.saveMaintenanceSettings(maintenance)
       ]);
-      setMessage({ text: 'تم حفظ الإعدادات بنجاح!', type: 'success' });
-      // بث حدث لتحديث الشعار في كل مكان فوراً
+      setMessage({ text: 'تم حفظ كافة التغييرات وإعدادات الصيانة بنجاح! ✅', type: 'success' });
       window.dispatchEvent(new CustomEvent('branding-updated', { detail: branding }));
     } catch (e) {
       setMessage({ text: 'فشل حفظ الإعدادات.', type: 'error' });
@@ -75,31 +82,97 @@ const AdminSettings: React.FC = () => {
   };
   
   const settingOptions: { key: keyof LoggingSettings; title: string; description: string }[] = [
-    {
-      key: 'logStudentProgress',
-      title: 'تسجيل تقدم الطلاب',
-      description: 'حفظ سجلات إكمال الدروس والأنشطة الأخرى. إيقافه يقلل من استخدام قاعدة البيانات.',
-    },
-    {
-      key: 'saveAllQuizAttempts',
-      title: 'حفظ جميع محاولات الاختبار',
-      description: 'حفظ كل محاولة يقوم بها الطالب بدلاً من الدرجة الأعلى فقط.',
-    },
-    {
-      key: 'archiveTeacherMessages',
-      title: 'أرشفة رسائل المعلمين',
-      description: 'حفظ سجلات التواصل لأغراض الإشراف والمتابعة.',
-    },
+    { key: 'logStudentProgress', title: 'تسجيل تقدم الطلاب', description: 'حفظ سجلات إكمال الدروس والأنشطة الأخرى.' },
+    { key: 'saveAllQuizAttempts', title: 'حفظ جميع محاولات الاختبار', description: 'حفظ كل محاولة يقوم بها الطالب.' },
+    { key: 'archiveTeacherMessages', title: 'أرشفة رسائل المعلمين', description: 'حفظ سجلات التواصل لأغراض الإشراف.' },
   ];
 
+  if (isLoading) return <div className="py-40 text-center animate-pulse"><RefreshCw className="animate-spin mx-auto text-amber-500 mb-4" /> <p className="text-gray-500 uppercase font-black text-xs">جاري سحب الإعدادات المركزية...</p></div>;
+
   return (
-    <div className="max-w-4xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white text-right" dir="rtl">
-      <header className="mb-12 border-r-4 border-[#fbbf24] pr-8">
-        <h2 className="text-5xl font-black mb-4 tracking-tighter">إعدادات <span className="text-[#fbbf24]">المنصة</span></h2>
-        <p className="text-gray-500 text-xl font-medium">التحكم في خصوصية البيانات وصلاحيات الوصول للمزايا المتقدمة.</p>
+    <div className="max-w-4xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white text-right pb-32" dir="rtl">
+      <header className="mb-12 border-r-4 border-[#fbbf24] pr-8 flex justify-between items-center">
+        <div>
+            <h2 className="text-5xl font-black mb-4 tracking-tighter italic">إعدادات <span className="text-[#fbbf24]">المنظومة</span></h2>
+            <p className="text-gray-500 text-xl font-medium">التحكم في خصوصية البيانات، الهوية، ووضع الصيانة.</p>
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="bg-[#fbbf24] text-black px-12 py-5 rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50"
+        >
+          {isSaving ? <RefreshCw className="animate-spin" /> : <Save />} حفظ الكل
+        </button>
       </header>
 
+      {message && (
+          <div className={`mb-10 p-6 rounded-[35px] text-sm font-bold flex items-center gap-4 border animate-slideUp ${message.type === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+              <ShieldCheck size={24} /> {message.text}
+          </div>
+      )}
+
       <div className="space-y-12">
+        {/* وضع الصيانة والتطوير */}
+        <div className="glass-panel p-12 rounded-[60px] border-red-500/20 space-y-10 bg-gradient-to-br from-red-500/5 to-transparent relative overflow-hidden">
+            <div className="absolute top-0 left-0 p-8 opacity-5 text-8xl pointer-events-none"><Hammer /></div>
+            <div className="flex items-center justify-between border-b border-white/5 pb-8">
+                <div className="flex items-center gap-4">
+                    <div className={`p-4 rounded-2xl ${maintenance?.isMaintenanceActive ? 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]' : 'bg-white/5 text-gray-500'}`}>
+                        {maintenance?.isMaintenanceActive ? <Power /> : <PowerOff />}
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black text-white">وضع الصيانة والتطوير</h3>
+                        <p className="text-xs text-gray-500 mt-1">عند التفعيل، سيتم قفل المنصة عن الطلاب وعرض صفحة عداد زمنية.</p>
+                    </div>
+                </div>
+                <button 
+                    onClick={() => maintenance && setMaintenance({...maintenance, isMaintenanceActive: !maintenance.isMaintenanceActive})}
+                    className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${maintenance?.isMaintenanceActive ? 'bg-red-500 text-white' : 'bg-white/10 text-gray-400 hover:text-white'}`}
+                >
+                    {maintenance?.isMaintenanceActive ? 'إيقاف الصيانة' : 'تفعيل الآن'}
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">موعد الافتتاح المتوقع</label>
+                    <div className="relative">
+                        <Clock className="absolute top-1/2 right-6 -translate-y-1/2 text-gray-500" size={18}/>
+                        <input 
+                            type="datetime-local" 
+                            value={maintenance?.expectedReturnTime ? new Date(maintenance.expectedReturnTime).toISOString().slice(0, 16) : ''}
+                            onChange={e => maintenance && setMaintenance({...maintenance, expectedReturnTime: new Date(e.target.value).toISOString()})}
+                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-12 py-4 text-white outline-none focus:border-red-500 font-bold"
+                        />
+                    </div>
+                </div>
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">رسالة التطوير للطلاب</label>
+                    <textarea 
+                        value={maintenance?.maintenanceMessage || ''}
+                        onChange={e => maintenance && setMaintenance({...maintenance, maintenanceMessage: e.target.value})}
+                        className="w-full h-32 bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-red-500 text-sm leading-relaxed"
+                        placeholder="نعمل على تحسين..."
+                    />
+                </div>
+            </div>
+
+            <div className="flex flex-wrap gap-4 pt-6 border-t border-white/5">
+                <button 
+                    onClick={() => maintenance && setMaintenance({...maintenance, showCountdown: !maintenance.showCountdown})}
+                    className={`flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase border transition-all ${maintenance?.showCountdown ? 'bg-white/10 border-white text-white' : 'bg-transparent border-white/10 text-gray-500'}`}
+                >
+                    {maintenance?.showCountdown ? '✓ إظهار العداد' : 'إخفاء العداد'}
+                </button>
+                <button 
+                    onClick={() => maintenance && setMaintenance({...maintenance, allowTeachers: !maintenance.allowTeachers})}
+                    className={`flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase border transition-all ${maintenance?.allowTeachers ? 'bg-white/10 border-white text-white' : 'bg-transparent border-white/10 text-gray-500'}`}
+                >
+                    {maintenance?.allowTeachers ? '✓ دخول المعلمين مسموح' : 'المعلمين ممنوعين'}
+                </button>
+            </div>
+        </div>
+
         {/* قسم الهوية البصرية */}
         <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8 bg-gradient-to-br from-amber-500/5 to-transparent">
             <div className="flex items-center gap-4 text-gray-400 border-b border-white/5 pb-8">
@@ -153,34 +226,6 @@ const AdminSettings: React.FC = () => {
             </div>
         </div>
 
-        {/* صلاحيات ساحة النقاش */}
-        <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8 bg-gradient-to-br from-[#00d2ff]/5 to-transparent">
-            <div className="flex items-center gap-4 text-gray-400 border-b border-white/5 pb-8">
-                <ShieldCheck size={24} className="text-[#00d2ff]" />
-                <h3 className="text-2xl font-black text-white">صلاحيات ساحة النقاش</h3>
-            </div>
-            
-            <div className="p-8 bg-black/40 rounded-[35px] border border-white/5">
-                <p className="text-sm font-bold text-gray-300 mb-6">حدد الفئة المسموح لها بالمشاركة في المنتديات:</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button 
-                        onClick={() => settings && setSettings({...settings, forumAccessTier: 'free'})}
-                        className={`p-6 rounded-[30px] border-2 transition-all flex flex-col items-center gap-3 ${settings?.forumAccessTier === 'free' ? 'border-[#00d2ff] bg-[#00d2ff]/10 text-[#00d2ff]' : 'border-white/5 bg-white/5 text-gray-500 hover:border-white/20'}`}
-                    >
-                        <span className="text-2xl">🌍</span>
-                        <span className="font-black text-xs uppercase tracking-widest">متاح للجميع (Free)</span>
-                    </button>
-                    <button 
-                        onClick={() => settings && setSettings({...settings, forumAccessTier: 'premium'})}
-                        className={`p-6 rounded-[30px] border-2 transition-all flex flex-col items-center gap-3 ${settings?.forumAccessTier === 'premium' ? 'border-[#fbbf24] bg-[#fbbf24]/10 text-[#fbbf24]' : 'border-white/5 bg-white/5 text-gray-500 hover:border-white/20'}`}
-                    >
-                        <Zap size={24} fill={settings?.forumAccessTier === 'premium' ? 'currentColor' : 'none'} />
-                        <span className="font-black text-xs uppercase tracking-widest">للمشتركين فقط (Premium)</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
         {/* إعدادات التسجيل */}
         <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8">
             <div className="flex items-center gap-4 text-gray-400 border-b border-white/5 pb-8">
@@ -203,23 +248,6 @@ const AdminSettings: React.FC = () => {
             </div>
             ))}
         </div>
-      </div>
-
-      <div className="mt-10 flex flex-col sm:flex-row items-center justify-end gap-6">
-        {message && (
-          <div className={`flex items-center gap-2 text-xs font-bold ${message.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
-            <AlertCircle size={16} />
-            {message.text}
-          </div>
-        )}
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-[#fbbf24] text-black px-12 py-5 rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50"
-        >
-          {isSaving ? <RefreshCw className="animate-spin" /> : <Save />}
-          حفظ كافة الإعدادات
-        </button>
       </div>
     </div>
   );
