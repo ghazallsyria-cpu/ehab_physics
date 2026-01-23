@@ -6,19 +6,16 @@ import {
   MessageCircle, 
   CheckCircle2, 
   Smartphone, 
-  ArrowRight, 
   ShieldCheck, 
-  Zap, 
   RefreshCw, 
   MessageSquare,
-  Crown,
   FileText,
-  Clock,
-  ExternalLink,
   ChevronLeft,
   Printer,
   Calendar,
-  Phone
+  Phone,
+  Zap,
+  Clock
 } from 'lucide-react';
 import PaymentCertificate from './PaymentCertificate';
 
@@ -46,29 +43,29 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  // Fix: Standardized setter name to match common React patterns and fix reference errors
-  const [isLoadingPlans, setLoadingPlans] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedInvoiceForCert, setSelectedInvoiceForCert] = useState<Invoice | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
         const [settings, plans] = await Promise.all([
           dbService.getPaymentSettings(),
           dbService.getSubscriptionPlans()
         ]);
         setPaymentSettings(settings);
-        setSubscriptionPlans(plans.length > 0 ? plans : DEFAULT_PLANS);
+        // إذا لم تكن هناك خطط في DB، استخدم الافتراضية
+        setSubscriptionPlans(plans && plans.length > 0 ? plans : DEFAULT_PLANS);
       } catch (e) {
+        console.error("Fetch plans failed", e);
         setSubscriptionPlans(DEFAULT_PLANS);
       } finally {
-        // Fix: Use correct setter name to match declaration
-        setLoadingPlans(false);
+        setIsLoading(false);
       }
     };
     fetchData();
 
-    // مراقبة لحظية للفواتير
     const unsubscribeInvoices = dbService.subscribeToInvoices(user.uid, (updatedInvoices) => {
         setInvoices(updatedInvoices);
     });
@@ -81,35 +78,14 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
       ? (paymentSettings?.planPrices.premium || plan.price) 
       : (paymentSettings?.planPrices.basic || plan.price);
 
-    if (!paymentSettings?.isOnlinePaymentEnabled || dynamicPrice > 0) {
+    if (dynamicPrice > 0) {
         const phoneNumber = "965" + (paymentSettings?.womdaPhoneNumber || "55315661");
-        
         const message = encodeURIComponent(
-            `مرحباً إدارة المركز السوري للعلوم،\n\n` +
-            `أود الاشتراك في: *${plan.name}*\n` +
-            `القيمة المطلوب دفعها: *${dynamicPrice} د.ك*\n\n` +
-            `بيانات الطالب:\n` +
-            `- الأسم: ${user.name}\n` +
-            `- الصف: ${user.grade}\n` +
-            `- رقم الهاتف المسجل: ${user.phone || 'غير مسجل'}\n` +
-            `- البريد: ${user.email}\n\n` +
-            `يرجى تزويدي بتعليمات تحويل "ومض" لتفعيل الحساب فوراً.`
+            `مرحباً إدارة المركز السوري للعلوم،\n\nأود الاشتراك في: *${plan.name}*\nالقيمة: *${dynamicPrice} د.ك*\n\nبياناتي:\n- الأسم: ${user.name}\n- الهاتف: ${user.phone || 'غير مسجل'}\n\nيرجى تزويدي بتعليمات "ومض".`
         );
-        
         window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
-        
-        // تسجيل فاتورة "قيد الانتظار"
         await dbService.initiatePayment(user.uid, plan.id, dynamicPrice);
         return;
-    }
-
-    setIsProcessing(true);
-    try {
-      await dbService.initiatePayment(user.uid, plan.id, dynamicPrice);
-    } catch (e) {
-      alert("حدث خطأ أثناء تهيئة عملية الدفع.");
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -126,11 +102,11 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
       );
   }
 
-  if (isLoadingPlans) {
+  if (isLoading) {
     return (
-        <div className="py-40 text-center animate-pulse flex flex-col items-center">
+        <div className="py-40 text-center flex flex-col items-center">
             <RefreshCw className="w-16 h-16 text-[#fbbf24] animate-spin mb-6" />
-            <p className="text-gray-500 font-black uppercase tracking-widest text-xs">جاري جلب بيانات حسابك المالي...</p>
+            <p className="text-gray-500 font-black uppercase tracking-widest text-xs">جاري تحميل بيانات حسابك المالي...</p>
         </div>
     );
   }
@@ -138,156 +114,105 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
   return (
     <div className="max-w-7xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white text-right" dir="rtl">
       <header className="mb-20 text-center relative">
-        <div className="absolute top-0 right-1/2 translate-x-1/2 w-64 h-64 bg-[#fbbf24]/5 blur-[100px] rounded-full"></div>
-        <h2 className="text-6xl md:text-7xl font-black mb-4 tracking-tighter italic">مركز <span className="text-[#fbbf24] text-glow-gold">الاشتراكات</span></h2>
-        <p className="text-gray-500 text-xl font-medium max-w-2xl mx-auto leading-relaxed">ادفع قيمة الباقة عبر "ومض" وراسلنا لتفعيل حسابك وإصدار إيصالك الرسمي فوراً.</p>
+        <h2 className="text-5xl md:text-7xl font-black mb-4 tracking-tighter italic">مركز <span className="text-[#fbbf24] text-glow-gold">الاشتراكات</span></h2>
+        <p className="text-gray-500 text-xl font-medium max-w-2xl mx-auto leading-relaxed">فعل باقتك التعليمية عبر خدمة "ومض" لفتح كامل المحتوى.</p>
         
-        <div className="mt-10 bg-emerald-500/10 border-2 border-emerald-500/20 p-6 rounded-[40px] inline-flex items-center gap-6 animate-slideUp">
-            <div className="w-16 h-16 bg-emerald-500 rounded-[25px] flex items-center justify-center text-black shadow-lg">
-                <Smartphone size={32} />
+        <div className="mt-10 bg-emerald-500/10 border-2 border-emerald-500/20 p-6 rounded-[30px] inline-flex items-center gap-6">
+            <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center text-black shadow-lg">
+                <Smartphone size={28} />
             </div>
             <div className="text-right">
-                <p className="text-emerald-400 font-black text-lg">خدمة "ومض" الكويت متاحة</p>
-                <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-gray-500 font-bold">رقمك المسجل للتفعيل:</span>
-                    <span className="text-sm font-black text-white flex items-center gap-1"><Phone size={12} className="text-emerald-400"/> {user.phone || 'يرجى تحديث رقم الهاتف في البروفايل'}</span>
-                </div>
+                <p className="text-emerald-400 font-black text-lg">تحويل "ومض" متاح</p>
+                <p className="text-xs text-gray-500 font-bold mt-1">رقمك المسجل: <span className="text-white">{user.phone || 'يرجى تحديثه في البروفايل'}</span></p>
             </div>
         </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-        {/* Plans Column */}
-        <div className="lg:col-span-8 space-y-12">
-            <div className="flex items-center gap-4 mb-8 border-r-4 border-amber-400 pr-6">
-                <h3 className="text-3xl font-black">الباقات التعليمية</h3>
-                <span className="bg-amber-400/10 text-amber-500 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-400/20">تفعيل فوري</span>
-            </div>
-            
+        <div className="lg:col-span-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {subscriptionPlans.map(plan => {
                 const dynamicPrice = plan.tier === 'premium' 
                     ? (paymentSettings?.planPrices.premium || plan.price) 
                     : (paymentSettings?.planPrices.basic || plan.price);
-
                 const isCurrentPlan = user.subscription === plan.tier;
 
                 return (
-                    <div key={plan.id} className={`glass-panel group p-12 rounded-[60px] border-2 transition-all duration-700 flex flex-col relative overflow-hidden bg-black/40 shadow-2xl ${isCurrentPlan ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-white/5 hover:border-[#fbbf24]/30'}`}>
-                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#fbbf24]/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    
-                    <div className="flex justify-between items-start mb-8">
-                        <h3 className="text-3xl font-black leading-none">{plan.name}</h3>
-                        {isCurrentPlan && <span className="bg-emerald-500 text-black px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg">الباقة النشطة</span>}
-                    </div>
-
-                    <div className="text-6xl font-black text-[#fbbf24] tracking-tighter mb-12 tabular-nums">
-                        {dynamicPrice.toLocaleString()}<span className="text-lg text-gray-500 mr-2 font-bold uppercase">د.ك</span>
-                    </div>
-
-                    <ul className="space-y-5 flex-1 text-right border-t border-white/5 pt-10 mb-10">
-                        {plan.features.map((f, i) => (
-                        <li key={i} className="flex items-center gap-4 text-gray-400 group-hover:text-white transition-colors">
-                            <div className="w-5 h-5 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                                <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
-                            </div>
-                            <span className="font-bold text-sm leading-relaxed">{f}</span>
-                        </li>
-                        ))}
-                    </ul>
-
-                    <button 
-                        onClick={() => handlePlanAction(plan)}
-                        disabled={isProcessing || isCurrentPlan}
-                        className={`w-full py-7 rounded-[35px] font-black text-xs uppercase tracking-[0.2em] transition-all shadow-2xl flex items-center justify-center gap-4 ${
-                        isCurrentPlan 
-                            ? 'bg-gray-800 text-gray-600 cursor-default border border-white/5 shadow-none' 
-                            : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95 shadow-yellow-500/30'
-                        }`}
-                    >
-                        {isProcessing ? (
-                        <RefreshCw size={22} className="animate-spin" />
-                        ) : isCurrentPlan ? (
-                        <><ShieldCheck size={22} /> تم التفعيل بنجاح </>
-                        ) : (
-                        <><MessageCircle size={22} fill="currentColor" /> اشترك الآن عبر واتساب </>
-                        )}
-                    </button>
+                    <div key={plan.id} className={`p-10 rounded-[50px] border-2 transition-all flex flex-col relative overflow-hidden bg-black/40 shadow-2xl ${isCurrentPlan ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-white/5 hover:border-[#fbbf24]/30'}`}>
+                        <div className="flex justify-between items-start mb-8">
+                            <h3 className="text-2xl font-black">{plan.name}</h3>
+                            {isCurrentPlan && <span className="bg-emerald-500 text-black px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg">نشطة</span>}
+                        </div>
+                        <div className="text-5xl font-black text-[#fbbf24] tracking-tighter mb-10 tabular-nums">
+                            {dynamicPrice}<span className="text-sm text-gray-500 mr-1 font-bold uppercase">د.ك</span>
+                        </div>
+                        <ul className="space-y-4 flex-1 text-right border-t border-white/5 pt-8 mb-10">
+                            {plan.features.map((f, i) => (
+                                <li key={i} className="flex items-center gap-3 text-gray-400 text-sm">
+                                    <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
+                                    <span className="font-bold">{f}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <button 
+                            onClick={() => handlePlanAction(plan)}
+                            disabled={isCurrentPlan}
+                            className={`w-full py-6 rounded-[30px] font-black text-xs uppercase tracking-widest transition-all ${isCurrentPlan ? 'bg-gray-800 text-gray-600' : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95'}`}
+                        >
+                            {isCurrentPlan ? '✓ باقتك الحالية' : 'اشترك الآن عبر واتساب'}
+                        </button>
                     </div>
                 );
                 })}
             </div>
         </div>
 
-        {/* Payment History Column */}
         <div className="lg:col-span-4">
-            <div className="glass-panel p-10 rounded-[50px] border-white/5 bg-[#0a1118]/80 min-h-[600px] flex flex-col shadow-3xl">
-                <div className="flex items-center gap-4 mb-12 border-b border-white/5 pb-8">
-                    <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 border border-blue-500/20">
-                        <Clock size={24} />
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-black text-white italic">سجل العمليات</h3>
-                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">تتبع حالة التفعيل والوصولات</p>
-                    </div>
+            <div className="glass-panel p-8 rounded-[40px] border-white/5 bg-[#0a1118]/80 flex flex-col shadow-3xl min-h-[500px]">
+                <div className="flex items-center gap-3 mb-10 border-b border-white/5 pb-6">
+                    <Clock className="text-blue-400" size={20} />
+                    <h3 className="text-lg font-black text-white italic">سجل الدفعات</h3>
                 </div>
                 
-                <div className="space-y-6 flex-1 max-h-[500px] overflow-y-auto no-scrollbar pr-1">
+                <div className="space-y-4 flex-1">
                     {invoices.length > 0 ? invoices.map(inv => (
-                        <div key={inv.id} className="p-6 bg-white/[0.02] border border-white/5 rounded-[35px] group hover:border-white/20 transition-all shadow-inner">
-                            <div className="flex justify-between items-start mb-5">
-                                <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase border ${inv.status === 'PAID' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'}`}>
-                                    {inv.status === 'PAID' ? 'مدفوع ومعتمد ✓' : 'قيد المراجعة ⌛'}
+                        <div key={inv.id} className="p-5 bg-white/[0.02] border border-white/5 rounded-[30px] group transition-all">
+                            <div className="flex justify-between items-center mb-4">
+                                <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase border ${inv.status === 'PAID' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                                    {inv.status === 'PAID' ? 'تم الدفع ✓' : 'قيد المراجعة ⌛'}
                                 </span>
                                 <span className="text-[9px] font-mono text-gray-600 font-bold">#{inv.trackId}</span>
                             </div>
-                            <h4 className="text-lg font-black text-white mb-1">{inv.planId === 'plan_premium' ? 'باقة التفوق' : 'الاشتراك الأساسي'}</h4>
-                            <p className="text-[10px] text-gray-500 mb-8 font-bold tabular-nums flex items-center gap-2">
-                                <Calendar className="w-3 h-3" /> {new Date(inv.date).toLocaleDateString('ar-KW', { day: 'numeric', month: 'long', year: 'numeric' })}
-                            </p>
-                            
-                            <div className="flex justify-between items-center pt-5 border-t border-white/5">
-                                <p className="text-3xl font-black text-white tabular-nums">{inv.amount} <span className="text-sm text-gray-600 font-bold">د.ك</span></p>
+                            <div className="flex justify-between items-end">
+                                <div>
+                                    <h4 className="text-md font-black text-white">{inv.planId === 'plan_premium' ? 'باقة التفوق' : 'باقة أساسية'}</h4>
+                                    <p className="text-[9px] text-gray-500 font-bold tabular-nums mt-1">{new Date(inv.date).toLocaleDateString('ar-KW')}</p>
+                                </div>
                                 {inv.status === 'PAID' && (
-                                    <button 
-                                        onClick={() => setSelectedInvoiceForCert(inv)}
-                                        className="bg-white/5 hover:bg-white text-gray-400 hover:text-black p-3 rounded-2xl transition-all shadow-xl flex items-center gap-2 group/btn"
-                                    >
-                                        <Printer size={16} className="group-hover/btn:scale-110 transition-transform" />
-                                        <span className="text-[9px] font-black uppercase">إيصال رقمي</span>
+                                    <button onClick={() => setSelectedInvoiceForCert(inv)} className="p-3 bg-white/5 hover:bg-white text-gray-400 hover:text-black rounded-2xl transition-all shadow-xl">
+                                        <Printer size={16} />
                                     </button>
                                 )}
                             </div>
                         </div>
                     )) : (
-                        <div className="flex-1 flex flex-col items-center justify-center opacity-20 text-center px-6">
-                            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
-                                <FileText size={48} className="text-gray-500" />
-                            </div>
-                            <p className="font-black text-sm uppercase tracking-[0.2em] mb-2">لا توجد سجلات</p>
-                            <p className="text-[10px] font-medium leading-relaxed">بمجرد طلب الباقة عبر الواتساب، سيظهر طلبك هنا قيد المراجعة.</p>
+                        <div className="text-center py-20 opacity-20">
+                            <FileText size={48} className="mx-auto mb-4" />
+                            <p className="text-xs font-black uppercase">لا توجد عمليات</p>
                         </div>
                     )}
-                </div>
-
-                <div className="mt-10 p-6 bg-white/5 rounded-[35px] border border-white/5 text-center">
-                    <p className="text-[10px] text-gray-600 leading-relaxed italic font-bold">يتم إصدار الإيصال الرقمي واعتماده فور تسجيل الدفعة من قبل الإدارة المالية للمركز.</p>
                 </div>
             </div>
         </div>
       </div>
       
-      <div className="mt-24 p-12 bg-white/[0.02] border border-white/5 rounded-[60px] text-center max-w-2xl mx-auto shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent"></div>
-          <p className="text-gray-400 text-lg font-bold mb-8">هل واجهت مشكلة في تحويل "ومض" أو تأخر تفعيل حسابك؟</p>
+      <div className="mt-20 p-10 bg-white/[0.02] border border-white/5 rounded-[50px] text-center max-w-xl mx-auto shadow-2xl">
+          <p className="text-gray-400 text-sm font-bold mb-6">هل واجهت مشكلة في تحويل "ومض"؟</p>
           <button 
-            onClick={() => {
-                const phoneNumber = "965" + (paymentSettings?.womdaPhoneNumber || "55315661");
-                window.open(`https://wa.me/${phoneNumber}?text=مرحباً، أود الاستفسار عن حالة اشتراكي المالي وتفعيله.`, '_blank');
-            }}
-            className="flex items-center gap-4 bg-white text-black px-12 py-5 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all mx-auto"
+            onClick={() => window.open(`https://wa.me/965${paymentSettings?.womdaPhoneNumber || '55315661'}`, '_blank')}
+            className="flex items-center gap-3 bg-white text-black px-10 py-4 rounded-full font-black text-xs uppercase transition-all hover:scale-105 active:scale-95 mx-auto"
           >
-              <MessageSquare size={22}/> التواصل المباشر مع المالية
+              <MessageSquare size={18}/> التواصل مع المالية
           </button>
       </div>
     </div>
