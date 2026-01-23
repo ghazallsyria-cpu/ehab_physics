@@ -1,8 +1,10 @@
 
-import React, { useState } from 'react';
-import { User, Invoice, SubscriptionPlan } from '../types';
+import React, { useState, useEffect } from 'react';
+import { User, Invoice, SubscriptionPlan, PaymentSettings } from '../types';
 import { PRICING_PLANS } from '../constants';
 import { dbService } from '../services/db';
+// Added RefreshCw to imports to fix "Cannot find name 'RefreshCw'" error
+import { MessageCircle, Camera, CheckCircle2, AlertCircle, Smartphone, Send, ArrowRight, ShieldCheck, Zap, RefreshCw } from 'lucide-react';
 
 interface BillingCenterProps {
   user: User;
@@ -11,27 +13,46 @@ interface BillingCenterProps {
 }
 
 const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onViewCertificate }) => {
-  const [step, setStep] = useState<'PLANS' | 'GATEWAY' | 'RESULT'>('PLANS');
+  const [step, setStep] = useState<'PLANS' | 'GATEWAY' | 'MANUAL_PAY' | 'RESULT'>('PLANS');
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [finalResult, setFinalResult] = useState<'SUCCESS' | 'FAIL'>('SUCCESS');
   const [failureReason, setFailureReason] = useState<string>('');
 
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const settings = await dbService.getPaymentSettings();
+      setPaymentSettings(settings);
+    };
+    fetchSettings();
+  }, []);
+
   const handleInitiate = async (plan: SubscriptionPlan) => {
     setIsProcessing(true);
-    const invoice = await dbService.initiatePayment(user.uid, plan.id, plan.price);
-    setActiveInvoice(invoice);
-    setTimeout(() => {
+    try {
+      const invoice = await dbService.initiatePayment(user.uid, plan.id, plan.price);
+      setActiveInvoice(invoice);
+      
+      setTimeout(() => {
+        setIsProcessing(false);
+        // التحقق من حالة بوابة الدفع من الإعدادات
+        if (paymentSettings?.isOnlinePaymentEnabled) {
+          setStep('GATEWAY');
+        } else {
+          setStep('MANUAL_PAY');
+        }
+      }, 1200);
+    } catch (e) {
       setIsProcessing(false);
-      setStep('GATEWAY');
-    }, 1200);
+      alert("حدث خطأ أثناء تهيئة عملية الدفع.");
+    }
   };
 
   const handlePaymentSubmit = async (success: boolean) => {
     if (!activeInvoice) return;
     setIsProcessing(true);
     
-    // محاكاة أسباب مختلفة للفشل إذا لم تنجح العملية
     let reason = '';
     if (!success) {
         const failureReasons = [
@@ -45,8 +66,6 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
     setFailureReason(reason);
 
     const result = success ? 'SUCCESS' : 'FAIL';
-    
-    // إتمام الدفع وتحديث البيانات
     const updatedInvoice = await dbService.completePayment(activeInvoice.trackId, result);
     
     setTimeout(async () => {
@@ -64,23 +83,31 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
     }, 1500);
   };
 
+  const openWhatsApp = () => {
+    if (!activeInvoice) return;
+    const phoneNumber = "96555315661";
+    const message = encodeURIComponent(`مرحباً إدارة فيزياء الكويت، قمت بتحويل مبلغ ${activeInvoice.amount} د.ك عبر خدمة ومض للاشتراك في ${activeInvoice.planId === 'plan_premium' ? 'باقة التفوق' : 'الباقة الأساسية'}. رقم الفاتورة: ${activeInvoice.trackId}. مرفق لكم صورة التحويل.`);
+    window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+  };
+
+  // --- واجهة بوابة الدفع الإلكتروني (Sandbox) ---
   if (step === 'GATEWAY' && activeInvoice) {
     return (
       <div className="min-h-screen fixed inset-0 z-[200] bg-[#f4f4f4] flex items-center justify-center font-['Tajawal'] text-black p-4">
         <div className="w-full max-w-xl bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200 animate-slideUp">
            <header className="bg-gray-800 p-6 flex justify-between items-center text-white">
-              <span className="font-black text-lg">Syrian Payments (Sandbox)</span>
+              <span className="font-black text-lg">بوابة الدفع (Kuwait Payments)</span>
               <div className="text-right">
-                 <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest text-white">Merchant: Syrian Science Center</p>
-                 <p className="text-sm font-black text-white">Secure Payment Gateway</p>
+                 <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest text-white">التاجر: المركز السوري للعلوم</p>
+                 <p className="text-sm font-black text-white">اتصال آمن ومجفر</p>
               </div>
            </header>
 
            <div className="p-8 space-y-6">
               <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 flex justify-between items-center">
                  <div className="text-right">
-                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Total Amount</p>
-                    <p className="text-3xl font-black text-gray-800">{activeInvoice.amount.toLocaleString()} ل.س</p>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">المبلغ الإجمالي</p>
+                    <p className="text-3xl font-black text-gray-800">{activeInvoice.amount.toLocaleString()} د.ك</p>
                  </div>
                  <div className="text-left text-xs text-gray-500 font-mono">
                     <p>Track ID: {activeInvoice.trackId}</p>
@@ -88,12 +115,17 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
               </div>
 
               <div className="space-y-4">
-                 <label className="block text-xs font-black text-gray-500 uppercase">اختر المصرف</label>
-                 <select className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-gray-800 transition-all font-bold bg-white">
-                    <option>المصرف التجاري السوري</option>
-                    <option>بنك بيمو السعودي الفرنسي</option>
-                    <option>بنك سوريا الدولي الإسلامي</option>
-                 </select>
+                 <label className="block text-xs font-black text-gray-500 uppercase">اختر بطاقة الدفع</label>
+                 <div className="grid grid-cols-2 gap-4">
+                    <button className="border-2 border-blue-500 rounded-xl p-4 flex flex-col items-center gap-2 bg-blue-50">
+                        <span className="text-2xl">💳</span>
+                        <span className="font-bold text-xs uppercase">K-NET</span>
+                    </button>
+                    <button className="border border-gray-200 rounded-xl p-4 flex flex-col items-center gap-2 hover:bg-gray-50">
+                        <span className="text-2xl">🌍</span>
+                        <span className="font-bold text-xs uppercase">VISA / MASTER</span>
+                    </button>
+                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -102,7 +134,7 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
                   disabled={isProcessing}
                   className="bg-gray-800 text-white py-5 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-4 shadow-xl"
                  >
-                   {isProcessing ? 'Processing...' : 'تأكيد الدفع (تجريبي)'}
+                   {isProcessing ? 'جاري المعالجة...' : 'تأكيد الدفع (تجريبي)'}
                  </button>
                  <button 
                   onClick={() => handlePaymentSubmit(false)}
@@ -113,6 +145,73 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
                  </button>
               </div>
            </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- واجهة الدفع اليدوي عبر ومض ---
+  if (step === 'MANUAL_PAY' && activeInvoice) {
+    return (
+      <div className="max-w-2xl mx-auto py-12 px-6 font-['Tajawal'] text-white animate-fadeIn" dir="rtl">
+        <button onClick={() => setStep('PLANS')} className="mb-10 flex items-center gap-3 text-gray-500 hover:text-white font-black text-xs uppercase tracking-widest transition-all group"> 
+          <ArrowRight className="group-hover:translate-x-2 transition-transform" /> العودة للخطط 
+        </button>
+
+        <div className="glass-panel p-10 md:p-14 rounded-[60px] border-amber-500/20 bg-black/40 shadow-3xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-500 to-yellow-600"></div>
+            
+            <header className="text-center mb-12">
+                <div className="w-20 h-20 bg-amber-500/10 border-2 border-amber-500/30 rounded-[30px] flex items-center justify-center mx-auto mb-6 text-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.1)]">
+                    <Smartphone size={32} />
+                </div>
+                <h2 className="text-4xl font-black text-white italic">تفعيل الاشتراك <span className="text-amber-500">يدوياً</span></h2>
+                <p className="text-gray-500 mt-4 font-medium">بوابة الدفع الإلكتروني تخضع للصيانة حالياً، يمكنك الدفع عبر خدمة ومض.</p>
+            </header>
+
+            <div className="space-y-8">
+                {/* الخطوة 1: التحويل */}
+                <div className="bg-white/[0.03] border border-white/5 p-8 rounded-[35px] relative">
+                    <span className="absolute -top-4 -right-4 w-10 h-10 bg-amber-500 text-black rounded-full flex items-center justify-center font-black shadow-lg">1</span>
+                    <h3 className="text-xl font-black text-white mb-6">قم بتحويل مبلغ الاشتراك عبر (ومض)</h3>
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-6 p-6 bg-black/40 rounded-3xl border border-amber-500/20 shadow-inner">
+                        <div className="text-right">
+                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1">المبلغ المطلوب</p>
+                            <p className="text-4xl font-black text-[#fbbf24] tabular-nums">{activeInvoice.amount} <span className="text-sm">د.ك</span></p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1">رقم الهاتف (Womda)</p>
+                            <p className="text-2xl font-black text-white select-all font-mono tracking-tighter cursor-copy" title="انقر للنسخ" onClick={() => { navigator.clipboard.writeText("55315661"); alert("تم نسخ الرقم!"); }}>55315661</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* الخطوة 2: التصوير */}
+                <div className="bg-white/[0.03] border border-white/5 p-8 rounded-[35px] relative">
+                    <span className="absolute -top-4 -right-4 w-10 h-10 bg-amber-500 text-black rounded-full flex items-center justify-center font-black shadow-lg">2</span>
+                    <h3 className="text-xl font-black text-white mb-4 flex items-center gap-3">
+                         صور إيصال التحويل <Camera size={20} className="text-amber-500"/>
+                    </h3>
+                    <p className="text-sm text-gray-400 leading-relaxed italic">يرجى أخذ لقطة شاشة (Screenshot) واضحة تظهر فيها تفاصيل عملية التحويل الناجحة والمبلغ المحول.</p>
+                </div>
+
+                {/* الخطوة 3: الإرسال */}
+                <div className="bg-white/[0.03] border border-white/5 p-8 rounded-[35px] relative">
+                    <span className="absolute -top-4 -right-4 w-10 h-10 bg-amber-500 text-black rounded-full flex items-center justify-center font-black shadow-lg">3</span>
+                    <h3 className="text-xl font-black text-white mb-6">أرسل الإيصال للتفعيل الفوري</h3>
+                    <button 
+                        onClick={openWhatsApp}
+                        className="w-full py-6 bg-[#25D366] text-white rounded-3xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_20px_50px_rgba(37,211,102,0.2)]"
+                    >
+                        <MessageCircle size={24} fill="currentColor"/> إرسال عبر WhatsApp
+                    </button>
+                    <p className="text-[10px] text-gray-600 mt-6 text-center font-bold">سيتم تفعيل حسابك من قبل فريقنا التقني خلال دقائق من استلام الرسالة.</p>
+                </div>
+            </div>
+
+            <div className="mt-12 pt-8 border-t border-white/5 text-center">
+                <p className="text-[9px] font-black text-gray-700 uppercase tracking-[0.5em]">REFERENCE: {activeInvoice.trackId}</p>
+            </div>
         </div>
       </div>
     );
@@ -133,7 +232,7 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
                 </div>
                 <div className="flex justify-between items-center text-sm">
                    <span className="text-gray-500">المبلغ المدفوع:</span>
-                   <span className="font-black text-[#fbbf24]">{activeInvoice.amount.toLocaleString()} ل.س</span>
+                   <span className="font-black text-[#fbbf24]">{activeInvoice.amount.toLocaleString()} د.ك</span>
                 </div>
              </div>
            )}
@@ -149,7 +248,7 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
            )}
 
            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button onClick={() => window.dispatchEvent(new CustomEvent('reset-to-dashboard'))} className="bg-white text-black px-12 py-5 rounded-[30px] font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl">
+              <button onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'dashboard' } }))} className="bg-white text-black px-12 py-5 rounded-[30px] font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl">
                  العودة للرئيسية
               </button>
               
@@ -179,21 +278,27 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
   return (
     <div className="max-w-5xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white">
       <header className="mb-20 text-center">
-        <h2 className="text-6xl font-black mb-4 tracking-tighter">باقات <span className="text-[#00d2ff] italic text-glow">التفوق</span></h2>
-        <p className="text-gray-500 text-xl font-medium">اختر الباقة المناسبة لمرحلتك الدراسية.</p>
+        <h2 className="text-6xl font-black mb-4 tracking-tighter">باقات <span className="text-[#fbbf24] italic text-glow">التفوق</span></h2>
+        <p className="text-gray-500 text-xl font-medium italic">استثمر في مستقبلك العلمي مع أقوى محتوى فيزياء في الكويت.</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         {PRICING_PLANS.map(plan => (
-          <div key={plan.id} className="glass-panel group p-12 rounded-[60px] border-white/5 hover:border-[#00d2ff]/30 transition-all duration-700 flex flex-col relative overflow-hidden bg-black/20">
+          <div key={plan.id} className="glass-panel group p-12 rounded-[60px] border-white/5 hover:border-[#fbbf24]/30 transition-all duration-700 flex flex-col relative overflow-hidden bg-black/20 shadow-2xl">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#fbbf24]/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            
             <h3 className="text-3xl font-black mb-4">{plan.name}</h3>
-            <div className="text-6xl font-black text-[#fbbf24] tracking-tighter mb-10">{plan.price.toLocaleString()}<span className="text-lg text-gray-500 mr-2">ل.س</span></div>
+            <div className="text-6xl font-black text-[#fbbf24] tracking-tighter mb-10 tabular-nums">
+                {plan.price.toLocaleString()}<span className="text-lg text-gray-500 mr-2">د.ك</span>
+            </div>
             
             <ul className="space-y-6 flex-1 text-right border-t border-white/5 pt-10 mb-10">
                {plan.features.map((f, i) => (
                  <li key={i} className="flex items-center gap-4 text-gray-400 group-hover:text-white transition-colors">
-                    <span className="w-1.5 h-1.5 bg-[#fbbf24] rounded-full shadow-[0_0_10px_#fbbf24]"></span>
-                    <span className="font-bold text-sm">{f}</span>
+                    <div className="w-5 h-5 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                        <CheckCircle2 size={12} className="text-emerald-500" />
+                    </div>
+                    <span className="font-bold text-sm leading-relaxed">{f}</span>
                  </li>
                ))}
             </ul>
@@ -201,17 +306,39 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
             <button 
               onClick={() => handleInitiate(plan)}
               disabled={isProcessing || user.subscription === plan.tier}
-              className={`w-full py-6 rounded-[30px] font-black text-xs uppercase tracking-widest transition-all shadow-2xl ${
+              className={`w-full py-6 rounded-[30px] font-black text-xs uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 ${
                 user.subscription === plan.tier 
-                  ? 'bg-gray-800 text-gray-500 cursor-default' 
-                  : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95 glow-gold'
+                  ? 'bg-gray-800 text-gray-500 cursor-default border border-white/5' 
+                  : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95 glow-gold shadow-yellow-500/20'
               }`}
             >
-              {isProcessing ? 'جاري الاتصال...' : user.subscription === plan.tier ? 'أنت مشترك بالفعل' : 'اشترك الآن'}
+              {isProcessing ? (
+                <>
+                  <RefreshCw size={18} className="animate-spin" />
+                  جاري التهيئة...
+                </>
+              ) : user.subscription === plan.tier ? (
+                <>
+                  <ShieldCheck size={18} />
+                  أنت مشترك بالفعل
+                </>
+              ) : (
+                <>
+                  <Zap size={18} fill="currentColor" />
+                  اشترك الآن
+                </>
+              )}
             </button>
           </div>
         ))}
       </div>
+
+      <footer className="mt-20 text-center">
+          <div className="bg-white/5 inline-flex items-center gap-3 px-6 py-3 rounded-full border border-white/10 opacity-60">
+              <AlertCircle size={14} className="text-[#fbbf24]"/>
+              <p className="text-[10px] font-bold text-gray-400">جميع عمليات الدفع مشفرة وآمنة عبر معايير SSL العالمية.</p>
+          </div>
+      </footer>
     </div>
   );
 };
