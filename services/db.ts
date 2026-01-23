@@ -37,13 +37,12 @@ class DBService {
     } catch (e) {
         console.warn("Maintenance settings fetch failed", e);
     }
-    // الوضع الآمن: إذا فشل الجلب، نفترض أن الموقع في صيانة
     return {
-        isMaintenanceActive: true,
+        isMaintenanceActive: false,
         expectedReturnTime: new Date(Date.now() + 3600000).toISOString(),
-        maintenanceMessage: "يتم حالياً مزامنة البيانات السحابية. يرجى العودة لاحقاً.",
-        showCountdown: true,
-        allowTeachers: false
+        maintenanceMessage: "يتم حالياً تطوير المنصة لتحسين تجربة الطالب.",
+        showCountdown: false,
+        allowTeachers: true
     };
   }
 
@@ -54,17 +53,15 @@ class DBService {
 
   subscribeToMaintenance(callback: (settings: MaintenanceSettings) => void) {
     this.checkDb();
-    // 🛡️ معالجة خاصة: إذا فشل السنا بشوت (بسبب القواعد)، نفترض الموقع مغلق للحماية
     return onSnapshot(doc(db!, 'settings', 'maintenance'), (snap) => {
         if (snap.exists()) {
             callback(snap.data() as MaintenanceSettings);
         } else {
-            callback({ isMaintenanceActive: true, expectedReturnTime: '', maintenanceMessage: 'Document missing', showCountdown: false, allowTeachers: false });
+            // الحالة الافتراضية إذا لم يوجد المستند
+            callback({ isMaintenanceActive: false, expectedReturnTime: '', maintenanceMessage: '', showCountdown: false, allowTeachers: true });
         }
     }, (error) => {
-        console.error("Maintenance Sync Blocked by Security Rules:", error.message);
-        // في حال فشل القواعد (للزوار)، نفرض الصيانة
-        callback({ isMaintenanceActive: true, expectedReturnTime: '', maintenanceMessage: 'جاري تحديث بروتوكولات الأمان للمنصة...', showCountdown: false, allowTeachers: false });
+        console.error("Maintenance Sync Blocked:", error.message);
     });
   }
 
@@ -119,6 +116,64 @@ class DBService {
     await setDoc(doc(db!, 'users', user.uid), this.cleanData(user), { merge: true });
   }
 
+  // --- Financial Settings Fixes ---
+  async getPaymentSettings(): Promise<PaymentSettings> {
+    this.checkDb();
+    try {
+        const snap = await getDoc(doc(db!, 'settings', 'payment'));
+        if (snap.exists()) return snap.data() as PaymentSettings;
+    } catch (e) {}
+    return {
+        isOnlinePaymentEnabled: false,
+        womdaPhoneNumber: '55315661',
+        planPrices: { premium: 35, basic: 0 }
+    };
+  }
+
+  async savePaymentSettings(settings: PaymentSettings) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'payment'), this.cleanData(settings));
+  }
+
+  async getInvoiceSettings(): Promise<InvoiceSettings> {
+    this.checkDb();
+    try {
+        const snap = await getDoc(doc(db!, 'settings', 'invoice_design'));
+        if (snap.exists()) return snap.data() as InvoiceSettings;
+    } catch (e) {}
+    return { 
+        headerText: 'إيصال دفع رقمي معتمد', 
+        footerText: 'إثبات رسمي من المركز السوري للعلوم.', 
+        accentColor: '#fbbf24', 
+        showSignature: true, 
+        signatureName: 'إدارة المركز', 
+        showWatermark: true, 
+        watermarkText: 'SSC KUWAIT' 
+    };
+  }
+
+  async saveInvoiceSettings(settings: InvoiceSettings) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'invoice_design'), this.cleanData(settings));
+  }
+
+  async getAppBranding(): Promise<AppBranding> {
+    this.checkDb();
+    try {
+        const snap = await getDoc(doc(db!, 'settings', 'branding'));
+        if (snap.exists()) return snap.data() as AppBranding;
+    } catch (e) {}
+    return { 
+      logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
+      appName: 'المركز السوري للعلوم' 
+    };
+  }
+
+  async saveAppBranding(branding: AppBranding) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'branding'), this.cleanData(branding));
+  }
+
   // --- Dashboard Stats ---
   async getStudentGradeStats() {
     this.checkDb();
@@ -146,23 +201,6 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as Curriculum));
   }
 
-  async getAppBranding(): Promise<AppBranding> {
-    this.checkDb();
-    try {
-        const snap = await getDoc(doc(db!, 'settings', 'branding'));
-        if (snap.exists()) return snap.data() as AppBranding;
-    } catch (e) {}
-    return { 
-      logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
-      appName: 'المركز السوري للعلوم' 
-    };
-  }
-
-  async saveAppBranding(branding: AppBranding) {
-    this.checkDb();
-    await setDoc(doc(db!, 'settings', 'branding'), this.cleanData(branding));
-  }
-
   async getHomePageContent(): Promise<HomePageContent[]> {
     this.checkDb();
     const snap = await getDocs(query(collection(db!, 'homePageContent'), orderBy('createdAt', 'desc')));
@@ -183,25 +221,7 @@ class DBService {
     await deleteDoc(doc(db!, 'homePageContent', id));
   }
 
-  // --- Payments & Financials ---
-  async getPaymentSettings(): Promise<PaymentSettings> {
-    this.checkDb();
-    try {
-        const snap = await getDoc(doc(db!, 'settings', 'payment'));
-        if (snap.exists()) return snap.data() as PaymentSettings;
-    } catch (e) {}
-    return {
-        isOnlinePaymentEnabled: false,
-        womdaPhoneNumber: '55315661',
-        planPrices: { premium: 35, basic: 0 }
-    };
-  }
-
-  async savePaymentSettings(settings: PaymentSettings) {
-    this.checkDb();
-    await setDoc(doc(db!, 'settings', 'payment'), this.cleanData(settings));
-  }
-
+  // --- Invoices & Financials ---
   async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
     this.checkDb();
     const DEFAULT_PLANS: SubscriptionPlan[] = [
@@ -218,9 +238,10 @@ class DBService {
 
   async initiatePayment(userId: string, planId: string, amount: number) {
     this.checkDb();
+    const user = await this.getUser(userId);
     const invoice: Omit<Invoice, 'id'> = {
       userId,
-      userName: (await this.getUser(userId))?.name || 'Student',
+      userName: user?.name || 'Student',
       planId,
       amount,
       date: new Date().toISOString(),
@@ -237,6 +258,9 @@ class DBService {
       const list = snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice));
       list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       callback(list);
+    }, (err) => {
+        console.error("Invoices Subscription Error:", err);
+        callback([]);
     });
   }
 
@@ -245,7 +269,36 @@ class DBService {
     await updateDoc(doc(db!, 'users', uid), { subscription: tier });
   }
 
-  // --- Exams & Quizzes ---
+  async deleteInvoice(id: string) {
+    this.checkDb();
+    await deleteDoc(doc(db!, 'invoices', id));
+  }
+
+  async getInvoices(): Promise<{ data: Invoice[] }> {
+    this.checkDb();
+    const snap = await getDocs(query(collection(db!, 'invoices'), orderBy('date', 'desc')));
+    return { data: snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)) };
+  }
+
+  async createManualInvoice(userId: string, planId: string, amount: number): Promise<Invoice> {
+    this.checkDb();
+    const user = await this.getUser(userId);
+    const invoice: Omit<Invoice, 'id'> = {
+      userId, 
+      userName: user?.name || 'Student', 
+      planId, 
+      amount, 
+      date: new Date().toISOString(), 
+      status: 'PAID',
+      trackId: 'MANUAL-' + Math.random().toString(36).substring(7).toUpperCase(),
+      authCode: 'APPROVED-BY-ADMIN'
+    };
+    const docRef = await addDoc(collection(db!, 'invoices'), this.cleanData(invoice));
+    await this.updateStudentSubscription(userId, 'premium', amount);
+    return { ...invoice, id: docRef.id };
+  }
+
+  // --- Rest of Services ---
   async getQuizzes(): Promise<Quiz[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'quizzes'));
@@ -286,7 +339,6 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as StudentQuizAttempt));
   }
 
-  // --- Forums ---
   async getForumSections(): Promise<ForumSection[]> {
     this.checkDb();
     const snap = await getDocs(query(collection(db!, 'forumSections'), orderBy('order')));
@@ -306,7 +358,6 @@ class DBService {
     await addDoc(collection(db!, 'forumPosts'), this.cleanData(post));
   }
 
-  // --- Notifications ---
   subscribeToNotifications(uid: string, callback: (notifications: AppNotification[]) => void) {
     this.checkDb();
     const q = query(collection(db!, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'), limit(50));
@@ -329,7 +380,6 @@ class DBService {
     await addDoc(collection(db!, 'notifications'), this.cleanData(notification));
   }
 
-  // --- Health Checks ---
   async checkConnection() {
     try { this.checkDb(); await getDocs(query(collection(db!, 'settings'), limit(1))); return { alive: true }; }
     catch (e: any) { return { alive: false, error: e.message }; }
@@ -340,7 +390,6 @@ class DBService {
     catch (e: any) { return { alive: false, error: e.message }; }
   }
 
-  // --- Storage ---
   async uploadAsset(file: File): Promise<Asset> {
     const name = `${Date.now()}_${file.name}`;
     const { error } = await supabase.storage.from('assets').upload(name, file);
@@ -364,7 +413,6 @@ class DBService {
     await supabase.storage.from('assets').remove([name]);
   }
   
-  // --- Admin Logic ---
   async getAdmins(): Promise<User[]> {
     this.checkDb();
     const q = query(collection(db!, 'users'), where('role', '==', 'admin'));
@@ -407,20 +455,6 @@ class DBService {
     await setDoc(doc(db!, 'settings', 'notifications'), this.cleanData(settings));
   }
 
-  async getInvoiceSettings(): Promise<InvoiceSettings> {
-    this.checkDb();
-    try {
-        const snap = await getDoc(doc(db!, 'settings', 'invoice_design'));
-        if (snap.exists()) return snap.data() as InvoiceSettings;
-    } catch (e) {}
-    return { headerText: 'إيصال دفع رقمي معتمد', footerText: 'إثبات رسمي من المركز السوري للعلوم.', accentColor: '#fbbf24', showSignature: true, signatureName: 'إدارة المركز', showWatermark: true, watermarkText: 'SSC KUWAIT' };
-  }
-
-  async saveInvoiceSettings(settings: InvoiceSettings) {
-    this.checkDb();
-    await setDoc(doc(db!, 'settings', 'invoice_design'), this.cleanData(settings));
-  }
-
   async getLiveSessions(): Promise<LiveSession[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'liveSessions'));
@@ -454,7 +488,6 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as EducationalResource));
   }
 
-  // --- Dynamic Experiments CRUD ---
   async getExperiments(grade?: string): Promise<PhysicsExperiment[]> {
     this.checkDb();
     let q = query(collection(db!, 'experiments'));
@@ -502,10 +535,8 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as Todo));
   }
 
-  // --- Dynamic Recommendations CRUD ---
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> {
     this.checkDb();
-    // جلب التوصيات الموجهة لهذا الصف أو لهذا المستخدم تحديداً بالبريد
     const q = query(
         collection(db!, 'recommendations'), 
         where('targetGrade', 'in', [user.grade, 'all']),
@@ -513,8 +544,6 @@ class DBService {
     );
     const snap = await getDocs(q);
     let recs = snap.docs.map(d => ({ ...d.data(), id: d.id } as AIRecommendation));
-    
-    // فلترة إضافية للموجهة لشخص بعينه إذا وجد الحقل
     return recs.filter(r => !r.targetUserEmail || r.targetUserEmail === user.email);
   }
 
@@ -553,30 +582,7 @@ class DBService {
 
   async updateAttempt(attempt: StudentQuizAttempt) {
     this.checkDb();
-    await updateDoc(doc(db!, 'attempts', attempt.id), this.cleanData(attempt));
-  }
-
-  async deleteInvoice(id: string) {
-    this.checkDb();
-    await deleteDoc(doc(db!, 'invoices', id));
-  }
-
-  async getInvoices(): Promise<{ data: Invoice[] }> {
-    this.checkDb();
-    const snap = await getDocs(query(collection(db!, 'invoices'), orderBy('date', 'desc')));
-    return { data: snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)) };
-  }
-
-  async createManualInvoice(userId: string, planId: string, amount: number): Promise<Invoice> {
-    this.checkDb();
-    const user = await this.getUser(userId);
-    const invoice: Omit<Invoice, 'id'> = {
-      userId, userName: user?.name || 'Student', planId, amount, date: new Date().toISOString(), status: 'PAID',
-      trackId: 'MANUAL-' + Math.random().toString(36).substring(7).toUpperCase()
-    };
-    const docRef = await addDoc(collection(db!, 'invoices'), invoice);
-    await this.updateStudentSubscription(userId, 'premium', amount);
-    return { ...invoice, id: docRef.id };
+    await setDoc(doc(db!, 'attempts', attempt.id), this.cleanData(attempt));
   }
 
   async updateUserRole(uid: string, role: UserRole) {
