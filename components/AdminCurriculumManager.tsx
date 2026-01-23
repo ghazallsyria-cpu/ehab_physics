@@ -9,8 +9,8 @@ const AdminCurriculumManager: React.FC = () => {
   const [curriculum, setCurriculum] = useState<Curriculum[]>([]);
   const [activeGrade, setActiveGrade] = useState<'10' | '11' | '12'>('12');
   const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
-  const [editingLesson, setEditingLesson] = useState<{ lesson: Partial<Lesson>, unitId: string, grade: '10'|'11'|'12', subject: 'Physics' | 'Chemistry' } | null>(null);
-  const [editingUnit, setEditingUnit] = useState<Partial<Unit> | null>(null);
+  const [editingLesson, setEditingLesson] = useState<{ lesson: Partial<Lesson>, unitId: string, curriculumId: string, grade: '10'|'11'|'12', subject: 'Physics' | 'Chemistry' } | null>(null);
+  const [editingUnit, setEditingUnit] = useState<{ unit: Partial<Unit>, curriculumId: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -34,6 +34,7 @@ const AdminCurriculumManager: React.FC = () => {
   const activeTopic = curriculum.find(t => t.grade === activeGrade && t.subject === activeSubject);
 
   const handleAddLesson = (unitId: string) => {
+    if (!activeTopic?.id) return;
     setEditingLesson({
       lesson: {
         id: `l_${Date.now()}`,
@@ -43,50 +44,58 @@ const AdminCurriculumManager: React.FC = () => {
         content: [{ type: 'text', content: '' }]
       },
       unitId,
+      curriculumId: activeTopic.id,
       grade: activeGrade,
       subject: activeSubject
     });
   };
 
   const handleEditLesson = (lesson: Lesson, unitId: string) => {
-    setEditingLesson({ lesson, unitId, grade: activeGrade, subject: activeSubject });
+    if (!activeTopic?.id) return;
+    setEditingLesson({ lesson, unitId, curriculumId: activeTopic.id, grade: activeGrade, subject: activeSubject });
   };
   
   const handleSaveLesson = async (lesson: Lesson, unitId: string, grade: '10'|'11'|'12', subject: 'Physics' | 'Chemistry') => {
+    if (!editingLesson?.curriculumId) return;
     setSaveStatus('saving');
     try {
-      await dbService.saveLesson(grade, subject, unitId, lesson);
+      await dbService.saveLesson(editingLesson.curriculumId, unitId, lesson);
       setEditingLesson(null);
       await loadCurriculum();
       setSaveStatus('success');
     } catch (e: any) {
       setSaveStatus('error');
-      setErrorMessage(e.message || "فشل حفظ الدرس. تحقق من صلاحياتك.");
+      setErrorMessage(e.message || "فشل حفظ الدرس.");
     }
     setTimeout(() => { setSaveStatus('idle'); setErrorMessage(null); }, 3000);
   };
 
   const handleSaveUnit = async () => {
-    if (!editingUnit || !editingUnit.title?.trim()) {
+    if (!editingUnit || !editingUnit.unit.title?.trim()) {
       alert("يرجى إدخال عنوان للوحدة.");
       return;
     }
     setSaveStatus('saving');
     try {
-        await dbService.saveUnit(activeGrade, activeSubject, editingUnit as Unit);
+        await dbService.saveUnit(
+          editingUnit.curriculumId, 
+          editingUnit.unit as Unit, 
+          activeGrade, 
+          activeSubject
+        );
         setEditingUnit(null);
         await loadCurriculum();
         setSaveStatus('success');
     } catch (e: any) {
         setSaveStatus('error');
-        setErrorMessage(e.message || "فشل حفظ الوحدة. تحقق من قواعد Firestore.");
+        setErrorMessage(e.message || "فشل حفظ الوحدة.");
     } finally {
         setTimeout(() => { setSaveStatus('idle'); setErrorMessage(null); }, 3000);
     }
   };
 
   const moveUnit = async (index: number, direction: 'up' | 'down') => {
-    if (!activeTopic) return;
+    if (!activeTopic?.id) return;
     const newUnits = [...activeTopic.units];
     const target = direction === 'up' ? index - 1 : index + 1;
     if (target < 0 || target >= newUnits.length) return;
@@ -94,7 +103,7 @@ const AdminCurriculumManager: React.FC = () => {
     
     setSaveStatus('saving');
     try {
-      await dbService.updateUnitsOrder(activeGrade, activeSubject, newUnits);
+      await dbService.updateUnitsOrder(activeTopic.id, newUnits);
       await loadCurriculum();
       setSaveStatus('success');
     } catch (e) {
@@ -103,31 +112,33 @@ const AdminCurriculumManager: React.FC = () => {
     setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
-  const deleteUnit = async (id: string) => {
-    if (!confirm('⚠️ تحذير نهائي: سيتم حذف القسم وجميع دروسه من السحابة، هل أنت متأكد؟')) return;
+  const deleteUnit = async (unitId: string) => {
+    if (!activeTopic?.id) return;
+    if (!confirm('⚠️ تحذير: سيتم حذف القسم وجميع دروسه، هل أنت متأكد؟')) return;
     setSaveStatus('saving');
     try {
-      await dbService.deleteUnit(activeGrade, activeSubject, id);
+      await dbService.deleteUnit(activeTopic.id, unitId);
       await loadCurriculum();
       setSaveStatus('success');
     } catch (e: any) {
       console.error(e);
       setSaveStatus('error');
-      setErrorMessage(e.message || "فشل الحذف: قد لا تملك صلاحية 'Admin' في قاعدة البيانات أو المستند غير موجود.");
+      setErrorMessage(e.message || "فشل الحذف.");
     }
     setTimeout(() => { setSaveStatus('idle'); setErrorMessage(null); }, 4000);
   };
 
   const deleteLesson = async (unitId: string, lessonId: string) => {
+    if (!activeTopic?.id) return;
     if (!confirm('هل تود حذف هذا الدرس نهائياً؟')) return;
     setSaveStatus('saving');
     try {
-      await dbService.deleteLesson(activeGrade, activeSubject, unitId, lessonId);
+      await dbService.deleteLesson(activeTopic.id, unitId, lessonId);
       await loadCurriculum();
       setSaveStatus('success');
     } catch (e: any) {
       setSaveStatus('error');
-      setErrorMessage(e.message || "فشل حذف الدرس. يرجى مراجعة مركز الأمان.");
+      setErrorMessage(e.message || "فشل حذف الدرس.");
     }
     setTimeout(() => { setSaveStatus('idle'); setErrorMessage(null); }, 4000);
   };
@@ -159,11 +170,11 @@ const AdminCurriculumManager: React.FC = () => {
             </div>
         </div>
         <div className="flex gap-4">
-            <button onClick={loadCurriculum} className="p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all border border-white/10" title="تحديث البيانات من السحابة">
+            <button onClick={loadCurriculum} className="p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all border border-white/10" title="تحديث البيانات">
                 <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
             </button>
             <button 
-                onClick={() => setEditingUnit({ id: `u_${Date.now()}`, title: '', description: '', lessons: [] })} 
+                onClick={() => setEditingUnit({ unit: { id: `u_${Date.now()}`, title: '', description: '', lessons: [] }, curriculumId: activeTopic?.id || `${activeGrade}_${activeSubject}` })} 
                 className="bg-[#fbbf24] text-black px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
             >
                 <Plus size={16}/> إضافة وحدة جديدة
@@ -171,7 +182,6 @@ const AdminCurriculumManager: React.FC = () => {
         </div>
       </header>
 
-      {/* Selector Control Panel */}
       <div className="flex flex-col md:flex-row justify-center items-center gap-6 mb-16 bg-white/[0.02] p-8 rounded-[40px] border border-white/5">
         <div className="flex flex-col gap-3">
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">المادة</label>
@@ -205,7 +215,6 @@ const AdminCurriculumManager: React.FC = () => {
           {activeTopic.units.map((unit, uIdx) => (
             <div key={unit.id} className="glass-panel p-8 md:p-10 rounded-[50px] border border-white/5 bg-gradient-to-br from-white/[0.01] to-transparent relative group">
               
-              {/* Unit Controls (Reordering) */}
               <div className="absolute left-[-20px] top-1/2 -translate-y-1/2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                 <button onClick={() => moveUnit(uIdx, 'up')} disabled={uIdx === 0} className="w-10 h-10 bg-white text-black rounded-full shadow-2xl disabled:opacity-30 hover:scale-110 active:scale-95 transition-all flex items-center justify-center"><ChevronUp size={20}/></button>
                 <button onClick={() => moveUnit(uIdx, 'down')} disabled={uIdx === activeTopic.units.length - 1} className="w-10 h-10 bg-white text-black rounded-full shadow-2xl disabled:opacity-30 hover:scale-110 active:scale-95 transition-all flex items-center justify-center"><ChevronDown size={20}/></button>
@@ -220,8 +229,8 @@ const AdminCurriculumManager: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={() => setEditingUnit(unit)} className="p-4 bg-white/5 rounded-2xl text-white hover:bg-[#00d2ff] hover:text-black transition-all" title="تعديل الوحدة"><Edit size={18}/></button>
-                  <button onClick={() => deleteUnit(unit.id)} className="p-4 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all border border-red-500/20" title="حذف الوحدة نهائياً"><Trash2 size={18}/></button>
+                  <button onClick={() => setEditingUnit({ unit, curriculumId: activeTopic.id! })} className="p-4 bg-white/5 rounded-2xl text-white hover:bg-[#00d2ff] hover:text-black transition-all" title="تعديل"><Edit size={18}/></button>
+                  <button onClick={() => deleteUnit(unit.id)} className="p-4 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all border border-red-500/20" title="حذف نهائياً"><Trash2 size={18}/></button>
                   <button onClick={() => handleAddLesson(unit.id)} className="px-6 py-4 bg-green-500/10 rounded-2xl text-green-400 group-hover:bg-green-500 group-hover:text-black transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 border border-green-500/20">
                     <Plus size={16}/> إضافة درس
                   </button>
@@ -294,11 +303,11 @@ const AdminCurriculumManager: React.FC = () => {
               <div className="space-y-6">
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">عنوان الوحدة</label>
-                    <input type="text" placeholder="مثال: الوحدة الأولى - الكهرباء" value={editingUnit.title || ''} onChange={e => setEditingUnit({...editingUnit, title: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-[#fbbf24] font-bold text-lg shadow-inner transition-all"/>
+                    <input type="text" placeholder="مثال: الوحدة الأولى - الكهرباء" value={editingUnit.unit.title || ''} onChange={e => setEditingUnit({...editingUnit, unit: {...editingUnit.unit, title: e.target.value}})} className="w-full bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-[#fbbf24] font-bold text-lg shadow-inner transition-all"/>
                  </div>
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">وصف الوحدة</label>
-                    <textarea placeholder="وصف لما سيتعلمه الطالب..." value={editingUnit.description || ''} onChange={e => setEditingUnit({...editingUnit, description: e.target.value})} className="w-full h-32 bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-[#fbbf24] font-medium leading-relaxed shadow-inner transition-all no-scrollbar"/>
+                    <textarea placeholder="وصف لما سيتعلمه الطالب..." value={editingUnit.unit.description || ''} onChange={e => setEditingUnit({...editingUnit, unit: {...editingUnit.unit, description: e.target.value}})} className="w-full h-32 bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-[#fbbf24] font-medium leading-relaxed shadow-inner transition-all no-scrollbar"/>
                  </div>
                  <button onClick={handleSaveUnit} disabled={saveStatus === 'saving'} className="w-full py-6 bg-[#fbbf24] text-black rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3">
                     {saveStatus === 'saving' && <RefreshCw size={18} className="animate-spin" />}
