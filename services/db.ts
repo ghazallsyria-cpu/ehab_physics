@@ -50,285 +50,6 @@ class DBService {
     await setDoc(doc(db!, 'settings', 'branding'), this.cleanData(branding));
   }
 
-  // --- تهيئة النظام المالي ---
-  async initializeFinancialSystem() {
-    this.checkDb();
-    const plans: SubscriptionPlan[] = [
-      {
-        id: 'plan_premium',
-        name: 'باقة التفوق (Premium)',
-        price: 35,
-        duration: 'term',
-        features: ['وصول كامل للمنهج', 'بنك الأسئلة الذكي', 'المختبرات المتقدمة', 'شهادات معتمدة'],
-        recommended: true,
-        tier: 'premium'
-      },
-      {
-        id: 'plan_basic',
-        name: 'الباقة الأساسية',
-        price: 15,
-        duration: 'monthly',
-        features: ['دروس الوحدة الأولى', 'اختبارات محدودة'],
-        tier: 'free'
-      }
-    ];
-    for (const plan of plans) {
-      await setDoc(doc(db!, 'subscriptionPlans', plan.id), plan);
-    }
-    await setDoc(doc(db!, 'settings', 'payments'), { 
-        isOnlinePaymentEnabled: true, 
-        womdaPhoneNumber: '55315661',
-        planPrices: { premium: 35, basic: 15 } 
-    });
-  }
-
-  // --- الباقات والاشتراكات ---
-  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
-    this.checkDb();
-    const snap = await getDocs(collection(db!, 'subscriptionPlans'));
-    if (snap.empty) {
-        await this.initializeFinancialSystem();
-        const retrySnap = await getDocs(collection(db!, 'subscriptionPlans'));
-        return retrySnap.docs.map(d => d.data() as SubscriptionPlan);
-    }
-    return snap.docs.map(d => d.data() as SubscriptionPlan);
-  }
-
-  async saveSubscriptionPlan(plan: SubscriptionPlan) {
-    this.checkDb();
-    await setDoc(doc(db!, 'subscriptionPlans', plan.id), this.cleanData(plan));
-  }
-
-  // --- تهيئة نظام المنتدى ---
-  async initializeForumSystem() {
-    this.checkDb();
-    try {
-      const defaultSection: ForumSection = {
-        id: 'sec_physics_12',
-        title: 'قسم الصف الثاني عشر',
-        description: 'نقاشات الفيزياء المتقدمة لطلاب الثاني عشر',
-        order: 0,
-        forums: [
-          { id: 'f_general', title: 'المنتدى العام', description: 'اسأل عن أي شيء في الفيزياء', icon: '⚛️', order: 0 }
-        ]
-      };
-      await setDoc(doc(db!, 'forumSections', defaultSection.id), defaultSection);
-
-      const welcomePost: Omit<ForumPost, 'id'> = {
-        authorUid: 'system',
-        authorEmail: 'admin@ssc.com',
-        authorName: 'المركز السوري للعلوم',
-        title: 'مرحباً بكم في ساحة النقاش',
-        content: 'هذه الساحة مخصصة لتبادل المعرفة. يمكنك طرح سؤالك الآن.',
-        tags: ['f_general'],
-        timestamp: new Date().toISOString(),
-        upvotes: 1,
-        replies: [],
-        isPinned: true,
-        isEscalated: false
-      };
-      await addDoc(collection(db!, 'forumPosts'), welcomePost);
-      
-      await setDoc(doc(db!, 'settings', 'logging'), { 
-        logStudentProgress: true, 
-        saveAllQuizAttempts: true, 
-        logAIChatHistory: true, 
-        archiveTeacherMessages: true, 
-        forumAccessTier: 'free' 
-      });
-    } catch (e: any) {
-      console.error("Initialization error:", e);
-      throw e;
-    }
-  }
-
-  // --- إدارة المستخدمين ---
-  async getUser(uidOrEmail: string): Promise<User | null> {
-    this.checkDb();
-    try {
-        let snap = await getDoc(doc(db!, 'users', uidOrEmail));
-        if (snap.exists()) return snap.data() as User;
-        
-        const q = query(collection(db!, 'users'), where('email', '==', uidOrEmail), limit(1));
-        const querySnap = await getDocs(q);
-        if (!querySnap.empty) return querySnap.docs[0].data() as User;
-    } catch (e: any) { 
-      if (e.code === 'permission-denied') console.warn("Access Denied to user profile.");
-    }
-    return null;
-  }
-
-  async saveUser(user: User) {
-    this.checkDb();
-    await setDoc(doc(db!, 'users', user.uid), this.cleanData(user), { merge: true });
-  }
-
-  async updateUserRole(uid: string, role: UserRole) {
-    this.checkDb();
-    await updateDoc(doc(db!, 'users', uid), { role });
-  }
-
-  async getAdmins(): Promise<User[]> {
-    this.checkDb();
-    const q = query(collection(db!, 'users'), where('role', '==', 'admin'));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as User);
-  }
-
-  async deleteUser(uid: string) {
-    this.checkDb();
-    await deleteDoc(doc(db!, 'users', uid));
-  }
-
-  async getTeachers(): Promise<User[]> {
-    this.checkDb();
-    const q = query(collection(db!, 'users'), where('role', '==', 'teacher'));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as User);
-  }
-
-  subscribeToUsers(callback: (users: User[]) => void, role: UserRole) {
-    this.checkDb();
-    const q = query(collection(db!, 'users'), where('role', '==', role));
-    return onSnapshot(q, (snap) => {
-      callback(snap.docs.map(d => d.data() as User));
-    });
-  }
-
-  // --- ساحة النقاش ---
-  async getForumSections(): Promise<ForumSection[]> {
-    this.checkDb();
-    const snap = await getDocs(query(collection(db!, 'forumSections'), orderBy('order')));
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumSection));
-  }
-
-  async saveForumSections(sections: ForumSection[]) {
-    this.checkDb();
-    for (const sec of sections) {
-      await setDoc(doc(db!, 'forumSections', sec.id), this.cleanData(sec));
-    }
-  }
-
-  async getForumPosts(forumId?: string): Promise<ForumPost[]> {
-    this.checkDb();
-    try {
-      const postsRef = collection(db!, 'forumPosts');
-      let q;
-      if (forumId) {
-        q = query(postsRef, where('tags', 'array-contains', forumId));
-      } else {
-        q = query(postsRef, limit(100));
-      }
-      const snap = await getDocs(q);
-      return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
-    } catch (e: any) {
-      if (e.code === 'permission-denied') throw new Error("PERMISSION_DENIED");
-      throw e;
-    }
-  }
-
-  async createForumPost(post: Omit<ForumPost, 'id'>): Promise<string> {
-    this.checkDb();
-    const currentUser = auth.currentUser;
-    if (!currentUser) throw new Error("USER_NOT_AUTHENTICATED");
-
-    const data = this.cleanData({
-      ...post,
-      authorUid: currentUser.uid, 
-      upvotes: 0,
-      replies: [],
-      isPinned: false,
-      isEscalated: false,
-      timestamp: new Date().toISOString()
-    });
-
-    const docRef = await addDoc(collection(db!, 'forumPosts'), data);
-    return docRef.id;
-  }
-
-  async deleteForumPost(postId: string) {
-    this.checkDb();
-    await deleteDoc(doc(db!, 'forumPosts', postId));
-  }
-
-  async updateForumPost(postId: string, updates: Partial<ForumPost>) {
-    this.checkDb();
-    await updateDoc(doc(db!, 'forumPosts', postId), this.cleanData(updates));
-  }
-
-  async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'timestamp' | 'upvotes'>) {
-    this.checkDb();
-    const currentUser = auth.currentUser;
-    if (!currentUser) throw new Error("USER_NOT_AUTHENTICATED");
-
-    const postRef = doc(db!, 'forumPosts', postId);
-    const newReply: ForumReply = {
-      ...reply,
-      authorUid: currentUser.uid,
-      id: `rep_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      upvotes: 0
-    };
-    const postSnap = await getDoc(postRef);
-    if (!postSnap.exists()) return;
-    const postData = postSnap.data() as ForumPost;
-    await updateDoc(postRef, {
-      replies: [...(postData.replies || []), newReply]
-    });
-  }
-
-  async upvoteForumPost(postId: string) {
-    this.checkDb();
-    await updateDoc(doc(db!, 'forumPosts', postId), { upvotes: increment(1) });
-  }
-
-  // --- الإعدادات ---
-  async getLoggingSettings(): Promise<LoggingSettings> {
-    this.checkDb();
-    try {
-      const snap = await getDoc(doc(db!, 'settings', 'logging'));
-      if (snap.exists()) return snap.data() as LoggingSettings;
-    } catch (e) {}
-    return { logStudentProgress: true, saveAllQuizAttempts: true, logAIChatHistory: true, archiveTeacherMessages: true, forumAccessTier: 'free' };
-  }
-
-  async saveLoggingSettings(settings: LoggingSettings) {
-    this.checkDb();
-    await setDoc(doc(db!, 'settings', 'logging'), settings);
-  }
-
-  async getNotificationSettings(): Promise<NotificationSettings> {
-    this.checkDb();
-    try {
-      const snap = await getDoc(doc(db!, 'settings', 'notifications'));
-      if (snap.exists()) return snap.data() as NotificationSettings;
-    } catch (e) {}
-    return { pushForLiveSessions: true, pushForGradedQuizzes: true, pushForAdminAlerts: true };
-  }
-
-  async saveNotificationSettings(settings: NotificationSettings) {
-    this.checkDb();
-    await setDoc(doc(db!, 'settings', 'notifications'), this.cleanData(settings));
-  }
-
-  async getPaymentSettings(): Promise<PaymentSettings> {
-    this.checkDb();
-    try {
-      const snap = await getDoc(doc(db!, 'settings', 'payments'));
-      if (snap.exists()) return snap.data() as PaymentSettings;
-    } catch (e) {}
-    return { 
-        isOnlinePaymentEnabled: true, 
-        womdaPhoneNumber: '55315661',
-        planPrices: { premium: 35, basic: 15 } 
-    };
-  }
-
-  async savePaymentSettings(settings: PaymentSettings) {
-    this.checkDb();
-    await setDoc(doc(db!, 'settings', 'payments'), this.cleanData(settings));
-  }
-
   // --- المحتوى التعليمي ---
   async getCurriculum(): Promise<Curriculum[]> {
     this.checkDb();
@@ -374,17 +95,12 @@ class DBService {
     }
   }
 
-  async updateUnitsOrder(grade: string, subject: string, units: Unit[]) {
-    this.checkDb();
-    await updateDoc(doc(db!, 'curriculum', `${grade}_${subject}`), { units });
-  }
-
   async deleteUnit(grade: string, subject: string, unitId: string) {
     this.checkDb();
     const id = `${grade}_${subject}`;
     const ref = doc(db!, 'curriculum', id);
     const snap = await getDoc(ref);
-    if (!snap.exists()) return;
+    if (!snap.exists()) throw new Error("Document not found");
     const data = snap.data() as Curriculum;
     const units = (data.units || []).filter(u => u.id !== unitId);
     await updateDoc(ref, { units });
@@ -395,7 +111,7 @@ class DBService {
     const id = `${grade}_${subject}`;
     const ref = doc(db!, 'curriculum', id);
     const snap = await getDoc(ref);
-    if (!snap.exists()) return;
+    if (!snap.exists()) throw new Error("Document not found");
     const data = snap.data() as Curriculum;
     const units = (data.units || []).map(u => {
       if (u.id === unitId) return { ...u, lessons: (u.lessons || []).filter(l => l.id !== lessonId) };
@@ -404,7 +120,141 @@ class DBService {
     await updateDoc(ref, { units });
   }
 
-  // --- الاختبارات ---
+  async updateUnitsOrder(grade: string, subject: string, units: Unit[]) {
+    this.checkDb();
+    await updateDoc(doc(db!, 'curriculum', `${grade}_${subject}`), { units });
+  }
+
+  // --- بقية الدالات كما هي ---
+  async getUser(uidOrEmail: string): Promise<User | null> {
+    this.checkDb();
+    try {
+        let snap = await getDoc(doc(db!, 'users', uidOrEmail));
+        if (snap.exists()) return snap.data() as User;
+        const q = query(collection(db!, 'users'), where('email', '==', uidOrEmail), limit(1));
+        const querySnap = await getDocs(q);
+        if (!querySnap.empty) return querySnap.docs[0].data() as User;
+    } catch (e) {}
+    return null;
+  }
+
+  async saveUser(user: User) {
+    this.checkDb();
+    await setDoc(doc(db!, 'users', user.uid), this.cleanData(user), { merge: true });
+  }
+
+  async updateUserRole(uid: string, role: UserRole) {
+    this.checkDb();
+    await updateDoc(doc(db!, 'users', uid), { role });
+  }
+
+  async getAdmins(): Promise<User[]> {
+    this.checkDb();
+    const q = query(collection(db!, 'users'), where('role', '==', 'admin'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as User);
+  }
+
+  async deleteUser(uid: string) {
+    this.checkDb();
+    await deleteDoc(doc(db!, 'users', uid));
+  }
+
+  async getTeachers(): Promise<User[]> {
+    this.checkDb();
+    const q = query(collection(db!, 'users'), where('role', '==', 'teacher'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as User);
+  }
+
+  subscribeToUsers(callback: (users: User[]) => void, role: UserRole) {
+    this.checkDb();
+    const q = query(collection(db!, 'users'), where('role', '==', role));
+    return onSnapshot(q, (snap) => {
+      callback(snap.docs.map(d => d.data() as User));
+    });
+  }
+
+  async getForumSections(): Promise<ForumSection[]> {
+    this.checkDb();
+    const snap = await getDocs(query(collection(db!, 'forumSections'), orderBy('order')));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumSection));
+  }
+
+  async saveForumSections(sections: ForumSection[]) {
+    this.checkDb();
+    for (const sec of sections) {
+      await setDoc(doc(db!, 'forumSections', sec.id), this.cleanData(sec));
+    }
+  }
+
+  async getForumPosts(forumId?: string): Promise<ForumPost[]> {
+    this.checkDb();
+    const postsRef = collection(db!, 'forumPosts');
+    let q = forumId ? query(postsRef, where('tags', 'array-contains', forumId)) : query(postsRef, limit(100));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
+  }
+
+  async createForumPost(post: Omit<ForumPost, 'id'>): Promise<string> {
+    this.checkDb();
+    const docRef = await addDoc(collection(db!, 'forumPosts'), this.cleanData(post));
+    return docRef.id;
+  }
+
+  async deleteForumPost(postId: string) {
+    this.checkDb();
+    await deleteDoc(doc(db!, 'forumPosts', postId));
+  }
+
+  async updateForumPost(postId: string, updates: Partial<ForumPost>) {
+    this.checkDb();
+    await updateDoc(doc(db!, 'forumPosts', postId), this.cleanData(updates));
+  }
+
+  async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'timestamp' | 'upvotes'>) {
+    this.checkDb();
+    const postRef = doc(db!, 'forumPosts', postId);
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) return;
+    const postData = postSnap.data() as ForumPost;
+    const newReply = { ...reply, id: `rep_${Date.now()}`, timestamp: new Date().toISOString(), upvotes: 0 };
+    await updateDoc(postRef, { replies: [...(postData.replies || []), newReply] });
+  }
+
+  async getLoggingSettings(): Promise<LoggingSettings> {
+    this.checkDb();
+    const snap = await getDoc(doc(db!, 'settings', 'logging'));
+    return snap.exists() ? snap.data() as LoggingSettings : { logStudentProgress: true, saveAllQuizAttempts: true, logAIChatHistory: true, archiveTeacherMessages: true, forumAccessTier: 'free' };
+  }
+
+  async saveLoggingSettings(settings: LoggingSettings) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'logging'), settings);
+  }
+
+  async getNotificationSettings(): Promise<NotificationSettings> {
+    this.checkDb();
+    const snap = await getDoc(doc(db!, 'settings', 'notifications'));
+    return snap.exists() ? snap.data() as NotificationSettings : { pushForLiveSessions: true, pushForGradedQuizzes: true, pushForAdminAlerts: true };
+  }
+
+  async saveNotificationSettings(settings: NotificationSettings) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'notifications'), this.cleanData(settings));
+  }
+
+  async getPaymentSettings(): Promise<PaymentSettings> {
+    this.checkDb();
+    const snap = await getDoc(doc(db!, 'settings', 'payments'));
+    return snap.exists() ? snap.data() as PaymentSettings : { isOnlinePaymentEnabled: true, womdaPhoneNumber: '55315661', planPrices: { premium: 35, basic: 15 } };
+  }
+
+  async savePaymentSettings(settings: PaymentSettings) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'payments'), this.cleanData(settings));
+  }
+
   async getQuizzes(): Promise<Quiz[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'quizzes'));
@@ -425,9 +275,9 @@ class DBService {
     this.checkDb();
     const quizSnap = await getDoc(doc(db!, 'quizzes', quizId));
     if (!quizSnap.exists()) return [];
-    const quiz = quizSnap.data() as Quiz;
-    if (!quiz.questionIds || quiz.questionIds.length === 0) return [];
-    const q = query(collection(db!, 'questions'), where(documentId(), 'in', quiz.questionIds.slice(0, 10)));
+    const qIds = (quizSnap.data() as Quiz).questionIds;
+    if (!qIds || qIds.length === 0) return [];
+    const q = query(collection(db!, 'questions'), where(documentId(), 'in', qIds.slice(0, 10)));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as Question));
   }
@@ -478,10 +328,9 @@ class DBService {
   async getQuizById(id: string): Promise<Quiz | null> {
     this.checkDb();
     const snap = await getDoc(doc(db!, 'quizzes', id));
-    return (snap && snap.exists()) ? ({ ...snap.data(), id: snap.id } as Quiz) : null;
+    return snap.exists() ? { ...snap.data(), id: snap.id } as Quiz : null;
   }
 
-  // --- الإشعارات والمصادر الأخرى ---
   async getNotifications(uid: string): Promise<AppNotification[]> {
     this.checkDb();
     const q = query(collection(db!, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'), limit(20));
@@ -568,10 +417,7 @@ class DBService {
         await getDocs(query(collection(db!, 'settings'), limit(1))); 
         return { alive: true }; 
     }
-    catch (e: any) { 
-        if (e.code === 'permission-denied') return { alive: false, error: 'PERMISSION_DENIED' };
-        return { alive: false, error: e.code || e.message }; 
-    }
+    catch (e: any) { return { alive: false, error: e.code || e.message }; }
   }
 
   async checkSupabaseConnection(): Promise<{ alive: boolean, error?: string }> {
@@ -624,9 +470,7 @@ class DBService {
     this.checkDb();
     const user = await this.getUser(userId);
     const invoice: Omit<Invoice, 'id'> = {
-      userId,
-      userName: user?.name || 'Student',
-      planId, amount, date: new Date().toISOString(), status: 'PENDING',
+      userId, userName: user?.name || 'Student', planId, amount, date: new Date().toISOString(), status: 'PENDING',
       trackId: Math.random().toString(36).substring(7).toUpperCase()
     };
     const docRef = await addDoc(collection(db!, 'invoices'), invoice);
@@ -637,73 +481,17 @@ class DBService {
     this.checkDb();
     const user = await this.getUser(userId);
     if (!user) throw new Error("USER_NOT_FOUND");
-
     const trackId = `MANUAL_${Math.random().toString(36).substring(7).toUpperCase()}`;
-    const paymentId = `PAY_ADMIN_${Date.now()}`;
-    
-    const invoice: Omit<Invoice, 'id'> = {
-      userId,
-      userName: user.name,
-      planId,
-      amount,
-      date: new Date().toISOString(),
-      status: 'PAID',
-      trackId,
-      paymentId,
-      authCode: 'ADMIN_MANUAL'
-    };
-
+    const invoice: Omit<Invoice, 'id'> = { userId, userName: user.name, planId, amount, date: new Date().toISOString(), status: 'PAID', trackId, paymentId: `PAY_ADMIN_${Date.now()}`, authCode: 'ADMIN_MANUAL' };
     const docRef = await addDoc(collection(db!, 'invoices'), invoice);
     await updateDoc(doc(db!, 'users', userId), { subscription: 'premium' });
-    await this.createNotification({
-      userId,
-      title: "تم تفعيل اشتراكك! ⚡",
-      message: `تم استلام دفعتك بنجاح بمبلغ ${amount} د.ك وتفعيل باقة التفوق. استمتع برحلتك التعليمية.`,
-      timestamp: new Date().toISOString(),
-      isRead: false,
-      type: 'success',
-      category: 'academic'
-    });
-
     return { ...invoice, id: docRef.id };
-  }
-
-  async completePayment(trackId: string, result: 'SUCCESS' | 'FAIL'): Promise<Invoice | null> {
-    this.checkDb();
-    const q = query(collection(db!, 'invoices'), where('trackId', '==', trackId), limit(1));
-    const snap = await getDocs(q);
-    if (snap.empty) return null;
-    const invDoc = snap.docs[0];
-    const status: PaymentStatus = result === 'SUCCESS' ? 'PAID' : 'FAIL';
-    await updateDoc(invDoc.ref, { status, paymentId: `PAY_${Date.now()}` });
-    if (result === 'SUCCESS') await updateDoc(doc(db!, 'users', invDoc.data().userId), { subscription: 'premium' });
-    const fresh = await getDoc(invDoc.ref);
-    return { ...fresh.data(), id: fresh.id } as Invoice;
   }
 
   async getInvoices(): Promise<{ data: Invoice[] }> {
     this.checkDb();
     const snap = await getDocs(query(collection(db!, 'invoices'), orderBy('date', 'desc')));
     return { data: snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)) };
-  }
-
-  async updateInvoiceStatus(id: string, status: PaymentStatus) {
-    this.checkDb();
-    await updateDoc(doc(db!, 'invoices', id), { status });
-  }
-
-  async getUnusedSubscriptionCodes(): Promise<SubscriptionCode[]> {
-    this.checkDb();
-    const q = query(collection(db!, 'subscriptionCodes'), where('isUsed', '==', false));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as SubscriptionCode));
-  }
-
-  async createSubscriptionCode(planId: string): Promise<string> {
-    this.checkDb();
-    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-    await addDoc(collection(db!, 'subscriptionCodes'), { code, planId, isUsed: false, createdAt: new Date().toISOString() });
-    return code;
   }
 
   async toggleLessonComplete(uid: string, lessonId: string) {
@@ -762,9 +550,61 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as TeacherMessage));
   }
 
+  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db!, 'subscriptionPlans'));
+    return snap.docs.map(d => d.data() as SubscriptionPlan);
+  }
+
   async getStudentProgressForParent(uid: string): Promise<{ user: User | null, report: WeeklyReport | null }> {
     const user = await this.getUser(uid);
     return { user, report: user?.weeklyReports?.[0] || null };
+  }
+
+  // --- تهيئة نظام المنتديات ---
+  // Added initializeForumSystem to DBService to fix error in AdminForumManager.tsx
+  async initializeForumSystem() {
+    this.checkDb();
+    
+    // 1. إنشاء الأقسام الافتراضية إذا كانت فارغة
+    const sectionsSnap = await getDocs(collection(db!, 'forumSections'));
+    if (sectionsSnap.empty) {
+      const defaultSection: ForumSection = {
+        id: 'sec_general',
+        title: 'الساحة العامة',
+        description: 'نقاشات عامة حول العلوم والمنصة',
+        order: 0,
+        forums: [
+          {
+            id: 'forum_welcome',
+            title: 'الترحيب والمستجدات',
+            description: 'أهلاً بك في منصتنا!',
+            icon: '👋',
+            order: 0
+          }
+        ]
+      };
+      await setDoc(doc(db!, 'forumSections', defaultSection.id), this.cleanData(defaultSection));
+    }
+
+    // 2. إنشاء منشور ترحيبي إذا لم يكن هناك منشورات
+    const postsSnap = await getDocs(query(collection(db!, 'forumPosts'), limit(1)));
+    if (postsSnap.empty) {
+      const welcomePost: Omit<ForumPost, 'id'> = {
+        authorUid: 'system',
+        authorEmail: 'admin@ssc.edu.sy',
+        authorName: 'فريق المركز السوري للعلوم',
+        title: 'مرحباً بكم في ساحة النقاش العلمية! 🚀',
+        content: 'يسعدنا انضمامكم إلينا. هذه الساحة مخصصة لتبادل المعرفة، طرح الأسئلة العلمية، ومساعدة بعضنا البعض في فهم أسرار الفيزياء والكيمياء.',
+        tags: ['forum_welcome'],
+        timestamp: new Date().toISOString(),
+        upvotes: 10,
+        isPinned: true,
+        isEscalated: false,
+        replies: []
+      };
+      await addDoc(collection(db!, 'forumPosts'), this.cleanData(welcomePost));
+    }
   }
 }
 
