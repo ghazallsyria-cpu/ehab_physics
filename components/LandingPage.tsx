@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import anime from 'animejs';
 import { dbService } from '../services/db';
-import { ChevronLeft, School, GraduationCap, Users, Globe, RefreshCw, UserCheck, Briefcase, Venus, Mars } from 'lucide-react';
+import { ChevronLeft, School, GraduationCap, Users, Globe, RefreshCw, UserCheck, Briefcase, User } from 'lucide-react';
 
 interface LandingPageProps {
   onStart: () => void;
@@ -109,8 +109,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
             </div>
             
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                <StudentCounter value={stats.maleStudents} label="الطلاب (بنين)" icon={Mars} color="bg-blue-600" />
-                <StudentCounter value={stats.femaleStudents} label="الطالبات (بنات)" icon={Venus} color="bg-pink-600" />
+                <StudentCounter value={stats.maleStudents} label="الطلاب (بنين)" icon={User} color="bg-blue-600" />
+                <StudentCounter value={stats.femaleStudents} label="الطالبات (بنات)" icon={User} color="bg-pink-600" />
                 <StudentCounter value={stats.totalTeachers} label="طاقم المعلمين" icon={Briefcase} color="bg-amber-600" />
                 <StudentCounter value={stats.totalStudents} label="إجمالي المسجلين" icon={UserCheck} color="bg-emerald-600" />
             </div>
