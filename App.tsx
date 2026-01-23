@@ -62,6 +62,7 @@ const App: React.FC = () => {
   
   const [maintenance, setMaintenance] = useState<MaintenanceSettings | null>(null);
   const [isMaintenanceLoading, setIsMaintenanceLoading] = useState(true);
+  const [hasBypass, setHasBypass] = useState(false);
   
   const currentView = viewStack[viewStack.length - 1];
   const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
@@ -72,29 +73,30 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    // 🔗 1. الرقابة اللحظية على وضع الصيانة
+    // 🔑 1. فحص الرابط السري فوراً (SECRET BYPASS)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('access') === 'admin') {
+        localStorage.setItem('ssc_maintenance_bypass', 'active_secret_key_v1');
+        setHasBypass(true);
+        // تنظيف الرابط لعدم لفت الأنظار
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+        const storedBypass = localStorage.getItem('ssc_maintenance_bypass');
+        if (storedBypass === 'active_secret_key_v1') setHasBypass(true);
+    }
+
+    // 📡 2. الاشتراك في وضع الصيانة
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
-        console.log("Maintenance Sync:", settings);
         setMaintenance(settings);
         setIsMaintenanceLoading(false);
     });
-
-    // 🔑 2. كشف "الرابط السري" وتخزينه في المتصفح فوراً
-    const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get('admin') === 'true') {
-        localStorage.setItem('ssc_admin_bypass', 'active');
-        // تنظيف الرابط لعدم لفت الانتباه
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
 
     dbService.getAppBranding().then(setBranding);
     
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
-            if (updatedUser) {
-                setUser(updatedUser);
-            }
+            if (updatedUser) setUser(updatedUser);
             setIsAuthLoading(false);
         });
       } else {
@@ -132,12 +134,16 @@ const App: React.FC = () => {
   }, []);
 
   const renderContent = () => {
-    // 🛑 فحص الصيانة - الأولوية القصوى المطلقة
-    const hasAdminBypass = localStorage.getItem('ssc_admin_bypass') === 'active';
-    
-    if (maintenance?.isMaintenanceActive && !hasAdminBypass) {
-        // إذا كان المستخدم مسجلاً كمدير، نتخطى الصيانة تلقائياً
-        if (user?.role !== 'admin') {
+    // 🛑 فحص الصيانة - الأولوية القصوى (Gatekeeper Logic)
+    if (maintenance?.isMaintenanceActive) {
+        // يسمح بالمرور فقط في حالات محددة:
+        // 1. المستخدم يمتلك "المفتاح السري" في متصفحه
+        // 2. المستخدم مسجل دخوله كمسؤول (Admin)
+        // 3. المستخدم معلم ومع خيار السماح للمعلمين مفعل
+        const isAdmin = user?.role === 'admin';
+        const isTeacherAllowed = user?.role === 'teacher' && maintenance.allowTeachers;
+        
+        if (!hasBypass && !isAdmin && !isTeacherAllowed) {
             return <MaintenanceMode />;
         }
     }
@@ -145,7 +151,7 @@ const App: React.FC = () => {
     if (isAuthLoading || isMaintenanceLoading) return (
       <div className="flex flex-col items-center justify-center h-screen gap-6 bg-[#000407]">
         <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
-        <p className="text-gray-500 font-black animate-pulse uppercase tracking-[0.3em]">Quantum Core Booting...</p>
+        <p className="text-gray-500 font-black animate-pulse tracking-[0.3em]">SECURE LINK ESTABLISHED...</p>
       </div>
     );
 
@@ -165,11 +171,12 @@ const App: React.FC = () => {
       case 'quiz_center': return user ? <QuizCenter user={user} /> : null;
       case 'quiz_player': return activeQuiz && user ? <QuizPlayer user={user} quiz={activeQuiz} onFinish={() => setViewStack(['quiz_center'])} /> : null;
       case 'attempt_review': return activeAttempt && user ? <AttemptReview user={user} attempt={activeAttempt} /> : null;
-      case 'subscription': return user ? <BillingCenter user={user} onUpdateUser={setUser} /> : null;
       case 'discussions': return <Forum user={user} />;
       case 'ai-chat': return user ? <AiTutor grade={user.grade} subject={activeSubject} /> : null;
       case 'virtual-lab': return user ? <LabHub user={user} /> : null;
       case 'live-sessions': return user ? <LiveSessions user={user} /> : null;
+      case 'subscription': return user ? <BillingCenter user={user} onUpdateUser={setUser} /> : null;
+      case 'recommendations': return user ? <Recommendations user={user} /> : null;
       case 'journey-map': return user ? <PhysicsJourneyMap user={user} /> : null;
       case 'resources-center': return user ? <ResourcesCenter user={user} /> : null;
       case 'reports': return user ? <ProgressReport user={user} attempts={[]} /> : null;
@@ -213,8 +220,9 @@ const App: React.FC = () => {
         branding={branding}
         activeSubject={activeSubject}
         onLogout={() => {
-            // عند تسجيل الخروج، نحذف مفتاح العبور السري للأمان
-            localStorage.removeItem('ssc_admin_bypass');
+            // تنظيف مفاتيح العبور عند تسجيل الخروج لزيادة الأمان
+            localStorage.removeItem('ssc_maintenance_bypass');
+            setHasBypass(false);
             signOut(auth).then(() => setViewStack(['landing']));
         }}
         isOpen={isSidebarOpen}
@@ -241,6 +249,7 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
+             {hasBypass && <div className="hidden sm:flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full"><ShieldAlert size={12} className="text-amber-500"/><span className="text-[8px] font-black text-amber-500 uppercase">Admin Access Active</span></div>}
              <button onClick={() => setShowNotifications(true)} className="p-3 text-gray-400 hover:text-white bg-white/5 rounded-2xl relative transition-all border border-white/5"><Bell size={20} /><span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full border-2 border-[#0A2540] animate-pulse"></span></button>
              <div className="hidden sm:flex items-center gap-3 bg-black/20 p-2 pr-5 rounded-3xl border border-white/5 shadow-inner">
                 <div className="text-right">

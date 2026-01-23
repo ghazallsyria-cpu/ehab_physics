@@ -37,10 +37,11 @@ class DBService {
     } catch (e) {
         console.warn("Maintenance settings fetch failed", e);
     }
+    // الوضع الآمن: إذا فشل الجلب، نفترض أن الموقع في صيانة
     return {
-        isMaintenanceActive: false,
-        expectedReturnTime: new Date(Date.now() + 86400000).toISOString(),
-        maintenanceMessage: "نقوم حالياً بتطوير المنصة لتقديم تجربة تعليمية أفضل.",
+        isMaintenanceActive: true,
+        expectedReturnTime: new Date(Date.now() + 3600000).toISOString(),
+        maintenanceMessage: "يتم حالياً مزامنة البيانات السحابية. يرجى العودة لاحقاً.",
         showCountdown: true,
         allowTeachers: false
     };
@@ -53,18 +54,17 @@ class DBService {
 
   subscribeToMaintenance(callback: (settings: MaintenanceSettings) => void) {
     this.checkDb();
-    // 🛡️ معالجة خاصة لضمان عدم توقف الموقع إذا كانت القواعد تمنع القراءة
+    // 🛡️ معالجة خاصة: إذا فشل السنا بشوت (بسبب القواعد)، نفترض الموقع مغلق للحماية
     return onSnapshot(doc(db!, 'settings', 'maintenance'), (snap) => {
         if (snap.exists()) {
             callback(snap.data() as MaintenanceSettings);
         } else {
-            console.warn("Maintenance document not found in Firestore.");
-            callback({ isMaintenanceActive: false, expectedReturnTime: '', maintenanceMessage: '', showCountdown: false, allowTeachers: true });
+            callback({ isMaintenanceActive: true, expectedReturnTime: '', maintenanceMessage: 'Document missing', showCountdown: false, allowTeachers: false });
         }
     }, (error) => {
-        console.error("Maintenance Sync Error (Likely Security Rules):", error.message);
-        // في حال فشل القواعد، نفترض أن الموقع يعمل لكي لا يغلق على الجميع خطأً
-        callback({ isMaintenanceActive: false, expectedReturnTime: '', maintenanceMessage: '', showCountdown: false, allowTeachers: true });
+        console.error("Maintenance Sync Blocked by Security Rules:", error.message);
+        // في حال فشل القواعد (للزوار)، نفرض الصيانة
+        callback({ isMaintenanceActive: true, expectedReturnTime: '', maintenanceMessage: 'جاري تحديث بروتوكولات الأمان للمنصة...', showCountdown: false, allowTeachers: false });
     });
   }
 

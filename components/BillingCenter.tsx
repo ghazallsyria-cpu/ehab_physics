@@ -47,7 +47,6 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
 
   useEffect(() => {
     const fetchData = async () => {
-      setIsLoading(true);
       try {
         const [settings, plans] = await Promise.all([
           dbService.getPaymentSettings(),
@@ -57,15 +56,16 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
         if (settings) setPaymentSettings(settings);
         if (plans && plans.length > 0) setSubscriptionPlans(plans);
       } catch (e) {
-        console.error("Fetch failed, keeping defaults", e);
-      } finally {
-        setIsLoading(false);
+        console.error("Fetch settings failed", e);
       }
     };
     fetchData();
 
+    // 📡 الاشتراك اللحظي في الفواتير (لضمان ظهورها بمجرد تفعيل المدير لها)
     const unsubscribeInvoices = dbService.subscribeToInvoices(user.uid, (updatedInvoices) => {
+        console.log("Invoices Synced:", updatedInvoices);
         setInvoices(updatedInvoices);
+        setIsLoading(false);
     });
 
     return () => unsubscribeInvoices();
@@ -90,7 +90,7 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-6 text-white font-['Tajawal']" dir="rtl">
         <RefreshCw className="w-12 h-12 text-amber-400 animate-spin" />
-        <p className="text-gray-400 font-bold animate-pulse">جاري تحميل بيانات الاشتراك والأسعار...</p>
+        <p className="text-gray-400 font-bold animate-pulse">جاري فحص سجلاتك المالية آلياً...</p>
       </div>
     );
   }
@@ -101,7 +101,7 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
               <button onClick={() => setSelectedInvoiceForCert(null)} className="mb-10 flex items-center gap-4 text-gray-500 hover:text-white font-black text-xs uppercase tracking-[0.3em] transition-all group">
                   <ChevronLeft className="group-hover:-translate-x-2 transition-transform" /> العودة لمركز الاشتراكات
               </button>
-              <div className="bg-white/5 p-1 rounded-[60px] border border-white/10 shadow-3xl">
+              <div className="bg-white/5 p-1 rounded-[60px] border border-white/10 shadow-3xl overflow-hidden">
                 <PaymentCertificate user={user} invoice={selectedInvoiceForCert} />
               </div>
           </div>
@@ -113,7 +113,7 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
       <header className="mb-20 text-center relative">
         <div className="absolute top-[-50px] left-1/2 -translate-x-1/2 w-64 h-64 bg-amber-400/5 rounded-full blur-[100px] pointer-events-none"></div>
         <h2 className="text-5xl md:text-7xl font-black mb-4 tracking-tighter italic">بوابة <span className="text-[#fbbf24] text-glow-gold">التميز</span></h2>
-        <p className="text-gray-500 text-xl font-medium max-w-2xl mx-auto leading-relaxed">افتح الأقفال العلمية وانطلق في رحلة اكتشاف الفيزياء بلا حدود.</p>
+        <p className="text-gray-500 text-xl font-medium max-w-2xl mx-auto leading-relaxed">ادفع عبر "ومض" واحصل على اشتراكك وإيصالك الرقمي فوراً.</p>
         
         <div className="mt-10 bg-emerald-500/10 border-2 border-emerald-500/20 p-6 rounded-[35px] inline-flex items-center gap-6 shadow-xl backdrop-blur-xl">
             <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center text-black shadow-[0_0_20px_rgba(16,185,129,0.4)] animate-pulse">
@@ -182,11 +182,9 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
                       <AlertTriangle size={32}/>
                   </div>
                   <div>
-                      <h4 className="text-white font-black text-lg mb-2">تعليمات تفعيل باقة التفوق</h4>
+                      <h4 className="text-white font-black text-lg mb-2">تعليمات تفعيل الحساب اليدوي</h4>
                       <p className="text-gray-400 text-sm leading-relaxed font-medium italic">
-                        بعد الضغط على "اشترك الآن"، سيتم فتح واتساب الإدارة تلقائياً. 
-                        يرجى إتمام التحويل عبر تطبيق بنكك باستخدام رقم "ومض" الموضح، ثم إرسال لقطة شاشة للإيصال. 
-                        سيقوم الفريق التقني بتفعيل حسابك خلال لحظات من استلام الإيصال.
+                        إذا تم تفعيل حسابك من قبل الإدارة، ستظهر الفاتورة فوراً في القائمة الجانبية (تاريخ المدفوعات). يمكنك تحميل الإيصال الرسمي بالضغط على أيقونة الطابعة. في حال عدم ظهور الفاتورة، يرجى التواصل مع الدعم الفني.
                       </p>
                   </div>
               </div>
@@ -206,7 +204,7 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
                           <div key={inv.id} className="p-6 bg-white/[0.03] border border-white/5 rounded-[30px] group transition-all hover:bg-white/[0.05] hover:border-blue-500/20">
                               <div className="flex justify-between items-center mb-4">
                                   <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase border ${inv.status === 'PAID' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
-                                      {inv.status === 'PAID' ? 'مكتمل ✓' : 'بانتظار التأكيد'}
+                                      {inv.status === 'PAID' ? 'مكتمل ومعتمد ✓' : 'بانتظار التأكيد'}
                                   </span>
                                   <span className="text-[9px] font-mono text-gray-600 font-bold">#{inv.trackId}</span>
                               </div>
@@ -225,9 +223,10 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
                               </div>
                           </div>
                       )) : (
-                          <div className="text-center py-24 opacity-20">
-                              <FileText size={64} className="mx-auto mb-4" />
-                              <p className="text-[10px] font-black uppercase tracking-[0.3em]">لا يوجد سجلات سابقة</p>
+                          <div className="text-center py-24 opacity-20 flex flex-col items-center">
+                              <FileText size={64} className="mb-4" />
+                              <p className="text-[10px] font-black uppercase tracking-[0.3em]">لا يوجد فواتير مسجلة</p>
+                              <p className="text-[8px] mt-2 max-w-[150px]">إذا قمت بالتحويل، يرجى انتظار تأكيد الإدارة.</p>
                           </div>
                       )}
                   </div>
@@ -237,7 +236,7 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
                           onClick={() => window.open(`https://wa.me/965${paymentSettings?.womdaPhoneNumber || '55315661'}`, '_blank')}
                           className="w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-gray-400 hover:text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
                       >
-                          <MessageSquare size={16}/> طلب دعم فني مالي
+                          <MessageSquare size={16}/> طلب دعم مالي (واتساب)
                       </button>
                   </div>
               </div>
@@ -251,7 +250,7 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
               <Smartphone size={20}/>
               <CreditCard size={20}/>
           </div>
-          <p className="text-[10px] font-black uppercase tracking-[0.6em]">Quantum Billing System v2.0 • Syrian Science Center</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.6em]">Quantum Billing System v2.1 • Syrian Science Center</p>
       </footer>
     </div>
   );
