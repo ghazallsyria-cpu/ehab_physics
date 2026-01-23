@@ -66,36 +66,25 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // فحص وجود معامل سري في الرابط (Admin Backdoor)
-  const searchParams = new URLSearchParams(window.location.search);
-  const isBypassActive = searchParams.get('admin') === 'true' || searchParams.get('master') === 'true';
-
   useEffect(() => {
-    const loadInitialSettings = async () => {
-        try {
-            const [brandData, maintenanceData] = await Promise.all([
-                dbService.getAppBranding(),
-                dbService.getMaintenanceSettings()
-            ]);
-            setBranding(brandData);
-            setMaintenance(maintenanceData);
-        } catch (e) {
-            console.error("Initial load error", e);
-        }
-    };
-    loadInitialSettings();
+    // 1. فحص الرابط السري فوراً
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('admin') === 'true' || searchParams.get('master') === 'true') {
+        sessionStorage.setItem('ssc_admin_bypass', 'true');
+    }
 
+    // 2. مزامنة حالة الصيانة لحظياً
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
         setMaintenance(settings);
     });
 
-    const handleBrandingUpdate = (e: any) => {
-        if (e.detail) setBranding(e.detail);
-    };
+    // 3. مزامنة الهوية البصرية
+    dbService.getAppBranding().then(setBranding);
+    const handleBrandingUpdate = (e: any) => { if (e.detail) setBranding(e.detail); };
     window.addEventListener('branding-updated', handleBrandingUpdate);
     
+    // 4. مراقبة حالة تسجيل الدخول
     let unsubscribeUser: (() => void) | null = null;
-
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         unsubscribeUser = dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
@@ -145,17 +134,17 @@ const App: React.FC = () => {
   }, []);
 
   const renderContent = () => {
-    // 1. فحص وضع الصيانة كأولوية قصوى
+    const isBypassActive = sessionStorage.getItem('ssc_admin_bypass') === 'true';
+
+    // حماية الصيانة
     if (maintenance?.isMaintenanceActive && !isBypassActive) {
         const canBypass = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
-        
-        // إذا كان المستخدم ليس مديراً وهو يحاول فتح صفحة غير صفحة تسجيل الدخول السرية
         if (!canBypass && currentView !== 'auth') {
             return <MaintenanceMode />;
         }
     }
 
-    if (isAuthLoading) return <div className="flex flex-col items-center justify-center h-[70vh] gap-6"><RefreshCw className="w-16 h-16 text-amber-400 animate-spin" /><p className="text-gray-400 font-bold animate-pulse">جاري تحضير المنصة...</p></div>;
+    if (isAuthLoading) return <div className="flex flex-col items-center justify-center h-[70vh] gap-6"><RefreshCw className="w-16 h-16 text-amber-400 animate-spin" /><p className="text-gray-400 font-bold animate-pulse">جاري تأمين الاتصال...</p></div>;
 
     if (!user && currentView !== 'landing' && currentView !== 'auth') return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
 
@@ -199,7 +188,7 @@ const App: React.FC = () => {
     }
   };
 
-  // حالة شاشة الصيانة لغير المدراء
+  const isBypassActive = sessionStorage.getItem('ssc_admin_bypass') === 'true';
   const isCurrentlyInMaintenance = maintenance?.isMaintenanceActive && 
                                    user?.role !== 'admin' && 
                                    !(user?.role === 'teacher' && maintenance.allowTeachers) &&
@@ -212,9 +201,9 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
-      {maintenance?.isMaintenanceActive && user?.role === 'admin' && (
-          <div className="fixed top-0 left-0 right-0 z-[1000] bg-red-600 text-white text-[10px] font-black py-1 text-center uppercase tracking-widest pointer-events-none shadow-xl">
-              نظام الصيانة نشط حالياً • المنصة مغلقة أمام الطلاب
+      {maintenance?.isMaintenanceActive && (
+          <div className="fixed top-0 left-0 right-0 z-[1000] bg-amber-500 text-black text-[9px] font-black py-1.5 text-center uppercase tracking-[0.2em] pointer-events-none shadow-xl">
+              تنبيه: أنت في وضع "العبور السري" للمدير • المنصة مغلقة حالياً للطلاب
           </div>
       )}
       
@@ -224,7 +213,10 @@ const App: React.FC = () => {
         user={user!} 
         branding={branding}
         activeSubject={activeSubject}
-        onLogout={() => signOut(auth).then(() => setViewStack(['landing']))}
+        onLogout={() => {
+            sessionStorage.removeItem('ssc_admin_bypass'); 
+            signOut(auth).then(() => setViewStack(['landing']));
+        }}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
