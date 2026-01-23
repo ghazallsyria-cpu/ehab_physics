@@ -22,7 +22,7 @@ class DBService {
 
   private cleanData(data: any) {
     const clean = { ...data };
-    Object.keys(clean).forEach(key => clean[key] === undefined && delete clean[key]);
+    Object.keys(clean).forEach(key => (clean[key] === undefined || clean[key] === null) && delete clean[key]);
     return clean;
   }
 
@@ -50,7 +50,8 @@ class DBService {
       timestamp: new Date().toISOString(),
       upvotes: 1,
       replies: [],
-      isPinned: true
+      isPinned: true,
+      isEscalated: false
     };
     await addDoc(collection(db!, 'forumPosts'), welcomePost);
     
@@ -151,13 +152,13 @@ class DBService {
 
   async createForumPost(post: Omit<ForumPost, 'id'>): Promise<string> {
     this.checkDb();
+    const data = this.cleanData(post);
     const docRef = await addDoc(collection(db!, 'forumPosts'), {
-      ...this.cleanData(post),
-      timestamp: new Date().toISOString(),
-      upvotes: 0,
-      replies: [],
-      isPinned: false,
-      isEscalated: false
+      ...data,
+      upvotes: data.upvotes || 0,
+      replies: data.replies || [],
+      isPinned: data.isPinned || false,
+      isEscalated: data.isEscalated || false
     });
     return docRef.id;
   }
@@ -197,8 +198,10 @@ class DBService {
   // --- الإعدادات ---
   async getLoggingSettings(): Promise<LoggingSettings> {
     this.checkDb();
-    const snap = await getDoc(doc(db!, 'settings', 'logging'));
-    if (snap.exists()) return snap.data() as LoggingSettings;
+    try {
+      const snap = await getDoc(doc(db!, 'settings', 'logging'));
+      if (snap.exists()) return snap.data() as LoggingSettings;
+    } catch (e) { console.error("logging settings error:", e); }
     return { logStudentProgress: true, saveAllQuizAttempts: true, logAIChatHistory: true, archiveTeacherMessages: true, forumAccessTier: 'free' };
   }
 
@@ -209,8 +212,11 @@ class DBService {
 
   async getNotificationSettings(): Promise<NotificationSettings> {
     this.checkDb();
-    const snap = await getDoc(doc(db!, 'settings', 'notifications'));
-    return (snap && snap.exists()) ? snap.data() as NotificationSettings : { pushForLiveSessions: true, pushForGradedQuizzes: true, pushForAdminAlerts: true };
+    try {
+      const snap = await getDoc(doc(db!, 'settings', 'notifications'));
+      if (snap.exists()) return snap.data() as NotificationSettings;
+    } catch (e) {}
+    return { pushForLiveSessions: true, pushForGradedQuizzes: true, pushForAdminAlerts: true };
   }
 
   async saveNotificationSettings(settings: NotificationSettings) {
@@ -220,8 +226,11 @@ class DBService {
 
   async getPaymentSettings(): Promise<PaymentSettings> {
     this.checkDb();
-    const snap = await getDoc(doc(db!, 'settings', 'payments'));
-    return (snap && snap.exists()) ? snap.data() as PaymentSettings : { isOnlinePaymentEnabled: true };
+    try {
+      const snap = await getDoc(doc(db!, 'settings', 'payments'));
+      if (snap.exists()) return snap.data() as PaymentSettings;
+    } catch (e) {}
+    return { isOnlinePaymentEnabled: true };
   }
 
   async setPaymentSettings(isOnlinePaymentEnabled: boolean) {
