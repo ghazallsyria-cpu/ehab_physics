@@ -13,11 +13,10 @@ const MaintenanceMode: React.FC = () => {
   const [showSecretButton, setShowSecretButton] = useState(false);
 
   useEffect(() => {
-    // جلب الإعدادات مرة واحدة عند الرندر (الاشتراك اللحظي يتم في App.tsx وسيؤدي لإعادة تشغيل هذا المكون)
+    // جلب الإعدادات (الاشتراك الفعلي يتم في App.tsx)
     dbService.getMaintenanceSettings().then(setSettings);
     dbService.getAppBranding().then(setBranding);
 
-    // التحقق من حالة العبور السابقة
     if (sessionStorage.getItem('ssc_admin_bypass') === 'true') {
         setShowSecretButton(true);
     }
@@ -59,20 +58,11 @@ const MaintenanceMode: React.FC = () => {
   }, [settings?.expectedReturnTime]);
 
   const handleLogoClick = () => {
-      const newCount = clickCount + 1;
-      setClickCount(newCount);
-      
-      anime({
-          targets: '.maintenance-logo',
-          scale: [1, 0.9, 1.1, 1],
-          duration: 400
-      });
-
-      if (newCount >= 5) {
-          // تفعيل مدخل سري للمدراء فقط
+      setClickCount(prev => prev + 1);
+      anime({ targets: '.maintenance-logo', scale: [1, 0.9, 1.1, 1], duration: 400 });
+      if (clickCount >= 5) {
           sessionStorage.setItem('ssc_admin_bypass', 'true');
           setShowSecretButton(true);
-          // اهتزاز بسيط للتنبيه
           if ("vibrate" in navigator) navigator.vibrate(200);
       }
   };
@@ -91,15 +81,10 @@ const MaintenanceMode: React.FC = () => {
     </div>
   );
 
-  if (!settings) return (
-      <div className="fixed inset-0 bg-[#000407] flex items-center justify-center">
-          <RefreshCw className="animate-spin text-blue-500" size={40} />
-      </div>
-  );
+  if (!settings) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] bg-[#000407] flex flex-col items-center justify-center font-['Tajawal'] text-white overflow-hidden text-right" dir="rtl">
-      
       {/* Background Particles */}
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
         {Array.from({length: 20}).map((_, i) => (
@@ -108,19 +93,13 @@ const MaintenanceMode: React.FC = () => {
       </div>
 
       <div className="relative z-10 max-w-4xl w-full px-8 flex flex-col items-center">
-        
         <div className="relative mb-12">
             <div className="absolute inset-[-40px] border-2 border-blue-500/10 rounded-full animate-spin-slow"></div>
             <div 
                 onClick={handleLogoClick}
                 className="maintenance-logo w-36 h-36 md:w-44 md:h-44 bg-[#0a1118] border-2 border-white/10 rounded-[55px] flex items-center justify-center shadow-[0_0_100px_rgba(59,130,246,0.1)] relative group cursor-pointer transition-all active:scale-95"
             >
-                {branding?.logoUrl ? (
-                    <img src={branding.logoUrl} className="w-2/3 h-2/3 object-contain pointer-events-none" alt="Logo" />
-                ) : (
-                    <Atom size={80} className="text-blue-400 animate-spin-slow" />
-                )}
-                <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/5 transition-all rounded-[55px]"></div>
+                {branding?.logoUrl ? <img src={branding.logoUrl} className="w-2/3 h-2/3 object-contain pointer-events-none" alt="Logo" /> : <Atom size={80} className="text-blue-400 animate-spin-slow" />}
             </div>
         </div>
 
@@ -148,9 +127,7 @@ const MaintenanceMode: React.FC = () => {
 
         <div className="flex flex-col items-center gap-10">
             <div className="flex items-center gap-6 bg-white/[0.02] border border-white/5 px-10 py-6 rounded-[35px] shadow-inner backdrop-blur-md">
-                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400">
-                    <Timer size={24} />
-                </div>
+                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400"><Timer size={24} /></div>
                 <div className="text-right">
                     <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-1">العودة المقررة للخدمة</p>
                     <p className="text-sm font-black text-white tabular-nums">
@@ -171,14 +148,8 @@ const MaintenanceMode: React.FC = () => {
       </div>
 
       <footer className="absolute bottom-10 w-full px-12 flex justify-between items-center opacity-30">
-         <div className="flex items-center gap-4">
-             <div className="h-px w-20 bg-gray-700"></div>
-             <p className="text-[8px] font-black uppercase tracking-[0.5em]">Syrian Science Center • Quantum Core</p>
-         </div>
-         <div className="flex gap-6">
-            <Sparkles size={16} className="text-blue-500/50" />
-            <Orbit size={16} className="text-cyan-500/50" />
-         </div>
+         <p className="text-[8px] font-black uppercase tracking-[0.5em]">Syrian Science Center • Quantum Core</p>
+         <div className="flex gap-6"><Sparkles size={16} className="text-blue-500/50" /><Orbit size={16} className="text-cyan-500/50" /></div>
       </footer>
     </div>
   );
