@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ChevronDown, HeartPulse, LayoutDashboard, Library, MessageSquare, Award, ClipboardList, ShieldCheck, ShieldAlert, Lock } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ChevronDown, HeartPulse, LayoutDashboard, Library, MessageSquare, Award, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard } from 'lucide-react';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
 import SupabaseConnectionFixer from './SupabaseConnectionFixer';
@@ -43,6 +43,7 @@ const AdminDashboard: React.FC = () => {
     { view: 'admin-curriculum', icon: BookOpen, title: 'إدارة المناهج', description: 'إضافة وتعديل الدروس والمحتوى التعليمي.' },
     { view: 'admin-quizzes', icon: ClipboardList, title: 'إدارة الاختبارات', description: 'إنشاء وتعديل الاختبارات وبنوك الأسئلة.' },
     { view: 'admin-students', icon: Users, title: 'إدارة الطلاب', description: 'متابعة حسابات الطلاب والاشتراكات.' },
+    { view: 'admin-payment-manager', icon: CreditCard, title: 'إدارة الدفع', description: 'تعديل الأسعار، رقم ومض وحالة البوابة.' },
     { view: 'admin-teachers', icon: Briefcase, title: 'إدارة المعلمين', description: 'إدارة صلاحيات المعلمين والحسابات.' },
     { view: 'admin-managers', icon: ShieldCheck, title: 'إدارة المدراء', description: 'تعيين وتغيير صلاحيات إدارة النظام.' },
     { view: 'admin-forums', icon: MessageSquare, title: 'هيكل المنتديات', description: 'إعداد الأقسام والمشرفين الأكاديميين.' },

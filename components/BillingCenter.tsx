@@ -3,8 +3,20 @@ import React, { useState, useEffect } from 'react';
 import { User, Invoice, SubscriptionPlan, PaymentSettings } from '../types';
 import { PRICING_PLANS } from '../constants';
 import { dbService } from '../services/db';
-// Added RefreshCw to imports to fix "Cannot find name 'RefreshCw'" error
-import { MessageCircle, Camera, CheckCircle2, AlertCircle, Smartphone, Send, ArrowRight, ShieldCheck, Zap, RefreshCw } from 'lucide-react';
+import { 
+  MessageCircle, 
+  Camera, 
+  CheckCircle2, 
+  AlertCircle, 
+  Smartphone, 
+  Send, 
+  ArrowRight, 
+  ShieldCheck, 
+  Zap, 
+  RefreshCw, 
+  Copy,
+  ExternalLink
+} from 'lucide-react';
 
 interface BillingCenterProps {
   user: User;
@@ -18,7 +30,6 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [finalResult, setFinalResult] = useState<'SUCCESS' | 'FAIL'>('SUCCESS');
-  const [failureReason, setFailureReason] = useState<string>('');
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -31,63 +42,39 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
   const handleInitiate = async (plan: SubscriptionPlan) => {
     setIsProcessing(true);
     try {
-      const invoice = await dbService.initiatePayment(user.uid, plan.id, plan.price);
+      // استخدام السعر الديناميكي من قاعدة البيانات
+      const dynamicPrice = plan.tier === 'premium' 
+        ? (paymentSettings?.planPrices.premium || plan.price) 
+        : (paymentSettings?.planPrices.basic || plan.price);
+
+      const invoice = await dbService.initiatePayment(user.uid, plan.id, dynamicPrice);
       setActiveInvoice(invoice);
       
       setTimeout(() => {
         setIsProcessing(false);
-        // التحقق من حالة بوابة الدفع من الإعدادات
         if (paymentSettings?.isOnlinePaymentEnabled) {
           setStep('GATEWAY');
         } else {
           setStep('MANUAL_PAY');
         }
-      }, 1200);
+      }, 1000);
     } catch (e) {
       setIsProcessing(false);
       alert("حدث خطأ أثناء تهيئة عملية الدفع.");
     }
   };
 
-  const handlePaymentSubmit = async (success: boolean) => {
-    if (!activeInvoice) return;
-    setIsProcessing(true);
-    
-    let reason = '';
-    if (!success) {
-        const failureReasons = [
-            'الرصيد غير كافٍ.',
-            'رفض المصرف إتمام العملية.',
-            'انتهت مهلة الجلسة (Time-out).',
-            'بيانات غير صحيحة.'
-        ];
-        reason = failureReasons[Math.floor(Math.random() * failureReasons.length)];
-    }
-    setFailureReason(reason);
-
-    const result = success ? 'SUCCESS' : 'FAIL';
-    const updatedInvoice = await dbService.completePayment(activeInvoice.trackId, result);
-    
-    setTimeout(async () => {
-      setFinalResult(result);
-      setIsProcessing(false);
-      setStep('RESULT');
-      
-      if (updatedInvoice) {
-        setActiveInvoice(updatedInvoice);
-        if (result === 'SUCCESS') {
-          const freshUser = await dbService.getUser(user.uid);
-          if (freshUser) onUpdateUser(freshUser);
-        }
-      }
-    }, 1500);
-  };
-
   const openWhatsApp = () => {
     if (!activeInvoice) return;
-    const phoneNumber = "96555315661";
-    const message = encodeURIComponent(`مرحباً إدارة فيزياء الكويت، قمت بتحويل مبلغ ${activeInvoice.amount} د.ك عبر خدمة ومض للاشتراك في ${activeInvoice.planId === 'plan_premium' ? 'باقة التفوق' : 'الباقة الأساسية'}. رقم الفاتورة: ${activeInvoice.trackId}. مرفق لكم صورة التحويل.`);
+    const phoneNumber = "965" + (paymentSettings?.womdaPhoneNumber || "55315661");
+    const planName = activeInvoice.planId === 'plan_premium' ? 'باقة التفوق' : 'الباقة الأساسية';
+    const message = encodeURIComponent(`مرحباً إدارة فيزياء الكويت،\nلقد قمت بتحويل مبلغ ${activeInvoice.amount} د.ك عبر خدمة ومض للاشتراك في ${planName}.\n\nرقم الفاتورة المرجعي: ${activeInvoice.trackId}\nمرفق لكم صورة إيصال الدفع للتفعيل.`);
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("تم نسخ الرقم بنجاح!");
   };
 
   // --- واجهة بوابة الدفع الإلكتروني (Sandbox) ---
@@ -114,34 +101,18 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
                  </div>
               </div>
 
-              <div className="space-y-4">
-                 <label className="block text-xs font-black text-gray-500 uppercase">اختر بطاقة الدفع</label>
-                 <div className="grid grid-cols-2 gap-4">
-                    <button className="border-2 border-blue-500 rounded-xl p-4 flex flex-col items-center gap-2 bg-blue-50">
-                        <span className="text-2xl">💳</span>
-                        <span className="font-bold text-xs uppercase">K-NET</span>
-                    </button>
-                    <button className="border border-gray-200 rounded-xl p-4 flex flex-col items-center gap-2 hover:bg-gray-50">
-                        <span className="text-2xl">🌍</span>
-                        <span className="font-bold text-xs uppercase">VISA / MASTER</span>
-                    </button>
-                 </div>
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                  <button 
-                  onClick={() => handlePaymentSubmit(true)} 
-                  disabled={isProcessing}
-                  className="bg-gray-800 text-white py-5 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-4 shadow-xl"
+                  onClick={() => setStep('RESULT')} 
+                  className="bg-gray-800 text-white py-5 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-black transition-all shadow-xl"
                  >
-                   {isProcessing ? 'جاري المعالجة...' : 'تأكيد الدفع (تجريبي)'}
+                   تأكيد الدفع (تجريبي)
                  </button>
                  <button 
-                  onClick={() => handlePaymentSubmit(false)}
-                  disabled={isProcessing}
+                  onClick={() => setStep('PLANS')}
                   className="bg-gray-100 text-gray-600 py-5 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-gray-200 transition-all"
                  >
-                   إلغاء / فشل
+                   إلغاء
                  </button>
               </div>
            </div>
@@ -153,122 +124,81 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
   // --- واجهة الدفع اليدوي عبر ومض ---
   if (step === 'MANUAL_PAY' && activeInvoice) {
     return (
-      <div className="max-w-2xl mx-auto py-12 px-6 font-['Tajawal'] text-white animate-fadeIn" dir="rtl">
+      <div className="max-w-2xl mx-auto py-12 px-6 font-['Tajawal'] text-white animate-fadeIn text-right" dir="rtl">
         <button onClick={() => setStep('PLANS')} className="mb-10 flex items-center gap-3 text-gray-500 hover:text-white font-black text-xs uppercase tracking-widest transition-all group"> 
-          <ArrowRight className="group-hover:translate-x-2 transition-transform" /> العودة للخطط 
+          <ArrowRight className="group-hover:translate-x-2 transition-transform" /> العودة للباقات 
         </button>
 
         <div className="glass-panel p-10 md:p-14 rounded-[60px] border-amber-500/20 bg-black/40 shadow-3xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-500 to-yellow-600"></div>
             
             <header className="text-center mb-12">
-                <div className="w-20 h-20 bg-amber-500/10 border-2 border-amber-500/30 rounded-[30px] flex items-center justify-center mx-auto mb-6 text-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.1)]">
+                <div className="w-20 h-20 bg-amber-500/10 border-2 border-amber-500/30 rounded-[30px] flex items-center justify-center mx-auto mb-6 text-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.2)]">
                     <Smartphone size={32} />
                 </div>
-                <h2 className="text-4xl font-black text-white italic">تفعيل الاشتراك <span className="text-amber-500">يدوياً</span></h2>
-                <p className="text-gray-500 mt-4 font-medium">بوابة الدفع الإلكتروني تخضع للصيانة حالياً، يمكنك الدفع عبر خدمة ومض.</p>
+                <h2 className="text-4xl font-black text-white italic tracking-tighter">الدفع عبر خدمة <span className="text-amber-500">ومض</span></h2>
+                <p className="text-gray-500 mt-4 font-medium leading-relaxed">يرجى اتباع الخطوات البسيطة التالية لتفعيل اشتراكك يدوياً في ثوانٍ.</p>
             </header>
 
             <div className="space-y-8">
-                {/* الخطوة 1: التحويل */}
-                <div className="bg-white/[0.03] border border-white/5 p-8 rounded-[35px] relative">
+                {/* الخطوة 1: التحويل عبر ومض */}
+                <div className="bg-white/[0.03] border border-white/5 p-8 rounded-[35px] relative group hover:bg-white/[0.05] transition-all">
                     <span className="absolute -top-4 -right-4 w-10 h-10 bg-amber-500 text-black rounded-full flex items-center justify-center font-black shadow-lg">1</span>
-                    <h3 className="text-xl font-black text-white mb-6">قم بتحويل مبلغ الاشتراك عبر (ومض)</h3>
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-6 p-6 bg-black/40 rounded-3xl border border-amber-500/20 shadow-inner">
+                    <h3 className="text-xl font-black text-white mb-6">حوّل المبلغ المطلوب</h3>
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-6 p-6 bg-black/60 rounded-3xl border border-amber-500/20 shadow-inner">
                         <div className="text-right">
-                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1">المبلغ المطلوب</p>
+                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1">المبلغ المراد تحويله</p>
                             <p className="text-4xl font-black text-[#fbbf24] tabular-nums">{activeInvoice.amount} <span className="text-sm">د.ك</span></p>
                         </div>
                         <div className="text-right">
-                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1">رقم الهاتف (Womda)</p>
-                            <p className="text-2xl font-black text-white select-all font-mono tracking-tighter cursor-copy" title="انقر للنسخ" onClick={() => { navigator.clipboard.writeText("55315661"); alert("تم نسخ الرقم!"); }}>55315661</p>
+                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1">رقم الهاتف (ومض / Womda)</p>
+                            <div className="flex items-center gap-3">
+                                <p className="text-2xl font-black text-white font-mono tracking-tighter">{paymentSettings?.womdaPhoneNumber || '55315661'}</p>
+                                <button onClick={() => copyToClipboard(paymentSettings?.womdaPhoneNumber || '55315661')} className="p-2 bg-white/5 rounded-lg text-gray-400 hover:text-white transition-all"><Copy size={16}/></button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* الخطوة 2: التصوير */}
-                <div className="bg-white/[0.03] border border-white/5 p-8 rounded-[35px] relative">
+                <div className="bg-white/[0.03] border border-white/5 p-8 rounded-[35px] relative group hover:bg-white/[0.05] transition-all">
                     <span className="absolute -top-4 -right-4 w-10 h-10 bg-amber-500 text-black rounded-full flex items-center justify-center font-black shadow-lg">2</span>
                     <h3 className="text-xl font-black text-white mb-4 flex items-center gap-3">
-                         صور إيصال التحويل <Camera size={20} className="text-amber-500"/>
+                         صوّر الفاتورة <Camera size={20} className="text-amber-500"/>
                     </h3>
-                    <p className="text-sm text-gray-400 leading-relaxed italic">يرجى أخذ لقطة شاشة (Screenshot) واضحة تظهر فيها تفاصيل عملية التحويل الناجحة والمبلغ المحول.</p>
+                    <p className="text-sm text-gray-400 leading-relaxed italic">قم بأخذ "لقطة شاشة" (Screenshot) واضحة تظهر إتمام عملية التحويل بنجاح للمبلغ المحدد.</p>
                 </div>
 
-                {/* الخطوة 3: الإرسال */}
-                <div className="bg-white/[0.03] border border-white/5 p-8 rounded-[35px] relative">
+                {/* الخطوة 3: الإرسال للتفعيل */}
+                <div className="bg-white/[0.03] border border-white/5 p-8 rounded-[35px] relative group hover:bg-white/[0.05] transition-all">
                     <span className="absolute -top-4 -right-4 w-10 h-10 bg-amber-500 text-black rounded-full flex items-center justify-center font-black shadow-lg">3</span>
-                    <h3 className="text-xl font-black text-white mb-6">أرسل الإيصال للتفعيل الفوري</h3>
+                    <h3 className="text-xl font-black text-white mb-6">أرسل الصورة لتفعيل حسابك</h3>
                     <button 
                         onClick={openWhatsApp}
-                        className="w-full py-6 bg-[#25D366] text-white rounded-3xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_20px_50px_rgba(37,211,102,0.2)]"
+                        className="w-full py-6 bg-[#25D366] text-white rounded-3xl font-black text-sm uppercase tracking-[0.1em] flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_20px_50px_rgba(37,211,102,0.2)]"
                     >
-                        <MessageCircle size={24} fill="currentColor"/> إرسال عبر WhatsApp
+                        <MessageCircle size={24} fill="currentColor"/> الإرسال عبر WhatsApp
                     </button>
-                    <p className="text-[10px] text-gray-600 mt-6 text-center font-bold">سيتم تفعيل حسابك من قبل فريقنا التقني خلال دقائق من استلام الرسالة.</p>
                 </div>
-            </div>
-
-            <div className="mt-12 pt-8 border-t border-white/5 text-center">
-                <p className="text-[9px] font-black text-gray-700 uppercase tracking-[0.5em]">REFERENCE: {activeInvoice.trackId}</p>
             </div>
         </div>
       </div>
     );
   }
 
+  // --- واجهة النتيجة النهائية ---
   if (step === 'RESULT' && activeInvoice) {
     return (
       <div className="max-w-2xl mx-auto py-20 text-center font-['Tajawal'] text-white">
-        <div className={`glass-panel p-16 rounded-[70px] border-2 ${finalResult === 'SUCCESS' ? 'border-green-500/30' : 'border-red-500/30'} relative overflow-hidden bg-black/40`}>
-           <div className="text-9xl mb-10">{finalResult === 'SUCCESS' ? '🏆' : '⚠️'}</div>
-           <h2 className="text-4xl font-black mb-4">{finalResult === 'SUCCESS' ? 'تمت العملية بنجاح!' : 'لم تكتمل عملية الدفع'}</h2>
+        <div className={`glass-panel p-16 rounded-[70px] border-2 border-green-500/30 relative overflow-hidden bg-black/40`}>
+           <div className="text-9xl mb-10">🏆</div>
+           <h2 className="text-4xl font-black mb-4 text-white">شكراً لك!</h2>
+           <p className="text-gray-400 text-xl mb-10 leading-relaxed">سيتم تفعيل حسابك بمجرد مراجعة فريقنا لعملية الدفع.</p>
            
-           {finalResult === 'SUCCESS' && (
-             <div className="bg-white/5 p-8 rounded-[40px] border border-white/5 text-right space-y-4 mb-10 tabular-nums">
-                <div className="flex justify-between items-center text-sm">
-                   <span className="text-gray-500">رقم المرجع:</span>
-                   <span className="font-bold text-white">{activeInvoice.paymentId}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                   <span className="text-gray-500">المبلغ المدفوع:</span>
-                   <span className="font-black text-[#fbbf24]">{activeInvoice.amount.toLocaleString()} د.ك</span>
-                </div>
-             </div>
-           )}
-
-           {finalResult === 'FAIL' && (
-             <div className="bg-red-500/5 p-10 rounded-[40px] border border-red-500/10 text-center space-y-6 mb-10">
-                <div>
-                    <p className="text-red-400 font-bold mb-2 uppercase text-xs tracking-widest">سبب الرفض من المصدر</p>
-                    <p className="text-white font-medium text-lg leading-relaxed">"{failureReason}"</p>
-                </div>
-                <p className="text-xs text-gray-500 pt-4 border-t border-red-500/10">لا تقلق، لم يتم خصم أي مبلغ من حسابك. يمكنك المحاولة مرة أخرى.</p>
-             </div>
-           )}
-
-           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'dashboard' } }))} className="bg-white text-black px-12 py-5 rounded-[30px] font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl">
+           <div className="flex gap-4 justify-center">
+              <button onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'dashboard' } }))} className="bg-white text-black px-12 py-5 rounded-[30px] font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-2xl">
                  العودة للرئيسية
               </button>
-              
-              {finalResult === 'SUCCESS' && onViewCertificate && (
-                <button 
-                  onClick={() => onViewCertificate(activeInvoice)}
-                  className="bg-[#fbbf24] text-black px-12 py-5 rounded-[30px] font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl"
-                >
-                  عرض الشهادة الرقمية 📄 
-                </button>
-              )}
-
-              {finalResult === 'FAIL' && (
-                <button 
-                  onClick={() => { setStep('PLANS'); setIsProcessing(false); }}
-                  className="bg-red-500 text-white px-12 py-5 rounded-[30px] font-black text-xs uppercase tracking-widest hover:bg-red-600 transition-all shadow-2xl shadow-red-500/20"
-                >
-                  إعادة المحاولة ↺
-                </button>
-              )}
            </div>
         </div>
       </div>
@@ -276,69 +206,69 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser, onVie
   }
 
   return (
-    <div className="max-w-5xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white">
+    <div className="max-w-5xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white text-right" dir="rtl">
       <header className="mb-20 text-center">
         <h2 className="text-6xl font-black mb-4 tracking-tighter">باقات <span className="text-[#fbbf24] italic text-glow">التفوق</span></h2>
         <p className="text-gray-500 text-xl font-medium italic">استثمر في مستقبلك العلمي مع أقوى محتوى فيزياء في الكويت.</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-        {PRICING_PLANS.map(plan => (
-          <div key={plan.id} className="glass-panel group p-12 rounded-[60px] border-white/5 hover:border-[#fbbf24]/30 transition-all duration-700 flex flex-col relative overflow-hidden bg-black/20 shadow-2xl">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#fbbf24]/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            
-            <h3 className="text-3xl font-black mb-4">{plan.name}</h3>
-            <div className="text-6xl font-black text-[#fbbf24] tracking-tighter mb-10 tabular-nums">
-                {plan.price.toLocaleString()}<span className="text-lg text-gray-500 mr-2">د.ك</span>
+        {PRICING_PLANS.map(plan => {
+          // السعر الديناميكي من قاعدة البيانات
+          const dynamicPrice = plan.tier === 'premium' 
+            ? (paymentSettings?.planPrices.premium || plan.price) 
+            : (paymentSettings?.planPrices.basic || plan.price);
+
+          return (
+            <div key={plan.id} className="glass-panel group p-12 rounded-[60px] border-white/5 hover:border-[#fbbf24]/30 transition-all duration-700 flex flex-col relative overflow-hidden bg-black/20 shadow-2xl">
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#fbbf24]/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              
+              <h3 className="text-3xl font-black mb-4">{plan.name}</h3>
+              <div className="text-6xl font-black text-[#fbbf24] tracking-tighter mb-10 tabular-nums">
+                  {dynamicPrice.toLocaleString()}<span className="text-lg text-gray-500 mr-2">د.ك</span>
+              </div>
+              
+              <ul className="space-y-6 flex-1 text-right border-t border-white/5 pt-10 mb-10">
+                 {plan.features.map((f, i) => (
+                   <li key={i} className="flex items-center gap-4 text-gray-400 group-hover:text-white transition-colors">
+                      <div className="w-5 h-5 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                          <CheckCircle2 size={12} className="text-emerald-500" />
+                      </div>
+                      <span className="font-bold text-sm leading-relaxed">{f}</span>
+                   </li>
+                 ))}
+              </ul>
+
+              <button 
+                onClick={() => handleInitiate(plan)}
+                disabled={isProcessing || user.subscription === plan.tier}
+                className={`w-full py-6 rounded-[30px] font-black text-xs uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 ${
+                  user.subscription === plan.tier 
+                    ? 'bg-gray-800 text-gray-500 cursor-default border border-white/5' 
+                    : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95 glow-gold shadow-yellow-500/20'
+                }`}
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw size={18} className="animate-spin" />
+                    جاري التحميل...
+                  </>
+                ) : user.subscription === plan.tier ? (
+                  <>
+                    <ShieldCheck size={18} />
+                    أنت مشترك بالفعل
+                  </>
+                ) : (
+                  <>
+                    <Zap size={18} fill="currentColor" />
+                    اشترك الآن
+                  </>
+                )}
+              </button>
             </div>
-            
-            <ul className="space-y-6 flex-1 text-right border-t border-white/5 pt-10 mb-10">
-               {plan.features.map((f, i) => (
-                 <li key={i} className="flex items-center gap-4 text-gray-400 group-hover:text-white transition-colors">
-                    <div className="w-5 h-5 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20">
-                        <CheckCircle2 size={12} className="text-emerald-500" />
-                    </div>
-                    <span className="font-bold text-sm leading-relaxed">{f}</span>
-                 </li>
-               ))}
-            </ul>
-
-            <button 
-              onClick={() => handleInitiate(plan)}
-              disabled={isProcessing || user.subscription === plan.tier}
-              className={`w-full py-6 rounded-[30px] font-black text-xs uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 ${
-                user.subscription === plan.tier 
-                  ? 'bg-gray-800 text-gray-500 cursor-default border border-white/5' 
-                  : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95 glow-gold shadow-yellow-500/20'
-              }`}
-            >
-              {isProcessing ? (
-                <>
-                  <RefreshCw size={18} className="animate-spin" />
-                  جاري التهيئة...
-                </>
-              ) : user.subscription === plan.tier ? (
-                <>
-                  <ShieldCheck size={18} />
-                  أنت مشترك بالفعل
-                </>
-              ) : (
-                <>
-                  <Zap size={18} fill="currentColor" />
-                  اشترك الآن
-                </>
-              )}
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
-
-      <footer className="mt-20 text-center">
-          <div className="bg-white/5 inline-flex items-center gap-3 px-6 py-3 rounded-full border border-white/10 opacity-60">
-              <AlertCircle size={14} className="text-[#fbbf24]"/>
-              <p className="text-[10px] font-bold text-gray-400">جميع عمليات الدفع مشفرة وآمنة عبر معايير SSL العالمية.</p>
-          </div>
-      </footer>
     </div>
   );
 };

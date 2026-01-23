@@ -1,5 +1,5 @@
 
-import { db, auth } from './firebase'; // التأكد من استيراد auth
+import { db, auth } from './firebase'; 
 import { supabase } from './supabase';
 import { 
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
@@ -175,13 +175,12 @@ class DBService {
 
   async createForumPost(post: Omit<ForumPost, 'id'>): Promise<string> {
     this.checkDb();
-    // الحصول على الـ UID الحقيقي من Firebase Auth لضمان النجاح في القواعد
     const currentUser = auth.currentUser;
     if (!currentUser) throw new Error("USER_NOT_AUTHENTICATED");
 
     const data = this.cleanData({
       ...post,
-      authorUid: currentUser.uid, // استخدام UID التوثيق الحقيقي دائماً
+      authorUid: currentUser.uid, 
       upvotes: 0,
       replies: [],
       isPinned: false,
@@ -264,12 +263,16 @@ class DBService {
       const snap = await getDoc(doc(db!, 'settings', 'payments'));
       if (snap.exists()) return snap.data() as PaymentSettings;
     } catch (e) {}
-    return { isOnlinePaymentEnabled: true };
+    return { 
+        isOnlinePaymentEnabled: true, 
+        womdaPhoneNumber: '55315661',
+        planPrices: { premium: 35, basic: 15 } 
+    };
   }
 
-  async setPaymentSettings(isOnlinePaymentEnabled: boolean) {
+  async savePaymentSettings(settings: PaymentSettings) {
     this.checkDb();
-    await setDoc(doc(db!, 'settings', 'payments'), { isOnlinePaymentEnabled });
+    await setDoc(doc(db!, 'settings', 'payments'), this.cleanData(settings));
   }
 
   // --- المحتوى التعليمي ---
@@ -549,6 +552,48 @@ class DBService {
       trackId: Math.random().toString(36).substring(7).toUpperCase()
     };
     const docRef = await addDoc(collection(db!, 'invoices'), invoice);
+    return { ...invoice, id: docRef.id };
+  }
+
+  /**
+   * إنشاء فاتورة يدوية (من قبل المدير) وتفعيل الاشتراك فوراً
+   */
+  async createManualInvoice(userId: string, planId: string, amount: number): Promise<Invoice> {
+    this.checkDb();
+    const user = await this.getUser(userId);
+    if (!user) throw new Error("USER_NOT_FOUND");
+
+    const trackId = `MANUAL_${Math.random().toString(36).substring(7).toUpperCase()}`;
+    const paymentId = `PAY_ADMIN_${Date.now()}`;
+    
+    const invoice: Omit<Invoice, 'id'> = {
+      userId,
+      userName: user.name,
+      planId,
+      amount,
+      date: new Date().toISOString(),
+      status: 'PAID',
+      trackId,
+      paymentId,
+      authCode: 'ADMIN_MANUAL'
+    };
+
+    const docRef = await addDoc(collection(db!, 'invoices'), invoice);
+    
+    // 1. تفعيل اشتراك الطالب فوراً
+    await updateDoc(doc(db!, 'users', userId), { subscription: 'premium' });
+
+    // 2. إرسال إشعار للطالب
+    await this.createNotification({
+      userId,
+      title: "تم تفعيل اشتراكك! ⚡",
+      message: `تم استلام دفعتك بنجاح بمبلغ ${amount} د.ك وتفعيل باقة التفوق. استمتع برحلتك التعليمية.`,
+      timestamp: new Date().toISOString(),
+      isRead: false,
+      type: 'success',
+      category: 'academic'
+    });
+
     return { ...invoice, id: docRef.id };
   }
 

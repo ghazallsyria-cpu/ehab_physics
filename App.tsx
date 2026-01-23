@@ -44,6 +44,7 @@ const ResourcesCenter = lazy(() => import('./components/ResourcesCenter'));
 const AdminManager = lazy(() => import('./components/AdminManager'));
 const AdminForumPostManager = lazy(() => import('./components/AdminForumPostManager'));
 const FirestoreRulesFixer = lazy(() => import('./components/FirestoreRulesFixer'));
+const AdminPaymentManager = lazy(() => import('./components/AdminPaymentManager'));
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -153,6 +154,7 @@ const App: React.FC = () => {
       case 'admin-managers': return <AdminManager />;
       case 'admin-forum-posts': return <AdminForumPostManager />;
       case 'admin-security-fix': return <FirestoreRulesFixer />;
+      case 'admin-payment-manager': return <AdminPaymentManager />;
       default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
     }
   };
