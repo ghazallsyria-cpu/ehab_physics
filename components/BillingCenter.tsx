@@ -15,13 +15,16 @@ import {
   FileText,
   Clock,
   ExternalLink,
-  ChevronLeft
+  ChevronLeft,
+  Printer,
+  // Added Calendar import to fix line 243
+  Calendar
 } from 'lucide-react';
 import PaymentCertificate from './PaymentCertificate';
 
 interface BillingCenterProps {
   user: User;
-  onUpdateUser: (user: User) => void;
+  invoice: Invoice;
 }
 
 const DEFAULT_PLANS: SubscriptionPlan[] = [
@@ -43,7 +46,7 @@ const DEFAULT_PLANS: SubscriptionPlan[] = [
   }
 ];
 
-const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser }) => {
+const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }> = ({ user, onUpdateUser }) => {
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -78,7 +81,6 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser }) => 
       ? (paymentSettings?.planPrices.premium || plan.price) 
       : (paymentSettings?.planPrices.basic || plan.price);
 
-    // توجيه فوري للواتساب مع الرسالة التفصيلية المطلوبة
     if (!paymentSettings?.isOnlinePaymentEnabled || dynamicPrice > 0) {
         const phoneNumber = "965" + (paymentSettings?.womdaPhoneNumber || "55315661");
         
@@ -116,10 +118,12 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser }) => 
   if (selectedInvoiceForCert) {
       return (
           <div className="animate-fadeIn">
-              <button onClick={() => setSelectedInvoiceForCert(null)} className="mb-10 flex items-center gap-3 text-gray-500 hover:text-white font-black text-xs uppercase tracking-widest transition-all">
-                  <ChevronLeft /> العودة لمركز الاشتراكات
+              <button onClick={() => setSelectedInvoiceForCert(null)} className="mb-10 flex items-center gap-4 text-gray-500 hover:text-white font-black text-xs uppercase tracking-[0.3em] transition-all group">
+                  <ChevronLeft className="group-hover:-translate-x-2 transition-transform" /> العودة لمركز الاشتراكات
               </button>
-              <PaymentCertificate user={user} invoice={selectedInvoiceForCert} />
+              <div className="bg-white/5 p-1 rounded-[60px] border border-white/10 shadow-3xl">
+                <PaymentCertificate user={user} invoice={selectedInvoiceForCert} />
+              </div>
           </div>
       );
   }
@@ -128,34 +132,37 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser }) => 
     return (
         <div className="py-40 text-center animate-pulse flex flex-col items-center">
             <RefreshCw className="w-16 h-16 text-[#fbbf24] animate-spin mb-6" />
-            <p className="text-gray-500 font-black uppercase tracking-widest text-xs">جاري جلب الباقات المتاحة...</p>
+            <p className="text-gray-500 font-black uppercase tracking-widest text-xs">جاري جلب بيانات حسابك المالي...</p>
         </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white text-right" dir="rtl">
-      <header className="mb-20 text-center">
-        <h2 className="text-6xl font-black mb-4 tracking-tighter italic">مركز <span className="text-[#fbbf24] text-glow-gold">الاشتراكات</span></h2>
-        <p className="text-gray-500 text-xl font-medium max-w-2xl mx-auto leading-relaxed">ادفع قيمة الباقة عبر "ومض" وراسلنا لتفعيل حسابك فوراً.</p>
+    <div className="max-w-7xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white text-right" dir="rtl">
+      <header className="mb-20 text-center relative">
+        <div className="absolute top-0 right-1/2 translate-x-1/2 w-64 h-64 bg-[#fbbf24]/5 blur-[100px] rounded-full"></div>
+        <h2 className="text-6xl md:text-7xl font-black mb-4 tracking-tighter italic">مركز <span className="text-[#fbbf24] text-glow-gold">الاشتراكات</span></h2>
+        <p className="text-gray-500 text-xl font-medium max-w-2xl mx-auto leading-relaxed">ادفع قيمة الباقة عبر "ومض" وراسلنا لتفعيل حسابك وإصدار إيصالك الرسمي فوراً.</p>
         
-        <div className="mt-8 bg-green-500/10 border-2 border-green-500/20 p-5 rounded-3xl inline-flex items-center gap-4 animate-slideUp">
-            <div className="w-12 h-12 bg-green-500 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                <MessageCircle size={24} fill="currentColor" />
+        <div className="mt-10 bg-emerald-500/10 border-2 border-emerald-500/20 p-6 rounded-[40px] inline-flex items-center gap-6 animate-slideUp">
+            <div className="w-16 h-16 bg-emerald-500 rounded-[25px] flex items-center justify-center text-black shadow-lg">
+                <Smartphone size={32} />
             </div>
             <div className="text-right">
-                <p className="text-green-400 font-black text-sm">خدمة التفعيل السريع (واتساب / ومض) متاحة</p>
-                <p className="text-[10px] text-gray-500 font-bold">اضغط على الباقة وسيتم إرسال كافة التفاصيل للإدارة تلقائياً.</p>
+                <p className="text-emerald-400 font-black text-lg">خدمة "ومض" الكويت متاحة</p>
+                <p className="text-xs text-gray-500 font-bold">حوّل القيمة المطلوبة وسيتم تفعيل حسابك بمجرد تسجيل المدير للدفعة.</p>
             </div>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         {/* Plans Column */}
-        <div className="lg:col-span-8 space-y-10">
-            <h3 className="text-2xl font-black mb-6 flex items-center gap-3">
-                <Crown className="text-amber-400" /> الباقات التعليمية
-            </h3>
+        <div className="lg:col-span-8 space-y-12">
+            <div className="flex items-center gap-4 mb-8 border-r-4 border-amber-400 pr-6">
+                <h3 className="text-3xl font-black">الباقات التعليمية</h3>
+                <span className="bg-amber-400/10 text-amber-500 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-400/20">تفعيل فوري</span>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {subscriptionPlans.map(plan => {
                 const dynamicPrice = plan.tier === 'premium' 
@@ -165,23 +172,25 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser }) => 
                 const isCurrentPlan = user.subscription === plan.tier;
 
                 return (
-                    <div key={plan.id} className={`glass-panel group p-10 rounded-[50px] border-2 transition-all duration-700 flex flex-col relative overflow-hidden bg-black/20 shadow-2xl ${isCurrentPlan ? 'border-green-500/40' : 'border-white/5 hover:border-[#fbbf24]/30'}`}>
+                    <div key={plan.id} className={`glass-panel group p-12 rounded-[60px] border-2 transition-all duration-700 flex flex-col relative overflow-hidden bg-black/40 shadow-2xl ${isCurrentPlan ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-white/5 hover:border-[#fbbf24]/30'}`}>
                     <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#fbbf24]/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     
-                    <div className="flex justify-between items-start mb-6">
-                        <h3 className="text-2xl font-black">{plan.name}</h3>
-                        {isCurrentPlan && <span className="bg-green-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">نشط</span>}
+                    <div className="flex justify-between items-start mb-8">
+                        <h3 className="text-3xl font-black leading-none">{plan.name}</h3>
+                        {isCurrentPlan && <span className="bg-emerald-500 text-black px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg">الباقة النشطة</span>}
                     </div>
 
-                    <div className="text-5xl font-black text-[#fbbf24] tracking-tighter mb-10 tabular-nums">
-                        {dynamicPrice.toLocaleString()}<span className="text-lg text-gray-500 mr-2">د.ك</span>
+                    <div className="text-6xl font-black text-[#fbbf24] tracking-tighter mb-12 tabular-nums">
+                        {dynamicPrice.toLocaleString()}<span className="text-lg text-gray-500 mr-2 font-bold uppercase">د.ك</span>
                     </div>
 
-                    <ul className="space-y-4 flex-1 text-right border-t border-white/5 pt-8 mb-8">
+                    <ul className="space-y-5 flex-1 text-right border-t border-white/5 pt-10 mb-10">
                         {plan.features.map((f, i) => (
-                        <li key={i} className="flex items-center gap-3 text-gray-400 group-hover:text-white transition-colors">
-                            <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                            <span className="font-bold text-xs leading-relaxed">{f}</span>
+                        <li key={i} className="flex items-center gap-4 text-gray-400 group-hover:text-white transition-colors">
+                            <div className="w-5 h-5 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                                <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                            </div>
+                            <span className="font-bold text-sm leading-relaxed">{f}</span>
                         </li>
                         ))}
                     </ul>
@@ -189,18 +198,18 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser }) => 
                     <button 
                         onClick={() => handlePlanAction(plan)}
                         disabled={isProcessing || isCurrentPlan}
-                        className={`w-full py-5 rounded-[25px] font-black text-xs uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 ${
+                        className={`w-full py-7 rounded-[35px] font-black text-xs uppercase tracking-[0.2em] transition-all shadow-2xl flex items-center justify-center gap-4 ${
                         isCurrentPlan 
-                            ? 'bg-gray-800 text-gray-500 cursor-default border border-white/5' 
-                            : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95 shadow-yellow-500/20'
+                            ? 'bg-gray-800 text-gray-600 cursor-default border border-white/5 shadow-none' 
+                            : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95 shadow-yellow-500/30'
                         }`}
                     >
                         {isProcessing ? (
-                        <RefreshCw size={18} className="animate-spin" />
+                        <RefreshCw size={22} className="animate-spin" />
                         ) : isCurrentPlan ? (
-                        <><ShieldCheck size={18} /> باقتك الحالية </>
+                        <><ShieldCheck size={22} /> تم التفعيل بنجاح </>
                         ) : (
-                        <><MessageCircle size={18} fill="currentColor" /> اشترك الآن عبر واتساب </>
+                        <><MessageCircle size={22} fill="currentColor" /> اشترك الآن عبر واتساب </>
                         )}
                     </button>
                     </div>
@@ -210,61 +219,74 @@ const BillingCenter: React.FC<BillingCenterProps> = ({ user, onUpdateUser }) => 
         </div>
 
         {/* Payment History Column */}
-        <div className="lg:col-span-4 space-y-8">
-            <div className="glass-panel p-8 rounded-[40px] border-white/5 bg-black/40 min-h-[500px] flex flex-col">
-                <h3 className="text-xl font-black text-[#00d2ff] mb-8 border-r-4 border-[#00d2ff] pr-4 flex items-center gap-3">
-                    <Clock size={20}/> سجل العمليات
-                </h3>
+        <div className="lg:col-span-4">
+            <div className="glass-panel p-10 rounded-[50px] border-white/5 bg-[#0a1118]/80 min-h-[600px] flex flex-col shadow-3xl">
+                <div className="flex items-center gap-4 mb-12 border-b border-white/5 pb-8">
+                    <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 border border-blue-500/20">
+                        <Clock size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-black text-white italic">سجل العمليات</h3>
+                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">تتبع حالة التفعيل والوصولات</p>
+                    </div>
+                </div>
                 
-                <div className="space-y-4 flex-1">
+                <div className="space-y-6 flex-1 max-h-[500px] overflow-y-auto no-scrollbar pr-1">
                     {invoices.length > 0 ? invoices.map(inv => (
-                        <div key={inv.id} className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl group hover:border-white/20 transition-all">
-                            <div className="flex justify-between items-start mb-4">
-                                <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${inv.status === 'PAID' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'}`}>
-                                    {inv.status === 'PAID' ? 'مدفوع ✓' : 'قيد المراجعة ⌛'}
+                        <div key={inv.id} className="p-6 bg-white/[0.02] border border-white/5 rounded-[35px] group hover:border-white/20 transition-all shadow-inner">
+                            <div className="flex justify-between items-start mb-5">
+                                <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase border ${inv.status === 'PAID' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'}`}>
+                                    {inv.status === 'PAID' ? 'مدفوع ومعتمد ✓' : 'قيد المراجعة ⌛'}
                                 </span>
-                                <span className="text-[10px] font-mono text-gray-600">#{inv.trackId}</span>
+                                <span className="text-[9px] font-mono text-gray-600 font-bold">#{inv.trackId}</span>
                             </div>
-                            <h4 className="text-sm font-bold text-white mb-1">{inv.planId === 'plan_premium' ? 'باقة التفوق' : 'الاشتراك الأساسي'}</h4>
-                            <p className="text-[10px] text-gray-500 mb-6 font-bold tabular-nums">{new Date(inv.date).toLocaleDateString('ar-KW')}</p>
+                            <h4 className="text-lg font-black text-white mb-1">{inv.planId === 'plan_premium' ? 'باقة التفوق' : 'الاشتراك الأساسي'}</h4>
+                            <p className="text-[10px] text-gray-500 mb-8 font-bold tabular-nums flex items-center gap-2">
+                                <Calendar className="w-3 h-3"/> {new Date(inv.date).toLocaleDateString('ar-KW', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            </p>
                             
-                            <div className="flex justify-between items-center pt-4 border-t border-white/5">
-                                <p className="text-lg font-black text-white tabular-nums">{inv.amount} <span className="text-xs text-gray-600">د.ك</span></p>
+                            <div className="flex justify-between items-center pt-5 border-t border-white/5">
+                                <p className="text-3xl font-black text-white tabular-nums">{inv.amount} <span className="text-sm text-gray-600 font-bold">د.ك</span></p>
                                 {inv.status === 'PAID' && (
                                     <button 
                                         onClick={() => setSelectedInvoiceForCert(inv)}
-                                        className="text-[9px] font-black text-[#fbbf24] uppercase tracking-widest flex items-center gap-2 hover:underline"
+                                        className="bg-white/5 hover:bg-white text-gray-400 hover:text-black p-3 rounded-2xl transition-all shadow-xl flex items-center gap-2 group/btn"
                                     >
-                                        عرض الإيصال <ExternalLink size={10} />
+                                        <Printer size={16} className="group-hover/btn:scale-110 transition-transform" />
+                                        <span className="text-[9px] font-black uppercase">إيصال رقمي</span>
                                     </button>
                                 )}
                             </div>
                         </div>
                     )) : (
                         <div className="flex-1 flex flex-col items-center justify-center opacity-20 text-center px-6">
-                            <FileText size={48} className="mb-4" />
-                            <p className="font-black text-sm uppercase tracking-widest">لا توجد عمليات سابقة</p>
+                            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
+                                <FileText size={48} className="text-gray-500" />
+                            </div>
+                            <p className="font-black text-sm uppercase tracking-[0.2em] mb-2">لا توجد سجلات</p>
+                            <p className="text-[10px] font-medium leading-relaxed">بمجرد طلب الباقة عبر الواتساب، سيظهر طلبك هنا قيد المراجعة.</p>
                         </div>
                     )}
                 </div>
 
-                <div className="mt-8 p-6 bg-white/5 rounded-[30px] border border-white/5 text-center">
-                    <p className="text-[9px] text-gray-500 leading-relaxed italic">يتم تحديث حالة الدفع فور مراجعة التحويل البنكي من قبل الإدارة.</p>
+                <div className="mt-10 p-6 bg-white/5 rounded-[35px] border border-white/5 text-center">
+                    <p className="text-[10px] text-gray-600 leading-relaxed italic font-bold">يتم إصدار الإيصال الرقمي واعتماده فور تسجيل الدفعة من قبل الإدارة المالية للمركز.</p>
                 </div>
             </div>
         </div>
       </div>
       
-      <div className="mt-20 p-10 bg-white/[0.02] border border-white/5 rounded-[50px] text-center max-w-2xl mx-auto">
-          <p className="text-gray-500 text-sm font-bold mb-6">هل واجهت مشكلة في تحويل "ومض" أو تأخر تفعيل حسابك؟</p>
+      <div className="mt-24 p-12 bg-white/[0.02] border border-white/5 rounded-[60px] text-center max-w-2xl mx-auto shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent"></div>
+          <p className="text-gray-400 text-lg font-bold mb-8">هل واجهت مشكلة في تحويل "ومض" أو تأخر تفعيل حسابك؟</p>
           <button 
             onClick={() => {
                 const phoneNumber = "965" + (paymentSettings?.womdaPhoneNumber || "55315661");
-                window.open(`https://wa.me/${phoneNumber}?text=مرحباً، أود الاستفسار عن حالة اشتراكي المالي.`, '_blank');
+                window.open(`https://wa.me/${phoneNumber}?text=مرحباً، أود الاستفسار عن حالة اشتراكي المالي وتفعيله.`, '_blank');
             }}
-            className="flex items-center gap-3 bg-white/5 text-white px-10 py-4 rounded-full font-black text-xs uppercase border border-white/10 hover:bg-white hover:text-black transition-all mx-auto"
+            className="flex items-center gap-4 bg-white text-black px-12 py-5 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all mx-auto"
           >
-              <MessageSquare size={18}/> التواصل المباشر مع المالية
+              <MessageSquare size={22}/> التواصل المباشر مع المالية
           </button>
       </div>
     </div>
