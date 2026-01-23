@@ -26,10 +26,9 @@ class DBService {
     return clean;
   }
 
-  // --- تهيئة النظام (Critical Fix) ---
+  // --- تهيئة النظام ---
   async initializeForumSystem() {
     this.checkDb();
-    // 1. إنشاء قسم افتراضي لضمان وجود مجموعة forumSections
     const defaultSection: ForumSection = {
       id: 'sec_physics_12',
       title: 'قسم الصف الثاني عشر',
@@ -41,7 +40,6 @@ class DBService {
     };
     await setDoc(doc(db, 'forumSections', defaultSection.id), defaultSection);
 
-    // 2. إنشاء منشور ترحيبي لضمان وجود مجموعة forumPosts
     const welcomePost: Omit<ForumPost, 'id'> = {
       authorUid: 'system',
       authorEmail: 'admin@ssc.com',
@@ -56,7 +54,6 @@ class DBService {
     };
     await addDoc(collection(db, 'forumPosts'), welcomePost);
     
-    // 3. تهيئة الإعدادات
     await setDoc(doc(db, 'settings', 'logging'), { 
       logStudentProgress: true, 
       saveAllQuizAttempts: true, 
@@ -66,22 +63,28 @@ class DBService {
     });
   }
 
-  // --- إدارة المستخدمين ---
+  // --- إدارة المستخدمين (Updated for Security Rules) ---
   async getUser(uidOrEmail: string): Promise<User | null> {
     this.checkDb();
     try {
+        // المحاولة الأولى: عبر UID (أكثر دقة لقواعد الحماية)
         let snap = await getDoc(doc(db, 'users', uidOrEmail));
         if (snap.exists()) return snap.data() as User;
+        
+        // المحاولة الثانية: عبر الإيميل
         const q = query(collection(db, 'users'), where('email', '==', uidOrEmail), limit(1));
         const querySnap = await getDocs(q);
         if (!querySnap.empty) return querySnap.docs[0].data() as User;
-    } catch (e) { console.error("Firestore error in getUser:", e); }
+    } catch (e) { 
+      console.error("Firestore error in getUser:", e); 
+    }
     return null;
   }
 
   async saveUser(user: User) {
     this.checkDb();
-    await setDoc(doc(db, 'users', user.uid), this.cleanData(user));
+    // استخدام UID كمفتاح أساسي للمستند ضروري جداً لعمل Security Rules
+    await setDoc(doc(db, 'users', user.uid), this.cleanData(user), { merge: true });
   }
 
   async updateUserRole(uid: string, role: UserRole) {
@@ -145,7 +148,7 @@ class DBService {
       return results.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     } catch (e) {
       console.error("Posts fetch error:", e);
-      return [];
+      throw e; // نمرر الخطأ لكي يظهر تنبيه Permission Denied في الواجهة
     }
   }
 

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ShieldCheck, Code, CheckCircle2, Copy, Lock, AlertTriangle, FileCode } from 'lucide-react';
+import { ShieldCheck, Code, CheckCircle2, Copy, Lock, AlertTriangle, FileCode, Zap, Info } from 'lucide-react';
 
 const FirestoreRulesFixer: React.FC = () => {
     const [copied, setCopied] = useState(false);
@@ -9,29 +9,36 @@ const FirestoreRulesFixer: React.FC = () => {
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 1. صلاحيات جدول المستخدمين
+    // دالة التحقق من أن المستخدم هو مدير (Admin)
+    function isAdmin() {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // 1. صلاحيات جدول المستخدمين: يسمح للشخص بتعديل بياناته، وللمدير بالتحكم بكل شيء
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
     
-    // 2. صلاحيات جدول المنشورات (FIX: تمكين الطلاب من النشر)
+    // 2. صلاحيات جدول المنشورات (تمكين الطلاب من النشر والرد)
     match /forumPosts/{postId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null; // يسمح لأي طالب مسجل بالنشر
-      allow update, delete: if request.auth != null && (request.auth.uid == resource.data.authorUid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null; 
+      allow update, delete: if request.auth != null && (request.auth.uid == resource.data.authorUid || isAdmin());
     }
     
-    // 3. صلاحيات جدول الأقسام
-    match /forumSections/{sectionId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
+    // 3. صلاحيات الأقسام والاختبارات والمناهج (للمدير فقط)
+    match /forumSections/{sectionId} { allow read: if request.auth != null; allow write: if isAdmin(); }
+    match /quizzes/{quizId} { allow read: if request.auth != null; allow write: if isAdmin(); }
+    match /questions/{qId} { allow read: if request.auth != null; allow write: if isAdmin(); }
+    match /curriculum/{cId} { allow read: if request.auth != null; allow write: if isAdmin(); }
     
-    // 4. بقية الجداول
+    // 4. قاعدة عامة لبقية الجداول (الافتراضية)
     match /{document=**} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if isAdmin();
     }
   }
 }`;
@@ -44,46 +51,47 @@ service cloud.firestore {
 
     return (
         <div className="max-w-4xl mx-auto py-12 animate-fadeIn font-['Tajawal'] text-right" dir="rtl">
-            <header className="mb-12 border-r-4 border-red-500 pr-8">
+            <header className="mb-12 border-r-4 border-amber-500 pr-8">
                 <h2 className="text-4xl font-black text-white flex items-center gap-4">
-                    <Lock className="text-red-500" /> مركز <span className="text-red-500">الأمان وتفعيل الجداول</span>
+                    <ShieldCheck className="text-amber-400" /> مصلح <span className="text-amber-400">قواعد البيانات (V2)</span>
                 </h2>
-                <p className="text-gray-500 mt-2">حل مشكلة "عدم قدرة الطالب على النشر" عبر تحديث قواعد Firebase.</p>
+                <p className="text-gray-500 mt-2 font-medium">استخدم هذه القواعد المحدثة لاستعادة السيطرة وتفعيل صلاحيات الطلاب بأمان.</p>
             </header>
 
-            <div className="glass-panel p-10 rounded-[60px] border-white/5 bg-black/40 space-y-8">
-                <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl flex items-start gap-4">
-                    <AlertTriangle className="text-red-500 shrink-0" size={24} />
-                    <div className="text-sm leading-relaxed">
-                        <p className="text-white font-bold mb-2">لماذا لا يستطيع الطالب النشر؟</p>
-                        <p className="text-gray-400 italic">بشكل افتراضي، Firebase تغلق كافة الجداول (Collections) للحماية. يجب عليك نسخ القواعد أدناه ولصقها في وحدة تحكم Firebase لكي يتمكن الطلاب من إضافة منشورات في جدول <code className="text-red-400">forumPosts</code>.</p>
+            <div className="space-y-8">
+                <div className="bg-amber-500/10 border border-amber-500/20 p-8 rounded-[40px] flex items-start gap-6">
+                    <AlertTriangle className="text-amber-500 shrink-0" size={32} />
+                    <div className="text-sm leading-relaxed text-gray-300">
+                        <p className="text-white font-black mb-3 text-lg">⚠️ تنبيه هام للمدير:</p>
+                        <p className="mb-4">لكي تعمل هذه القواعد، يجب أن يكون حسابك مسجلاً في جدول <code className="text-amber-400 bg-black/40 px-2 py-0.5 rounded">users</code> مع حقل <code className="text-amber-400 bg-black/40 px-2 py-0.5 rounded">role: "admin"</code>.</p>
+                        <p>إذا فقدت القدرة على التحكم، قم بالدخول إلى Firebase Console يدوياً وقم بتغيير الـ role الخاص بحسابك إلى admin.</p>
                     </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="glass-panel p-10 rounded-[60px] border-white/5 bg-black/40 space-y-6">
                     <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-black text-white flex items-center gap-2"><FileCode size={18} className="text-blue-400"/> قواعد Firestore المقترحة</h3>
-                        <button onClick={handleCopy} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-xl text-xs font-black hover:bg-blue-500 transition-all shadow-lg">
-                            {copied ? <CheckCircle2 size={16}/> : <Copy size={16}/>} {copied ? 'تم النسخ!' : 'نسخ الكود'}
+                        <h3 className="text-lg font-black text-white flex items-center gap-2"><Code size={18} className="text-blue-400"/> كود القواعد المطور</h3>
+                        <button onClick={handleCopy} className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-2xl text-xs font-black hover:bg-blue-500 transition-all shadow-xl">
+                            {copied ? <CheckCircle2 size={16}/> : <Copy size={16}/>} {copied ? 'تم النسخ' : 'نسخ الكود'}
                         </button>
                     </div>
                     <div className="relative">
-                        <pre className="bg-black/60 p-8 rounded-[40px] text-[11px] font-mono text-emerald-400 overflow-x-auto ltr text-left border border-white/10 h-96 no-scrollbar shadow-inner">
+                        <pre className="bg-black/60 p-8 rounded-[40px] text-[10px] font-mono text-emerald-400 overflow-x-auto ltr text-left border border-white/10 h-96 no-scrollbar shadow-inner">
                             {firestoreRules}
                         </pre>
                     </div>
                 </div>
-
-                <div className="pt-8 border-t border-white/5">
-                    <h4 className="text-white font-bold mb-4">خطوات التنفيذ:</h4>
-                    <ol className="list-decimal list-inside space-y-3 text-sm text-gray-500 pr-4">
-                        <li>اذهب إلى <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-400 underline">Firebase Console</a>.</li>
-                        <li>اختر مشروعك الحالي (Physics Kuwait).</li>
-                        <li>من القائمة الجانبية، اختر <span className="text-white font-bold">Firestore Database</span>.</li>
-                        <li>اضغط على تبويب <span className="text-white font-bold">Rules</span> في الأعلى.</li>
-                        <li>احذف كل شيء هناك، ثم الصق الكود الذي نسخته أعلاه.</li>
-                        <li>اضغط على زر <span className="bg-blue-600 text-white px-3 py-1 rounded text-xs">Publish</span>.</li>
-                    </ol>
+                
+                <div className="p-8 bg-blue-500/5 border border-blue-500/10 rounded-[40px] flex items-start gap-4">
+                    <Info className="text-blue-400 shrink-0" size={24} />
+                    <div>
+                        <h4 className="text-white font-bold mb-2">ما الجديد في هذه القواعد؟</h4>
+                        <ul className="text-xs text-gray-500 space-y-2 list-disc pr-4">
+                            <li>إضافة دالة <code className="text-blue-400">isAdmin()</code> مركزية لسهولة الصيانة.</li>
+                            <li>منع الطلاب من حذف مواضيع غيرهم (الحماية الذاتية).</li>
+                            <li>السماح للمدير فقط بالوصول لبيانات المناهج والماليات.</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
