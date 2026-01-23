@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { User, ViewState, Lesson, Quiz, StudentQuizAttempt, AppBranding, MaintenanceSettings } from './types';
 import { dbService } from './services/db';
-import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, User as UserIcon, LogOut } from 'lucide-react';
+import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, User as UserIcon, LogOut, ShieldAlert } from 'lucide-react';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
@@ -11,6 +11,7 @@ import Sidebar from './components/Sidebar';
 import PWAPrompt from './components/PWAPrompt';
 import NotificationPanel from './components/NotificationPanel';
 import MaintenanceMode from './components/MaintenanceMode';
+import FloatingNav from './components/FloatingNav';
 
 // Lazy-loaded Components
 const LandingPage = lazy(() => import('./components/LandingPage'));
@@ -67,6 +68,7 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
+    // مراقبة معاملات الرابط للعبور السري
     const searchParams = new URLSearchParams(window.location.search);
     if (searchParams.get('admin') === 'true' || searchParams.get('master') === 'true') {
         sessionStorage.setItem('ssc_admin_bypass', 'true');
@@ -77,8 +79,6 @@ const App: React.FC = () => {
     });
 
     dbService.getAppBranding().then(setBranding);
-    const handleBrandingUpdate = (e: any) => { if (e.detail) setBranding(e.detail); };
-    window.addEventListener('branding-updated', handleBrandingUpdate);
     
     let unsubscribeUser: (() => void) | null = null;
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -86,10 +86,6 @@ const App: React.FC = () => {
         unsubscribeUser = dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
             if (updatedUser) {
                 setUser(updatedUser);
-                // إذا كنا في صفحة الصيانة وحدث تسجيل دخول ناجح (عبر عبور سري)، نفتح الداشبورد
-                if (viewStack.includes('landing') || viewStack.includes('auth')) {
-                    setViewStack(['dashboard']);
-                }
             }
             setIsAuthLoading(false);
         });
@@ -104,7 +100,6 @@ const App: React.FC = () => {
         unsubscribeAuth();
         unsubscribeMaintenance();
         if (unsubscribeUser) unsubscribeUser();
-        window.removeEventListener('branding-updated', handleBrandingUpdate);
     };
   }, []);
 
@@ -133,39 +128,38 @@ const App: React.FC = () => {
   const renderContent = () => {
     const isBypassActive = sessionStorage.getItem('ssc_admin_bypass') === 'true';
 
-    // حماية الصيانة الصارمة
-    if (maintenance?.isMaintenanceActive && !isBypassActive) {
-        const canBypass = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
-        // إذا كان طالباً، حتى لو حاول العبور برابط سري، سنمنعه من رؤية المحتوى إذا لم يسجل دخوله كمسؤول
-        if (!canBypass && currentView !== 'auth') {
+    // 🛡️ الحماية العظمى: منطق الصيانة الصارم
+    if (maintenance?.isMaintenanceActive) {
+        const hasPrivilegedRole = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
+        
+        // إذا كان المستخدم طالباً، نمنعه حتى لو كان العبور مفعلاً (الاختراق المحاول)
+        if (user?.role === 'student') {
             return <MaintenanceMode />;
         }
+
+        // إذا لم يتم تسجيل الدخول ولم يتم تفعيل العبور السري
+        if (!user && !isBypassActive) {
+            return <MaintenanceMode />;
+        }
+
+        // إذا تم تفعيل العبور السري، نسمح فقط بصفحة تسجيل الدخول (للمدراء)
+        if (isBypassActive && !user && currentView !== 'auth') {
+            return <MaintenanceMode />;
+        }
+        
+        // إذا دخل المدير/المعلم، نمرره للداشبورد بشكل طبيعي
     }
 
-    // إذا تم العبور ولكن المستخدم "طالب"، نجبره على تسجيل دخول مسؤول أو معلم
-    if (maintenance?.isMaintenanceActive && isBypassActive && user && user.role === 'student' && currentView !== 'auth') {
-        return (
-            <div className="fixed inset-0 z-[5000] bg-black flex flex-col items-center justify-center p-8 text-center font-['Tajawal']" dir="rtl">
-                <div className="w-20 h-20 bg-amber-500/10 rounded-3xl flex items-center justify-center text-amber-500 mb-6 border border-amber-500/20">
-                    <LogOut size={40} />
-                </div>
-                <h3 className="text-2xl font-black text-white mb-4 italic">دخول مقيد للطلاب</h3>
-                <p className="text-gray-400 max-w-sm mb-8 leading-relaxed">
-                    عذراً، العبور السري مخصص للمدراء والمعلمين فقط أثناء الصيانة. يرجى تسجيل الخروج والدخول بحساب إداري.
-                </p>
-                <button 
-                    onClick={() => { sessionStorage.removeItem('ssc_admin_bypass'); signOut(auth); }}
-                    className="bg-white text-black px-12 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all"
-                >
-                    العودة لصفحة الصيانة
-                </button>
-            </div>
-        );
+    if (isAuthLoading) return (
+      <div className="flex flex-col items-center justify-center h-[70vh] gap-6">
+        <RefreshCw className="w-16 h-16 text-amber-400 animate-spin" />
+        <p className="text-gray-400 font-black animate-pulse uppercase tracking-[0.2em]">Quantum Security Syncing...</p>
+      </div>
+    );
+
+    if (!user && currentView !== 'landing' && currentView !== 'auth') {
+      return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
     }
-
-    if (isAuthLoading) return <div className="flex flex-col items-center justify-center h-[70vh] gap-6"><RefreshCw className="w-16 h-16 text-amber-400 animate-spin" /><p className="text-gray-400 font-bold animate-pulse">جاري فحص حالة النظام...</p></div>;
-
-    if (!user && currentView !== 'landing' && currentView !== 'auth') return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
 
     switch (currentView) {
       case 'landing': return <LandingPage onStart={() => setViewStack(['auth'])} />;
@@ -208,21 +202,26 @@ const App: React.FC = () => {
   };
 
   const isBypassActive = sessionStorage.getItem('ssc_admin_bypass') === 'true';
-  const isCurrentlyInMaintenance = maintenance?.isMaintenanceActive && 
-                                   user?.role !== 'admin' && 
-                                   !(user?.role === 'teacher' && maintenance.allowTeachers) &&
-                                   !isBypassActive &&
-                                   currentView !== 'auth';
+  const showMaintenanceUI = maintenance?.isMaintenanceActive && 
+                            user?.role !== 'admin' && 
+                            !(user?.role === 'teacher' && maintenance.allowTeachers) &&
+                            currentView !== 'auth';
 
-  if (currentView === 'landing' || currentView === 'auth' || isCurrentlyInMaintenance) {
-    return <div className="min-h-screen bg-[#000000] text-right font-['Tajawal']" dir="rtl"><Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>{renderContent()}</Suspense></div>;
+  if (currentView === 'landing' || currentView === 'auth' || showMaintenanceUI) {
+    return (
+      <div className="min-h-screen bg-[#000000] text-right font-['Tajawal']" dir="rtl">
+        <Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>
+          {renderContent()}
+        </Suspense>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
       {maintenance?.isMaintenanceActive && (
-          <div className="fixed top-0 left-0 right-0 z-[1000] bg-amber-500 text-black text-[9px] font-black py-1.5 text-center uppercase tracking-[0.2em] pointer-events-none shadow-xl">
-              تنبيه: أنت في وضع "العبور المباشر للمدير" • المنصة مقفلة أمام الطلاب
+          <div className="fixed top-0 left-0 right-0 z-[1000] bg-red-600 text-white text-[9px] font-black py-1.5 text-center uppercase tracking-[0.2em] pointer-events-none shadow-xl border-b border-white/10">
+              أنت في وضع العبور المباشر • المنصة مقفلة حالياً أمام الطلاب
           </div>
       )}
       
@@ -240,7 +239,7 @@ const App: React.FC = () => {
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 ${isSidebarOpen ? 'lg:mr-72' : 'lg:mr-72'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 lg:mr-72`}>
         <header className="sticky top-0 z-[100] bg-[#0A2540]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex justify-between items-center shadow-2xl">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 text-white bg-white/5 rounded-2xl hover:bg-white/10 transition-all"><Menu size={24} /></button>
@@ -254,7 +253,7 @@ const App: React.FC = () => {
                 <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
                     {branding.logoUrl ? <img src={branding.logoUrl} className="w-full h-full object-contain p-1" /> : <LayoutDashboard size={20} className="text-amber-400" />}
                 </div>
-                <h1 className="font-black text-white text-lg tracking-tight uppercase">المركز <span className="text-amber-400">السوري للعلوم</span></h1>
+                <h1 className="font-black text-white text-lg tracking-tight uppercase">{branding.appName}</h1>
               </div>
             )}
           </div>
@@ -271,10 +270,12 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-8 lg:p-12 w-full max-w-screen-2xl mx-auto overflow-x-hidden">
+        <main className="flex-1 p-4 md:p-8 lg:p-12 w-full max-w-screen-2xl mx-auto overflow-x-hidden relative">
           <Suspense fallback={<div className="flex flex-col items-center justify-center h-[50vh] gap-4"><RefreshCw className="w-12 h-12 text-amber-400 animate-spin" /><p className="text-gray-500 text-xs font-bold uppercase">جاري عرض المحتوى...</p></div>}>
             {renderContent()}
           </Suspense>
+          
+          {user?.role === 'student' && <FloatingNav />}
         </main>
       </div>
 
