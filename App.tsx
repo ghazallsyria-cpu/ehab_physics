@@ -161,7 +161,7 @@ const App: React.FC = () => {
   };
 
   if (currentView === 'landing' || currentView === 'auth') {
-    return <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal']" dir="rtl"><Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>{renderContent()}</Suspense></div>;
+    return <div className="min-h-screen bg-[#000000] text-right font-['Tajawal']" dir="rtl"><Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>{renderContent()}</Suspense></div>;
   }
 
   return (

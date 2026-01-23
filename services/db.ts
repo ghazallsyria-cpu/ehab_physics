@@ -29,16 +29,20 @@ class DBService {
   }
 
   // --- الهوية البصرية ---
+  getAppBrandingSync(): AppBranding {
+    return { 
+        logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
+        appName: 'المركز السوري للعلوم' 
+    };
+  }
+
   async getAppBranding(): Promise<AppBranding> {
     this.checkDb();
     try {
       const snap = await getDoc(doc(db!, 'settings', 'branding'));
       if (snap.exists()) return snap.data() as AppBranding;
     } catch (e) {}
-    return { 
-        logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
-        appName: 'المركز السوري للعلوم' 
-    };
+    return this.getAppBrandingSync();
   }
 
   async saveAppBranding(branding: AppBranding) {
@@ -138,7 +142,7 @@ class DBService {
     }
   }
 
-  // ... (باقي الدوال تبقى كما هي)
+  // --- إدارة المستخدمين ---
   async getUser(uidOrEmail: string): Promise<User | null> {
     this.checkDb();
     try {
@@ -191,6 +195,7 @@ class DBService {
     });
   }
 
+  // --- ساحة النقاش ---
   async getForumSections(): Promise<ForumSection[]> {
     this.checkDb();
     const snap = await getDocs(query(collection(db!, 'forumSections'), orderBy('order')));
@@ -277,6 +282,7 @@ class DBService {
     await updateDoc(doc(db!, 'forumPosts', postId), { upvotes: increment(1) });
   }
 
+  // --- الإعدادات ---
   async getLoggingSettings(): Promise<LoggingSettings> {
     this.checkDb();
     try {
@@ -323,6 +329,7 @@ class DBService {
     await setDoc(doc(db!, 'settings', 'payments'), this.cleanData(settings));
   }
 
+  // --- المحتوى التعليمي ---
   async getCurriculum(): Promise<Curriculum[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'curriculum'));
@@ -397,6 +404,7 @@ class DBService {
     await updateDoc(ref, { units });
   }
 
+  // --- الاختبارات ---
   async getQuizzes(): Promise<Quiz[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'quizzes'));
@@ -473,6 +481,7 @@ class DBService {
     return (snap && snap.exists()) ? ({ ...snap.data(), id: snap.id } as Quiz) : null;
   }
 
+  // --- الإشعارات والمصادر الأخرى ---
   async getNotifications(uid: string): Promise<AppNotification[]> {
     this.checkDb();
     const q = query(collection(db!, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'), limit(20));

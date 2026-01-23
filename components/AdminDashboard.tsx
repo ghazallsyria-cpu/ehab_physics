@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ChevronDown, HeartPulse, LayoutDashboard, Library, MessageSquare, Award, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Settings, Video, RefreshCw, HeartPulse, LayoutDashboard, Library, MessageSquare, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard, Newspaper } from 'lucide-react';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
+import anime from 'animejs';
 import SupabaseConnectionFixer from './SupabaseConnectionFixer';
 import EscalatedPostsWidget from './EscalatedPostsWidget';
 
@@ -16,6 +17,17 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     checkHealth();
     verifyAdminRole();
+
+    // أنيميشن دخول أدوات الإدارة
+    anime({
+      targets: '.admin-tool-card',
+      scale: [0.9, 1],
+      opacity: [0, 1],
+      translateY: [20, 0],
+      delay: anime.stagger(100),
+      easing: 'easeOutExpo',
+      duration: 800
+    });
   }, []);
 
   const verifyAdminRole = async () => {
@@ -40,25 +52,28 @@ const AdminDashboard: React.FC = () => {
   };
 
   const adminTools = [
-    { view: 'admin-curriculum', icon: BookOpen, title: 'إدارة المناهج', description: 'إضافة وتعديل الدروس والمحتوى التعليمي.' },
-    { view: 'admin-quizzes', icon: ClipboardList, title: 'إدارة الاختبارات', description: 'إنشاء وتعديل الاختبارات وبنوك الأسئلة.' },
-    { view: 'admin-students', icon: Users, title: 'إدارة الطلاب', description: 'متابعة حسابات الطلاب والاشتراكات.' },
-    { view: 'admin-payment-manager', icon: CreditCard, title: 'إدارة الدفع', description: 'تعديل الأسعار، رقم ومض وحالة البوابة.' },
-    { view: 'admin-teachers', icon: Briefcase, title: 'إدارة المعلمين', description: 'إدارة صلاحيات المعلمين والحسابات.' },
-    { view: 'admin-managers', icon: ShieldCheck, title: 'إدارة المدراء', description: 'تعيين وتغيير صلاحيات إدارة النظام.' },
-    { view: 'admin-forums', icon: MessageSquare, title: 'هيكل المنتديات', description: 'إعداد الأقسام والمشرفين الأكاديميين.' },
-    { view: 'admin-forum-posts', icon: ShieldAlert, title: 'إدارة المنشورات', description: 'الرقابة على المحتوى وحذف المنشورات.' },
-    { view: 'admin-security-fix', icon: Lock, title: 'مركز الأمان', description: 'إصلاح قواعد الحماية وتفعيل صلاحيات الطلاب.' },
-    { view: 'admin-live-sessions', icon: Video, title: 'إدارة البث', description: 'جدولة حصص Zoom المباشرة.' },
-    { view: 'admin-assets', icon: Library, title: 'مكتبة الوسائط', description: 'إدارة صور وملفات الدروس.' },
-    { view: 'admin-settings', icon: Settings, title: 'إعدادات النظام', description: 'التحكم في السياسات وتسجيل البيانات.' },
+    { view: 'admin-curriculum', icon: BookOpen, title: 'إدارة المناهج', description: 'تعديل الدروس والمحتوى.' },
+    { view: 'admin-quizzes', icon: ClipboardList, title: 'إدارة الاختبارات', description: 'بنوك الأسئلة والتقييم.' },
+    { view: 'admin-content', icon: Newspaper, title: 'محتوى الرئيسية', description: 'الأخبار والإعلانات.' },
+    { view: 'admin-students', icon: Users, title: 'إدارة الطلاب', description: 'الحسابات والاشتراكات.' },
+    { view: 'admin-payment-manager', icon: CreditCard, title: 'إدارة الدفع', description: 'الأسعار ورقم ومض.' },
+    { view: 'admin-teachers', icon: Briefcase, title: 'إدارة المعلمين', description: 'الصلاحيات والحسابات.' },
+    { view: 'admin-managers', icon: ShieldCheck, title: 'إدارة المدراء', description: 'فريق الإدارة.' },
+    { view: 'admin-forums', icon: MessageSquare, title: 'المنتديات', description: 'هيكل الأقسام.' },
+    { view: 'admin-forum-posts', icon: ShieldAlert, title: 'الرقابة', description: 'إدارة المنشورات.' },
+    { view: 'admin-security-fix', icon: Lock, title: 'الأمان', description: 'إصلاح القواعد.' },
+    { view: 'admin-live-sessions', icon: Video, title: 'البث المباشر', description: 'جدولة الحصص.' },
+    { view: 'admin-assets', icon: Library, title: 'المكتبة', description: 'إدارة الوسائط.' },
+    { view: 'admin-settings', icon: Settings, title: 'الإعدادات', description: 'سياسات النظام.' },
   ];
 
   return (
     <div className="animate-fadeIn space-y-10 pb-20">
-      <header>
-        <h2 className="text-4xl font-black text-white italic">غرفة <span className="text-amber-400">التحكم</span></h2>
-        <p className="text-gray-500 mt-2 font-medium">مرحباً بك في لوحة تحكم المسؤول الرئيسية.</p>
+      <header className="flex flex-col md:flex-row justify-between items-end gap-6">
+        <div>
+            <h2 className="text-5xl font-black text-white italic tracking-tighter uppercase">غرفة <span className="text-amber-400">القيادة</span></h2>
+            <p className="text-gray-500 mt-2 font-bold uppercase tracking-widest text-[10px]">نظام الإدارة المركزي لـ المركز السوري للعلوم</p>
+        </div>
       </header>
       
       {!adminRoleValid && (
@@ -66,47 +81,51 @@ const AdminDashboard: React.FC = () => {
               <ShieldAlert className="text-red-500" size={32} />
               <div>
                   <h4 className="text-white font-black">تحذير الصلاحيات</h4>
-                  <p className="text-xs text-gray-400 mt-1">حسابك الحالي غير مسجل بصفة "Admin" في قاعدة البيانات. هذا قد يمنعك من حفظ التغييرات. اذهب لـ "مركز الأمان" فوراً.</p>
+                  <p className="text-xs text-gray-400 mt-1">حسابك الحالي غير مسجل بصفة "Admin" في قاعدة البيانات.</p>
               </div>
           </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-        <div className="xl:col-span-8 space-y-8">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-10 items-start">
+        <div className="xl:col-span-9 space-y-8">
            <EscalatedPostsWidget />
            
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {adminTools.map(tool => (
-                <div key={tool.view} onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: tool.view } }))} className="glass-panel p-8 rounded-[40px] border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent cursor-pointer group hover:border-amber-400/40 transition-all flex gap-6 items-center">
-                  <div className="w-16 h-16 rounded-2xl bg-amber-400/10 flex items-center justify-center text-amber-400 shrink-0 group-hover:scale-110 transition-all"><tool.icon size={30} /></div>
+                <div 
+                  key={tool.view} 
+                  onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: tool.view } }))} 
+                  className="admin-tool-card glass-panel p-8 rounded-[45px] border-white/5 bg-black/20 cursor-pointer group hover:border-amber-400/40 transition-all flex flex-col gap-6 opacity-0"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-amber-400 group-hover:bg-amber-400 group-hover:text-black transition-all duration-500"><tool.icon size={24} /></div>
                   <div>
                     <h3 className="text-xl font-black text-white group-hover:text-amber-400 transition-colors">{tool.title}</h3>
-                    <p className="text-xs text-gray-500 mt-1">{tool.description}</p>
+                    <p className="text-[10px] text-gray-500 mt-1 font-bold uppercase tracking-widest">{tool.description}</p>
                   </div>
                 </div>
               ))}
            </div>
         </div>
 
-        <div className="xl:col-span-4 space-y-6">
-           <div className="glass-panel p-8 rounded-[40px] border-white/5 bg-[#0a1118]/80 shadow-xl">
-              <h3 className="text-lg font-black text-white mb-6 flex items-center gap-3"><HeartPulse className="text-red-400" /> صحة النظام</h3>
+        <div className="xl:col-span-3 space-y-6">
+           <div className="glass-panel p-8 rounded-[40px] border-white/5 bg-[#0a1118] shadow-2xl">
+              <h3 className="text-sm font-black text-gray-400 mb-8 flex items-center gap-3 uppercase tracking-[0.2em]"><HeartPulse className="text-red-500" size={16} /> سرعة الاستجابة</h3>
               <div className="space-y-4">
-                 <div className={`p-4 rounded-2xl border flex justify-between items-center ${firestoreStatus.alive ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                 <div className={`p-5 rounded-2xl border flex justify-between items-center ${firestoreStatus.alive ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
                     <span className="text-[10px] font-black uppercase">Firestore</span>
-                    <span className="text-xs font-bold">{firestoreStatus.alive ? 'متصل' : 'خطأ'}</span>
+                    <span className="text-[10px] font-bold">{firestoreStatus.alive ? 'ONLINE' : 'ERROR'}</span>
                  </div>
-                 <div className={`p-4 rounded-2xl border flex justify-between items-center ${supabaseStatus.alive ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                 <div className={`p-5 rounded-2xl border flex justify-between items-center ${supabaseStatus.alive ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
                     <span className="text-[10px] font-black uppercase">Storage</span>
-                    <span className="text-xs font-bold">{supabaseStatus.alive ? 'متصل' : 'خطأ'}</span>
+                    <span className="text-[10px] font-bold">{supabaseStatus.alive ? 'ONLINE' : 'ERROR'}</span>
                  </div>
-                 <button onClick={checkHealth} className="w-full py-3 bg-white/5 rounded-xl text-gray-400 hover:text-white transition-all text-xs font-bold flex items-center justify-center gap-2">
+                 <button onClick={checkHealth} className="w-full py-4 bg-white/5 rounded-xl text-gray-400 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3">
                     <RefreshCw size={14} className={isChecking ? 'animate-spin' : ''} /> تحديث الحالة
                  </button>
               </div>
-              <button onClick={() => setShowGuides(!showGuides)} className="w-full mt-6 text-[10px] font-bold text-gray-600 hover:text-blue-400 transition-colors">دليل إصلاح Supabase ▼</button>
            </div>
            
+           <button onClick={() => setShowGuides(!showGuides)} className="w-full text-[10px] font-black text-gray-700 hover:text-blue-400 transition-colors uppercase tracking-[0.3em]">دليل إصلاح Supabase ▼</button>
            {showGuides && <SupabaseConnectionFixer onFix={checkHealth} />}
         </div>
       </div>

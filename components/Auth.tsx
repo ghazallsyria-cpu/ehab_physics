@@ -134,7 +134,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
             <button onClick={onBack} className="absolute top-6 left-6 text-gray-500 hover:text-white transition-colors">✕</button>
             <div className="text-center mb-8">
                 <h2 className="text-3xl font-black text-white mb-2">{isResetMode ? 'استعادة كلمة المرور' : isRegistering ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}</h2>
-                <p className="text-amber-400/50 text-sm font-bold uppercase tracking-widest">بوابة المركز السوري للعلوم</p>
+                <p className="text-amber-400/50 text-sm font-bold uppercase tracking-widest">المركز السوري للعلوم</p>
             </div>
             {message.text && (<div className={`mb-6 p-4 rounded-2xl text-xs font-bold text-center ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>{message.text}</div>)}
             
