@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ChevronDown, HeartPulse, LayoutDashboard, Library, MessageSquare, Award, ClipboardList, ShieldCheck, ShieldAlert, Lock } from 'lucide-react';
 import { dbService } from '../services/db';
+import { auth } from '../services/firebase';
 import SupabaseConnectionFixer from './SupabaseConnectionFixer';
 import EscalatedPostsWidget from './EscalatedPostsWidget';
 
@@ -10,10 +11,22 @@ const AdminDashboard: React.FC = () => {
   const [supabaseStatus, setSupabaseStatus] = useState<{ alive: boolean | null, error?: string }>({ alive: null });
   const [isChecking, setIsChecking] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
+  const [adminRoleValid, setAdminRoleValid] = useState<boolean>(true);
 
   useEffect(() => {
     checkHealth();
+    verifyAdminRole();
   }, []);
+
+  const verifyAdminRole = async () => {
+    const user = auth.currentUser;
+    if (user) {
+        const userData = await dbService.getUser(user.uid);
+        if (!userData || userData.role !== 'admin') {
+            setAdminRoleValid(false);
+        }
+    }
+  };
 
   const checkHealth = async () => {
     setIsChecking(true);
@@ -47,6 +60,16 @@ const AdminDashboard: React.FC = () => {
         <p className="text-gray-500 mt-2 font-medium">مرحباً بك في لوحة تحكم المسؤول الرئيسية.</p>
       </header>
       
+      {!adminRoleValid && (
+          <div className="bg-red-600/20 border-2 border-red-600/40 p-6 rounded-[30px] flex items-center gap-6 animate-pulse">
+              <ShieldAlert className="text-red-500" size={32} />
+              <div>
+                  <h4 className="text-white font-black">تحذير الصلاحيات</h4>
+                  <p className="text-xs text-gray-400 mt-1">حسابك الحالي غير مسجل بصفة "Admin" في قاعدة البيانات. هذا قد يمنعك من حفظ التغييرات. اذهب لـ "مركز الأمان" فوراً.</p>
+              </div>
+          </div>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
         <div className="xl:col-span-8 space-y-8">
            <EscalatedPostsWidget />
