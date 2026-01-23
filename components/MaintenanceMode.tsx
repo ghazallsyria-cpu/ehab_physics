@@ -2,21 +2,21 @@
 import React, { useEffect, useState, useRef } from 'react';
 import anime from 'animejs';
 import { MaintenanceSettings, AppBranding } from '../types';
-import { Clock, Hammer, ShieldAlert, Sparkles, RefreshCw, Zap, Atom } from 'lucide-react';
+import { Clock, Hammer, ShieldAlert, Sparkles, RefreshCw, Zap, Atom, Lock } from 'lucide-react';
 import { dbService } from '../services/db';
 
 const MaintenanceMode: React.FC = () => {
   const [settings, setSettings] = useState<MaintenanceSettings | null>(null);
   const [branding, setBranding] = useState<AppBranding | null>(null);
   const [timeLeft, setTimeLeft] = useState<{ d: number, h: number, m: number, s: number }>({ d: 0, h: 0, m: 0, s: 0 });
+  const [clickCount, setClickCount] = useState(0);
+  const [showSecretButton, setShowSecretButton] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // جلب الإعدادات لحظياً
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((data) => setSettings(data));
     dbService.getAppBranding().then(setBranding);
 
-    // حركات خلفية
     const createParticles = () => {
         if (!containerRef.current) return;
         const container = containerRef.current;
@@ -45,7 +45,6 @@ const MaintenanceMode: React.FC = () => {
     };
     createParticles();
 
-    // أنيميشن المدارات
     anime({
         targets: '.orbit-electron',
         rotate: '360deg',
@@ -80,6 +79,26 @@ const MaintenanceMode: React.FC = () => {
     return () => clearInterval(timer);
   }, [settings?.expectedReturnTime]);
 
+  const handleLogoClick = () => {
+      const newCount = clickCount + 1;
+      setClickCount(newCount);
+      if (newCount >= 5) {
+          setShowSecretButton(true);
+          // اهتزاز بسيط للتأكيد للمدير
+          anime({
+              targets: '.maintenance-logo',
+              translateX: [-2, 2, -2, 2, 0],
+              duration: 200,
+              easing: 'linear'
+          });
+      }
+  };
+
+  const goToLogin = () => {
+      // إرسال حدث لتغيير الواجهة إلى صفحة تسجيل الدخول
+      window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'auth' } }));
+  };
+
   const TimeBlock = ({ value, label }: { value: number, label: string }) => (
     <div className="flex flex-col items-center group">
         <div className="w-20 h-24 md:w-28 md:h-32 bg-white/[0.03] border-2 border-blue-500/20 rounded-[35px] flex items-center justify-center relative overflow-hidden backdrop-blur-3xl shadow-2xl transition-all group-hover:border-blue-400/50">
@@ -105,7 +124,10 @@ const MaintenanceMode: React.FC = () => {
       </div>
 
       <div className="relative z-10 max-w-4xl w-full px-8 text-center flex flex-col items-center">
-        <div className="w-32 h-32 md:w-40 md:h-40 bg-white/[0.02] border-2 border-white/5 rounded-[50px] flex items-center justify-center mb-12 shadow-[0_0_60px_rgba(255,255,255,0.02)] relative group overflow-hidden">
+        <div 
+            onClick={handleLogoClick}
+            className="maintenance-logo w-32 h-32 md:w-40 md:h-40 bg-white/[0.02] border-2 border-white/5 rounded-[50px] flex items-center justify-center mb-12 shadow-[0_0_60px_rgba(255,255,255,0.02)] relative group overflow-hidden cursor-default active:scale-95 transition-transform"
+        >
             <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             {branding?.logoUrl ? (
                 <img src={branding.logoUrl} className="w-3/4 h-3/4 object-contain animate-float" alt="Logo" />
@@ -143,6 +165,16 @@ const MaintenanceMode: React.FC = () => {
                 <button onClick={() => window.location.reload()} className="flex items-center gap-3 text-gray-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-[0.3em] bg-white/5 px-6 py-3 rounded-xl border border-white/5">
                     <RefreshCw size={14}/> تحديث الصفحة
                 </button>
+                
+                {/* زر الدخول المخفي للمدير */}
+                {showSecretButton && (
+                    <button 
+                        onClick={goToLogin}
+                        className="flex items-center gap-3 text-amber-400 hover:text-white transition-all text-[10px] font-black uppercase tracking-[0.3em] bg-amber-400/10 px-6 py-3 rounded-xl border border-amber-400/20 animate-slideUp"
+                    >
+                        <Lock size={14}/> دخول الإدارة
+                    </button>
+                )}
             </div>
         </div>
       </div>

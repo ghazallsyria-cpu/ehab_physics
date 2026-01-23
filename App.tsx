@@ -66,6 +66,10 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  // فحص وجود معامل سري في الرابط (Admin Backdoor)
+  const searchParams = new URLSearchParams(window.location.search);
+  const isBypassActive = searchParams.get('admin') === 'true' || searchParams.get('master') === 'true';
+
   useEffect(() => {
     const loadInitialSettings = async () => {
         try {
@@ -81,9 +85,7 @@ const App: React.FC = () => {
     };
     loadInitialSettings();
 
-    // الاشتراك في تغييرات وضع الصيانة لحظياً (Real-time)
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
-        console.log("Maintenance mode updated:", settings.isMaintenanceActive);
         setMaintenance(settings);
     });
 
@@ -144,10 +146,11 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     // 1. فحص وضع الصيانة كأولوية قصوى
-    // إذا كانت الصيانة مفعلة، نقوم بفحص ما إذا كان المستخدم الحالي لديه حق التجاوز (Admin أو Teacher مسموح له)
-    if (maintenance?.isMaintenanceActive) {
+    if (maintenance?.isMaintenanceActive && !isBypassActive) {
         const canBypass = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
-        if (!canBypass) {
+        
+        // إذا كان المستخدم ليس مديراً وهو يحاول فتح صفحة غير صفحة تسجيل الدخول السرية
+        if (!canBypass && currentView !== 'auth') {
             return <MaintenanceMode />;
         }
     }
@@ -199,7 +202,9 @@ const App: React.FC = () => {
   // حالة شاشة الصيانة لغير المدراء
   const isCurrentlyInMaintenance = maintenance?.isMaintenanceActive && 
                                    user?.role !== 'admin' && 
-                                   !(user?.role === 'teacher' && maintenance.allowTeachers);
+                                   !(user?.role === 'teacher' && maintenance.allowTeachers) &&
+                                   !isBypassActive &&
+                                   currentView !== 'auth';
 
   if (currentView === 'landing' || currentView === 'auth' || isCurrentlyInMaintenance) {
     return <div className="min-h-screen bg-[#000000] text-right font-['Tajawal']" dir="rtl"><Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>{renderContent()}</Suspense></div>;
@@ -207,7 +212,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
-      {/* تنبيه المدير بوضع الصيانة */}
       {maintenance?.isMaintenanceActive && user?.role === 'admin' && (
           <div className="fixed top-0 left-0 right-0 z-[1000] bg-red-600 text-white text-[10px] font-black py-1 text-center uppercase tracking-widest pointer-events-none shadow-xl">
               نظام الصيانة نشط حالياً • المنصة مغلقة أمام الطلاب
