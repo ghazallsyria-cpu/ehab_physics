@@ -51,23 +51,19 @@ class DBService {
     await setDoc(doc(db!, 'settings', 'maintenance'), this.cleanData(settings));
   }
 
-  subscribeToMaintenance(callback: (settings: MaintenanceSettings) => void, onError?: (err: any) => void) {
+  subscribeToMaintenance(callback: (settings: MaintenanceSettings) => void) {
     this.checkDb();
+    // 🛡️ معالجة خاصة لضمان عدم توقف الموقع إذا كانت القواعد تمنع القراءة
     return onSnapshot(doc(db!, 'settings', 'maintenance'), (snap) => {
         if (snap.exists()) {
             callback(snap.data() as MaintenanceSettings);
         } else {
-            callback({
-                isMaintenanceActive: false,
-                expectedReturnTime: new Date().toISOString(),
-                maintenanceMessage: "النظام تحت الصيانة حالياً.",
-                showCountdown: false,
-                allowTeachers: true
-            });
+            console.warn("Maintenance document not found in Firestore.");
+            callback({ isMaintenanceActive: false, expectedReturnTime: '', maintenanceMessage: '', showCountdown: false, allowTeachers: true });
         }
     }, (error) => {
-        console.error("Maintenance subscription error:", error);
-        if (onError) onError(error);
+        console.error("Maintenance Sync Error (Likely Security Rules):", error.message);
+        // في حال فشل القواعد، نفترض أن الموقع يعمل لكي لا يغلق على الجميع خطأً
         callback({ isMaintenanceActive: false, expectedReturnTime: '', maintenanceMessage: '', showCountdown: false, allowTeachers: true });
     });
   }
@@ -96,15 +92,14 @@ class DBService {
     return null;
   }
 
-  subscribeToUser(uid: string, callback: (user: User | null) => void, onError?: (err: any) => void) {
+  subscribeToUser(uid: string, callback: (user: User | null) => void) {
     this.checkDb();
     return onSnapshot(doc(db!, 'users', uid), (snap) => {
       if (snap.exists()) callback(snap.data() as User);
       else callback(null);
     }, (err) => {
         console.error("User subscription error:", err);
-        if (onError) onError(err);
-        else callback(null);
+        callback(null);
     });
   }
 

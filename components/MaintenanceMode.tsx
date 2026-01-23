@@ -2,44 +2,36 @@
 import React, { useEffect, useState } from 'react';
 import anime from 'animejs';
 import { MaintenanceSettings, AppBranding } from '../types';
-import { RefreshCw, Atom, ShieldCheck, Timer, Zap, Sparkles, Orbit, Lock, ShieldAlert, Globe } from 'lucide-react';
+import { RefreshCw, Atom, ShieldCheck, Timer, Zap, Sparkles, Orbit, Globe } from 'lucide-react';
 import { dbService } from '../services/db';
 
 const MaintenanceMode: React.FC = () => {
   const [settings, setSettings] = useState<MaintenanceSettings | null>(null);
   const [branding, setBranding] = useState<AppBranding | null>(null);
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0 });
-  const [showSecretLink, setShowSecretLink] = useState(false);
-  const [serverTimeOffset, setServerTimeOffset] = useState(0); // الفرق بين وقت الجهاز والوقت العالمي
+  const [serverTimeOffset, setServerTimeOffset] = useState(0);
 
   useEffect(() => {
-    // 1. جلب الوقت العالمي الحقيقي لمزامنة العداد ومنع الغش
+    // 1. مزامنة الوقت العالمي لمنع التلاعب بساعة الهاتف
     const syncTime = async () => {
         try {
             const start = Date.now();
             const response = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC');
             const data = await response.json();
             const realNow = new Date(data.utc_datetime).getTime();
-            const latency = Date.now() - start;
-            // حساب الفرق بين ساعة الجهاز والوقت الحقيقي
-            setServerTimeOffset(realNow - (Date.now() - latency/2));
+            setServerTimeOffset(realNow - Date.now());
         } catch (e) {
-            console.warn("Time Sync Failed, using local clock as fallback.");
+            console.warn("Time Sync Failed, using local clock.");
         }
     };
     syncTime();
 
-    // 📡 مراقبة لحظية للإعدادات
+    // 📡 مراقبة الإعدادات لحظياً
     const unsubscribe = dbService.subscribeToMaintenance((updated) => {
         setSettings(updated);
     });
 
     dbService.getAppBranding().then(setBranding);
-
-    // تفعيل الرابط السري إذا كان المفتاح موجوداً في المتصفح
-    if (localStorage.getItem('ssc_bypass_key') === 'true') {
-        setShowSecretLink(true);
-    }
 
     // أنيميشن الخلفية
     anime({
@@ -60,7 +52,6 @@ const MaintenanceMode: React.FC = () => {
 
     const timer = setInterval(() => {
       const target = new Date(settings.expectedReturnTime).getTime();
-      // استخدام الوقت الحقيقي (وقت الجهاز + الفرق المحسوب)
       const now = Date.now() + serverTimeOffset;
       const diff = target - now;
 
@@ -79,11 +70,17 @@ const MaintenanceMode: React.FC = () => {
     return () => clearInterval(timer);
   }, [settings, serverTimeOffset]);
 
+  const handleAdminEnter = () => {
+    // تفعيل مفتاح العبور السري عند الضغط على الزر المخفي
+    localStorage.setItem('ssc_admin_bypass', 'active');
+    window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'auth' } }));
+  };
+
   const TimeBlock = ({ value, label }: { value: number, label: string }) => (
     <div className="flex flex-col items-center">
         <div className="w-16 h-20 md:w-24 md:h-28 bg-white/[0.03] border border-white/10 rounded-[25px] flex items-center justify-center backdrop-blur-3xl shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-            <span className="text-3xl md:text-5xl font-black text-white tabular-nums tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+            <span className="text-3xl md:text-5xl font-black text-white tabular-nums tracking-tighter">
                 {String(value).padStart(2, '0')}
             </span>
         </div>
@@ -147,35 +144,16 @@ const MaintenanceMode: React.FC = () => {
         </div>
       </div>
 
-      {/* 🗝️ رابط الدخول المكتوم للمدير - زاوية يمنى سفلية */}
-      <div className="fixed bottom-4 right-6 z-[10000]">
-          {showSecretLink ? (
-              <button 
-                  onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'auth' } }))}
-                  className="group flex items-center gap-2 opacity-10 hover:opacity-100 transition-all duration-500"
-              >
-                  <span className="text-[9px] font-black text-white uppercase tracking-widest hidden group-hover:block animate-fadeIn">Admin Direct Access</span>
-                  <ShieldCheck size={14} className="text-blue-500" />
-              </button>
-          ) : (
-              <div 
-                  onClick={() => {
-                      // تفعيل الرابط بعد 5 نقرات على "الهواء" في الزاوية
-                      const clicks = Number(sessionStorage.getItem('secret_clicks') || 0) + 1;
-                      sessionStorage.setItem('secret_clicks', clicks.toString());
-                      if (clicks >= 5) {
-                          localStorage.setItem('ssc_bypass_key', 'true');
-                          setShowSecretLink(true);
-                          if ("vibrate" in navigator) navigator.vibrate(100);
-                      }
-                  }}
-                  className="w-8 h-8 cursor-default"
-              ></div>
-          )}
-      </div>
+      {/* 🗝️ الزر السري للمدير - مخفي جداً في الزاوية اليمنى السفلية */}
+      <button 
+        onClick={handleAdminEnter}
+        className="fixed bottom-4 right-4 text-[8px] font-black text-gray-800 hover:text-blue-500/20 transition-colors uppercase tracking-[0.3em] opacity-5 hover:opacity-100 z-[10000]"
+      >
+        Admin Portal Login
+      </button>
 
       <footer className="absolute bottom-6 w-full px-12 flex justify-between items-center opacity-20 pointer-events-none">
-         <p className="text-[7px] font-black uppercase tracking-[0.4em]">Syrian Science Center • Quantum Core v3.0</p>
+         <p className="text-[7px] font-black uppercase tracking-[0.4em]">Syrian Science Center • Quantum Core v4.0</p>
          <div className="flex gap-4"><Sparkles size={12} className="text-blue-500/50" /><Orbit size={12} className="text-cyan-500/50" /></div>
       </footer>
     </div>

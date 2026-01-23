@@ -72,33 +72,32 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    // 🔗 1. مراقبة لحظية لوضع الصيانة (Real-time Sync)
+    // 🔗 1. الرقابة اللحظية على وضع الصيانة
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
+        console.log("Maintenance Sync:", settings);
         setMaintenance(settings);
         setIsMaintenanceLoading(false);
     });
 
-    // 🔑 2. معالجة الرابط السري ?admin=true
+    // 🔑 2. كشف "الرابط السري" وتخزينه في المتصفح فوراً
     const searchParams = new URLSearchParams(window.location.search);
     if (searchParams.get('admin') === 'true') {
-        localStorage.setItem('ssc_bypass_key', 'true');
-        // إزالة البارامتر من الرابط لجمالية الموقع
+        localStorage.setItem('ssc_admin_bypass', 'active');
+        // تنظيف الرابط لعدم لفت الانتباه
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     dbService.getAppBranding().then(setBranding);
     
-    let unsubscribeUser: (() => void) | null = null;
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        unsubscribeUser = dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
+        dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
             if (updatedUser) {
                 setUser(updatedUser);
             }
             setIsAuthLoading(false);
         });
       } else {
-        if (unsubscribeUser) unsubscribeUser();
         setUser(null);
         setIsAuthLoading(false);
       }
@@ -107,7 +106,6 @@ const App: React.FC = () => {
     return () => {
         unsubscribeAuth();
         unsubscribeMaintenance();
-        if (unsubscribeUser) unsubscribeUser();
     };
   }, []);
 
@@ -134,22 +132,20 @@ const App: React.FC = () => {
   }, []);
 
   const renderContent = () => {
-    // 🚧 فحص الصيانة - الأولوية القصوى (Strict Lockdown)
-    const isBypassActive = localStorage.getItem('ssc_bypass_key') === 'true';
+    // 🛑 فحص الصيانة - الأولوية القصوى المطلقة
+    const hasAdminBypass = localStorage.getItem('ssc_admin_bypass') === 'active';
     
-    if (maintenance?.isMaintenanceActive) {
-        // يسمح بالمرور فقط للمدير، أو المعلم إذا كان الإعداد مفعلاً، أو من يملك مفتاح الرابط السري
-        const isPrivileged = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
-        
-        if (!isPrivileged && !isBypassActive) {
+    if (maintenance?.isMaintenanceActive && !hasAdminBypass) {
+        // إذا كان المستخدم مسجلاً كمدير، نتخطى الصيانة تلقائياً
+        if (user?.role !== 'admin') {
             return <MaintenanceMode />;
         }
     }
 
     if (isAuthLoading || isMaintenanceLoading) return (
-      <div className="flex flex-col items-center justify-center h-[70vh] gap-6">
-        <RefreshCw className="w-16 h-16 text-amber-400 animate-spin" />
-        <p className="text-gray-400 font-black animate-pulse">تأمين الاتصال السحابي...</p>
+      <div className="flex flex-col items-center justify-center h-screen gap-6 bg-[#000407]">
+        <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
+        <p className="text-gray-500 font-black animate-pulse uppercase tracking-[0.3em]">Quantum Core Booting...</p>
       </div>
     );
 
@@ -169,12 +165,11 @@ const App: React.FC = () => {
       case 'quiz_center': return user ? <QuizCenter user={user} /> : null;
       case 'quiz_player': return activeQuiz && user ? <QuizPlayer user={user} quiz={activeQuiz} onFinish={() => setViewStack(['quiz_center'])} /> : null;
       case 'attempt_review': return activeAttempt && user ? <AttemptReview user={user} attempt={activeAttempt} /> : null;
+      case 'subscription': return user ? <BillingCenter user={user} onUpdateUser={setUser} /> : null;
       case 'discussions': return <Forum user={user} />;
       case 'ai-chat': return user ? <AiTutor grade={user.grade} subject={activeSubject} /> : null;
       case 'virtual-lab': return user ? <LabHub user={user} /> : null;
       case 'live-sessions': return user ? <LiveSessions user={user} /> : null;
-      case 'subscription': return user ? <BillingCenter user={user} onUpdateUser={setUser} /> : null;
-      case 'recommendations': return user ? <Recommendations user={user} /> : null;
       case 'journey-map': return user ? <PhysicsJourneyMap user={user} /> : null;
       case 'resources-center': return user ? <ResourcesCenter user={user} /> : null;
       case 'reports': return user ? <ProgressReport user={user} attempts={[]} /> : null;
@@ -202,7 +197,7 @@ const App: React.FC = () => {
   if (currentView === 'landing' || currentView === 'auth') {
     return (
       <div className="min-h-screen bg-[#000000] text-right font-['Tajawal']" dir="rtl">
-        <Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>
+        <Suspense fallback={<div className="h-screen flex items-center justify-center bg-black"><RefreshCw className="animate-spin text-white" /></div>}>
           {renderContent()}
         </Suspense>
       </div>
@@ -218,8 +213,8 @@ const App: React.FC = () => {
         branding={branding}
         activeSubject={activeSubject}
         onLogout={() => {
-            // تنظيف مفتاح العبور عند تسجيل الخروج
-            localStorage.removeItem('ssc_bypass_key'); 
+            // عند تسجيل الخروج، نحذف مفتاح العبور السري للأمان
+            localStorage.removeItem('ssc_admin_bypass');
             signOut(auth).then(() => setViewStack(['landing']));
         }}
         isOpen={isSidebarOpen}
@@ -238,7 +233,7 @@ const App: React.FC = () => {
             ) : (
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
-                    {branding.logoUrl ? <img src={branding.logoUrl} className="w-full h-full object-contain p-1" /> : <LayoutDashboard size={20} className="text-amber-400" />}
+                    {branding.logoUrl ? <img src={branding.logoUrl} className="w-full h-full object-contain p-1" alt="Logo" /> : <LayoutDashboard size={20} className="text-amber-400" />}
                 </div>
                 <h1 className="font-black text-white text-lg tracking-tight uppercase">{branding.appName}</h1>
               </div>
