@@ -73,12 +73,14 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    // 🔑 1. فحص الرابط السري فوراً (SECRET BYPASS)
+    // 🔑 1. فحص الرابط السري (يدعم admin=true و access=admin)
     const params = new URLSearchParams(window.location.search);
-    if (params.get('access') === 'admin') {
+    const isAdminParam = params.get('access') === 'admin' || params.get('admin') === 'true';
+    
+    if (isAdminParam) {
         localStorage.setItem('ssc_maintenance_bypass', 'active_secret_key_v1');
         setHasBypass(true);
-        // تنظيف الرابط لعدم لفت الأنظار
+        // تنظيف الرابط
         window.history.replaceState({}, document.title, window.location.pathname);
     } else {
         const storedBypass = localStorage.getItem('ssc_maintenance_bypass');
@@ -94,6 +96,7 @@ const App: React.FC = () => {
     dbService.getAppBranding().then(setBranding);
     
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsAuthLoading(true);
       if (firebaseUser) {
         dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
             if (updatedUser) setUser(updatedUser);
@@ -134,26 +137,24 @@ const App: React.FC = () => {
   }, []);
 
   const renderContent = () => {
-    // 🛑 فحص الصيانة - الأولوية القصوى (Gatekeeper Logic)
-    if (maintenance?.isMaintenanceActive) {
-        // يسمح بالمرور فقط في حالات محددة:
-        // 1. المستخدم يمتلك "المفتاح السري" في متصفحه
-        // 2. المستخدم مسجل دخوله كمسؤول (Admin)
-        // 3. المستخدم معلم ومع خيار السماح للمعلمين مفعل
-        const isAdmin = user?.role === 'admin';
-        const isTeacherAllowed = user?.role === 'teacher' && maintenance.allowTeachers;
-        
-        if (!hasBypass && !isAdmin && !isTeacherAllowed) {
-            return <MaintenanceMode />;
-        }
-    }
-
+    // 🛑 انتظار التحميل أولاً لضمان معرفة "الدور" (Role) و "مفتاح العبور"
     if (isAuthLoading || isMaintenanceLoading) return (
       <div className="flex flex-col items-center justify-center h-screen gap-6 bg-[#000407]">
         <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
         <p className="text-gray-500 font-black animate-pulse tracking-[0.3em]">SECURE LINK ESTABLISHED...</p>
       </div>
     );
+
+    // 🛑 فحص الصيانة - يتم فقط بعد التأكد من أن المستخدم ليس مديراً وليس لديه مفتاح عبور
+    if (maintenance?.isMaintenanceActive) {
+        const isAdmin = user?.role === 'admin';
+        const isTeacherAllowed = user?.role === 'teacher' && maintenance.allowTeachers;
+        
+        // إذا لم يكن مديراً، وليس معلماً مسموحاً له، وليس لديه مفتاح عبور -> اظهر الصيانة
+        if (!hasBypass && !isAdmin && !isTeacherAllowed) {
+            return <MaintenanceMode />;
+        }
+    }
 
     if (!user && currentView !== 'landing' && currentView !== 'auth') {
       return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
@@ -220,7 +221,6 @@ const App: React.FC = () => {
         branding={branding}
         activeSubject={activeSubject}
         onLogout={() => {
-            // تنظيف مفاتيح العبور عند تسجيل الخروج لزيادة الأمان
             localStorage.removeItem('ssc_maintenance_bypass');
             setHasBypass(false);
             signOut(auth).then(() => setViewStack(['landing']));

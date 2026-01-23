@@ -12,7 +12,7 @@ const MaintenanceMode: React.FC = () => {
   const [serverTimeOffset, setServerTimeOffset] = useState(0);
 
   useEffect(() => {
-    // 1. مزامنة الوقت العالمي لمنع التلاعب بساعة الهاتف
+    // 1. مزامنة الوقت العالمي
     const syncTime = async () => {
         try {
             const start = Date.now();
@@ -71,9 +71,10 @@ const MaintenanceMode: React.FC = () => {
   }, [settings, serverTimeOffset]);
 
   const handleAdminEnter = () => {
-    // تفعيل مفتاح العبور السري عند الضغط على الزر المخفي
-    localStorage.setItem('ssc_admin_bypass', 'active');
-    window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'auth' } }));
+    // 🔑 تفعيل مفتاح العبور السري يدوياً عند الضغط على الزر المخفي
+    localStorage.setItem('ssc_maintenance_bypass', 'active_secret_key_v1');
+    // إعادة تحميل الصفحة لتنشيط العبور
+    window.location.reload();
   };
 
   const TimeBlock = ({ value, label }: { value: number, label: string }) => (
@@ -149,7 +150,7 @@ const MaintenanceMode: React.FC = () => {
         onClick={handleAdminEnter}
         className="fixed bottom-4 right-4 text-[8px] font-black text-gray-800 hover:text-blue-500/20 transition-colors uppercase tracking-[0.3em] opacity-5 hover:opacity-100 z-[10000]"
       >
-        Admin Portal Login
+        ADMIN PORTAL LOGIN
       </button>
 
       <footer className="absolute bottom-6 w-full px-12 flex justify-between items-center opacity-20 pointer-events-none">
