@@ -4,7 +4,8 @@ import { Invoice, PaymentStatus, PaymentSettings, User } from '../types';
 import { dbService } from '../services/db';
 import { 
   Plus, RefreshCw, AlertCircle, Search, User as UserIcon, 
-  X, DollarSign, Zap, FileText, CheckCircle2, ShieldCheck 
+  X, Banknote, Zap, FileText, CheckCircle2, ShieldCheck,
+  DollarSign
 } from 'lucide-react';
 
 const AdminFinancials: React.FC = () => {
@@ -179,7 +180,7 @@ const AdminFinancials: React.FC = () => {
                                     </select>
                                 </div>
                             </div>
-                            <button onClick={handleCreateManualInvoice} disabled={isLoading} className="w-full mt-10 py-6 bg-[#fbbf24] text-black rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-4">
+                            <button onClick={handleCreateManualInvoice} disabled={isLoading} className="w-full mt-10 py-6 bg-[#fbbf24] text-black rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-4">
                                 {isLoading ? <RefreshCw className="animate-spin"/> : <Zap fill="currentColor"/>} تفعيل الحساب فوراً
                             </button>
                         </div>

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { User } from '../types';
 import { dbService } from '../services/db';
-import { ArrowRight, Map, Trophy, BookOpen, Star, Zap } from 'lucide-react';
+import { ArrowRight, Map, Trophy, BookOpen, Star, Zap, Crown } from 'lucide-react';
 import anime from 'animejs';
 
 interface StudentDashboardProps {
@@ -13,7 +13,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
   const [progressData, setProgressData] = useState({ percent: 0, lessons: 0, points: 0 });
 
   useEffect(() => {
-    // 1. أنيميشن لدخول البطاقات بتتابع
     anime({
       targets: '.dashboard-card',
       translateY: [50, 0],
@@ -23,7 +22,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       duration: 1000
     });
 
-    // 2. أنيميشن عداد النقاط
     const pointsObj = { val: 0 };
     anime({
         targets: pointsObj,
@@ -34,7 +32,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
         update: () => setProgressData(prev => ({ ...prev, points: pointsObj.val }))
     });
 
-    // حساب نسبة الإنجاز التقريبية للعرض
     const completed = (user.progress.completedLessonIds || []).length;
     setProgressData(prev => ({ ...prev, lessons: completed, percent: Math.min(completed * 5, 100) }));
   }, [user]);
@@ -46,13 +43,20 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
   return (
     <div className="space-y-10 font-['Tajawal'] pb-24 text-right" dir="rtl">
       
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start gap-6 overflow-hidden">
          <div className="welcome-text">
-            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
-               مرحباً بك، <span className="text-amber-400">{user.name.split(' ')[0]}</span> 👋
-            </h2>
-            <p className="text-slate-400 text-lg font-medium mt-3">
+            <div className="flex items-center gap-4 mb-2">
+                <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
+                مرحباً بك، <span className="text-amber-400">{user.name.split(' ')[0]}</span> 👋
+                </h2>
+                {user.subscription === 'premium' && (
+                    <div className="bg-amber-400 text-black px-4 py-1.5 rounded-full flex items-center gap-2 shadow-[0_0_20px_rgba(251,191,36,0.3)] animate-pulse border border-black/10">
+                        <Crown size={16} fill="currentColor" />
+                        <span className="text-[10px] font-black uppercase tracking-tighter">عضو متميز / Premium</span>
+                    </div>
+                )}
+            </div>
+            <p className="text-slate-400 text-lg font-medium">
               جاهز لاكتشاف أسرار الكون اليوم؟
             </p>
          </div>
@@ -65,7 +69,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-         {/* Main Action Cards */}
          <div 
            onClick={() => navigate('curriculum')}
            className="dashboard-card lg:col-span-8 bg-gradient-to-br from-blue-600/20 to-blue-900/20 border border-blue-500/20 p-10 rounded-[50px] cursor-pointer hover:border-blue-400/40 transition-all group relative overflow-hidden opacity-0"
@@ -102,7 +105,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
            </div>
          </div>
 
-         {/* Stats Row */}
          <div className="dashboard-card lg:col-span-4 glass-panel p-8 rounded-[40px] border-white/5 opacity-0">
             <h4 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-8 flex items-center gap-2">
                 <Zap size={14} className="text-amber-400" /> مستوى الإنجاز

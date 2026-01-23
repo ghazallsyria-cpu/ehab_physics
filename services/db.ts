@@ -50,10 +50,6 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as Curriculum));
   }
 
-  /**
-   * حفظ درس داخل وحدة في مستند منهج معين
-   * @param curriculumId المعرف الحقيقي للمستند في Firestore
-   */
   async saveLesson(curriculumId: string, unitId: string, lesson: Lesson) {
     this.checkDb();
     const ref = doc(db!, 'curriculum', curriculumId);
@@ -74,16 +70,12 @@ class DBService {
     await updateDoc(ref, { units });
   }
 
-  /**
-   * حفظ وحدة داخل مستند منهج
-   */
   async saveUnit(curriculumId: string, unit: Unit, grade?: string, subject?: string) {
     this.checkDb();
     const ref = doc(db!, 'curriculum', curriculumId);
     const snap = await getDoc(ref);
     
     if (!snap.exists()) {
-        // إذا كان المنهج جديداً كلياً ولم يتم إنشاؤه بعد
         if (!grade || !subject) throw new Error("يجب تحديد الصف والمادة لإنشاء منهج جديد.");
         const newCurriculum: Curriculum = { 
           grade: grade as any, 
@@ -167,7 +159,6 @@ class DBService {
     await setDoc(doc(db!, 'users', user.uid), this.cleanData(user), { merge: true });
   }
 
-  // Fix: Added missing updateUserRole method to change user's permissions
   async updateUserRole(uid: string, role: UserRole) {
     this.checkDb();
     await updateDoc(doc(db!, 'users', uid), { role });
@@ -185,7 +176,6 @@ class DBService {
     return snap.docs.map(d => d.data() as User);
   }
 
-  // Fix: Added missing getAdmins method to retrieve users with admin role
   async getAdmins(): Promise<User[]> {
     this.checkDb();
     const q = query(collection(db!, 'users'), where('role', '==', 'admin'));
@@ -497,15 +487,43 @@ class DBService {
     const user = await this.getUser(userId);
     if (!user) throw new Error("USER_NOT_FOUND");
     const trackId = `MANUAL_${Math.random().toString(36).substring(7).toUpperCase()}`;
-    const invoice: Omit<Invoice, 'id'> = { userId, userName: user.name, planId, amount, date: new Date().toISOString(), status: 'PAID', trackId, paymentId: `PAY_ADMIN_${Date.now()}`, authCode: 'ADMIN_MANUAL' };
+    const invoice: Omit<Invoice, 'id'> = { 
+      userId, 
+      userName: user.name, 
+      planId, 
+      amount, 
+      date: new Date().toISOString(), 
+      status: 'PAID', 
+      trackId, 
+      paymentId: `PAY_ADMIN_${Date.now()}`, 
+      authCode: 'ADMIN_MANUAL' 
+    };
     const docRef = await addDoc(collection(db!, 'invoices'), invoice);
+    
+    // تحديث خطة اشتراك الطالب إلى بريميوم
     await updateDoc(doc(db!, 'users', userId), { subscription: 'premium' });
+    
+    // إرسال إشعار دفع وتفعيل فوري يظهر في لوحة تحكم الطالب
+    await this.createNotification({
+      userId: userId,
+      title: "🚀 مبروك! تم تفعيل اشتراكك",
+      message: `تم اعتماد دفعة "ومض" وتفعيل حسابك في باقة التفوق بنجاح. استمتع بكافة المزايا الآن!`,
+      timestamp: new Date().toISOString(),
+      isRead: false,
+      type: 'success',
+      category: 'academic'
+    });
+
     return { ...invoice, id: docRef.id };
   }
 
-  async getInvoices(): Promise<{ data: Invoice[] }> {
+  async getInvoices(userId?: string): Promise<{ data: Invoice[] }> {
     this.checkDb();
-    const snap = await getDocs(query(collection(db!, 'invoices'), orderBy('date', 'desc')));
+    let q = query(collection(db!, 'invoices'), orderBy('date', 'desc'));
+    if (userId) {
+      q = query(collection(db!, 'invoices'), where('userId', '==', userId), orderBy('date', 'desc'));
+    }
+    const snap = await getDocs(q);
     return { data: snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)) };
   }
 
@@ -576,11 +594,9 @@ class DBService {
     return { user, report: user?.weeklyReports?.[0] || null };
   }
 
-  // --- تهيئة نظام المنتديات ---
   async initializeForumSystem() {
     this.checkDb();
     
-    // 1. إنشاء الأقسام الافتراضية إذا كانت فارغة
     const sectionsSnap = await getDocs(collection(db!, 'forumSections'));
     if (sectionsSnap.empty) {
       const defaultSection: ForumSection = {
@@ -601,7 +617,6 @@ class DBService {
       await setDoc(doc(db!, 'forumSections', defaultSection.id), this.cleanData(defaultSection));
     }
 
-    // 2. إنشاء منشور ترحيبي إذا لم يكن هناك منشورات
     const postsSnap = await getDocs(query(collection(db!, 'forumPosts'), limit(1)));
     if (postsSnap.empty) {
       const welcomePost: Omit<ForumPost, 'id'> = {
