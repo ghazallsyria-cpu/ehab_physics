@@ -1,3 +1,4 @@
+
 {
   "name": "syrian-science",
   "private": true,
@@ -12,16 +13,18 @@
     "@google/genai": "^1.36.0",
     "@supabase/supabase-js": "2.44.4",
     "@zoomus/websdk": "^2.11.0",
+    "animejs": "^3.2.2",
     "firebase": "^10.8.0",
     "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
     "katex": "^0.16.10",
-    "lucide-react": "^0.562.0",
+    "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-qr-code": "^2.0.15"
   },
   "devDependencies": {
+    "@types/animejs": "^3.1.12",
     "@types/katex": "^0.16.7",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",

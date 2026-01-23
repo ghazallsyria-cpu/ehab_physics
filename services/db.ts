@@ -13,7 +13,8 @@ import {
   ForumPost, ForumReply, WeeklyReport, LoggingSettings, 
   NotificationSettings, PaymentSettings, Invoice, AIRecommendation,
   Unit, Lesson, LiveSession, EducationalResource, PaymentStatus, UserRole,
-  AppBranding, Article, PhysicsExperiment, PhysicsEquation, StudyGroup
+  AppBranding, Article, PhysicsExperiment, PhysicsEquation, StudyGroup,
+  SubscriptionPlan
 } from '../types';
 
 class DBService {
@@ -45,7 +46,57 @@ class DBService {
     await setDoc(doc(db!, 'settings', 'branding'), this.cleanData(branding));
   }
 
-  // --- تهيئة النظام ---
+  // --- تهيئة النظام المالي ---
+  async initializeFinancialSystem() {
+    this.checkDb();
+    const plans: SubscriptionPlan[] = [
+      {
+        id: 'plan_premium',
+        name: 'باقة التفوق (Premium)',
+        price: 35,
+        duration: 'term',
+        features: ['وصول كامل للمنهج', 'بنك الأسئلة الذكي', 'المختبرات المتقدمة', 'شهادات معتمدة'],
+        recommended: true,
+        tier: 'premium'
+      },
+      {
+        id: 'plan_basic',
+        name: 'الباقة الأساسية',
+        price: 15,
+        duration: 'monthly',
+        features: ['دروس الوحدة الأولى', 'اختبارات محدودة'],
+        tier: 'free'
+      }
+    ];
+    for (const plan of plans) {
+      await setDoc(doc(db!, 'subscriptionPlans', plan.id), plan);
+    }
+    await setDoc(doc(db!, 'settings', 'payments'), { 
+        isOnlinePaymentEnabled: true, 
+        womdaPhoneNumber: '55315661',
+        planPrices: { premium: 35, basic: 15 } 
+    });
+  }
+
+  // --- الباقات والاشتراكات ---
+  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    this.checkDb();
+    const snap = await getDocs(collection(db!, 'subscriptionPlans'));
+    if (snap.empty) {
+        // إذا كانت فارغة، قم بتهيئتها بالقيم الافتراضية مرة واحدة
+        await this.initializeFinancialSystem();
+        const retrySnap = await getDocs(collection(db!, 'subscriptionPlans'));
+        return retrySnap.docs.map(d => d.data() as SubscriptionPlan);
+    }
+    return snap.docs.map(d => d.data() as SubscriptionPlan);
+  }
+
+  async saveSubscriptionPlan(plan: SubscriptionPlan) {
+    this.checkDb();
+    await setDoc(doc(db!, 'subscriptionPlans', plan.id), this.cleanData(plan));
+  }
+
+  // --- تهيئة نظام المنتدى ---
   async initializeForumSystem() {
     this.checkDb();
     try {
