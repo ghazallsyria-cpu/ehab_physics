@@ -72,17 +72,17 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    // 🔗 مراقبة لحظية لوضع الصيانة
+    // 🔗 1. مراقبة لحظية لوضع الصيانة (Real-time Sync)
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
         setMaintenance(settings);
         setIsMaintenanceLoading(false);
     });
 
-    // 🔑 معالجة الرابط السري ?admin=true
+    // 🔑 2. معالجة الرابط السري ?admin=true
     const searchParams = new URLSearchParams(window.location.search);
     if (searchParams.get('admin') === 'true') {
         localStorage.setItem('ssc_bypass_key', 'true');
-        // تنظيف الرابط لجمالية الموقع
+        // إزالة البارامتر من الرابط لجمالية الموقع
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
@@ -134,19 +134,14 @@ const App: React.FC = () => {
   }, []);
 
   const renderContent = () => {
+    // 🚧 فحص الصيانة - الأولوية القصوى (Strict Lockdown)
     const isBypassActive = localStorage.getItem('ssc_bypass_key') === 'true';
-
-    // 🚧 فحص الصيانة - الأولوية القصوى
+    
     if (maintenance?.isMaintenanceActive) {
+        // يسمح بالمرور فقط للمدير، أو المعلم إذا كان الإعداد مفعلاً، أو من يملك مفتاح الرابط السري
         const isPrivileged = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
         
-        // إذا لم يكن مديراً ولم يستخدم الرابط السري
         if (!isPrivileged && !isBypassActive) {
-            return <MaintenanceMode />;
-        }
-        
-        // حتى لو استخدم الرابط السري، إذا سجل دخول كطالب يُطرد
-        if (user && user.role === 'student' && !isPrivileged) {
             return <MaintenanceMode />;
         }
     }
@@ -223,6 +218,7 @@ const App: React.FC = () => {
         branding={branding}
         activeSubject={activeSubject}
         onLogout={() => {
+            // تنظيف مفتاح العبور عند تسجيل الخروج
             localStorage.removeItem('ssc_bypass_key'); 
             signOut(auth).then(() => setViewStack(['landing']));
         }}
