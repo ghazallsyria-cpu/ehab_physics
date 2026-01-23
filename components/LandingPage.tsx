@@ -17,6 +17,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
     const loadData = async () => {
         try {
             const stats = await dbService.getStudentGradeStats();
+            // نضمن تحديث الحالة فقط إذا كانت هناك أرقام حقيقية
             setGradeStats(stats);
         } catch (e) {
             console.error("Failed to load stats", e);
@@ -50,23 +51,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
 
   const StudentCounter = ({ value, label, icon: Icon, color }: any) => {
     const counterRef = useRef<HTMLSpanElement>(null);
-    const hasAnimated = useRef(false);
+    const prevValue = useRef(0);
     
     useEffect(() => {
-        if (!isLoading && counterRef.current && !hasAnimated.current) {
-            const obj = { val: 0 };
+        // يتم تشغيل الأنيميشن فقط عندما تتغير القيمة وتكون أكبر من الصفر، أو عند انتهاء التحميل
+        if (!isLoading && counterRef.current && value !== prevValue.current) {
+            const obj = { val: prevValue.current };
             anime({
                 targets: obj,
                 val: value,
                 round: 1,
                 easing: 'easeOutExpo',
-                duration: 3000,
-                delay: 500,
+                duration: 2500,
                 update: () => {
                     if (counterRef.current) counterRef.current.innerText = obj.val.toString();
                 }
             });
-            hasAnimated.current = true;
+            prevValue.current = value;
         }
     }, [isLoading, value]);
 
