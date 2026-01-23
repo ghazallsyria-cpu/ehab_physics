@@ -43,6 +43,7 @@ const PhysicsJourneyMap = lazy(() => import('./components/PhysicsJourneyMap'));
 const ResourcesCenter = lazy(() => import('./components/ResourcesCenter'));
 const AdminManager = lazy(() => import('./components/AdminManager'));
 const AdminForumPostManager = lazy(() => import('./components/AdminForumPostManager'));
+const FirestoreRulesFixer = lazy(() => import('./components/FirestoreRulesFixer'));
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -134,6 +135,7 @@ const App: React.FC = () => {
       case 'admin-assets': return <AdminAssetManager />;
       case 'admin-managers': return <AdminManager />;
       case 'admin-forum-posts': return <AdminForumPostManager />;
+      case 'admin-security-fix': return <FirestoreRulesFixer />;
       default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
     }
   };

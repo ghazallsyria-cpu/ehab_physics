@@ -18,7 +18,8 @@ import {
   Send,
   Lock,
   Zap,
-  Bell
+  Bell,
+  ShieldAlert
 } from 'lucide-react';
 
 interface ForumProps {
@@ -37,6 +38,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sortBy, setSortBy] = useState<'newest' | 'top'>('newest');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [permissionError, setPermissionError] = useState(false);
   const [forumSettings, setForumSettings] = useState<LoggingSettings | null>(null);
 
   useEffect(() => {
@@ -58,10 +60,14 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
 
   const loadPosts = async (forumId: string) => {
     setIsLoading(true);
+    setPermissionError(false);
     try {
         const forumPosts = await dbService.getForumPosts(forumId);
         setPosts(forumPosts);
-    } catch (e) { console.error(e); }
+    } catch (e: any) { 
+        console.error(e);
+        if (e.code === 'permission-denied') setPermissionError(true);
+    }
     finally { setIsLoading(false); }
   };
 
@@ -120,9 +126,13 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       setShowAskModal(false);
       setNewQuestion({ title: '', content: '' });
       await loadPosts(activeForum.id);
-    } catch (e) { 
+    } catch (e: any) { 
         console.error(e);
-        setErrorMsg("حدث خطأ أثناء النشر. يرجى التحقق من اتصال الإنترنت."); 
+        if (e.code === 'permission-denied') {
+            setErrorMsg("❌ عذراً، لا تمتلك صلاحيات النشر في قاعدة البيانات حالياً. يرجى التواصل مع المدير لتفعيل 'مركز الأمان'.");
+        } else {
+            setErrorMsg("حدث خطأ أثناء النشر. يرجى التحقق من اتصال الإنترنت."); 
+        }
     }
     finally { setIsSubmitting(false); }
   };
@@ -147,7 +157,10 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       const updatedPosts = await dbService.getForumPosts(activeForum!.id);
       setPosts(updatedPosts);
       setSelectedPost(updatedPosts.find(p => p.id === selectedPost.id) || null);
-    } catch (e) { alert("فشل إرسال الرد."); }
+    } catch (e: any) { 
+        if (e.code === 'permission-denied') alert("فشل الرد: قاعدة البيانات تمنع النشر حالياً.");
+        else alert("فشل إرسال الرد."); 
+    }
     finally { setIsSubmitting(false); }
   };
 
@@ -201,6 +214,16 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
         </div>
       </div>
 
+      {permissionError && (
+          <div className="mb-10 bg-red-600/20 border-2 border-red-600/40 p-8 rounded-[40px] flex items-center gap-6 animate-pulse">
+              <ShieldAlert size={48} className="text-red-500" />
+              <div>
+                  <h4 className="text-white font-black text-xl">⚠️ خطأ أمان في قاعدة البيانات</h4>
+                  <p className="text-gray-300 mt-1">جدول النقاشات مغلق برمجياً. يجب على المدير الدخول إلى <span className="font-bold text-red-400">لوحة التحكم {'>'} مركز الأمان</span> وتحديث القواعد.</p>
+              </div>
+          </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         <div className="lg:col-span-8 space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-center bg-black/40 p-4 rounded-[30px] border border-white/5 gap-4 shadow-xl">
@@ -237,7 +260,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
               </div>
             </div>
           ))}
-          {sortedPosts.length === 0 && !isLoading && <div className="py-40 text-center glass-panel rounded-[50px] border-2 border-dashed border-white/10 opacity-30"><MessageSquare size={64} className="mx-auto mb-6 text-gray-600" /><p className="font-black text-xl uppercase tracking-widest">لا توجد مواضيع في هذا القسم حالياً.</p></div>}
+          {sortedPosts.length === 0 && !isLoading && !permissionError && <div className="py-40 text-center glass-panel rounded-[50px] border-2 border-dashed border-white/10 opacity-30"><MessageSquare size={64} className="mx-auto mb-6 text-gray-600" /><p className="font-black text-xl uppercase tracking-widest">لا توجد مواضيع في هذا القسم حالياً.</p></div>}
         </div>
 
         <div className="lg:col-span-4 h-fit sticky top-32">
@@ -295,7 +318,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
         </div>
       </div>
 
-      {/* Modal - تم رفعه لضمان عدم الاختفاء خلف القائمة الجانبية */}
+      {/* Modal */}
       {showAskModal && (
         <div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-fadeIn" onClick={() => setShowAskModal(false)}>
           <div className="glass-panel w-full max-w-2xl p-10 md:p-14 rounded-[60px] border-white/10 relative shadow-[0_50px_150px_rgba(0,0,0,0.9)] bg-[#0a1118] border-2" onClick={e => e.stopPropagation()}>

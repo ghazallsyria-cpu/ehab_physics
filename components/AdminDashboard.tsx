@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ChevronDown, HeartPulse, LayoutDashboard, Library, MessageSquare, Award, ClipboardList, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Banknote, Settings, Video, Wifi, WifiOff, RefreshCw, AlertTriangle, ChevronDown, HeartPulse, LayoutDashboard, Library, MessageSquare, Award, ClipboardList, ShieldCheck, ShieldAlert, Lock } from 'lucide-react';
 import { dbService } from '../services/db';
 import SupabaseConnectionFixer from './SupabaseConnectionFixer';
 import EscalatedPostsWidget from './EscalatedPostsWidget';
@@ -34,6 +34,7 @@ const AdminDashboard: React.FC = () => {
     { view: 'admin-managers', icon: ShieldCheck, title: 'إدارة المدراء', description: 'تعيين وتغيير صلاحيات إدارة النظام.' },
     { view: 'admin-forums', icon: MessageSquare, title: 'هيكل المنتديات', description: 'إعداد الأقسام والمشرفين الأكاديميين.' },
     { view: 'admin-forum-posts', icon: ShieldAlert, title: 'إدارة المنشورات', description: 'الرقابة على المحتوى وحذف المنشورات.' },
+    { view: 'admin-security-fix', icon: Lock, title: 'مركز الأمان', description: 'إصلاح قواعد الحماية وتفعيل صلاحيات الطلاب.' },
     { view: 'admin-live-sessions', icon: Video, title: 'إدارة البث', description: 'جدولة حصص Zoom المباشرة.' },
     { view: 'admin-assets', icon: Library, title: 'مكتبة الوسائط', description: 'إدارة صور وملفات الدروس.' },
     { view: 'admin-settings', icon: Settings, title: 'إعدادات النظام', description: 'التحكم في السياسات وتسجيل البيانات.' },
