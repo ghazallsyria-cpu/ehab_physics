@@ -80,6 +80,25 @@ const AdminSettings: React.FC = () => {
     setIsSaving(false);
     setTimeout(() => setMessage(null), 3000);
   };
+
+  // دالة مساعدة لتحويل ISO السحابي إلى صيغة متوافقة مع الوقت المحلي للمتصفح
+  const formatISOForInput = (isoStr: string) => {
+    if (!isoStr) return '';
+    const date = new Date(isoStr);
+    const offset = date.getTimezoneOffset() * 60000; // الإزاحة بالملي ثانية
+    const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, 16);
+    return localISOTime;
+  };
+
+  const handleMaintenanceDateChange = (val: string) => {
+    if (!maintenance || !val) return;
+    // تحويل الوقت المختار محلياً إلى ISO UTC للحفظ في قاعدة البيانات
+    const selectedDate = new Date(val);
+    setMaintenance({
+        ...maintenance,
+        expectedReturnTime: selectedDate.toISOString()
+    });
+  };
   
   const settingOptions: { key: keyof LoggingSettings; title: string; description: string }[] = [
     { key: 'logStudentProgress', title: 'تسجيل تقدم الطلاب', description: 'حفظ سجلات إكمال الدروس والأنشطة الأخرى.' },
@@ -112,7 +131,7 @@ const AdminSettings: React.FC = () => {
       )}
 
       <div className="space-y-12">
-        {/* وضع الصيانة والتطوير - القسم الجديد */}
+        {/* وضع الصيانة والتطوير */}
         <div className="glass-panel p-10 md:p-12 rounded-[60px] border-red-500/20 bg-gradient-to-br from-red-500/5 to-transparent relative overflow-hidden shadow-2xl">
             <div className="absolute top-0 left-0 p-8 opacity-5 text-9xl pointer-events-none -rotate-12"><Hammer size={120} /></div>
             
@@ -143,11 +162,12 @@ const AdminSettings: React.FC = () => {
                         <Clock className="absolute top-1/2 right-6 -translate-y-1/2 text-gray-500" size={20}/>
                         <input 
                             type="datetime-local" 
-                            value={maintenance?.expectedReturnTime ? new Date(maintenance.expectedReturnTime).toISOString().slice(0, 16) : ''}
-                            onChange={e => maintenance && setMaintenance({...maintenance, expectedReturnTime: new Date(e.target.value).toISOString()})}
+                            value={maintenance?.expectedReturnTime ? formatISOForInput(maintenance.expectedReturnTime) : ''}
+                            onChange={e => handleMaintenanceDateChange(e.target.value)}
                             className="w-full bg-black/60 border-2 border-white/5 rounded-3xl px-16 py-5 text-white outline-none focus:border-red-500/50 font-black text-lg transition-all"
                         />
                     </div>
+                    <p className="text-[9px] text-gray-600 mr-4 italic">سيظهر هذا التوقيت للطلاب كعداد تنازلي.</p>
                 </div>
                 <div className="space-y-4">
                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4 flex items-center gap-2">

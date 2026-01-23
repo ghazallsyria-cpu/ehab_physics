@@ -15,12 +15,14 @@ const MaintenanceMode: React.FC = () => {
   const [isOpening, setIsOpening] = useState(false);
 
   useEffect(() => {
+    // 🛡️ رصد لحظي لحالة الصيانة - إذا قام المدير بإطفائها، يتم تفعيل الأنيميشن فوراً
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((data) => {
-        setSettings(data);
-        if (data && !data.isMaintenanceActive) {
-            handleAutoOpen();
+        if (settings && settings.isMaintenanceActive && data && !data.isMaintenanceActive) {
+            handleAutoOpen(); // المنصة فتحت!
         }
+        setSettings(data);
     });
+    
     dbService.getAppBranding().then(setBranding);
 
     // التحقق من حالة العبور السابقة
@@ -28,10 +30,10 @@ const MaintenanceMode: React.FC = () => {
         setShowSecretButton(true);
     }
 
-    // إنشاء سديم الجزيئات الخلفي (Physics Nebula)
+    // إنشاء سديم الجزيئات الخلفي
     const createParticles = () => {
         if (!containerRef.current) return;
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < 40; i++) {
             const dot = document.createElement('div');
             dot.className = 'absolute bg-blue-500/20 rounded-full pointer-events-none blur-[2px] z-0';
             const size = Math.random() * 5 + 2;
@@ -56,7 +58,7 @@ const MaintenanceMode: React.FC = () => {
     createParticles();
 
     return () => unsubscribeMaintenance();
-  }, []);
+  }, [settings]);
 
   useEffect(() => {
     if (!settings?.expectedReturnTime || !settings.isMaintenanceActive) return;
@@ -68,7 +70,7 @@ const MaintenanceMode: React.FC = () => {
 
       if (diff <= 0) {
         clearInterval(timer);
-        handleAutoOpen();
+        // لا تفتح تلقائياً إلا إذا كان المدير قد أغلق وضع الصيانة فعلياً
       } else {
         setTimeLeft({
           d: Math.floor(diff / (1000 * 60 * 60 * 24)),
@@ -86,29 +88,29 @@ const MaintenanceMode: React.FC = () => {
       if (isOpening) return;
       setIsOpening(true);
       
-      // تأثير Warp Speed النهائي
+      // تأثير Warp Speed الفيزيائي عند الافتتاح
       const tl = anime.timeline({
           easing: 'easeInQuart'
       });
 
       tl.add({
-          targets: '.quantum-core',
-          scale: 0.05,
+          targets: '.content-lock',
           opacity: 0,
-          rotate: '1440deg',
-          duration: 1500
+          scale: 0.8,
+          filter: 'blur(20px)',
+          duration: 800
       }).add({
           targets: '.warp-line',
           opacity: [0, 1],
           translateX: (el: any) => [0, el.getAttribute('data-dist')],
-          duration: 800,
-          delay: anime.stagger(10)
+          duration: 1000,
+          delay: anime.stagger(15)
       }).add({
           targets: '.opening-flash',
           opacity: [0, 1],
           duration: 1200,
           complete: () => {
-              window.location.reload(); // تحديث الصفحة للدخول النظيف
+              window.location.reload(); // تحديث الموقع للدخول النظيف للمنصة
           }
       });
   };
@@ -120,40 +122,23 @@ const MaintenanceMode: React.FC = () => {
       anime({
           targets: '.maintenance-logo',
           scale: [1, 0.95, 1.05, 1],
-          filter: ['brightness(1)', 'brightness(1.5)', 'brightness(1)'],
           duration: 300
       });
 
       if (newCount >= 5) {
           sessionStorage.setItem('ssc_admin_bypass', 'true');
           setShowSecretButton(true);
-          if ("vibrate" in navigator) navigator.vibrate([100, 50, 100]);
-          
-          anime({
-              targets: '.secret-admin-access',
-              opacity: [0, 1],
-              scale: [0.9, 1],
-              translateY: [20, 0],
-              duration: 1000,
-              easing: 'easeOutElastic(1, .8)'
-          });
+          if ("vibrate" in navigator) navigator.vibrate(200);
       }
-  };
-
-  const goToLogin = () => {
-      window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'auth' } }));
   };
 
   const TimeBlock = ({ value, label }: { value: number, label: string }) => (
     <div className="flex flex-col items-center">
-        <div className="relative group">
-            <div className="absolute inset-[-8px] bg-blue-500/20 rounded-[30px] blur-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="w-20 h-24 md:w-28 md:h-32 bg-white/[0.03] border border-white/10 rounded-[30px] flex items-center justify-center backdrop-blur-3xl shadow-2xl relative overflow-hidden group-hover:border-blue-400/40 transition-all">
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-                <span className="text-4xl md:text-6xl font-black text-white tabular-nums tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
-                    {String(value).padStart(2, '0')}
-                </span>
-            </div>
+        <div className="w-20 h-24 md:w-28 md:h-32 bg-white/[0.03] border border-white/10 rounded-[30px] flex items-center justify-center backdrop-blur-3xl shadow-2xl relative overflow-hidden group hover:border-blue-400/40 transition-all">
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+            <span className="text-4xl md:text-6xl font-black text-white tabular-nums tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                {String(value).padStart(2, '0')}
+            </span>
         </div>
         <div className="mt-4">
             <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] italic">{label}</p>
@@ -166,49 +151,25 @@ const MaintenanceMode: React.FC = () => {
   return (
     <div ref={containerRef} className="fixed inset-0 z-[9999] bg-[#000407] flex flex-col items-center justify-center font-['Tajawal'] text-white overflow-hidden text-right" dir="rtl">
       
-      {/* طبقة الوميض والخطوط الفيزيائية */}
       <div className="opening-flash fixed inset-0 bg-white z-[10000] opacity-0 pointer-events-none"></div>
       <div className="absolute inset-0 z-0 opacity-10 pointer-events-none flex items-center justify-center">
-        {Array.from({length: 40}).map((_, i) => (
-            <div 
-                key={i} 
-                className="warp-line absolute h-[2px] bg-blue-400 opacity-0" 
-                data-dist={Math.random() * 2000 - 1000}
-                style={{
-                    width: Math.random() * 200 + 50 + 'px',
-                    transform: `rotate(${Math.random() * 360}deg) translateX(0px)`
-                }}
-            ></div>
+        {Array.from({length: 50}).map((_, i) => (
+            <div key={i} className="warp-line absolute h-[2px] bg-blue-400 opacity-0" data-dist={Math.random() * 2000 - 1000} style={{ width: Math.random() * 200 + 50 + 'px', transform: `rotate(${Math.random() * 360}deg) translateX(0px)` }}></div>
         ))}
       </div>
 
-      {/* خلفية موجات الجاذبية */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-blue-500/10 rounded-full animate-ping-slow"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-cyan-500/10 rounded-full animate-ping-slow" style={{animationDelay: '1.5s'}}></div>
-      </div>
-
-      <div className="relative z-10 max-w-5xl w-full px-8 flex flex-col items-center">
+      <div className="content-lock relative z-10 max-w-5xl w-full px-8 flex flex-col items-center transition-all duration-1000">
         
-        {/* النواة المركزية */}
-        <div className="quantum-core relative mb-12">
+        <div className="relative mb-12">
             <div className="absolute inset-[-50px] border-2 border-blue-500/10 rounded-full animate-spin-slow"></div>
-            <div className="absolute inset-[-25px] border border-blue-400/20 rounded-full animate-spin-slow-reverse"></div>
             <div 
                 onClick={handleLogoClick}
-                className="maintenance-logo w-36 h-36 md:w-44 md:h-44 bg-[#0a1118] border-2 border-white/10 rounded-[55px] flex items-center justify-center shadow-[0_0_100px_rgba(59,130,246,0.15)] relative group cursor-pointer transition-all active:scale-90 overflow-hidden"
+                className="maintenance-logo w-36 h-36 md:w-44 md:h-44 bg-[#0a1118] border-2 border-white/10 rounded-[55px] flex items-center justify-center shadow-[0_0_100px_rgba(59,130,246,0.15)] relative group cursor-pointer transition-all active:scale-90"
             >
-                <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 via-transparent to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 {branding?.logoUrl ? (
-                    <img src={branding.logoUrl} className="w-2/3 h-2/3 object-contain pointer-events-none relative z-10" alt="Logo" />
+                    <img src={branding.logoUrl} className="w-2/3 h-2/3 object-contain pointer-events-none" alt="Logo" />
                 ) : (
-                    <Atom size={80} className="text-blue-400 animate-spin-slow pointer-events-none relative z-10" />
-                )}
-                
-                {clickCount > 0 && clickCount < 5 && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-20">
-                        <span className="text-xl font-black text-blue-400 animate-pulse">{clickCount}/5</span>
-                    </div>
+                    <Atom size={80} className="text-blue-400 animate-spin-slow" />
                 )}
             </div>
         </div>
@@ -249,17 +210,12 @@ const MaintenanceMode: React.FC = () => {
             </div>
             
             {showSecretButton && (
-                <div className="secret-admin-access text-center space-y-4">
-                    <button 
-                        onClick={goToLogin}
-                        className="flex items-center gap-4 text-amber-400 hover:text-white transition-all text-[10px] font-black uppercase tracking-[0.3em] bg-amber-400/10 px-10 py-5 rounded-2xl border-2 border-amber-400/20 animate-bounce shadow-[0_0_50px_rgba(251,191,36,0.2)]"
-                    >
-                        <ShieldCheck size={20}/> ولوج الإدارة المركزية
-                    </button>
-                    <p className="text-[8px] text-gray-600 font-bold max-w-[200px] leading-relaxed mx-auto italic">
-                        * محاولات الدخول بحسابات الطلاب ستفشل وسيتم رصدها أمنياً.
-                    </p>
-                </div>
+                <button 
+                    onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'auth' } }))}
+                    className="flex items-center gap-4 text-amber-400 hover:text-white transition-all text-[10px] font-black uppercase tracking-[0.3em] bg-amber-400/10 px-10 py-5 rounded-2xl border-2 border-amber-400/20 animate-bounce shadow-[0_0_50px_rgba(251,191,36,0.2)]"
+                >
+                    <ShieldCheck size={20}/> ولوج الإدارة المركزية
+                </button>
             )}
         </div>
       </div>
@@ -267,7 +223,7 @@ const MaintenanceMode: React.FC = () => {
       <footer className="absolute bottom-10 w-full px-12 flex justify-between items-center opacity-30">
          <div className="flex items-center gap-4">
              <div className="h-px w-20 bg-gray-700"></div>
-             <p className="text-[8px] font-black uppercase tracking-[0.5em]">Quantum Core v4.0</p>
+             <p className="text-[8px] font-black uppercase tracking-[0.5em]">Quantum Core v5.0</p>
          </div>
          <div className="flex gap-6">
             <Sparkles size={16} className="text-blue-500/50" />

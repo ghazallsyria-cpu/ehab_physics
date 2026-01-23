@@ -58,6 +58,7 @@ const App: React.FC = () => {
     appName: 'المركز السوري للعلوم' 
   });
   const [maintenance, setMaintenance] = useState<MaintenanceSettings | null>(null);
+  const [isMaintenanceLoading, setIsMaintenanceLoading] = useState(true);
   
   const currentView = viewStack[viewStack.length - 1];
   const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
@@ -68,18 +69,21 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    // مراقبة معاملات الرابط للعبور السري
+    // 1. إدارة معاملات الرابط للعبور السري
     const searchParams = new URLSearchParams(window.location.search);
     if (searchParams.get('admin') === 'true' || searchParams.get('master') === 'true') {
         sessionStorage.setItem('ssc_admin_bypass', 'true');
     }
 
+    // 2. الاشتراك اللحظي في حالة الصيانة (مهم جداً للرصد المباشر)
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
         setMaintenance(settings);
+        setIsMaintenanceLoading(false);
     });
 
     dbService.getAppBranding().then(setBranding);
     
+    // 3. إدارة حالة التوثيق والمستخدم
     let unsubscribeUser: (() => void) | null = null;
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -128,29 +132,29 @@ const App: React.FC = () => {
   const renderContent = () => {
     const isBypassActive = sessionStorage.getItem('ssc_admin_bypass') === 'true';
 
-    // 🛡️ الحماية العظمى: منطق الصيانة الصارم
+    // 🛡️ الحماية العظمى: منطق الصيانة اللحظي والصارم
     if (maintenance?.isMaintenanceActive) {
-        const hasPrivilegedRole = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
+        const isPrivileged = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
         
-        // إذا كان المستخدم طالباً، نمنعه حتى لو كان العبور مفعلاً (الاختراق المحاول)
+        // منع الطلاب تماماً حتى لو استخدموا روابط العبور
         if (user?.role === 'student') {
             return <MaintenanceMode />;
         }
 
-        // إذا لم يتم تسجيل الدخول ولم يتم تفعيل العبور السري
+        // إذا لم يسجل دخوله بعد، ولم يقم بتفعيل العبور السري (للمدراء فقط)
         if (!user && !isBypassActive) {
             return <MaintenanceMode />;
         }
 
-        // إذا تم تفعيل العبور السري، نسمح فقط بصفحة تسجيل الدخول (للمدراء)
+        // السماح فقط بصفحة تسجيل الدخول للمدراء عند تفعيل العبور
         if (isBypassActive && !user && currentView !== 'auth') {
             return <MaintenanceMode />;
         }
-        
-        // إذا دخل المدير/المعلم، نمرره للداشبورد بشكل طبيعي
+
+        // إذا كان مديراً أو معلماً (ومسموح له)، يكمل للداشبورد
     }
 
-    if (isAuthLoading) return (
+    if (isAuthLoading || isMaintenanceLoading) return (
       <div className="flex flex-col items-center justify-center h-[70vh] gap-6">
         <RefreshCw className="w-16 h-16 text-amber-400 animate-spin" />
         <p className="text-gray-400 font-black animate-pulse uppercase tracking-[0.2em]">Quantum Security Syncing...</p>
@@ -205,7 +209,8 @@ const App: React.FC = () => {
   const showMaintenanceUI = maintenance?.isMaintenanceActive && 
                             user?.role !== 'admin' && 
                             !(user?.role === 'teacher' && maintenance.allowTeachers) &&
-                            currentView !== 'auth';
+                            currentView !== 'auth' && 
+                            currentView !== 'landing';
 
   if (currentView === 'landing' || currentView === 'auth' || showMaintenanceUI) {
     return (
@@ -221,7 +226,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
       {maintenance?.isMaintenanceActive && (
           <div className="fixed top-0 left-0 right-0 z-[1000] bg-red-600 text-white text-[9px] font-black py-1.5 text-center uppercase tracking-[0.2em] pointer-events-none shadow-xl border-b border-white/10">
-              أنت في وضع العبور المباشر • المنصة مقفلة حالياً أمام الطلاب
+              نظام الصيانة نشط • العبور متاح فقط للمصرح لهم
           </div>
       )}
       
