@@ -5,7 +5,7 @@ import { dbService } from '../services/db';
 import { 
   Plus, RefreshCw, AlertCircle, Search, 
   X, Banknote, Zap, FileText, CheckCircle2,
-  DollarSign, Mail, TrendingUp, Calendar, Clock
+  DollarSign, Mail, TrendingUp, Calendar, Clock, Trash2
 } from 'lucide-react';
 import anime from 'animejs';
 
@@ -51,6 +51,22 @@ const AdminFinancials: React.FC = () => {
       animateNumbers(advanced);
     } catch (e) { setMessage({ text: 'فشل تحميل البيانات المالية', type: 'error' }); }
     finally { setIsLoading(false); }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!window.confirm('⚠️ تحذير: هل أنت متأكد من حذف هذا السجل المالي نهائياً؟ لا يمكن التراجع عن هذه الخطوة.')) return;
+    
+    setIsLoading(true);
+    try {
+      await dbService.deleteInvoice(invoiceId);
+      setMessage({ text: 'تم حذف السجل المالي بنجاح ✓', type: 'success' });
+      await loadData(); // إعادة تحميل البيانات لتحديث العدادات والجداول
+    } catch (e) {
+      setMessage({ text: 'فشل حذف السجل.', type: 'error' });
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => setMessage(null), 3000);
+    }
   };
 
   // حالة نافذة "ومض"
@@ -147,6 +163,7 @@ const AdminFinancials: React.FC = () => {
                           <th className="px-8 py-6">المبلغ</th>
                           <th className="px-8 py-6">التاريخ</th>
                           <th className="px-8 py-6">الحالة</th>
+                          <th className="px-8 py-6 text-center">الإجراءات</th>
                       </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
@@ -163,6 +180,15 @@ const AdminFinancials: React.FC = () => {
                               <td className="px-8 py-6 text-[10px] text-gray-500 font-bold tabular-nums">{new Date(inv.date).toLocaleDateString('ar-KW')}</td>
                               <td className="px-8 py-6">
                                   <span className={`text-[9px] font-black uppercase ${inv.status === 'PAID' ? 'text-green-400' : 'text-amber-500'}`}>{inv.status}</span>
+                              </td>
+                              <td className="px-8 py-6 text-center">
+                                  <button 
+                                    onClick={() => handleDeleteInvoice(inv.id)} 
+                                    className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                                    title="حذف الفاتورة"
+                                  >
+                                      <Trash2 size={16} />
+                                  </button>
                               </td>
                           </tr>
                       ))}

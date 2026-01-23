@@ -552,6 +552,12 @@ class DBService {
     return { ...invoice, id: docRef.id };
   }
 
+  // الدالة الجديدة لحذف الفاتورة
+  async deleteInvoice(id: string) {
+    this.checkDb();
+    await deleteDoc(doc(db!, 'invoices', id));
+  }
+
   async getInvoices(userId?: string): Promise<{ data: Invoice[] }> {
     this.checkDb();
     let q = query(collection(db!, 'invoices'), orderBy('date', 'desc'));
