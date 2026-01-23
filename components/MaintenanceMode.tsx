@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import anime from 'animejs';
 import { MaintenanceSettings, AppBranding } from '../types';
-import { Atom, Globe, Rocket, Zap, ShieldAlert, Sparkles } from 'lucide-react';
+import { Atom, Globe, Rocket, Zap, ShieldAlert, Sparkles, Activity } from 'lucide-react';
 import { dbService } from '../services/db';
 
 const MaintenanceMode: React.FC = () => {
@@ -33,19 +33,17 @@ const MaintenanceMode: React.FC = () => {
 
       if (diff <= 0) {
         clearInterval(timer);
-        if (!isExploding) triggerBigBang();
+        if (!isExploding) triggerSupernova();
       } else {
         const seconds = Math.floor((diff / 1000) % 60);
         
-        // تفعيل وضع الدقيقة الأخيرة
         if (diff < 60000 && !isFinalMinute) {
             setIsFinalMinute(true);
         }
 
-        // تأثير النبض المتزامن مع كل ثانية
         if (diff < 60000 && seconds !== lastSecondRef.current) {
             lastSecondRef.current = seconds;
-            animateSecondPulse(diff);
+            animateQuantumPulse(diff);
         }
 
         setTimeLeft({
@@ -61,70 +59,77 @@ const MaintenanceMode: React.FC = () => {
     return () => clearInterval(timer);
   }, [settings, isFinalMinute, isExploding]);
 
-  const animateSecondPulse = (remainingMs: number) => {
-    // شدة الاهتزاز تزداد كلما اقتربنا من الصفر
-    const shakeIntensity = Math.max(1, (60000 - remainingMs) / 5000);
+  const animateQuantumPulse = (remainingMs: number) => {
+    const intensity = Math.max(1, (60000 - remainingMs) / 4000);
 
+    // نبض الرقم الضخم
     anime({
-        targets: '.final-second-display',
-        opacity: [0, 1, 0],
-        scale: [0.5, 1.5],
-        filter: ['blur(20px)', 'blur(0px)', 'blur(40px)'],
+        targets: '.final-digit',
+        opacity: [0, 1, 0.5, 0],
+        scale: [0.2, 1.8],
+        filter: ['blur(30px)', 'blur(0px)', 'blur(10px)', 'blur(50px)'],
         easing: 'easeOutExpo',
-        duration: 900
+        duration: 950
     });
     
+    // اهتزاز المنظومة بالكامل
     anime({
-        targets: '.maintenance-main-wrapper',
-        translateX: () => anime.random(-shakeIntensity, shakeIntensity),
-        translateY: () => anime.random(-shakeIntensity, shakeIntensity),
-        rotate: () => anime.random(-shakeIntensity/10, shakeIntensity/10),
-        duration: 50,
+        targets: '.maintenance-quantum-core',
+        translateX: () => anime.random(-intensity * 2, intensity * 2),
+        translateY: () => anime.random(-intensity * 2, intensity * 2),
+        rotate: () => anime.random(-intensity/5, intensity/5),
+        duration: 40,
         direction: 'alternate'
     });
   };
 
-  const triggerBigBang = () => {
+  const triggerSupernova = () => {
     setIsExploding(true);
     
-    // إخفاء المحتوى فوراً للبدء بالانفجار
     const tl = anime.timeline({
         easing: 'easeOutQuart'
     });
 
+    // 1. مرحلة الانهيار الداخلي (Implosion)
     tl.add({
-        targets: '.final-second-display',
+        targets: '.final-digit, .status-badge, .footer-hud',
         scale: 0,
-        duration: 200,
+        opacity: 0,
+        filter: 'blur(20px)',
+        duration: 300,
         easing: 'easeInBack'
     }).add({
-        targets: '.big-bang-core',
-        opacity: [0, 1],
+        targets: '.big-bang-center',
         scale: [0, 1],
-        duration: 400,
-    }).add({
-        targets: '.shockwave',
-        scale: [0, 10],
+        opacity: [0, 1],
+        duration: 200,
+        backgroundColor: '#fff'
+    })
+    // 2. الانفجار العظيم (Expansion)
+    .add({
+        targets: '.shockwave-ring',
+        scale: [1, 25],
         opacity: [1, 0],
-        duration: 1200,
-        delay: anime.stagger(150),
+        borderWidth: ['20px', '0px'],
+        duration: 1500,
+        delay: anime.stagger(100),
         easing: 'easeOutExpo',
-        offset: '-=200'
+        offset: '-=100'
     }).add({
-        targets: '.explosion-particle',
+        targets: '.quantum-particle',
         translateX: () => anime.random(-window.innerWidth, window.innerWidth),
         translateY: () => anime.random(-window.innerHeight, window.innerHeight),
-        scale: [2, 0],
+        scale: () => [anime.random(2, 5), 0],
         opacity: [1, 0],
-        rotate: () => anime.random(-360, 360),
-        duration: 2500,
-        delay: anime.stagger(5),
-        offset: '-=1000'
-    }).add({
-        targets: '.flash-overlay',
+        duration: 2000,
+        delay: anime.stagger(2),
+        offset: '-=1200'
+    })
+    // 3. الوميض النهائي القاتل (The White-out)
+    .add({
+        targets: '.final-flash-layer',
         opacity: [0, 1],
-        scale: [0.9, 1.1],
-        duration: 1000,
+        duration: 600,
         easing: 'linear',
         complete: () => {
             window.location.reload();
@@ -140,146 +145,139 @@ const MaintenanceMode: React.FC = () => {
   if (!settings) return null;
 
   return (
-    <div ref={containerRef} className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center font-['Tajawal'] text-white overflow-hidden transition-colors duration-1000 maintenance-main-wrapper ${isFinalMinute ? 'bg-black' : 'bg-[#000407]'}`} dir="rtl">
+    <div ref={containerRef} className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center font-['Tajawal'] text-white overflow-hidden transition-colors duration-1000 maintenance-quantum-core ${isFinalMinute ? 'bg-black' : 'bg-[#000407]'}`} dir="rtl">
       
-      {/* طبقات الخلفية الديناميكية */}
-      <div className="absolute inset-0 pointer-events-none">
-          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] rounded-full blur-[150px] transition-colors duration-1000 ${isFinalMinute ? 'bg-red-600/10' : 'bg-blue-600/5'} animate-pulse`}></div>
-          {isFinalMinute && !isExploding && (
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,0,0,0.05)_0%,transparent_70%)] animate-pulse"></div>
-          )}
-      </div>
+      {/* شبكة ليزر خلفية في وضع الدقيقة الأخيرة */}
+      {isFinalMinute && !isExploding && (
+        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #f00 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
+      )}
 
       <div className="relative z-10 w-full flex flex-col items-center text-center px-6">
         
         {!isFinalMinute ? (
-            // --- الواجهة العادية للصيانة ---
             <div className="animate-fadeIn space-y-12">
                 <div className="relative inline-block">
-                    <div className="absolute inset-[-40px] border-2 border-blue-500/10 rounded-full animate-spin-slow"></div>
-                    <div className="absolute inset-[-20px] border border-blue-400/20 rounded-full animate-reverse-spin"></div>
-                    <div className="w-40 h-40 bg-white/5 border border-white/10 rounded-[50px] flex items-center justify-center shadow-3xl relative overflow-hidden backdrop-blur-xl group">
-                        {branding?.logoUrl ? <img src={branding.logoUrl} className="w-2/3 h-2/3 object-contain" alt="Logo" /> : <Atom size={80} className="text-blue-400 animate-spin-slow" />}
+                    <div className="absolute inset-[-50px] border-2 border-blue-500/5 rounded-full animate-ping"></div>
+                    <div className="w-44 h-44 bg-white/5 border border-white/10 rounded-[60px] flex items-center justify-center shadow-3xl relative overflow-hidden backdrop-blur-2xl group">
+                        {branding?.logoUrl ? <img src={branding.logoUrl} className="w-2/3 h-2/3 object-contain" alt="Logo" /> : <Atom size={90} className="text-blue-400 animate-spin-slow" />}
                     </div>
                 </div>
 
                 <div className="space-y-6">
-                    <h1 className="text-5xl md:text-8xl font-black italic tracking-tighter uppercase leading-none">
-                        قيد <span className="text-blue-400">التطوير</span>
+                    <h1 className="text-6xl md:text-8xl font-black italic tracking-tighter uppercase leading-none">
+                        تحديث <span className="text-blue-500">كوانتومي</span>
                     </h1>
-                    <p className="text-gray-500 max-w-2xl mx-auto text-xl leading-relaxed font-medium">
-                        {settings.maintenanceMessage}
+                    <p className="text-gray-500 max-w-2xl mx-auto text-xl leading-relaxed font-bold opacity-80 italic">
+                        "{settings.maintenanceMessage}"
                     </p>
                 </div>
 
                 {settings.showCountdown && (
-                    <div className="flex gap-4 md:gap-10 justify-center">
+                    <div className="flex gap-4 md:gap-12 justify-center">
                         {[
-                            { v: timeLeft.d, l: 'أيام' },
-                            { v: timeLeft.h, l: 'ساعات' },
-                            { v: timeLeft.m, l: 'دقائق' },
-                            { v: timeLeft.s, l: 'ثواني' }
+                            { v: timeLeft.d, l: 'D' },
+                            { v: timeLeft.h, l: 'H' },
+                            { v: timeLeft.m, l: 'M' },
+                            { v: timeLeft.s, l: 'S' }
                         ].map((t, i) => (
                             <div key={i} className="flex flex-col items-center">
-                                <div className="w-20 h-24 md:w-32 md:h-40 bg-white/5 border border-white/10 rounded-[35px] flex items-center justify-center backdrop-blur-3xl shadow-2xl relative group">
-                                    <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-[35px]"></div>
-                                    <span className="text-4xl md:text-7xl font-black tabular-nums">{String(t.v).padStart(2, '0')}</span>
+                                <div className="w-24 h-28 md:w-36 md:h-44 bg-white/[0.03] border border-white/10 rounded-[40px] flex items-center justify-center backdrop-blur-3xl shadow-2xl">
+                                    <span className="text-5xl md:text-8xl font-black tabular-nums">{String(t.v).padStart(2, '0')}</span>
                                 </div>
-                                <span className="text-[10px] font-black text-gray-600 uppercase mt-4 tracking-[0.3em]">{t.l}</span>
+                                <span className="text-[12px] font-black text-blue-500 uppercase mt-4 tracking-[0.5em] opacity-40">{t.l}</span>
                             </div>
                         ))}
                     </div>
                 )}
             </div>
         ) : (
-            // --- واجهة الدقيقة الأخيرة الملحمية (The Reactor Phase) ---
             <div className="flex flex-col items-center justify-center min-h-screen w-full relative">
-                <div className="mb-20 animate-pulse">
-                    <span className="inline-flex items-center gap-3 px-10 py-3 bg-red-600 text-white rounded-full text-sm font-black uppercase tracking-[0.4em] shadow-[0_0_50px_rgba(220,38,38,0.6)] border-2 border-white/20">
-                        <Zap size={20} className="animate-bounce" /> التحميل الكوانتومي نشط
-                    </span>
+                <div className="status-badge mb-24 transition-transform">
+                    <div className="flex items-center gap-4 px-12 py-4 bg-red-600/10 border-2 border-red-600 text-red-500 rounded-full shadow-[0_0_60px_rgba(220,38,38,0.3)]">
+                        <Activity size={24} className="animate-pulse" />
+                        <span className="text-lg font-black uppercase tracking-[0.5em]">System Meltdown Imminent</span>
+                    </div>
                 </div>
                 
-                <div className="relative h-[500px] w-full flex items-center justify-center">
-                    {/* الرقم العملاق */}
-                    <div className="final-second-display text-[25rem] md:text-[40rem] font-black leading-none tabular-nums text-red-600 drop-shadow-[0_0_100px_rgba(220,38,38,0.9)] opacity-0 select-none">
+                <div className="relative h-[600px] w-full flex items-center justify-center">
+                    {/* الرقم العملاق الذي يملأ الشاشة */}
+                    <div className="final-digit text-[35rem] md:text-[55rem] font-black leading-none tabular-nums text-red-600 drop-shadow-[0_0_150px_rgba(220,38,38,1)] opacity-0 select-none italic">
                         {timeLeft.s}
                     </div>
 
-                    {/* هالات الطاقة المتوسعة */}
-                    <div className="absolute w-[600px] h-[600px] border-4 border-red-600/30 rounded-full animate-ping-slow"></div>
-                    <div className="absolute w-[400px] h-[400px] border-2 border-red-600/20 rounded-full animate-ping"></div>
+                    {/* دوائر طاقة مركزية */}
+                    <div className="absolute w-[800px] h-[800px] border-[1px] border-red-600/10 rounded-full animate-spin-slow"></div>
+                    <div className="absolute w-[600px] h-[600px] border-[2px] border-red-600/20 rounded-full animate-reverse-spin"></div>
                 </div>
 
-                <div className="mt-24 space-y-6">
-                    <h3 className="text-gray-400 text-3xl font-black italic uppercase tracking-[0.5em] animate-pulse">
-                        تزامن <span className="text-white">المنظومة</span> وشيك
-                    </h3>
-                    <div className="flex gap-6 justify-center">
-                        <div className="w-3 h-3 bg-red-600 rounded-full animate-bounce [animation-delay:0s]"></div>
-                        <div className="w-3 h-3 bg-red-600 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                        <div className="w-3 h-3 bg-red-600 rounded-full animate-bounce [animation-delay:0.4s]"></div>
-                    </div>
+                <div className="mt-32 space-y-4">
+                    <p className="text-gray-600 text-2xl font-black uppercase tracking-[1em] animate-pulse">
+                        Ignition <span className="text-white">Sequence</span>
+                    </p>
                 </div>
             </div>
         )}
       </div>
 
-      {/* 💥 عناصر الانفجار العظيم (Big Bang Layers) */}
+      {/* 💥 محرك الانفجار العظيم V12.7 (Big Bang Engine) */}
       {isExploding && (
           <div className="fixed inset-0 z-[10000] flex items-center justify-center pointer-events-none">
             {/* نواة الانفجار */}
-            <div className="big-bang-core absolute w-20 h-20 bg-white rounded-full blur-xl opacity-0"></div>
+            <div className="big-bang-center absolute w-10 h-10 bg-white rounded-full shadow-[0_0_100px_#fff] z-[10001]"></div>
             
-            {/* موجات الصدمة */}
-            <div className="shockwave absolute w-64 h-64 border-8 border-blue-400 rounded-full opacity-0"></div>
-            <div className="shockwave absolute w-64 h-64 border-[20px] border-white rounded-full opacity-0 [animation-delay:0.2s]"></div>
-            <div className="shockwave absolute w-64 h-64 border-4 border-purple-500 rounded-full opacity-0 [animation-delay:0.4s]"></div>
-            
-            {/* الجزيئات المتطايرة */}
-            {Array.from({length: 150}).map((_, i) => (
+            {/* موجات الصدمة المتعددة */}
+            {Array.from({length: 10}).map((_, i) => (
                 <div 
                     key={i} 
-                    className="explosion-particle absolute w-2 h-2 rounded-full"
+                    className="shockwave-ring absolute w-20 h-20 border-[20px] rounded-full opacity-0"
+                    style={{ borderColor: i % 2 === 0 ? '#3b82f6' : '#fff' }}
+                ></div>
+            ))}
+            
+            {/* إعصار الجسيمات الكوانتومية */}
+            {Array.from({length: 300}).map((_, i) => (
+                <div 
+                    key={i} 
+                    className="quantum-particle absolute w-1 h-1 rounded-full"
                     style={{ 
-                        background: i % 3 === 0 ? '#fff' : i % 3 === 1 ? '#3b82f6' : '#fbbf24',
-                        boxShadow: `0 0 15px ${i % 3 === 0 ? '#fff' : i % 3 === 1 ? '#3b82f6' : '#fbbf24'}`
+                        background: i % 4 === 0 ? '#fff' : i % 4 === 1 ? '#3b82f6' : i % 4 === 2 ? '#f00' : '#fbbf24',
+                        boxShadow: `0 0 15px ${i % 4 === 0 ? '#fff' : i % 4 === 1 ? '#3b82f6' : '#fbbf24'}`
                     }}
                 ></div>
             ))}
             
-            {/* الوميض النهائي */}
-            <div className="flash-overlay absolute inset-0 bg-white opacity-0"></div>
+            {/* طبقة الوميض النهائي التي تمحو كل شيء */}
+            <div className="final-flash-layer absolute inset-0 bg-white opacity-0 z-[10005]"></div>
           </div>
       )}
 
-      {/* تذيل الصفحة الإحترافي */}
-      <div className="absolute bottom-12 w-full px-16 flex justify-between items-center opacity-30 pointer-events-none">
-         <div className="flex items-center gap-4">
-             <ShieldAlert size={18} className="text-red-500" />
-             <p className="text-[10px] font-black uppercase tracking-[0.5em]">Quantum Core Version 12.6</p>
+      {/* HUD المعلوماتي في الأسفل */}
+      <div className="footer-hud absolute bottom-12 w-full px-20 flex justify-between items-center opacity-30 pointer-events-none">
+         <div className="flex items-center gap-6">
+             <Zap size={20} className="text-amber-400" />
+             <p className="text-[12px] font-black uppercase tracking-[0.6em]">Core Release Protocol v12.7</p>
          </div>
-         <div className="flex gap-6">
-             <Sparkles size={16} />
-             <Globe size={16} />
+         <div className="flex gap-8">
+             <Activity size={18} />
+             <Rocket size={18} />
+             <Globe size={18} />
          </div>
       </div>
 
-      {/* Force Bypass للادارة */}
-      <button onClick={handleAdminEnter} className="fixed bottom-4 left-4 text-[8px] font-black text-gray-900 opacity-5 hover:opacity-100 hover:text-red-500 transition-all z-[10005]">
-        SYSTEM OVERRIDE
+      <button onClick={handleAdminEnter} className="fixed bottom-4 left-4 text-[8px] font-black text-gray-900 opacity-5 hover:opacity-100 hover:text-red-500 transition-all z-[10006]">
+        MANUAL BYPASS
       </button>
 
       <style>{`
-        @keyframes ping-slow {
-            0% { transform: scale(1); opacity: 0.8; }
-            100% { transform: scale(1.5); opacity: 0; }
-        }
-        .animate-ping-slow {
-            animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-        }
         .animate-reverse-spin {
-            animation: spin 8s linear reverse infinite;
+            animation: spin 15s linear reverse infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .text-glow {
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
         }
       `}</style>
 
