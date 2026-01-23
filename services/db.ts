@@ -200,7 +200,6 @@ class DBService {
     await updateDoc(doc(db!, 'users', uid), { role });
   }
 
-  // Fix: Added missing deleteUser method for Admin management components
   async deleteUser(uid: string) {
     this.checkDb();
     await deleteDoc(doc(db!, 'users', uid));
@@ -308,7 +307,6 @@ class DBService {
     await setDoc(doc(db!, 'quizzes', quiz.id), this.cleanData(quiz));
   }
 
-  // Fix: Added missing deleteQuiz method for Admin management components
   async deleteQuiz(id: string) {
     this.checkDb();
     await deleteDoc(doc(db!, 'quizzes', id));
@@ -537,12 +535,15 @@ class DBService {
       authCode: 'ADMIN_MANUAL' 
     };
     const docRef = await addDoc(collection(db!, 'invoices'), invoice);
+    
+    // تفعيل الاشتراك
     await updateDoc(doc(db!, 'users', userId), { subscription: 'premium' });
     
+    // إرسال إشعار داخلي مفصل للطالب
     await this.createNotification({
       userId: userId,
       title: "🚀 مبروك! تم تفعيل اشتراكك",
-      message: `تم اعتماد دفعة "ومض" وتفعيل حسابك في باقة التفوق بنجاح. استمتع بكافة المزايا الآن!`,
+      message: `تم اعتماد مبلغ ${amount} د.ك عبر "ومض" وتفعيل باقة ${planId === 'plan_premium' ? 'التفوق' : 'الأساسية'} بنجاح. يمكنك الآن استخراج إيصالك الرسمي من لوحة التحكم.`,
       timestamp: new Date().toISOString(),
       isRead: false,
       type: 'success',
@@ -552,7 +553,6 @@ class DBService {
     return { ...invoice, id: docRef.id };
   }
 
-  // الدالة الجديدة لحذف الفاتورة
   async deleteInvoice(id: string) {
     this.checkDb();
     await deleteDoc(doc(db!, 'invoices', id));

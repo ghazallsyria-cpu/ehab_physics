@@ -5,7 +5,7 @@ import { dbService } from '../services/db';
 import { 
   Plus, RefreshCw, AlertCircle, Search, 
   X, Banknote, Zap, FileText, CheckCircle2,
-  DollarSign, Mail, TrendingUp, Calendar, Clock, Trash2
+  DollarSign, Mail, TrendingUp, Calendar, Clock, Trash2, MessageCircle
 } from 'lucide-react';
 import anime from 'animejs';
 
@@ -75,6 +75,7 @@ const AdminFinancials: React.FC = () => {
   const [foundUser, setFoundUser] = useState<User | null>(null);
   const [manualAmount, setManualAmount] = useState(35);
   const [manualPlan, setManualPlan] = useState('plan_premium');
+  const [successInvoice, setSuccessInvoice] = useState<Invoice | null>(null);
 
   const searchUser = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -90,14 +91,27 @@ const AdminFinancials: React.FC = () => {
     if (!foundUser) return;
     setIsLoading(true);
     try {
-      await dbService.createManualInvoice(foundUser.uid, manualPlan, manualAmount);
-      setMessage({ text: `تم تفعيل حساب الطالب "${foundUser.name}" بنجاح ✅`, type: 'success' });
-      setShowManualModal(false);
-      setFoundUser(null);
-      setManualSearch('');
+      const invoice = await dbService.createManualInvoice(foundUser.uid, manualPlan, manualAmount);
+      setSuccessInvoice(invoice);
+      setMessage({ text: `تم تفعيل حساب الطالب "${foundUser.name}" بنجاح وإرسال إشعار داخلي ✅`, type: 'success' });
       await loadData();
     } catch (e) { setMessage({ text: 'فشل تفعيل الاشتراك اليدوي.', type: 'error' }); }
     finally { setIsLoading(false); }
+  };
+
+  const notifyStudentWhatsApp = () => {
+    if (!foundUser || !successInvoice) return;
+    
+    const text = encodeURIComponent(
+        `مرحباً ${foundUser.name}،\n\n` +
+        `يسر إدارة *المركز السوري للعلوم* إبلاغك بأنه تم اعتماد دفعتك بقيمة *${successInvoice.amount} د.ك* بنجاح.\n\n` +
+        `✅ حالة الاشتراك: *مفعل (Premium)*\n` +
+        `🔢 رقم المرجع: ${successInvoice.trackId}\n\n` +
+        `يمكنك الآن الدخول للمنصة ومشاهدة إيصالك الرسمي في "مركز الاشتراكات" لضمان حقوقك.\n\n` +
+        `نتمنى لك رحلة تعليمية ممتعة!`
+    );
+    
+    window.open(`https://wa.me/${foundUser.phone || ''}?text=${text}`, '_blank');
   };
 
   return (
@@ -108,7 +122,7 @@ const AdminFinancials: React.FC = () => {
             <p className="text-gray-500 mt-2 font-bold italic">مراقبة النمو المالي وتحصيل دفعات "ومض".</p>
         </div>
         <div className="flex gap-4">
-            <button onClick={() => setShowManualModal(true)} className="bg-emerald-500 text-black px-10 py-5 rounded-[25px] font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
+            <button onClick={() => { setShowManualModal(true); setSuccessInvoice(null); }} className="bg-emerald-500 text-black px-10 py-5 rounded-[25px] font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
                 <DollarSign size={20} /> تسجيل دفعة "ومض"
             </button>
             <button onClick={loadData} disabled={isLoading} className="bg-white/5 border border-white/10 px-6 py-5 rounded-[25px] text-gray-400 hover:text-white transition-all">
@@ -201,56 +215,82 @@ const AdminFinancials: React.FC = () => {
       {showManualModal && (
         <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
             <div className="bg-[#0a1118] border border-white/10 w-full max-w-xl rounded-[60px] p-12 relative shadow-3xl overflow-hidden border-2">
-                <button onClick={() => { setShowManualModal(false); setFoundUser(null); }} className="absolute top-8 left-8 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full"><X size={24}/></button>
-                <header className="mb-12 text-center">
-                    <div className="w-24 h-24 bg-emerald-500 text-black rounded-[35px] flex items-center justify-center text-3xl mx-auto mb-6 shadow-2xl">
-                        <DollarSign size={48}/>
+                <button onClick={() => { setShowManualModal(false); setFoundUser(null); setSuccessInvoice(null); }} className="absolute top-8 left-8 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full"><X size={24}/></button>
+                
+                {!successInvoice ? (
+                    <>
+                        <header className="mb-12 text-center">
+                            <div className="w-24 h-24 bg-emerald-500 text-black rounded-[35px] flex items-center justify-center text-3xl mx-auto mb-6 shadow-2xl">
+                                <DollarSign size={48}/>
+                            </div>
+                            <h3 className="text-4xl font-black text-white italic tracking-tighter">تسجيل دفعة <span className="text-emerald-400">ومض</span></h3>
+                            <p className="text-gray-500 text-sm mt-3 font-medium">حوّل حالة حساب الطالب إلى متميز (Premium) فوراً.</p>
+                        </header>
+
+                        <div className="space-y-10">
+                            <form onSubmit={searchUser} className="space-y-4">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mr-4">البحث عن الطالب بالبريد</label>
+                                <div className="flex gap-4">
+                                    <input 
+                                        type="email" 
+                                        value={manualSearch} 
+                                        onChange={e => setManualSearch(e.target.value)} 
+                                        placeholder="student@example.com" 
+                                        className="flex-1 bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-emerald-500 font-bold text-left ltr" 
+                                    />
+                                    <button type="submit" className="bg-white text-black px-10 rounded-[25px] font-black hover:bg-emerald-400 transition-all">بحث</button>
+                                </div>
+                            </form>
+
+                            {foundUser && (
+                                <div className="bg-white/[0.03] border-2 border-emerald-500/30 p-10 rounded-[50px] animate-slideUp">
+                                    <div className="flex items-center gap-8 mb-10">
+                                        <div className="w-20 h-20 rounded-[30px] bg-emerald-500/10 flex items-center justify-center text-4xl shadow-lg">🎓</div>
+                                        <div className="text-right flex-1">
+                                            <h4 className="text-2xl font-black text-white">{foundUser.name}</h4>
+                                            <span className="text-[10px] text-emerald-400 font-mono italic">{foundUser.email}</span>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-8 border-t border-white/5 pt-8">
+                                        <div className="space-y-3">
+                                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">المبلغ (د.ك)</label>
+                                            <input type="number" value={manualAmount} onChange={e => setManualAmount(Number(e.target.value))} className="w-full bg-black/60 border border-white/10 rounded-2xl px-6 py-4 text-white font-black text-2xl outline-none" />
+                                        </div>
+                                        <div className="space-y-3">
+                                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">نوع الباقة</label>
+                                            <select value={manualPlan} onChange={e => setManualPlan(e.target.value)} className="w-full h-[66px] bg-black/60 border border-white/10 rounded-2xl px-6 text-white outline-none">
+                                                <option value="plan_premium">باقة التفوق</option>
+                                                <option value="plan_basic">الأساسية</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button onClick={handleCreateManualInvoice} disabled={isLoading} className="w-full mt-10 py-6 bg-emerald-500 text-black rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">تنشيط الاشتراك الآن</button>
+                                </div>
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    <div className="text-center py-10 animate-slideUp">
+                        <div className="w-24 h-24 bg-green-500 text-black rounded-full flex items-center justify-center text-5xl mx-auto mb-8 shadow-2xl animate-bounce">✓</div>
+                        <h3 className="text-4xl font-black text-white mb-4">تم التفعيل بنجاح!</h3>
+                        <p className="text-gray-400 text-lg mb-12">تم تحديث حساب الطالب وإصدار فاتورته الرقمية.</p>
+                        
+                        <div className="space-y-4">
+                            <button 
+                                onClick={notifyStudentWhatsApp}
+                                className="w-full py-6 bg-[#25D366] text-white rounded-[30px] font-black text-sm uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 hover:scale-105 transition-all"
+                            >
+                                <MessageCircle size={24} fill="currentColor" /> إرسال الإيصال عبر واتساب
+                            </button>
+                            <button 
+                                onClick={() => { setShowManualModal(false); setSuccessInvoice(null); }}
+                                className="w-full py-5 text-gray-500 font-black text-xs uppercase tracking-widest hover:text-white transition-all"
+                            >
+                                إغلاق النافذة
+                            </button>
+                        </div>
                     </div>
-                    <h3 className="text-4xl font-black text-white italic tracking-tighter">تسجيل دفعة <span className="text-emerald-400">ومض</span></h3>
-                    <p className="text-gray-500 text-sm mt-3 font-medium">حوّل حالة حساب الطالب إلى متميز (Premium) فوراً.</p>
-                </header>
-
-                <div className="space-y-10">
-                    <form onSubmit={searchUser} className="space-y-4">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mr-4">البحث عن الطالب بالبريد</label>
-                        <div className="flex gap-4">
-                            <input 
-                                type="email" 
-                                value={manualSearch} 
-                                onChange={e => setManualSearch(e.target.value)} 
-                                placeholder="student@example.com" 
-                                className="flex-1 bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-emerald-500 font-bold text-left ltr" 
-                            />
-                            <button type="submit" className="bg-white text-black px-10 rounded-[25px] font-black hover:bg-emerald-400 transition-all">بحث</button>
-                        </div>
-                    </form>
-
-                    {foundUser && (
-                        <div className="bg-white/[0.03] border-2 border-emerald-500/30 p-10 rounded-[50px] animate-slideUp">
-                            <div className="flex items-center gap-8 mb-10">
-                                <div className="w-20 h-20 rounded-[30px] bg-emerald-500/10 flex items-center justify-center text-4xl shadow-lg">🎓</div>
-                                <div className="text-right flex-1">
-                                    <h4 className="text-2xl font-black text-white">{foundUser.name}</h4>
-                                    <span className="text-[10px] text-emerald-400 font-mono italic">{foundUser.email}</span>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-8 border-t border-white/5 pt-8">
-                                <div className="space-y-3">
-                                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">المبلغ (د.ك)</label>
-                                    <input type="number" value={manualAmount} onChange={e => setManualAmount(Number(e.target.value))} className="w-full bg-black/60 border border-white/10 rounded-2xl px-6 py-4 text-white font-black text-2xl outline-none" />
-                                </div>
-                                <div className="space-y-3">
-                                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">نوع الباقة</label>
-                                    <select value={manualPlan} onChange={e => setManualPlan(e.target.value)} className="w-full h-[66px] bg-black/60 border border-white/10 rounded-2xl px-6 text-white outline-none">
-                                        <option value="plan_premium">باقة التفوق</option>
-                                        <option value="plan_basic">الأساسية</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <button onClick={handleCreateManualInvoice} disabled={isLoading} className="w-full mt-10 py-6 bg-[#fbbf24] text-black rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">تنشيط الاشتراك الآن</button>
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
         </div>
       )}
