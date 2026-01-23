@@ -28,6 +28,42 @@ class DBService {
     return clean;
   }
 
+  // --- الإحصائيات المالية المتقدمة ---
+  async getAdvancedFinancialStats() {
+    this.checkDb();
+    const snap = await getDocs(collection(db!, 'invoices'));
+    const invoices = snap.docs.map(d => d.data() as Invoice);
+    const paidInvoices = invoices.filter(i => i.status === 'PAID');
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const thisMonthStr = now.toISOString().substring(0, 7);
+    const thisYearStr = now.getFullYear().toString();
+
+    const daily = paidInvoices.filter(i => i.date.startsWith(todayStr)).reduce((sum, i) => sum + i.amount, 0);
+    const monthly = paidInvoices.filter(i => i.date.startsWith(thisMonthStr)).reduce((sum, i) => sum + i.amount, 0);
+    const yearly = paidInvoices.filter(i => i.date.startsWith(thisYearStr)).reduce((sum, i) => sum + i.amount, 0);
+    const total = paidInvoices.reduce((sum, i) => sum + i.amount, 0);
+
+    return { daily, monthly, yearly, total, count: paidInvoices.length, pending: invoices.filter(i => i.status === 'PENDING').length };
+  }
+
+  // --- إحصائيات الطلاب حسب المرحلة ---
+  async getStudentGradeStats() {
+    this.checkDb();
+    const q = query(collection(db!, 'users'), where('role', '==', 'student'));
+    const snap = await getDocs(q);
+    const students = snap.docs.map(d => d.data() as User);
+    
+    return {
+      grade10: students.filter(s => s.grade === '10').length,
+      grade11: students.filter(s => s.grade === '11').length,
+      grade12: students.filter(s => s.grade === '12').length,
+      uni: students.filter(s => s.grade === 'uni').length,
+      total: students.length
+    };
+  }
+
   // --- الهوية البصرية ---
   async getAppBranding(): Promise<AppBranding> {
     this.checkDb();
@@ -141,72 +177,7 @@ class DBService {
     await setDoc(doc(db!, 'settings', 'payments'), this.cleanData(settings));
   }
 
-  // --- الحسابات المالية (Invoices) ---
-  async initiatePayment(userId: string, planId: string, amount: number): Promise<Invoice> {
-    this.checkDb();
-    const user = await this.getUser(userId);
-    const invoice: Omit<Invoice, 'id'> = {
-      userId, 
-      userName: user?.name || 'Student', 
-      planId, 
-      amount, 
-      date: new Date().toISOString(), 
-      status: 'PENDING',
-      trackId: Math.random().toString(36).substring(7).toUpperCase()
-    };
-    const docRef = await addDoc(collection(db!, 'invoices'), invoice);
-    return { ...invoice, id: docRef.id };
-  }
-
-  // الدالة الجديدة لتسجيل دفعات ومض اليدوية من قبل المدير
-  async createManualInvoice(userId: string, planId: string, amount: number): Promise<Invoice> {
-    this.checkDb();
-    const user = await this.getUser(userId);
-    if (!user) throw new Error("USER_NOT_FOUND");
-    
-    const trackId = `MANUAL_${Math.random().toString(36).substring(7).toUpperCase()}`;
-    const invoice: Omit<Invoice, 'id'> = { 
-      userId, 
-      userName: user.name, 
-      planId, 
-      amount, 
-      date: new Date().toISOString(), 
-      status: 'PAID', 
-      trackId, 
-      paymentId: `PAY_ADMIN_${Date.now()}`, 
-      authCode: 'ADMIN_MANUAL' 
-    };
-    
-    const docRef = await addDoc(collection(db!, 'invoices'), invoice);
-    
-    // 1. ترقية اشتراك الطالب فوراً
-    await updateDoc(doc(db!, 'users', userId), { subscription: 'premium' });
-    
-    // 2. إرسال إشعار فوري يظهر في لوحة تحكم الطالب
-    await this.createNotification({
-      userId: userId,
-      title: "🚀 مبروك! تم تفعيل اشتراكك",
-      message: `تم اعتماد دفعة "ومض" وتفعيل حسابك في باقة التفوق بنجاح. استمتع بكافة المزايا الآن!`,
-      timestamp: new Date().toISOString(),
-      isRead: false,
-      type: 'success',
-      category: 'academic'
-    });
-
-    return { ...invoice, id: docRef.id };
-  }
-
-  async getInvoices(userId?: string): Promise<{ data: Invoice[] }> {
-    this.checkDb();
-    let q = query(collection(db!, 'invoices'), orderBy('date', 'desc'));
-    if (userId) {
-      q = query(collection(db!, 'invoices'), where('userId', '==', userId), orderBy('date', 'desc'));
-    }
-    const snap = await getDocs(q);
-    return { data: snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)) };
-  }
-
-  // --- بقية الدوال ---
+  // --- بقية الدوال الأساسية ---
   async getUser(uidOrEmail: string): Promise<User | null> {
     this.checkDb();
     try {
@@ -229,6 +200,7 @@ class DBService {
     await updateDoc(doc(db!, 'users', uid), { role });
   }
 
+  // Fix: Added missing deleteUser method for Admin management components
   async deleteUser(uid: string) {
     this.checkDb();
     await deleteDoc(doc(db!, 'users', uid));
@@ -336,6 +308,7 @@ class DBService {
     await setDoc(doc(db!, 'quizzes', quiz.id), this.cleanData(quiz));
   }
 
+  // Fix: Added missing deleteQuiz method for Admin management components
   async deleteQuiz(id: string) {
     this.checkDb();
     await deleteDoc(doc(db!, 'quizzes', id));
@@ -534,6 +507,59 @@ class DBService {
   async deleteHomePageContent(id: string) {
     this.checkDb();
     await deleteDoc(doc(db!, 'homePageContent', id));
+  }
+
+  async initiatePayment(userId: string, planId: string, amount: number): Promise<Invoice> {
+    this.checkDb();
+    const user = await this.getUser(userId);
+    const invoice: Omit<Invoice, 'id'> = {
+      userId, userName: user?.name || 'Student', planId, amount, date: new Date().toISOString(), status: 'PENDING',
+      trackId: Math.random().toString(36).substring(7).toUpperCase()
+    };
+    const docRef = await addDoc(collection(db!, 'invoices'), invoice);
+    return { ...invoice, id: docRef.id };
+  }
+
+  async createManualInvoice(userId: string, planId: string, amount: number): Promise<Invoice> {
+    this.checkDb();
+    const user = await this.getUser(userId);
+    if (!user) throw new Error("USER_NOT_FOUND");
+    const trackId = `MANUAL_${Math.random().toString(36).substring(7).toUpperCase()}`;
+    const invoice: Omit<Invoice, 'id'> = { 
+      userId, 
+      userName: user.name, 
+      planId, 
+      amount, 
+      date: new Date().toISOString(), 
+      status: 'PAID', 
+      trackId, 
+      paymentId: `PAY_ADMIN_${Date.now()}`, 
+      authCode: 'ADMIN_MANUAL' 
+    };
+    const docRef = await addDoc(collection(db!, 'invoices'), invoice);
+    await updateDoc(doc(db!, 'users', userId), { subscription: 'premium' });
+    
+    await this.createNotification({
+      userId: userId,
+      title: "🚀 مبروك! تم تفعيل اشتراكك",
+      message: `تم اعتماد دفعة "ومض" وتفعيل حسابك في باقة التفوق بنجاح. استمتع بكافة المزايا الآن!`,
+      timestamp: new Date().toISOString(),
+      isRead: false,
+      type: 'success',
+      category: 'academic'
+    });
+
+    return { ...invoice, id: docRef.id };
+  }
+
+  async getInvoices(userId?: string): Promise<{ data: Invoice[] }> {
+    this.checkDb();
+    let q = query(collection(db!, 'invoices'), orderBy('date', 'desc'));
+    if (userId) {
+      q = query(collection(db!, 'invoices'), where('userId', '==', userId), orderBy('date', 'desc'));
+    }
+    const snap = await getDocs(q);
+    return { data: snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)) };
   }
 
   async toggleLessonComplete(uid: string, lessonId: string) {
