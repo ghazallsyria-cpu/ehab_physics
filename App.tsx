@@ -46,6 +46,7 @@ const AdminManager = lazy(() => import('./components/AdminManager'));
 const AdminForumPostManager = lazy(() => import('./components/AdminForumPostManager'));
 const FirestoreRulesFixer = lazy(() => import('./components/FirestoreRulesFixer'));
 const AdminPaymentManager = lazy(() => import('./components/AdminPaymentManager'));
+const AdminContentManager = lazy(() => import('./components/AdminContentManager'));
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -76,7 +77,7 @@ const App: React.FC = () => {
     };
     loadInitialSettings();
 
-    // الاشتراك في تغييرات وضع الصيانة فورياً
+    // الاشتراك في تغييرات وضع الصيانة لحظياً
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
         setMaintenance(settings);
     });
@@ -139,12 +140,11 @@ const App: React.FC = () => {
   const renderContent = () => {
     if (isAuthLoading) return <div className="flex flex-col items-center justify-center h-[70vh] gap-6"><RefreshCw className="w-16 h-16 text-amber-400 animate-spin" /><p className="text-gray-400 font-bold animate-pulse">جاري تحضير المنصة...</p></div>;
     
-    // فحص وضع الصيانة
-    // يُسمح للمدير دائماً، ويُسمح للمعلم إذا كانت الإعدادات تسمح بذلك
+    // فحص وضع الصيانة وقفل المنصة
     if (maintenance?.isMaintenanceActive) {
         const canBypass = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
         if (!canBypass) {
-            return <MaintenanceMode settings={maintenance} />;
+            return <MaintenanceMode />;
         }
     }
 
@@ -185,20 +185,26 @@ const App: React.FC = () => {
       case 'admin-forum-posts': return <AdminForumPostManager />;
       case 'admin-security-fix': return <FirestoreRulesFixer />;
       case 'admin-payment-manager': return <AdminPaymentManager />;
+      case 'admin-content': return <AdminContentManager />;
       default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
     }
   };
 
-  if (currentView === 'landing' || currentView === 'auth' || (maintenance?.isMaintenanceActive && user?.role !== 'admin' && !(user?.role === 'teacher' && maintenance.allowTeachers))) {
+  // حالة شاشة الصيانة لغير المدراء
+  const isCurrentlyInMaintenance = maintenance?.isMaintenanceActive && 
+                                   user?.role !== 'admin' && 
+                                   !(user?.role === 'teacher' && maintenance.allowTeachers);
+
+  if (currentView === 'landing' || currentView === 'auth' || isCurrentlyInMaintenance) {
     return <div className="min-h-screen bg-[#000000] text-right font-['Tajawal']" dir="rtl"><Suspense fallback={<div className="h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}>{renderContent()}</Suspense></div>;
   }
 
   return (
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
-      {/* عرض شريط أحمر للمدير إذا كانت الصيانة مفعلة لتذكيره */}
-      {maintenance?.isMaintenanceActive && (
-          <div className="fixed top-0 left-0 right-0 z-[9999] bg-red-600 text-white text-[10px] font-black py-1 text-center uppercase tracking-widest pointer-events-none">
-              نظام الصيانة نشط حالياً • المنصة مقفلة عن الطلاب
+      {/* تنبيه المدير بوضع الصيانة */}
+      {maintenance?.isMaintenanceActive && user?.role === 'admin' && (
+          <div className="fixed top-0 left-0 right-0 z-[1000] bg-red-600 text-white text-[10px] font-black py-1 text-center uppercase tracking-widest pointer-events-none shadow-xl">
+              نظام الصيانة نشط حالياً • المنصة مغلقة أمام الطلاب
           </div>
       )}
       

@@ -7,7 +7,7 @@ export interface MaintenanceSettings {
     expectedReturnTime: string; // ISO String
     maintenanceMessage: string;
     showCountdown: boolean;
-    allowTeachers: boolean; // السماح للمعلمين بالدخول أثناء الصيانة
+    allowTeachers: boolean;
 }
 
 export interface AppBranding {
@@ -15,7 +15,7 @@ export interface AppBranding {
     appName: string;
     primaryColor?: string;
 }
-// ... بقية الـ interfaces كما هي في الملف الأصلي دون تغيير
+
 export interface User {
   uid: string;
   name: string;
@@ -368,11 +368,15 @@ export interface Review {
   timestamp: string;
 }
 
+// التعديل الرئيسي هنا للتحكم في التموضع
+export type ContentPlacement = 'TOP_BANNER' | 'GRID_CARD' | 'SIDEBAR_WIDGET' | 'MODAL_POPUP';
+
 export interface HomePageContent {
   id: string;
   title: string;
   content: string;
   type: 'news' | 'alert' | 'announcement' | 'image' | 'carousel';
+  placement: ContentPlacement; // إضافة التموضع
   priority: 'normal' | 'high';
   imageUrl?: string;
   ctaText?: string;

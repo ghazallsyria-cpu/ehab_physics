@@ -1,13 +1,14 @@
 
-import React from 'react';
-import { ViewState, User, AppBranding } from '../types';
+import React, { useState, useEffect } from 'react';
+import { ViewState, User, AppBranding, HomePageContent } from '../types';
+import { dbService } from '../services/db';
+import { LayoutDashboard, BookOpen, Atom, FlaskConical, Target, MessageSquare, BrainCircuit, ShieldCheck, UserPlus, Database, Settings, LogOut, ChevronLeft, Map, Image as ImageIcon, Zap, Crown, Library, ExternalLink } from 'lucide-react';
 
 interface SidebarProps {
   currentView: ViewState;
   setView: (view: ViewState, subject?: 'Physics' | 'Chemistry') => void;
   user: User;
   branding: AppBranding;
-  // Added activeSubject to SidebarProps to track the currently selected educational track
   activeSubject: 'Physics' | 'Chemistry';
   onLogout: () => void;
   isOpen?: boolean;
@@ -15,15 +16,22 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, branding, activeSubject, onLogout, isOpen, onClose }) => {
-  
+  const [sidebarAds, setSidebarAds] = useState<HomePageContent[]>([]);
+
+  useEffect(() => {
+    const loadAds = async () => {
+        try {
+            const content = await dbService.getHomePageContent();
+            setSidebarAds(content.filter(c => c.placement === 'SIDEBAR_WIDGET'));
+        } catch (e) {}
+    };
+    loadAds();
+  }, []);
+
   const navigate = (view: ViewState, subject?: 'Physics' | 'Chemistry') => {
     const detail: { view: ViewState, subject?: 'Physics' | 'Chemistry' } = { view };
     if (subject) detail.subject = subject;
-    
-    // إرسال حدث تغيير الصفحة
     window.dispatchEvent(new CustomEvent('change-view', { detail }));
-    
-    // إغلاق القائمة في الجوال بعد النقر
     if (window.innerWidth < 1024) onClose?.();
   };
   
@@ -78,6 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, branding,
             { id: 'admin-teachers', label: 'إدارة المعلمين', icon: '👨‍🏫' },
             { id: 'admin-managers', label: 'إدارة فريق العمل', icon: '🛡️' },
             { id: 'admin-curriculum', label: 'إدارة المسارات', icon: '📚' },
+            { id: 'admin-content', label: 'التحكم بالرئيسية', icon: '🎨' },
           ]},
           { label: 'النظام والمالية', items: [
             { id: 'admin-payment-manager', label: 'إدارة الدفع والأسعار', icon: '💳' },
@@ -126,7 +135,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, branding,
                   <button
                     key={item.id + (item.subject || '')}
                     onClick={() => navigate(item.id as ViewState, item.subject)}
-                    // Added activeSubject check to properly highlight the active educational track in the sidebar
                     className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group ${currentView === item.id && (!item.subject || item.subject === activeSubject) ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/10' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
                   >
                     <span className="text-lg">{item.icon}</span>
@@ -135,6 +143,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, branding,
                 ))}
               </div>
             </div>
+          ))}
+
+          {/* SIDEBAR DYNAMIC ADS SLOT */}
+          {user.role === 'student' && sidebarAds.map(ad => (
+              <div key={ad.id} onClick={() => ad.ctaLink && navigate(ad.ctaLink as any)} className="mx-2 mt-10 p-5 bg-gradient-to-br from-amber-500/20 to-transparent border border-amber-400/20 rounded-[30px] cursor-pointer group hover:border-amber-400/40 transition-all">
+                  <div className="flex items-center gap-2 mb-3">
+                      <Zap className="text-amber-400 animate-pulse" size={14} />
+                      <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest">{ad.type}</span>
+                  </div>
+                  <h4 className="text-xs font-black text-white group-hover:text-amber-400 transition-colors">{ad.title}</h4>
+                  <p className="text-[10px] text-gray-500 mt-2 line-clamp-2 leading-relaxed">"{ad.content}"</p>
+              </div>
           ))}
         </nav>
 

@@ -5,7 +5,7 @@ import { dbService } from '../services/db';
 import { 
     Database, Save, AlertCircle, RefreshCw, Bell, MessageSquare, 
     ShieldCheck, Zap, Image as ImageIcon, Upload, Hammer, 
-    Clock, Power, PowerOff, Layout 
+    Clock, Power, PowerOff, Layout, Calendar
 } from 'lucide-react';
 
 const AdminSettings: React.FC = () => {
@@ -112,72 +112,77 @@ const AdminSettings: React.FC = () => {
       )}
 
       <div className="space-y-12">
-        {/* وضع الصيانة والتطوير */}
-        <div className="glass-panel p-12 rounded-[60px] border-red-500/20 space-y-10 bg-gradient-to-br from-red-500/5 to-transparent relative overflow-hidden">
-            <div className="absolute top-0 left-0 p-8 opacity-5 text-8xl pointer-events-none"><Hammer /></div>
-            <div className="flex items-center justify-between border-b border-white/5 pb-8">
-                <div className="flex items-center gap-4">
-                    <div className={`p-4 rounded-2xl ${maintenance?.isMaintenanceActive ? 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]' : 'bg-white/5 text-gray-500'}`}>
-                        {maintenance?.isMaintenanceActive ? <Power /> : <PowerOff />}
+        {/* وضع الصيانة والتطوير - القسم الجديد */}
+        <div className="glass-panel p-10 md:p-12 rounded-[60px] border-red-500/20 bg-gradient-to-br from-red-500/5 to-transparent relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 left-0 p-8 opacity-5 text-9xl pointer-events-none -rotate-12"><Hammer size={120} /></div>
+            
+            <div className="flex flex-col md:flex-row items-center justify-between border-b border-white/5 pb-10 mb-10 gap-6">
+                <div className="flex items-center gap-6">
+                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all ${maintenance?.isMaintenanceActive ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)]' : 'bg-white/5 text-gray-500 border border-white/10'}`}>
+                        {maintenance?.isMaintenanceActive ? <Power size={32} /> : <PowerOff size={32} />}
                     </div>
                     <div>
-                        <h3 className="text-2xl font-black text-white">وضع الصيانة والتطوير</h3>
-                        <p className="text-xs text-gray-500 mt-1">عند التفعيل، سيتم قفل المنصة عن الطلاب وعرض صفحة عداد زمنية.</p>
+                        <h3 className="text-3xl font-black text-white italic">وضع الصيانة الذكي</h3>
+                        <p className="text-gray-500 text-sm mt-1 font-medium">قفل المنصة عن الطلاب فوراً وعرض شاشة العداد الزمني.</p>
                     </div>
                 </div>
                 <button 
                     onClick={() => maintenance && setMaintenance({...maintenance, isMaintenanceActive: !maintenance.isMaintenanceActive})}
-                    className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${maintenance?.isMaintenanceActive ? 'bg-red-500 text-white' : 'bg-white/10 text-gray-400 hover:text-white'}`}
+                    className={`px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 ${maintenance?.isMaintenanceActive ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'}`}
                 >
-                    {maintenance?.isMaintenanceActive ? 'إيقاف الصيانة' : 'تفعيل الآن'}
+                    {maintenance?.isMaintenanceActive ? 'إيقاف وضع الصيانة' : 'تفعيل وضع الصيانة'}
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">موعد الافتتاح المتوقع</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-4">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4 flex items-center gap-2">
+                        <Calendar size={14} className="text-red-400"/> موعد الافتتاح المتوقع (العداد)
+                    </label>
                     <div className="relative">
-                        <Clock className="absolute top-1/2 right-6 -translate-y-1/2 text-gray-500" size={18}/>
+                        <Clock className="absolute top-1/2 right-6 -translate-y-1/2 text-gray-500" size={20}/>
                         <input 
                             type="datetime-local" 
                             value={maintenance?.expectedReturnTime ? new Date(maintenance.expectedReturnTime).toISOString().slice(0, 16) : ''}
                             onChange={e => maintenance && setMaintenance({...maintenance, expectedReturnTime: new Date(e.target.value).toISOString()})}
-                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-12 py-4 text-white outline-none focus:border-red-500 font-bold"
+                            className="w-full bg-black/60 border-2 border-white/5 rounded-3xl px-16 py-5 text-white outline-none focus:border-red-500/50 font-black text-lg transition-all"
                         />
                     </div>
                 </div>
-                <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4">رسالة التطوير للطلاب</label>
+                <div className="space-y-4">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4 flex items-center gap-2">
+                        <MessageSquare size={14} className="text-red-400"/> رسالة التطوير الموجهة للطالب
+                    </label>
                     <textarea 
                         value={maintenance?.maintenanceMessage || ''}
                         onChange={e => maintenance && setMaintenance({...maintenance, maintenanceMessage: e.target.value})}
-                        className="w-full h-32 bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-red-500 text-sm leading-relaxed"
-                        placeholder="نعمل على تحسين..."
+                        className="w-full h-32 bg-black/60 border-2 border-white/5 rounded-3xl px-6 py-5 text-white outline-none focus:border-red-500/50 text-sm leading-relaxed no-scrollbar italic"
+                        placeholder="نحن نعمل حالياً على إضافة ميزات الذكاء الاصطناعي الجديدة..."
                     />
                 </div>
             </div>
 
-            <div className="flex flex-wrap gap-4 pt-6 border-t border-white/5">
+            <div className="flex flex-wrap gap-4 pt-10 mt-10 border-t border-white/5">
                 <button 
                     onClick={() => maintenance && setMaintenance({...maintenance, showCountdown: !maintenance.showCountdown})}
-                    className={`flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase border transition-all ${maintenance?.showCountdown ? 'bg-white/10 border-white text-white' : 'bg-transparent border-white/10 text-gray-500'}`}
+                    className={`flex items-center gap-3 px-8 py-3 rounded-2xl text-[9px] font-black uppercase border transition-all ${maintenance?.showCountdown ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-transparent border-white/10 text-gray-600'}`}
                 >
-                    {maintenance?.showCountdown ? '✓ إظهار العداد' : 'إخفاء العداد'}
+                    {maintenance?.showCountdown ? '✓ إظهار العداد الزمني' : 'إخفاء العداد الزمني'}
                 </button>
                 <button 
                     onClick={() => maintenance && setMaintenance({...maintenance, allowTeachers: !maintenance.allowTeachers})}
-                    className={`flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase border transition-all ${maintenance?.allowTeachers ? 'bg-white/10 border-white text-white' : 'bg-transparent border-white/10 text-gray-500'}`}
+                    className={`flex items-center gap-3 px-8 py-3 rounded-2xl text-[9px] font-black uppercase border transition-all ${maintenance?.allowTeachers ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-transparent border-white/10 text-gray-600'}`}
                 >
-                    {maintenance?.allowTeachers ? '✓ دخول المعلمين مسموح' : 'المعلمين ممنوعين'}
+                    {maintenance?.allowTeachers ? '✓ دخول المعلمين مسموح' : 'حظر دخول المعلمين أيضاً'}
                 </button>
             </div>
         </div>
 
         {/* قسم الهوية البصرية */}
-        <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8 bg-gradient-to-br from-amber-500/5 to-transparent">
+        <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8 bg-gradient-to-br from-amber-500/5 to-transparent shadow-xl">
             <div className="flex items-center gap-4 text-gray-400 border-b border-white/5 pb-8">
                 <ImageIcon size={24} className="text-amber-400" />
-                <h3 className="text-2xl font-black text-white">الهوية البصرية (الشعار)</h3>
+                <h3 className="text-2xl font-black text-white italic">الهوية البصرية للمنصة</h3>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
@@ -227,14 +232,14 @@ const AdminSettings: React.FC = () => {
         </div>
 
         {/* إعدادات التسجيل */}
-        <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8">
+        <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8 bg-black/40">
             <div className="flex items-center gap-4 text-gray-400 border-b border-white/5 pb-8">
                 <Database size={24} />
-                <h3 className="text-2xl font-black">إعدادات تتبع البيانات</h3>
+                <h3 className="text-2xl font-black text-white italic">إعدادات تتبع البيانات</h3>
             </div>
 
             {settingOptions.map(({ key, title, description }) => (
-            <div key={key} className="flex items-center justify-between p-6 bg-black/40 rounded-[30px] border border-white/5">
+            <div key={key} className="flex items-center justify-between p-6 bg-black/40 rounded-[30px] border border-white/5 group hover:border-white/20 transition-all">
                 <div>
                 <h4 className="text-lg font-bold text-white">{title}</h4>
                 <p className="text-xs text-gray-500 max-w-md">{description}</p>

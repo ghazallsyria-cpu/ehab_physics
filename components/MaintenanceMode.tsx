@@ -1,31 +1,65 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import anime from 'animejs';
-import { MaintenanceSettings } from '../types';
-import { Clock, Hammer, ShieldAlert, Sparkles, RefreshCw } from 'lucide-react';
+import { MaintenanceSettings, AppBranding } from '../types';
+import { Clock, Hammer, ShieldAlert, Sparkles, RefreshCw, Zap, Atom } from 'lucide-react';
+import { dbService } from '../services/db';
 
-interface MaintenanceModeProps {
-  settings: MaintenanceSettings;
-}
-
-const MaintenanceMode: React.FC<MaintenanceModeProps> = ({ settings }) => {
+const MaintenanceMode: React.FC = () => {
+  const [settings, setSettings] = useState<MaintenanceSettings | null>(null);
+  const [branding, setBranding] = useState<AppBranding | null>(null);
   const [timeLeft, setTimeLeft] = useState<{ d: number, h: number, m: number, s: number }>({ d: 0, h: 0, m: 0, s: 0 });
-  const orbitRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // أنيميشن المدارات الفيزيائية
-    const orbitTl = anime.timeline({
-      loop: true,
-      easing: 'linear'
+    // جلب الإعدادات لحظياً
+    const unsubscribeMaintenance = dbService.subscribeToMaintenance((data) => setSettings(data));
+    dbService.getAppBranding().then(setBranding);
+
+    // حركات خلفية
+    const createParticles = () => {
+        if (!containerRef.current) return;
+        const container = containerRef.current;
+        for (let i = 0; i < 40; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'maintenance-dot absolute bg-blue-400/20 rounded-full pointer-events-none';
+            const size = Math.random() * 4 + 1;
+            dot.style.width = `${size}px`;
+            dot.style.height = `${size}px`;
+            dot.style.left = `${Math.random() * 100}%`;
+            dot.style.top = `${Math.random() * 100}%`;
+            container.appendChild(dot);
+            
+            anime({
+                targets: dot,
+                translateY: [0, anime.random(-200, 200)],
+                translateX: [0, anime.random(-200, 200)],
+                opacity: [0.2, 0.8, 0.2],
+                scale: [1, 2, 1],
+                duration: anime.random(4000, 10000),
+                loop: true,
+                easing: 'easeInOutQuad',
+                delay: anime.random(0, 2000)
+            });
+        }
+    };
+    createParticles();
+
+    // أنيميشن المدارات
+    anime({
+        targets: '.orbit-electron',
+        rotate: '360deg',
+        duration: 12000,
+        loop: true,
+        easing: 'linear'
     });
 
-    orbitTl.add({
-      targets: '.electron',
-      rotate: '360deg',
-      duration: 10000,
-    });
+    return () => unsubscribeMaintenance();
+  }, []);
 
-    // العداد التنازلي
+  useEffect(() => {
+    if (!settings?.expectedReturnTime) return;
+
     const timer = setInterval(() => {
       const target = new Date(settings.expectedReturnTime).getTime();
       const now = new Date().getTime();
@@ -43,63 +77,48 @@ const MaintenanceMode: React.FC<MaintenanceModeProps> = ({ settings }) => {
       }
     }, 1000);
 
-    // تأثير الجزيئات المتساقطة
-    const particles = document.querySelector('.maintenance-particles');
-    if (particles) {
-        for (let i = 0; i < 30; i++) {
-            const p = document.createElement('div');
-            p.className = 'absolute w-1 h-1 bg-blue-400 rounded-full opacity-20';
-            p.style.left = Math.random() * 100 + 'vw';
-            p.style.top = Math.random() * 100 + 'vh';
-            particles.appendChild(p);
-            anime({
-                targets: p,
-                translateY: [0, 200],
-                opacity: [0.2, 0],
-                duration: 2000 + Math.random() * 3000,
-                loop: true,
-                easing: 'easeInOutQuad',
-                delay: Math.random() * 2000
-            });
-        }
-    }
-
-    return () => {
-        clearInterval(timer);
-    };
-  }, [settings.expectedReturnTime]);
+    return () => clearInterval(timer);
+  }, [settings?.expectedReturnTime]);
 
   const TimeBlock = ({ value, label }: { value: number, label: string }) => (
-    <div className="flex flex-col items-center">
-        <div className="w-20 h-24 md:w-28 md:h-32 bg-black/40 border-2 border-blue-500/20 rounded-[30px] flex items-center justify-center relative overflow-hidden group">
-            <div className="absolute inset-0 bg-blue-500/5 group-hover:bg-blue-500/10 transition-colors"></div>
-            <span className="text-4xl md:text-6xl font-black text-white tabular-nums relative z-10">{String(value).padStart(2, '0')}</span>
+    <div className="flex flex-col items-center group">
+        <div className="w-20 h-24 md:w-28 md:h-32 bg-white/[0.03] border-2 border-blue-500/20 rounded-[35px] flex items-center justify-center relative overflow-hidden backdrop-blur-3xl shadow-2xl transition-all group-hover:border-blue-400/50">
+            <div className="absolute inset-0 bg-gradient-to-t from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <span className="text-4xl md:text-6xl font-black text-white tabular-nums relative z-10 drop-shadow-lg">{String(value).padStart(2, '0')}</span>
         </div>
-        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mt-4">{label}</span>
+        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em] mt-5 italic">{label}</span>
     </div>
   );
 
-  return (
-    <div className="fixed inset-0 z-[9999] bg-[#010304] flex flex-col items-center justify-center font-['Tajawal'] text-white overflow-hidden text-right" dir="rtl">
-      <div className="maintenance-particles absolute inset-0 pointer-events-none opacity-30"></div>
+  if (!settings) return null;
 
-      {/* المدار الذري المتحرك */}
-      <div className="absolute w-[800px] h-[800px] opacity-10 pointer-events-none">
-          <div className="absolute inset-0 border-2 border-blue-400 rounded-full border-dashed opacity-40"></div>
-          <div className="absolute inset-20 border border-blue-400 rounded-full border-dashed opacity-20"></div>
-          <div className="electron absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-blue-400 rounded-full blur-sm"></div>
+  return (
+    <div ref={containerRef} className="fixed inset-0 z-[9999] bg-[#010304] flex flex-col items-center justify-center font-['Tajawal'] text-white overflow-hidden text-right" dir="rtl">
+      
+      {/* المدارات الذرية الخلفية */}
+      <div className="absolute w-[900px] h-[900px] opacity-10 pointer-events-none animate-pulse">
+          <div className="absolute inset-0 border-2 border-blue-400/40 rounded-full border-dashed"></div>
+          <div className="absolute inset-24 border border-blue-400/20 rounded-full border-dashed"></div>
+          <div className="absolute inset-48 border-2 border-blue-400/10 rounded-full border-dashed"></div>
+          <div className="orbit-electron absolute top-[-10px] left-1/2 -translate-x-1/2 w-5 h-5 bg-blue-400 rounded-full blur-[2px] shadow-[0_0_20px_#60a5fa]"></div>
+          <div className="orbit-electron absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-3 h-3 bg-cyan-400 rounded-full blur-[1px] shadow-[0_0_15px_#22d3ee]" style={{animationDelay: '-2s'}}></div>
       </div>
 
-      <div className="relative z-10 max-w-4xl w-full px-6 text-center flex flex-col items-center">
-        <div className="w-24 h-24 bg-amber-500/10 border-2 border-amber-500/20 rounded-[40px] flex items-center justify-center text-amber-500 mb-10 animate-float shadow-[0_0_50px_rgba(245,158,11,0.2)]">
-            <Hammer size={48} />
+      <div className="relative z-10 max-w-4xl w-full px-8 text-center flex flex-col items-center">
+        <div className="w-32 h-32 md:w-40 md:h-40 bg-white/[0.02] border-2 border-white/5 rounded-[50px] flex items-center justify-center mb-12 shadow-[0_0_60px_rgba(255,255,255,0.02)] relative group overflow-hidden">
+            <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            {branding?.logoUrl ? (
+                <img src={branding.logoUrl} className="w-3/4 h-3/4 object-contain animate-float" alt="Logo" />
+            ) : (
+                <Atom size={64} className="text-blue-400 animate-spin-slow" />
+            )}
         </div>
 
-        <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-none mb-6 italic">
-            قيد <span className="text-blue-400">التطوير</span>
+        <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-none mb-6 italic animate-fadeIn">
+            نعمل على <span className="text-blue-400 drop-shadow-[0_0_20px_rgba(59,130,246,0.3)]">التطوير</span>
         </h1>
         
-        <p className="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto leading-relaxed mb-16 font-medium">
+        <p className="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto leading-relaxed mb-16 font-medium italic opacity-80">
             {settings.maintenanceMessage}
         </p>
 
@@ -112,19 +131,27 @@ const MaintenanceMode: React.FC<MaintenanceModeProps> = ({ settings }) => {
             </div>
         )}
 
-        <div className="flex flex-col items-center gap-6">
-            <div className="flex items-center gap-3 bg-white/5 px-8 py-4 rounded-2xl border border-white/5">
-                <Sparkles className="text-blue-400 animate-pulse" size={20}/>
-                <span className="text-sm font-bold text-gray-300">العودة المتوقعة: {new Date(settings.expectedReturnTime).toLocaleDateString('ar-KW')}</span>
+        <div className="flex flex-col items-center gap-8">
+            <div className="flex items-center gap-4 bg-white/5 px-10 py-5 rounded-[25px] border border-white/5 shadow-inner">
+                <Sparkles className="text-blue-400 animate-pulse" size={24}/>
+                <span className="text-sm font-black text-gray-200 tracking-widest uppercase">
+                    موعد الافتتاح: {new Date(settings.expectedReturnTime).toLocaleDateString('ar-KW', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                </span>
             </div>
-            <button onClick={() => window.location.reload()} className="flex items-center gap-3 text-gray-600 hover:text-white transition-all text-xs font-black uppercase tracking-widest">
-                <RefreshCw size={14}/> تحديث الصفحة يدوياً
-            </button>
+            
+            <div className="flex gap-4">
+                <button onClick={() => window.location.reload()} className="flex items-center gap-3 text-gray-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-[0.3em] bg-white/5 px-6 py-3 rounded-xl border border-white/5">
+                    <RefreshCw size={14}/> تحديث الصفحة
+                </button>
+            </div>
         </div>
       </div>
 
-      <footer className="absolute bottom-10 text-[9px] font-black text-gray-800 uppercase tracking-[0.6em]">
-        Syrian Science Center • Kuwait Node
+      <footer className="absolute bottom-10 flex flex-col items-center gap-4 opacity-30">
+        <div className="flex gap-6">
+            <Zap size={14}/> <Atom size={14}/> <Hammer size={14}/>
+        </div>
+        <p className="text-[9px] font-black uppercase tracking-[0.6em]">Syrian Science Center • Quantum Node 5C</p>
       </footer>
     </div>
   );
