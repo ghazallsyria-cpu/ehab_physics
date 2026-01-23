@@ -28,31 +28,39 @@ class DBService {
     return clean;
   }
 
-  // --- 📊 إحصائيات حقيقية من قاعدة البيانات (V12) ---
+  // --- 📊 إحصائيات لحظية (V14 - Real-time Stats) ---
+  subscribeToGlobalStats(callback: (stats: any) => void) {
+    this.checkDb();
+    // مراقبة مجموعة المستخدمين بالكامل
+    return onSnapshot(collection(db!, 'users'), (snap) => {
+        const allUsers = snap.docs.map(d => d.data() as User);
+        const students = allUsers.filter(u => u.role === 'student');
+        const teachers = allUsers.filter(u => u.role === 'teacher');
+        
+        callback({
+            totalStudents: students.length,
+            maleStudents: students.filter(s => s.gender === 'male').length,
+            femaleStudents: students.filter(s => s.gender === 'female').length,
+            totalTeachers: teachers.length,
+            total: students.length + teachers.length
+        });
+    });
+  }
+
   async getGlobalStats() {
     this.checkDb();
     try {
         const usersSnap = await getDocs(collection(db!, 'users'));
         const allUsers = usersSnap.docs.map(d => d.data() as User);
-        
         const students = allUsers.filter(u => u.role === 'student');
-        const teachers = allUsers.filter(u => u.role === 'teacher');
-        
         return {
             totalStudents: students.length,
             maleStudents: students.filter(s => s.gender === 'male').length,
             femaleStudents: students.filter(s => s.gender === 'female').length,
-            totalTeachers: teachers.length,
-            grade10: students.filter(s => s.grade === '10').length,
-            grade11: students.filter(s => s.grade === '11').length,
-            grade12: students.filter(s => s.grade === '12').length,
-            uni: students.filter(s => s.grade === 'uni').length,
-            total: students.length + teachers.length
+            totalTeachers: allUsers.filter(u => u.role === 'teacher').length,
+            total: allUsers.length
         };
-    } catch (e) {
-        console.error("Stats Fetch Error:", e);
-        return { totalStudents: 0, maleStudents: 0, femaleStudents: 0, totalTeachers: 0, grade10: 0, grade11: 0, grade12: 0, uni: 0, total: 0 };
-    }
+    } catch (e) { return { totalStudents: 0, maleStudents: 0, femaleStudents: 0, totalTeachers: 0, total: 0 }; }
   }
 
   // --- 🛠️ وضع الصيانة ---
