@@ -2,21 +2,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import anime from 'animejs';
 import { dbService } from '../services/db';
-import { ChevronLeft, School, GraduationCap, Users, Globe, RefreshCw } from 'lucide-react';
+import { ChevronLeft, School, GraduationCap, Users, Globe, RefreshCw, UserCheck, Briefcase, Venus, Mars } from 'lucide-react';
 
 interface LandingPageProps {
   onStart: () => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
-  const [gradeStats, setGradeStats] = useState({ grade10: 0, grade11: 0, grade12: 0, uni: 0, total: 0 });
+  const [stats, setStats] = useState({ totalStudents: 0, maleStudents: 0, femaleStudents: 0, totalTeachers: 0, total: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
         try {
-            const stats = await dbService.getStudentGradeStats();
-            setGradeStats(stats);
+            const globalStats = await dbService.getGlobalStats();
+            setStats(globalStats as any);
         } catch (e) {
             console.error("Failed to load stats", e);
         } finally {
@@ -94,7 +94,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
             />
         </div>
         <h1 className="title-reveal text-5xl md:text-7xl font-black text-white leading-tight mb-4 opacity-0">المركز السوري للعلوم</h1>
-        <p className="title-reveal text-lg md:text-2xl text-slate-400 font-medium tracking-widest mb-12 italic opacity-0">بوابتك للتميز العلمي في الكويت</p>
+        <p className="title-reveal text-lg md:text-2xl text-slate-400 font-medium tracking-widest mb-12 italic opacity-0">بوابتك للتميز العلمي في الفيزياء - الكويت</p>
         
         <div className="title-reveal opacity-0 mb-24">
             <button onClick={onStart} className="group relative px-16 py-6 bg-transparent overflow-hidden border-2 border-[#38bdf8] text-[#38bdf8] rounded-full font-black text-xl uppercase transition-all duration-500 hover:text-black shadow-2xl">
@@ -105,25 +105,25 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
 
         <div className="w-full max-w-5xl px-6">
             <div className="flex items-center gap-6 mb-12 border-r-4 border-blue-400 pr-6 text-right">
-                <h2 className="text-3xl font-black text-white italic">إحصائيات <span className="text-blue-400">المركز</span></h2>
+                <h2 className="text-3xl font-black text-white italic">نبض <span className="text-blue-400">المركز</span> الرقمي</h2>
             </div>
             
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                <StudentCounter value={gradeStats.grade10} label="الصف العاشر" icon={School} color="bg-blue-600" />
-                <StudentCounter value={gradeStats.grade11} label="الحادي عشر" icon={GraduationCap} color="bg-purple-600" />
-                <StudentCounter value={gradeStats.grade12} label="الثاني عشر" icon={Users} color="bg-amber-600" />
-                <StudentCounter value={gradeStats.uni} label="المرحلة الجامعية" icon={Globe} color="bg-emerald-600" />
+                <StudentCounter value={stats.maleStudents} label="الطلاب (بنين)" icon={Mars} color="bg-blue-600" />
+                <StudentCounter value={stats.femaleStudents} label="الطالبات (بنات)" icon={Venus} color="bg-pink-600" />
+                <StudentCounter value={stats.totalTeachers} label="طاقم المعلمين" icon={Briefcase} color="bg-amber-600" />
+                <StudentCounter value={stats.totalStudents} label="إجمالي المسجلين" icon={UserCheck} color="bg-emerald-600" />
             </div>
             
             <div className="stats-block mt-12 p-8 bg-white/[0.02] border border-white/5 rounded-[40px] flex items-center justify-center gap-6 opacity-0">
-                <p className="text-gray-500 font-bold text-lg">إجمالي الطلاب المسجلين:</p>
+                <p className="text-gray-500 font-bold text-lg">المجتمع التعليمي النشط:</p>
                 <div className="flex items-baseline gap-3">
                     {isLoading ? (
                       <RefreshCw className="animate-spin text-blue-400" size={24} />
                     ) : (
-                      <span className="text-5xl font-black text-blue-400 tabular-nums">{gradeStats.total}</span>
+                      <span className="text-5xl font-black text-blue-400 tabular-nums">{(stats as any).totalStudents + (stats as any).totalTeachers}</span>
                     )}
-                    <span className="text-lg font-bold text-gray-500">طالب</span>
+                    <span className="text-lg font-bold text-gray-500">عضو</span>
                 </div>
             </div>
         </div>

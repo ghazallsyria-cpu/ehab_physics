@@ -72,22 +72,22 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  // 🔑 مفتاح عبور معقد للمدراء فقط (Quantum Key)
+  const QUANTUM_BYPASS_KEY = 'ssc_core_secure_v4_8822';
+
   useEffect(() => {
-    // 🔑 1. فحص الرابط السري (يدعم admin=true و access=admin)
     const params = new URLSearchParams(window.location.search);
-    const isAdminParam = params.get('access') === 'admin' || params.get('admin') === 'true';
+    const bypassParam = params.get('access') === 'quantum' || params.get('admin') === 'true';
     
-    if (isAdminParam) {
-        localStorage.setItem('ssc_maintenance_bypass', 'active_secret_key_v1');
+    if (bypassParam) {
+        localStorage.setItem('ssc_maintenance_bypass_token', QUANTUM_BYPASS_KEY);
         setHasBypass(true);
-        // تنظيف الرابط
         window.history.replaceState({}, document.title, window.location.pathname);
     } else {
-        const storedBypass = localStorage.getItem('ssc_maintenance_bypass');
-        if (storedBypass === 'active_secret_key_v1') setHasBypass(true);
+        const storedToken = localStorage.getItem('ssc_maintenance_bypass_token');
+        if (storedToken === QUANTUM_BYPASS_KEY) setHasBypass(true);
     }
 
-    // 📡 2. الاشتراك في وضع الصيانة
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
         setMaintenance(settings);
         setIsMaintenanceLoading(false);
@@ -137,22 +137,24 @@ const App: React.FC = () => {
   }, []);
 
   const renderContent = () => {
-    // 🛑 انتظار التحميل أولاً لضمان معرفة "الدور" (Role) و "مفتاح العبور"
     if (isAuthLoading || isMaintenanceLoading) return (
       <div className="flex flex-col items-center justify-center h-screen gap-6 bg-[#000407]">
         <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
-        <p className="text-gray-500 font-black animate-pulse tracking-[0.3em]">SECURE LINK ESTABLISHED...</p>
+        <p className="text-gray-500 font-black animate-pulse tracking-[0.3em]">SECURE NODE LOADING...</p>
       </div>
     );
 
-    // 🛑 فحص الصيانة - يتم فقط بعد التأكد من أن المستخدم ليس مديراً وليس لديه مفتاح عبور
+    // 🛑 فحص الصيانة الصارم مع التجاوز التلقائي (Auto-Bypass)
     if (maintenance?.isMaintenanceActive) {
-        const isAdmin = user?.role === 'admin';
-        const isTeacherAllowed = user?.role === 'teacher' && maintenance.allowTeachers;
-        
-        // إذا لم يكن مديراً، وليس معلماً مسموحاً له، وليس لديه مفتاح عبور -> اظهر الصيانة
-        if (!hasBypass && !isAdmin && !isTeacherAllowed) {
-            return <MaintenanceMode />;
+        const now = Date.now();
+        const targetTime = maintenance.expectedReturnTime ? new Date(maintenance.expectedReturnTime).getTime() : 0;
+        const isTimeOver = targetTime > 0 && now >= targetTime;
+
+        // إذا انتهى الوقت، تفتح المنصة للجميع تلقائياً
+        if (!isTimeOver) {
+            if (user?.role === 'student') return <MaintenanceMode />;
+            if (!user && !hasBypass) return <MaintenanceMode />;
+            if (user?.role === 'teacher' && !maintenance.allowTeachers && !hasBypass) return <MaintenanceMode />;
         }
     }
 
@@ -221,7 +223,7 @@ const App: React.FC = () => {
         branding={branding}
         activeSubject={activeSubject}
         onLogout={() => {
-            localStorage.removeItem('ssc_maintenance_bypass');
+            localStorage.removeItem('ssc_maintenance_bypass_token');
             setHasBypass(false);
             signOut(auth).then(() => setViewStack(['landing']));
         }}
