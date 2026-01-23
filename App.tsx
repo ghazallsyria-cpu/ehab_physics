@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { User, ViewState, Lesson, Quiz, StudentQuizAttempt } from './types';
+import { User, ViewState, Lesson, Quiz, StudentQuizAttempt, AppBranding } from './types';
 import { dbService } from './services/db';
 import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, User as UserIcon, LogOut } from 'lucide-react';
 import { auth } from './services/firebase';
@@ -49,6 +49,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [viewStack, setViewStack] = useState<ViewState[]>(['landing']);
+  const [branding, setBranding] = useState<AppBranding>({ logoUrl: 'https://i.ibb.co/yBGp3sN/ssc-logo-final.png', appName: 'فيزياء الكويت' });
   
   const currentView = viewStack[viewStack.length - 1];
   const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
@@ -59,6 +60,19 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
+    // جلب إعدادات الهوية عند التحميل
+    const loadBranding = async () => {
+        const data = await dbService.getAppBranding();
+        setBranding(data);
+    };
+    loadBranding();
+
+    // استماع لتحديثات الهوية اللحظية من الإعدادات
+    const handleBrandingUpdate = (e: any) => {
+        if (e.detail) setBranding(e.detail);
+    };
+    window.addEventListener('branding-updated', handleBrandingUpdate);
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
@@ -73,7 +87,10 @@ const App: React.FC = () => {
       } else { setUser(null); }
       setIsAuthLoading(false);
     });
-    return () => unsubscribe();
+    return () => {
+        unsubscribe();
+        window.removeEventListener('branding-updated', handleBrandingUpdate);
+    };
   }, []);
 
   useEffect(() => {
@@ -146,17 +163,20 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
-      {/* Sidebar - يتم فصله تماماً في الجوال */}
+      {/* Sidebar - يتم تمرير الهوية إليه */}
       <Sidebar 
         currentView={currentView} 
         setView={(v, s) => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: v, subject: s } }))}
         user={user!} 
+        branding={branding}
+        // Added activeSubject to Sidebar component props to resolve tracking dependency
+        activeSubject={activeSubject}
         onLogout={() => signOut(auth).then(() => setViewStack(['landing']))}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      {/* Main Content Area - مضاف هوامش ثابتة في الشاشات الكبيرة لمنع التداخل */}
+      {/* Main Content Area */}
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 ${isSidebarOpen ? 'lg:mr-72' : 'lg:mr-72'}`}>
         <header className="sticky top-0 z-[100] bg-[#0A2540]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex justify-between items-center shadow-2xl">
           <div className="flex items-center gap-4">
@@ -168,8 +188,10 @@ const App: React.FC = () => {
               </button>
             ) : (
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-amber-400 text-black rounded-2xl flex items-center justify-center shadow-lg shadow-amber-400/20"><LayoutDashboard size={24}/></div>
-                <h1 className="font-black text-white text-xl tracking-tight uppercase">فيزياء <span className="text-amber-400">الكويت</span></h1>
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
+                    {branding.logoUrl ? <img src={branding.logoUrl} className="w-full h-full object-contain p-1" /> : <LayoutDashboard size={20} className="text-amber-400" />}
+                </div>
+                <h1 className="font-black text-white text-lg tracking-tight uppercase">{branding.appName.split(' ')[0]} <span className="text-amber-400">{branding.appName.split(' ').slice(1).join(' ')}</span></h1>
               </div>
             )}
           </div>
@@ -186,7 +208,6 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* الحاوية المركزية - max-w-screen-2xl تمنع تمدد العناصر في الشاشات الضخمة */}
         <main className="flex-1 p-4 md:p-8 lg:p-12 w-full max-w-screen-2xl mx-auto overflow-x-hidden">
           <Suspense fallback={<div className="flex flex-col items-center justify-center h-[50vh] gap-4"><RefreshCw className="w-12 h-12 text-amber-400 animate-spin" /><p className="text-gray-500 text-xs font-bold uppercase">جاري عرض المحتوى...</p></div>}>
             {renderContent()}
@@ -195,7 +216,7 @@ const App: React.FC = () => {
       </div>
 
       {showNotifications && user && <NotificationPanel user={user} onClose={() => setShowNotifications(false)} />}
-      <PWAPrompt user={user} />
+      <PWAPrompt user={user} logoUrl={branding.logoUrl} />
     </div>
   );
 };

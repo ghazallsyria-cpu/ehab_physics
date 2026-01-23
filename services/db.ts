@@ -12,7 +12,8 @@ import {
   HomePageContent, Asset, SubscriptionCode, ForumSection, 
   ForumPost, ForumReply, WeeklyReport, LoggingSettings, 
   NotificationSettings, PaymentSettings, Invoice, AIRecommendation,
-  Unit, Lesson, LiveSession, EducationalResource, PaymentStatus, UserRole
+  Unit, Lesson, LiveSession, EducationalResource, PaymentStatus, UserRole,
+  AppBranding
 } from '../types';
 
 class DBService {
@@ -24,6 +25,24 @@ class DBService {
     const clean = { ...data };
     Object.keys(clean).forEach(key => (clean[key] === undefined || clean[key] === null) && delete clean[key]);
     return clean;
+  }
+
+  // --- الهوية البصرية ---
+  async getAppBranding(): Promise<AppBranding> {
+    this.checkDb();
+    try {
+      const snap = await getDoc(doc(db!, 'settings', 'branding'));
+      if (snap.exists()) return snap.data() as AppBranding;
+    } catch (e) {}
+    return { 
+        logoUrl: 'https://i.ibb.co/yBGp3sN/ssc-logo-final.png', 
+        appName: 'فيزياء الكويت' 
+    };
+  }
+
+  async saveAppBranding(branding: AppBranding) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'branding'), this.cleanData(branding));
   }
 
   // --- تهيئة النظام ---
@@ -97,7 +116,6 @@ class DBService {
 
   async getAdmins(): Promise<User[]> {
     this.checkDb();
-    // Corrected the malformed query: fixed '==('admin' syntax error
     const q = query(collection(db!, 'users'), where('role', '==', 'admin'));
     const snap = await getDocs(q);
     return snap.docs.map(d => d.data() as User);

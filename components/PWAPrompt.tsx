@@ -1,12 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 
-const PWAPrompt: React.FC<{ user: User | null }> = ({ user }) => {
+interface PWAPromptProps {
+    user: User | null;
+    logoUrl?: string;
+}
+
+const PWAPrompt: React.FC<PWAPromptProps> = ({ user, logoUrl }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPrompt, setShowPrompt] = useState(false);
 
   // Effect to capture the browser's install prompt event.
-  // This runs once on component mount.
   useEffect(() => {
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
@@ -21,45 +26,24 @@ const PWAPrompt: React.FC<{ user: User | null }> = ({ user }) => {
   }, []);
 
   // Effect to decide when to show the prompt based on user activity.
-  // This re-evaluates whenever user data or the prompt availability changes.
   useEffect(() => {
-    // Conditions to check before showing the prompt.
     if (showPrompt || !deferredPrompt || !user) {
       return;
     }
 
     const sessionCount = parseInt(localStorage.getItem('ssc_sessions') || '0');
-    // Check for completed lessons within the user's progress object for accuracy.
     const lessonsCompleted = user.progress?.completedLessonIds?.length || 0;
-
-    console.log(`[PWA Check] Sessions: ${sessionCount}, Lessons Completed: ${lessonsCompleted}`);
 
     // Show prompt only if user has at least 2 sessions and completed 1 lesson.
     if (sessionCount >= 2 && lessonsCompleted >= 1) {
-      console.log('[PWA] Conditions met. Showing install prompt.');
-      // Delay showing the prompt for a better user experience.
       setTimeout(() => setShowPrompt(true), 3000);
     }
   }, [user, deferredPrompt, showPrompt]);
-
-  // Listener for when the app is successfully installed.
-  useEffect(() => {
-    const handleAppInstalled = () => {
-      setShowPrompt(false);
-      setDeferredPrompt(null);
-      console.log('[PWA] SSC was installed successfully!');
-    };
-
-    window.addEventListener('appinstalled', handleAppInstalled);
-    return () => window.removeEventListener('appinstalled', handleAppInstalled);
-  }, []);
-
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    console.log(`[PWA] User response to installation: ${outcome}`);
     if (outcome === 'accepted') {
       setShowPrompt(false);
     }
@@ -70,7 +54,9 @@ const PWAPrompt: React.FC<{ user: User | null }> = ({ user }) => {
   return (
     <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] w-[92%] max-w-md animate-slideUp">
       <div className="glass-panel p-10 rounded-[50px] border-[#fbbf24]/40 bg-black/90 backdrop-blur-3xl shadow-[0_40px_120px_rgba(0,0,0,0.8)] flex flex-col items-center text-center border-2">
-        <div className="w-24 h-24 bg-[#fbbf24] rounded-[35px] flex items-center justify-center text-6xl mb-8 shadow-[0_0_50px_rgba(251,191,36,0.4)] animate-float">⚛️</div>
+        <div className="w-24 h-24 bg-white/5 rounded-[35px] border border-white/10 flex items-center justify-center p-4 mb-8 shadow-[0_0_50px_rgba(251,191,36,0.2)] animate-float overflow-hidden">
+           {logoUrl ? <img src={logoUrl} className="w-full h-full object-contain" /> : <span className="text-6xl">⚛️</span>}
+        </div>
         
         <h3 className="text-3xl font-black text-white mb-4 tracking-tighter italic">تثبيت تطبيق <span className="text-[#fbbf24]">المركز</span></h3>
         <p className="text-gray-400 text-base mb-10 leading-relaxed font-bold italic">

@@ -1,15 +1,19 @@
 
-import React, { useState, useEffect } from 'react';
-import { LoggingSettings, NotificationSettings } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { LoggingSettings, NotificationSettings, AppBranding } from '../types';
 import { dbService } from '../services/db';
-import { Database, Save, AlertCircle, RefreshCw, Bell, MessageSquare, ShieldCheck, Zap } from 'lucide-react';
+import { Database, Save, AlertCircle, RefreshCw, Bell, MessageSquare, ShieldCheck, Zap, Image as ImageIcon, Upload } from 'lucide-react';
 
 const AdminSettings: React.FC = () => {
   const [settings, setSettings] = useState<LoggingSettings | null>(null);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
+  const [branding, setBranding] = useState<AppBranding | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadSettings();
@@ -17,10 +21,14 @@ const AdminSettings: React.FC = () => {
 
   const loadSettings = async () => {
     setIsLoading(true);
-    const loggingData = await dbService.getLoggingSettings();
+    const [loggingData, notificationData, brandingData] = await Promise.all([
+        dbService.getLoggingSettings(),
+        dbService.getNotificationSettings(),
+        dbService.getAppBranding()
+    ]);
     setSettings(loggingData);
-    const notificationData = await dbService.getNotificationSettings();
     setNotificationSettings(notificationData);
+    setBranding(brandingData);
     setIsLoading(false);
   };
 
@@ -30,20 +38,35 @@ const AdminSettings: React.FC = () => {
     }
   };
   
-  const handleNotificationToggle = (key: keyof NotificationSettings) => {
-    if (notificationSettings) {
-      setNotificationSettings(prev => ({ ...prev!, [key]: !prev![key] }));
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !branding) return;
+    
+    setIsUploading(true);
+    try {
+        const asset = await dbService.uploadAsset(file);
+        setBranding({ ...branding, logoUrl: asset.url });
+        setMessage({ text: 'تم رفع الشعار بنجاح. اضغط "حفظ" للاعتماد.', type: 'success' });
+    } catch (error) {
+        setMessage({ text: 'فشل رفع الشعار.', type: 'error' });
+    } finally {
+        setIsUploading(false);
     }
   };
 
   const handleSave = async () => {
-    if (!settings || !notificationSettings) return;
+    if (!settings || !notificationSettings || !branding) return;
     setIsSaving(true);
     setMessage(null);
     try {
-      await dbService.saveLoggingSettings(settings);
-      await dbService.saveNotificationSettings(notificationSettings);
+      await Promise.all([
+          dbService.saveLoggingSettings(settings),
+          dbService.saveNotificationSettings(notificationSettings),
+          dbService.saveAppBranding(branding)
+      ]);
       setMessage({ text: 'تم حفظ الإعدادات بنجاح!', type: 'success' });
+      // بث حدث لتحديث الشعار في كل مكان فوراً
+      window.dispatchEvent(new CustomEvent('branding-updated', { detail: branding }));
     } catch (e) {
       setMessage({ text: 'فشل حفظ الإعدادات.', type: 'error' });
     }
@@ -77,6 +100,59 @@ const AdminSettings: React.FC = () => {
       </header>
 
       <div className="space-y-12">
+        {/* قسم الهوية البصرية */}
+        <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8 bg-gradient-to-br from-amber-500/5 to-transparent">
+            <div className="flex items-center gap-4 text-gray-400 border-b border-white/5 pb-8">
+                <ImageIcon size={24} className="text-amber-400" />
+                <h3 className="text-2xl font-black text-white">الهوية البصرية (الشعار)</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div className="space-y-6">
+                    <div>
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">اسم المنصة</label>
+                        <input 
+                            type="text" 
+                            value={branding?.appName || ''} 
+                            onChange={e => branding && setBranding({...branding, appName: e.target.value})}
+                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-amber-400 font-bold"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">رابط الشعار المباشر</label>
+                        <input 
+                            type="text" 
+                            value={branding?.logoUrl || ''} 
+                            onChange={e => branding && setBranding({...branding, logoUrl: e.target.value})}
+                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white font-mono text-xs outline-none focus:border-amber-400"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-6">
+                    <div className="w-40 h-40 rounded-[40px] bg-black/40 border-2 border-white/10 p-6 flex items-center justify-center relative group overflow-hidden shadow-2xl">
+                        {branding?.logoUrl ? (
+                            <img src={branding.logoUrl} alt="Logo Preview" className="w-full h-full object-contain" />
+                        ) : (
+                            <ImageIcon size={48} className="text-gray-700" />
+                        )}
+                        {isUploading && (
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                                <RefreshCw className="text-amber-400 animate-spin" />
+                            </div>
+                        )}
+                    </div>
+                    <button 
+                        onClick={() => logoInputRef.current?.click()}
+                        className="flex items-center gap-2 px-8 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold hover:bg-white hover:text-black transition-all"
+                    >
+                        <Upload size={14}/> {isUploading ? 'جاري الرفع...' : 'رفع شعار جديد'}
+                    </button>
+                    <input type="file" ref={logoInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                </div>
+            </div>
+        </div>
+
         {/* صلاحيات ساحة النقاش */}
         <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8 bg-gradient-to-br from-[#00d2ff]/5 to-transparent">
             <div className="flex items-center gap-4 text-gray-400 border-b border-white/5 pb-8">
@@ -102,7 +178,6 @@ const AdminSettings: React.FC = () => {
                         <span className="font-black text-xs uppercase tracking-widest">للمشتركين فقط (Premium)</span>
                     </button>
                 </div>
-                <p className="mt-6 text-[10px] text-gray-500 italic text-center">عند تفعيل "للمشتركين فقط"، سيتمكن الطلاب المجانيون من القراءة فقط دون القدرة على النشر أو الرد.</p>
             </div>
         </div>
 

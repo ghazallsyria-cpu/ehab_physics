@@ -2,6 +2,12 @@
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions' | 'admin-quizzes' | 'attempt_review' | 'admin-content' | 'admin-assets' | 'admin-parents' | 'admin-videos' | 'admin-quiz-attempts' | 'admin-certificates' | 'admin-reviews' | 'admin-pricing' | 'admin-subscriptions' | 'admin-payments-log' | 'admin-payment-settings' | 'admin-email-notifications' | 'admin-internal-messages' | 'admin-forums' | 'admin-forum-posts' | 'admin-security-fix' | 'verify-certificate' | 'resources-center' | 'admin-managers';
 
+export interface AppBranding {
+    logoUrl: string;
+    appName: string;
+    primaryColor?: string;
+}
+
 export interface LoggingSettings {
     logStudentProgress: boolean;
     saveAllQuizAttempts: boolean;

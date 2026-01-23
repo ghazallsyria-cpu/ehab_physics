@@ -1,17 +1,20 @@
 
 import React from 'react';
-import { ViewState, User } from '../types';
+import { ViewState, User, AppBranding } from '../types';
 
 interface SidebarProps {
   currentView: ViewState;
   setView: (view: ViewState, subject?: 'Physics' | 'Chemistry') => void;
   user: User;
+  branding: AppBranding;
+  // Added activeSubject to SidebarProps to track the currently selected educational track
+  activeSubject: 'Physics' | 'Chemistry';
   onLogout: () => void;
   isOpen?: boolean;
   onClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout, isOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, branding, activeSubject, onLogout, isOpen, onClose }) => {
   
   const navigate = (view: ViewState, subject?: 'Physics' | 'Chemistry') => {
     const detail: { view: ViewState, subject?: 'Physics' | 'Chemistry' } = { view };
@@ -96,14 +99,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
       )}
       <div className={`fixed inset-y-0 right-0 z-[60] w-72 bg-[#0A2540] border-l border-white/5 flex flex-col transition-transform duration-500 shadow-[0_0_50px_rgba(0,0,0,0.5)] ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
         <div className="p-6">
-          <div className="bg-white/[0.03] border border-white/5 p-4 rounded-3xl flex items-center gap-4 relative overflow-hidden group">
+          <div className="bg-white/[0.03] border border-white/5 p-5 rounded-[35px] flex items-center gap-5 relative overflow-hidden group">
              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-600 flex items-center justify-center text-black shadow-lg shadow-amber-400/20 shrink-0 relative z-10 font-black">
-                {user.name.charAt(0)}
+             <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-2 shadow-lg relative z-10">
+                {branding.logoUrl ? (
+                    <img src={branding.logoUrl} alt="App Logo" className="w-full h-full object-contain" />
+                ) : (
+                    <span className="text-2xl">⚛️</span>
+                )}
              </div>
-             <div className="min-w-0 relative z-10">
-                <h3 className="font-bold text-white truncate text-sm">{user.name}</h3>
-                <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest">{user.role}</span>
+             <div className="min-w-0 relative z-10 text-right">
+                <h3 className="font-black text-white truncate text-sm leading-tight">{branding.appName}</h3>
+                <span className="text-[9px] text-amber-500 uppercase font-black tracking-widest mt-1 block">بوابة {user.role}</span>
              </div>
           </div>
         </div>
@@ -117,7 +124,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout,
                   <button
                     key={item.id + (item.subject || '')}
                     onClick={() => navigate(item.id as ViewState, item.subject)}
-                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group ${currentView === item.id && (!item.subject || item.subject === 'Physics') ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/10' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+                    // Added activeSubject check to properly highlight the active educational track in the sidebar
+                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group ${currentView === item.id && (!item.subject || item.subject === activeSubject) ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/10' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
                   >
                     <span className="text-lg">{item.icon}</span>
                     <span className="font-bold text-[13px] tracking-wide">{item.label}</span>
