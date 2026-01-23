@@ -68,7 +68,6 @@ class DBService {
     }, (error) => {
         console.error("Maintenance subscription error:", error);
         if (onError) onError(error);
-        // Fallback to avoid sticking on loader
         callback({ isMaintenanceActive: false, expectedReturnTime: '', maintenanceMessage: '', showCountdown: false, allowTeachers: true });
     });
   }
@@ -109,9 +108,6 @@ class DBService {
     });
   }
 
-  /**
-   * Fix: Added subscribeToUsers method to fix errors in LiveSessions.tsx, AdminTeacherManager.tsx, and AdminStudentManager.tsx
-   */
   subscribeToUsers(callback: (users: User[]) => void, role: UserRole) {
     this.checkDb();
     const q = query(collection(db!, 'users'), where('role', '==', role));
@@ -326,9 +322,6 @@ class DBService {
     });
   }
 
-  /**
-   * Fix: Added getNotifications method to fix error in ParentPortal.tsx
-   */
   async getNotifications(uid: string): Promise<AppNotification[]> {
     this.checkDb();
     const q = query(collection(db!, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'), limit(50));
@@ -446,9 +439,6 @@ class DBService {
     });
   }
 
-  /**
-   * Fix: Added saveLiveSession method to fix error in AdminLiveSessions.tsx
-   */
   async saveLiveSession(session: Partial<LiveSession>) {
     this.checkDb();
     if (session.id) {
@@ -458,9 +448,6 @@ class DBService {
     }
   }
 
-  /**
-   * Fix: Added deleteLiveSession method to fix error in AdminLiveSessions.tsx
-   */
   async deleteLiveSession(id: string) {
     this.checkDb();
     await deleteDoc(doc(db!, 'liveSessions', id));
@@ -472,10 +459,27 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as EducationalResource));
   }
 
-  async getExperiments(): Promise<PhysicsExperiment[]> {
+  // --- Dynamic Experiments CRUD ---
+  async getExperiments(grade?: string): Promise<PhysicsExperiment[]> {
     this.checkDb();
-    const snap = await getDocs(collection(db!, 'experiments'));
+    let q = query(collection(db!, 'experiments'));
+    if (grade) q = query(q, where('grade', '==', grade));
+    const snap = await getDocs(q);
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as PhysicsExperiment));
+  }
+
+  async saveExperiment(exp: Partial<PhysicsExperiment>) {
+      this.checkDb();
+      if (exp.id) {
+          await setDoc(doc(db!, 'experiments', exp.id), this.cleanData(exp), { merge: true });
+      } else {
+          await addDoc(collection(db!, 'experiments'), this.cleanData(exp));
+      }
+  }
+
+  async deleteExperiment(id: string) {
+      this.checkDb();
+      await deleteDoc(doc(db!, 'experiments', id));
   }
 
   async getEquations(): Promise<PhysicsEquation[]> {
@@ -503,11 +507,33 @@ class DBService {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as Todo));
   }
 
+  // --- Dynamic Recommendations CRUD ---
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> {
-    return [
-      { id: 'rec1', title: 'مراجعة قوانين نيوتن', reason: 'تحتاج لتقوية مهاراتك في الميكانيكا', type: 'lesson', targetId: 'l11-1-1', urgency: 'high' },
-      { id: 'rec2', title: 'اختبار الحث الكهرومغناطيسي', reason: 'أكملت دروس الوحدة الأولى بنجاح', type: 'quiz', targetId: 'quiz-1', urgency: 'medium' }
-    ];
+    this.checkDb();
+    // جلب التوصيات الموجهة لهذا الصف أو لهذا المستخدم تحديداً بالبريد
+    const q = query(
+        collection(db!, 'recommendations'), 
+        where('targetGrade', 'in', [user.grade, 'all']),
+        orderBy('createdAt', 'desc')
+    );
+    const snap = await getDocs(q);
+    let recs = snap.docs.map(d => ({ ...d.data(), id: d.id } as AIRecommendation));
+    
+    // فلترة إضافية للموجهة لشخص بعينه إذا وجد الحقل
+    return recs.filter(r => !r.targetUserEmail || r.targetUserEmail === user.email);
+  }
+
+  async saveRecommendation(rec: Partial<AIRecommendation>) {
+      this.checkDb();
+      await addDoc(collection(db!, 'recommendations'), {
+          ...this.cleanData(rec),
+          createdAt: new Date().toISOString()
+      });
+  }
+
+  async deleteRecommendation(id: string) {
+      this.checkDb();
+      await deleteDoc(doc(db!, 'recommendations', id));
   }
   
   async getAdvancedFinancialStats() {

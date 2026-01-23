@@ -1,6 +1,6 @@
 
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
-export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions' | 'admin-quizzes' | 'attempt_review' | 'admin-content' | 'admin-assets' | 'admin-parents' | 'admin-videos' | 'admin-quiz-attempts' | 'admin-certificates' | 'admin-reviews' | 'admin-pricing' | 'admin-subscriptions' | 'admin-payments-log' | 'admin-payment-settings' | 'admin-email-notifications' | 'admin-internal-messages' | 'admin-forums' | 'admin-forum-posts' | 'admin-security-fix' | 'verify-certificate' | 'resources-center' | 'admin-managers' | 'admin-payment-manager';
+export type ViewState = 'landing' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions' | 'admin-quizzes' | 'attempt_review' | 'admin-content' | 'admin-assets' | 'admin-parents' | 'admin-videos' | 'admin-quiz-attempts' | 'admin-certificates' | 'admin-reviews' | 'admin-pricing' | 'admin-subscriptions' | 'admin-payments-log' | 'admin-payment-settings' | 'admin-email-notifications' | 'admin-internal-messages' | 'admin-forums' | 'admin-forum-posts' | 'admin-security-fix' | 'verify-certificate' | 'resources-center' | 'admin-managers' | 'admin-payment-manager' | 'admin-labs' | 'admin-recommendations';
 
 export interface MaintenanceSettings {
     isMaintenanceActive: boolean;
@@ -309,8 +309,11 @@ export interface PhysicsExperiment {
   title: string;
   description: string;
   thumbnail: string;
+  grade: string;
   isFutureLab?: boolean;
-  parameters: {
+  type: 'CUSTOM_HTML' | 'INTEGRATED';
+  customHtml?: string;
+  parameters?: {
     id: string;
     name: string;
     min: number;
@@ -368,7 +371,6 @@ export interface Review {
   timestamp: string;
 }
 
-// التعديل الرئيسي هنا للتحكم في التموضع
 export type ContentPlacement = 'TOP_BANNER' | 'GRID_CARD' | 'SIDEBAR_WIDGET' | 'MODAL_POPUP';
 
 export interface HomePageContent {
@@ -376,7 +378,7 @@ export interface HomePageContent {
   title: string;
   content: string;
   type: 'news' | 'alert' | 'announcement' | 'image' | 'carousel';
-  placement: ContentPlacement; // إضافة التموضع
+  placement: ContentPlacement; 
   priority: 'normal' | 'high';
   imageUrl?: string;
   ctaText?: string;
@@ -411,6 +413,9 @@ export interface AIRecommendation {
   type: 'lesson' | 'quiz' | 'challenge' | 'discussion';
   targetId: string;
   urgency: 'high' | 'medium' | 'low';
+  targetGrade?: string;
+  targetUserEmail?: string;
+  createdAt: string;
 }
 
 export interface LiveSession {

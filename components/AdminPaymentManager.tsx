@@ -30,12 +30,15 @@ const AdminPaymentManager: React.FC = () => {
                 dbService.getInvoiceSettings(),
                 dbService.getAppBranding()
             ]);
-            setSettings(payData);
-            setInvoiceSettings(invData);
-            setBranding(brandData);
+            
+            // ضمان وجود قيم في حال كانت null من قاعدة البيانات
+            setSettings(payData || { isOnlinePaymentEnabled: false, womdaPhoneNumber: '55315661', planPrices: { premium: 35, basic: 0 } });
+            setInvoiceSettings(invData || { headerText: 'إيصال دفع رقمي', footerText: 'المركز السوري للعلوم', accentColor: '#fbbf24', showSignature: true, signatureName: 'الإدارة', showWatermark: true, watermarkText: 'SSC' });
+            setBranding(brandData || { appName: 'المركز السوري للعلوم', logoUrl: '' });
+            
         } catch (e) {
-            console.error(e);
-            setMessage({ text: 'خطأ في جلب الإعدادات.', type: 'error' });
+            console.error("Payment Manager Load Error:", e);
+            setMessage({ text: 'خطأ في جلب الإعدادات من الخادم.', type: 'error' });
         } finally {
             setIsLoading(false);
         }
@@ -52,7 +55,7 @@ const AdminPaymentManager: React.FC = () => {
             ]);
             setMessage({ text: 'تم حفظ كافة الإعدادات وتصميم الإيصالات بنجاح ✅', type: 'success' });
         } catch (e) {
-            setMessage({ text: 'فشل الحفظ.', type: 'error' });
+            setMessage({ text: 'فشل حفظ الإعدادات.', type: 'error' });
         } finally {
             setIsSaving(false);
             setTimeout(() => setMessage(null), 3000);
@@ -61,9 +64,9 @@ const AdminPaymentManager: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="py-40 text-center flex flex-col items-center">
+            <div className="flex flex-col items-center justify-center h-[60vh] gap-6 text-white font-['Tajawal']" dir="rtl">
                 <RefreshCw className="w-12 h-12 text-[#fbbf24] animate-spin mb-6" />
-                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">جاري تحميل النظام المالي والمصمم...</p>
+                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs animate-pulse">جاري تحميل النظام المالي والمصمم...</p>
             </div>
         );
     }
@@ -177,7 +180,7 @@ const AdminPaymentManager: React.FC = () => {
                         </div>
                         
                         <div className="glass-panel p-4 rounded-[50px] border-white/10 bg-white/5 shadow-3xl overflow-hidden pointer-events-none origin-top scale-[0.9]">
-                             <div className="p-12 md:p-20 rounded-[60px] border-white/10 relative overflow-hidden bg-white text-black">
+                             <div className="p-12 md:p-20 rounded-[60px] border-white/10 relative overflow-hidden bg-white text-black min-h-[600px]">
                                 {invoiceSettings?.showWatermark && (
                                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[120px] font-black text-black/[0.05] -rotate-12 pointer-events-none select-none">
                                     {invoiceSettings.watermarkText}
@@ -186,7 +189,7 @@ const AdminPaymentManager: React.FC = () => {
                                 <header className="flex justify-between items-center mb-16 border-b border-black/10 pb-12">
                                     <div className="text-right">
                                         <div className="w-16 h-16 bg-black/5 rounded-2xl flex items-center justify-center p-2 mb-4 overflow-hidden">
-                                            <img src={branding?.logoUrl} className="w-full h-full object-contain" alt="Logo" />
+                                            {branding?.logoUrl ? <img src={branding.logoUrl} className="w-full h-full object-contain" alt="Logo" /> : <ImageIcon size={24}/>}
                                         </div>
                                         <h1 className="text-2xl font-black" style={{ color: invoiceSettings?.accentColor }}>{branding?.appName}</h1>
                                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">{invoiceSettings?.headerText}</p>

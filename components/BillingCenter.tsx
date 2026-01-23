@@ -15,7 +15,6 @@ import {
   CreditCard,
   AlertTriangle,
   Crown,
-  // Added FileText to fix: Error in file components/BillingCenter.tsx on line 225: Cannot find name 'FileText'.
   FileText
 } from 'lucide-react';
 import PaymentCertificate from './PaymentCertificate';
@@ -56,13 +55,9 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
         ]);
         
         if (settings) setPaymentSettings(settings);
-        
-        // التحقق الحاسم: إذا كانت الباقات القادمة من DB فارغة، لا تستبدل الـ DEFAULT_PLANS
-        if (plans && plans.length > 0) {
-            setSubscriptionPlans(plans);
-        }
+        if (plans && plans.length > 0) setSubscriptionPlans(plans);
       } catch (e) {
-        console.warn("Fetch failed, keeping defaults", e);
+        console.error("Fetch failed, keeping defaults", e);
       } finally {
         setIsLoading(false);
       }
@@ -90,6 +85,15 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
         await dbService.initiatePayment(user.uid, plan.id, dynamicPrice);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-6 text-white font-['Tajawal']" dir="rtl">
+        <RefreshCw className="w-12 h-12 text-amber-400 animate-spin" />
+        <p className="text-gray-400 font-bold animate-pulse">جاري تحميل بيانات الاشتراك والأسعار...</p>
+      </div>
+    );
+  }
 
   if (selectedInvoiceForCert) {
       return (
@@ -123,7 +127,6 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-          {/* عرض الباقات */}
           <div className="lg:col-span-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {subscriptionPlans.map(plan => {
@@ -189,7 +192,6 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
               </div>
           </div>
 
-          {/* سجل الدفعات الجانبي */}
           <div className="lg:col-span-4">
               <div className="glass-panel p-8 rounded-[45px] border-white/5 bg-[#0a1118]/90 flex flex-col shadow-3xl min-h-[500px]">
                   <div className="flex items-center justify-between mb-10 border-b border-white/5 pb-6">

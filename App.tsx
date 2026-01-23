@@ -48,6 +48,8 @@ const AdminForumPostManager = lazy(() => import('./components/AdminForumPostMana
 const FirestoreRulesFixer = lazy(() => import('./components/FirestoreRulesFixer'));
 const AdminPaymentManager = lazy(() => import('./components/AdminPaymentManager'));
 const AdminContentManager = lazy(() => import('./components/AdminContentManager'));
+const AdminLabManager = lazy(() => import('./components/AdminLabManager'));
+const AdminRecommendationManager = lazy(() => import('./components/AdminRecommendationManager'));
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -57,6 +59,7 @@ const App: React.FC = () => {
     logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
     appName: 'المركز السوري للعلوم' 
   });
+  
   const [maintenance, setMaintenance] = useState<MaintenanceSettings | null>(null);
   const [isMaintenanceLoading, setIsMaintenanceLoading] = useState(true);
   
@@ -69,20 +72,6 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    // 🛡️ نظام طوارئ: إذا استغرق التحميل أكثر من 6 ثوانٍ، يتم تخطيه تلقائياً
-    const failsafeTimer = setTimeout(() => {
-        setIsAuthLoading(false);
-        setIsMaintenanceLoading(false);
-        console.warn("Failsafe triggered: Loading screens dismissed due to delay.");
-    }, 6000);
-
-    // 1. إدارة معاملات الرابط للعبور السري
-    const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get('admin') === 'true' || searchParams.get('master') === 'true') {
-        sessionStorage.setItem('ssc_admin_bypass', 'true');
-    }
-
-    // 2. الاشتراك اللحظي في حالة الصيانة
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
         setMaintenance(settings);
         setIsMaintenanceLoading(false);
@@ -90,9 +79,13 @@ const App: React.FC = () => {
         setIsMaintenanceLoading(false);
     });
 
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('admin') === 'true' || searchParams.get('master') === 'true') {
+        sessionStorage.setItem('ssc_admin_bypass', 'true');
+    }
+
     dbService.getAppBranding().then(setBranding);
     
-    // 3. إدارة حالة التوثيق والمستخدم
     let unsubscribeUser: (() => void) | null = null;
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -112,7 +105,6 @@ const App: React.FC = () => {
     });
 
     return () => {
-        clearTimeout(failsafeTimer);
         unsubscribeAuth();
         unsubscribeMaintenance();
         if (unsubscribeUser) unsubscribeUser();
@@ -144,30 +136,19 @@ const App: React.FC = () => {
   const renderContent = () => {
     const isBypassActive = sessionStorage.getItem('ssc_admin_bypass') === 'true';
 
-    // 🛡️ الحماية العظمى: منطق الصيانة اللحظي والصارم
     if (maintenance?.isMaintenanceActive) {
         const isPrivileged = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
-        
-        // منع الطلاب تماماً حتى لو استخدموا روابط العبور
-        if (user?.role === 'student') {
-            return <MaintenanceMode />;
-        }
-
-        // إذا لم يسجل دخوله بعد، ولم يقم بتفعيل العبور السري (للمدراء فقط)
-        if (!user && !isBypassActive) {
-            return <MaintenanceMode />;
-        }
-
-        // السماح فقط بصفحة تسجيل الدخول للمدراء عند تفعيل العبور
-        if (isBypassActive && !user && currentView !== 'auth') {
-            return <MaintenanceMode />;
+        if (!isPrivileged) {
+            if (!isBypassActive) return <MaintenanceMode />;
+            if (user && user.role === 'student') return <MaintenanceMode />;
+            if (!user && currentView !== 'auth') return <MaintenanceMode />;
         }
     }
 
     if (isAuthLoading || isMaintenanceLoading) return (
       <div className="flex flex-col items-center justify-center h-[70vh] gap-6">
         <RefreshCw className="w-16 h-16 text-amber-400 animate-spin" />
-        <p className="text-gray-400 font-black animate-pulse uppercase tracking-[0.2em]">Quantum Security Syncing...</p>
+        <p className="text-gray-400 font-black animate-pulse uppercase tracking-[0.2em]">تأمين الاتصال السحابي...</p>
       </div>
     );
 
@@ -211,11 +192,12 @@ const App: React.FC = () => {
       case 'admin-security-fix': return <FirestoreRulesFixer />;
       case 'admin-payment-manager': return <AdminPaymentManager />;
       case 'admin-content': return <AdminContentManager />;
+      case 'admin-labs': return <AdminLabManager />;
+      case 'admin-recommendations': return <AdminRecommendationManager />;
       default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
     }
   };
 
-  const isBypassActive = sessionStorage.getItem('ssc_admin_bypass') === 'true';
   const showMaintenanceUI = maintenance?.isMaintenanceActive && 
                             user?.role !== 'admin' && 
                             !(user?.role === 'teacher' && maintenance.allowTeachers) &&
@@ -234,12 +216,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
-      {maintenance?.isMaintenanceActive && (
-          <div className="fixed top-0 left-0 right-0 z-[1000] bg-red-600 text-white text-[9px] font-black py-1.5 text-center uppercase tracking-[0.2em] pointer-events-none shadow-xl border-b border-white/10">
-              نظام الصيانة نشط • العبور متاح فقط للمصرح لهم
-          </div>
-      )}
-      
       <Sidebar 
         currentView={currentView} 
         setView={(v, s) => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: v, subject: s } }))}

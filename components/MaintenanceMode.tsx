@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import anime from 'animejs';
 import { MaintenanceSettings, AppBranding } from '../types';
 import { RefreshCw, Atom, ShieldCheck, Timer, Zap, Sparkles, Orbit, Lock, ShieldAlert } from 'lucide-react';
@@ -11,18 +11,10 @@ const MaintenanceMode: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0 });
   const [clickCount, setClickCount] = useState(0);
   const [showSecretButton, setShowSecretButton] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isOpening, setIsOpening] = useState(false);
 
   useEffect(() => {
-    // 🛡️ رصد لحظي لحالة الصيانة - إذا قام المدير بإطفائها، يتم تفعيل الأنيميشن فوراً
-    const unsubscribeMaintenance = dbService.subscribeToMaintenance((data) => {
-        if (settings && settings.isMaintenanceActive && data && !data.isMaintenanceActive) {
-            handleAutoOpen(); // المنصة فتحت!
-        }
-        setSettings(data);
-    });
-    
+    // جلب الإعدادات مرة واحدة عند الرندر (الاشتراك اللحظي يتم في App.tsx وسيؤدي لإعادة تشغيل هذا المكون)
+    dbService.getMaintenanceSettings().then(setSettings);
     dbService.getAppBranding().then(setBranding);
 
     // التحقق من حالة العبور السابقة
@@ -30,38 +22,21 @@ const MaintenanceMode: React.FC = () => {
         setShowSecretButton(true);
     }
 
-    // إنشاء سديم الجزيئات الخلفي
-    const createParticles = () => {
-        if (!containerRef.current) return;
-        for (let i = 0; i < 40; i++) {
-            const dot = document.createElement('div');
-            dot.className = 'absolute bg-blue-500/20 rounded-full pointer-events-none blur-[2px] z-0';
-            const size = Math.random() * 5 + 2;
-            dot.style.width = `${size}px`;
-            dot.style.height = `${size}px`;
-            dot.style.left = `${Math.random() * 100}%`;
-            dot.style.top = `${Math.random() * 100}%`;
-            containerRef.current.appendChild(dot);
-            
-            anime({
-                targets: dot,
-                translateY: [0, anime.random(-1000, 1000)],
-                translateX: [0, anime.random(-1000, 1000)],
-                opacity: [0, 0.4, 0],
-                scale: [1, 3],
-                duration: anime.random(8000, 20000),
-                loop: true,
-                easing: 'linear'
-            });
-        }
-    };
-    createParticles();
-
-    return () => unsubscribeMaintenance();
-  }, [settings]);
+    // أنيميشن الخلفية
+    anime({
+      targets: '.bg-particle',
+      translateX: () => anime.random(-50, 50),
+      translateY: () => anime.random(-50, 50),
+      opacity: [0.1, 0.4, 0.1],
+      duration: () => anime.random(3000, 6000),
+      loop: true,
+      easing: 'easeInOutQuad',
+      delay: anime.stagger(100)
+    });
+  }, []);
 
   useEffect(() => {
-    if (!settings?.expectedReturnTime || !settings.isMaintenanceActive) return;
+    if (!settings?.expectedReturnTime) return;
 
     const timer = setInterval(() => {
       const target = new Date(settings.expectedReturnTime).getTime();
@@ -70,7 +45,6 @@ const MaintenanceMode: React.FC = () => {
 
       if (diff <= 0) {
         clearInterval(timer);
-        // لا تفتح تلقائياً إلا إذا كان المدير قد أغلق وضع الصيانة فعلياً
       } else {
         setTimeLeft({
           d: Math.floor(diff / (1000 * 60 * 60 * 24)),
@@ -82,38 +56,7 @@ const MaintenanceMode: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [settings?.expectedReturnTime, settings?.isMaintenanceActive]);
-
-  const handleAutoOpen = () => {
-      if (isOpening) return;
-      setIsOpening(true);
-      
-      // تأثير Warp Speed الفيزيائي عند الافتتاح
-      const tl = anime.timeline({
-          easing: 'easeInQuart'
-      });
-
-      tl.add({
-          targets: '.content-lock',
-          opacity: 0,
-          scale: 0.8,
-          filter: 'blur(20px)',
-          duration: 800
-      }).add({
-          targets: '.warp-line',
-          opacity: [0, 1],
-          translateX: (el: any) => [0, el.getAttribute('data-dist')],
-          duration: 1000,
-          delay: anime.stagger(15)
-      }).add({
-          targets: '.opening-flash',
-          opacity: [0, 1],
-          duration: 1200,
-          complete: () => {
-              window.location.reload(); // تحديث الموقع للدخول النظيف للمنصة
-          }
-      });
-  };
+  }, [settings?.expectedReturnTime]);
 
   const handleLogoClick = () => {
       const newCount = clickCount + 1;
@@ -121,20 +64,22 @@ const MaintenanceMode: React.FC = () => {
       
       anime({
           targets: '.maintenance-logo',
-          scale: [1, 0.95, 1.05, 1],
-          duration: 300
+          scale: [1, 0.9, 1.1, 1],
+          duration: 400
       });
 
       if (newCount >= 5) {
+          // تفعيل مدخل سري للمدراء فقط
           sessionStorage.setItem('ssc_admin_bypass', 'true');
           setShowSecretButton(true);
+          // اهتزاز بسيط للتنبيه
           if ("vibrate" in navigator) navigator.vibrate(200);
       }
   };
 
   const TimeBlock = ({ value, label }: { value: number, label: string }) => (
     <div className="flex flex-col items-center">
-        <div className="w-20 h-24 md:w-28 md:h-32 bg-white/[0.03] border border-white/10 rounded-[30px] flex items-center justify-center backdrop-blur-3xl shadow-2xl relative overflow-hidden group hover:border-blue-400/40 transition-all">
+        <div className="w-20 h-24 md:w-28 md:h-32 bg-white/[0.03] border border-white/10 rounded-[30px] flex items-center justify-center backdrop-blur-3xl shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
             <span className="text-4xl md:text-6xl font-black text-white tabular-nums tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
                 {String(value).padStart(2, '0')}
@@ -146,41 +91,46 @@ const MaintenanceMode: React.FC = () => {
     </div>
   );
 
-  if (!settings) return null;
+  if (!settings) return (
+      <div className="fixed inset-0 bg-[#000407] flex items-center justify-center">
+          <RefreshCw className="animate-spin text-blue-500" size={40} />
+      </div>
+  );
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-[9999] bg-[#000407] flex flex-col items-center justify-center font-['Tajawal'] text-white overflow-hidden text-right" dir="rtl">
+    <div className="fixed inset-0 z-[9999] bg-[#000407] flex flex-col items-center justify-center font-['Tajawal'] text-white overflow-hidden text-right" dir="rtl">
       
-      <div className="opening-flash fixed inset-0 bg-white z-[10000] opacity-0 pointer-events-none"></div>
-      <div className="absolute inset-0 z-0 opacity-10 pointer-events-none flex items-center justify-center">
-        {Array.from({length: 50}).map((_, i) => (
-            <div key={i} className="warp-line absolute h-[2px] bg-blue-400 opacity-0" data-dist={Math.random() * 2000 - 1000} style={{ width: Math.random() * 200 + 50 + 'px', transform: `rotate(${Math.random() * 360}deg) translateX(0px)` }}></div>
+      {/* Background Particles */}
+      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+        {Array.from({length: 20}).map((_, i) => (
+            <div key={i} className="bg-particle absolute w-1 h-1 bg-blue-400 rounded-full" style={{ left: `${Math.random()*100}%`, top: `${Math.random()*100}%` }}></div>
         ))}
       </div>
 
-      <div className="content-lock relative z-10 max-w-5xl w-full px-8 flex flex-col items-center transition-all duration-1000">
+      <div className="relative z-10 max-w-4xl w-full px-8 flex flex-col items-center">
         
         <div className="relative mb-12">
-            <div className="absolute inset-[-50px] border-2 border-blue-500/10 rounded-full animate-spin-slow"></div>
+            <div className="absolute inset-[-40px] border-2 border-blue-500/10 rounded-full animate-spin-slow"></div>
             <div 
                 onClick={handleLogoClick}
-                className="maintenance-logo w-36 h-36 md:w-44 md:h-44 bg-[#0a1118] border-2 border-white/10 rounded-[55px] flex items-center justify-center shadow-[0_0_100px_rgba(59,130,246,0.15)] relative group cursor-pointer transition-all active:scale-90"
+                className="maintenance-logo w-36 h-36 md:w-44 md:h-44 bg-[#0a1118] border-2 border-white/10 rounded-[55px] flex items-center justify-center shadow-[0_0_100px_rgba(59,130,246,0.1)] relative group cursor-pointer transition-all active:scale-95"
             >
                 {branding?.logoUrl ? (
                     <img src={branding.logoUrl} className="w-2/3 h-2/3 object-contain pointer-events-none" alt="Logo" />
                 ) : (
                     <Atom size={80} className="text-blue-400 animate-spin-slow" />
                 )}
+                <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/5 transition-all rounded-[55px]"></div>
             </div>
         </div>
 
         <div className="text-center mb-16 space-y-4">
-            <div className="inline-flex items-center gap-2 bg-red-500/10 px-6 py-2 rounded-full border border-red-500/20 mb-4 animate-slideUp">
+            <div className="inline-flex items-center gap-2 bg-red-500/10 px-6 py-2 rounded-full border border-red-500/20 mb-4">
                 <Lock size={14} className="text-red-500 animate-pulse" />
-                <span className="text-[10px] font-black text-red-400 uppercase tracking-widest italic">Physical System Lockdown</span>
+                <span className="text-[10px] font-black text-red-400 uppercase tracking-widest italic">System Lockdown in Progress</span>
             </div>
             <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-tight italic uppercase">
-                قيد <span className="text-blue-400 drop-shadow-[0_0_30px_rgba(59,130,246,0.4)]">التحديث</span>
+                قيد <span className="text-blue-400 drop-shadow-[0_0_30px_rgba(59,130,246,0.4)]">التطوير</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-500 max-w-xl mx-auto leading-relaxed font-medium italic opacity-80">
                 {settings.maintenanceMessage}
@@ -223,7 +173,7 @@ const MaintenanceMode: React.FC = () => {
       <footer className="absolute bottom-10 w-full px-12 flex justify-between items-center opacity-30">
          <div className="flex items-center gap-4">
              <div className="h-px w-20 bg-gray-700"></div>
-             <p className="text-[8px] font-black uppercase tracking-[0.5em]">Quantum Core v5.0</p>
+             <p className="text-[8px] font-black uppercase tracking-[0.5em]">Syrian Science Center • Quantum Core</p>
          </div>
          <div className="flex gap-6">
             <Sparkles size={16} className="text-blue-500/50" />
