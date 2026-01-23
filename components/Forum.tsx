@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { User, ForumPost, ForumReply, ForumSection, Forum as ForumType, LoggingSettings } from '../types';
 import { dbService } from '../services/db';
 import { contentFilter } from '../services/contentFilter';
+import { auth } from '../services/firebase';
 import { 
   ArrowUp, 
   MessageSquare, 
@@ -20,7 +21,10 @@ import {
   Zap,
   Bell,
   ShieldAlert,
-  ShieldCheck
+  ShieldCheck,
+  UserCheck,
+  // Added missing Info icon import
+  Info
 } from 'lucide-react';
 
 interface ForumProps {
@@ -40,7 +44,11 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
   const [sortBy, setSortBy] = useState<'newest' | 'top'>('newest');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [permissionError, setPermissionError] = useState(false);
-  const [forumSettings, setForumSettings] = useState<LoggingSettings | null>(null);
+
+  // فحص هل المستخدم حقيقي (Auth) أم وهمي (Demo)
+  const isRealUser = useMemo(() => {
+    return auth.currentUser !== null;
+  }, [user]);
 
   useEffect(() => {
     loadInitialData();
@@ -49,12 +57,8 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
   const loadInitialData = async () => {
     setIsLoading(true);
     try {
-      const [sectionsData, settingsData] = await Promise.all([
-        dbService.getForumSections(),
-        dbService.getLoggingSettings()
-      ]);
+      const sectionsData = await dbService.getForumSections();
       setSections(sectionsData);
-      setForumSettings(settingsData);
     } catch (e) { console.error("Forum init failed", e); }
     finally { setIsLoading(false); }
   };
@@ -66,8 +70,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
         const forumPosts = await dbService.getForumPosts(forumId);
         setPosts(forumPosts);
     } catch (e: any) { 
-        console.error("Fetch Posts Error:", e);
-        if (e.code === 'permission-denied') setPermissionError(true);
+        if (e.code === 'permission-denied' || e.message === 'PERMISSION_DENIED') setPermissionError(true);
     }
     finally { setIsLoading(false); }
   };
@@ -77,16 +80,9 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
     loadPosts(forum.id);
   };
 
-  const canInteract = useMemo(() => {
-    if (!user) return false;
-    if (user.role === 'admin' || user.role === 'teacher') return true;
-    if (forumSettings?.forumAccessTier === 'premium') return user.subscription === 'premium';
-    return true;
-  }, [user, forumSettings]);
-
   const handleOpenAskModal = () => {
-    if (!canInteract) {
-      alert("🔒 عذراً، طرح الأسئلة متاح حالياً لمشتركي باقة التفوق فقط.");
+    if (!isRealUser) {
+      alert("⚠️ أنت تستخدم 'حساب تجريبي'. للنشر في الساحة، يرجى تسجيل الخروج وإنشاء حساب حقيقي ببريدك الإلكتروني.");
       return;
     }
     setErrorMsg(null);
@@ -94,7 +90,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
   };
 
   const handleAsk = async () => {
-    if (!user || !activeForum) return;
+    if (!user || !activeForum || !isRealUser) return;
     
     const title = newQuestion.title.trim();
     const content = newQuestion.content.trim();
@@ -104,18 +100,11 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
         return; 
     }
 
-    const check = contentFilter.filter(`${title} ${content}`);
-    if (!check.isClean) { 
-        setErrorMsg("⚠️ تنبيه: سؤالك يحتوي على كلمات غير مناسبة."); 
-        return; 
-    }
-
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      // إرسال البيانات بشكل صريح لضمان عدم وجود undefined
       await dbService.createForumPost({
-        authorUid: user.uid,
+        authorUid: auth.currentUser?.uid || user.uid,
         authorEmail: user.email,
         authorName: user.name,
         title, 
@@ -132,40 +121,34 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       setNewQuestion({ title: '', content: '' });
       await loadPosts(activeForum.id);
     } catch (e: any) { 
-        console.error("Publish Post Error:", e);
-        if (e.code === 'permission-denied') {
-            setErrorMsg("❌ عذراً، قاعدة البيانات ترفض النشر. اطلب من المدير تحديث 'مركز الأمان V3'.");
-        } else {
-            setErrorMsg("حدث خطأ تقني. يرجى المحاولة لاحقاً."); 
-        }
+        console.error("Publish Error:", e);
+        setErrorMsg("❌ فشل النشر. تأكد من تحديث 'مركز الأمان V5' في لوحة التحكم.");
     }
     finally { setIsSubmitting(false); }
   };
 
   const handleReply = async () => {
     if (!user || !selectedPost || !replyContent.trim()) return;
-    if (!canInteract) { 
-        alert("🔒 الردود متاحة للمشتركين فقط."); 
-        return; 
+    if (!isRealUser) {
+        alert("التفاعل متاح للحسابات الحقيقية فقط.");
+        return;
     }
 
     setIsSubmitting(true);
     try {
       await dbService.addForumReply(selectedPost.id, {
-        authorUid: user.uid,
+        authorUid: auth.currentUser?.uid || user.uid,
         authorEmail: user.email,
         authorName: user.name,
         content: replyContent,
         role: user.role
       });
       setReplyContent('');
+      await loadPosts(activeForum!.id);
+      // التحديث المباشر للبوست المختار
       const updatedPosts = await dbService.getForumPosts(activeForum!.id);
-      setPosts(updatedPosts);
       setSelectedPost(updatedPosts.find(p => p.id === selectedPost.id) || null);
-    } catch (e: any) { 
-        if (e.code === 'permission-denied') alert("خطأ في الصلاحيات.");
-        else alert("فشل إرسال الرد."); 
-    }
+    } catch (e: any) { alert("فشل إرسال الرد."); }
     finally { setIsSubmitting(false); }
   };
 
@@ -181,8 +164,20 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       <div className="max-w-6xl mx-auto py-12 animate-fadeIn text-right" dir="rtl">
         <header className="mb-16 border-r-4 border-amber-400 pr-8">
           <h2 className="text-4xl md:text-6xl font-black text-white italic tracking-tighter">ساحة <span className="text-amber-400">النقاش</span></h2>
-          <p className="text-gray-500 text-lg md:text-xl mt-2 font-medium">مرحباً بك {user?.name.split(' ')[0]}، اطرح أسئلتك الفيزيائية هنا.</p>
+          <p className="text-gray-500 text-lg md:text-xl mt-2 font-medium flex items-center gap-2">
+            {!isRealUser && <span className="bg-red-500/20 text-red-400 px-3 py-1 rounded-lg text-xs font-black">وضع المعاينة (تجريبي)</span>}
+            مرحباً بك {user?.name.split(' ')[0]}، تصفح واطرح استفساراتك.
+          </p>
         </header>
+
+        {!isRealUser && (
+            <div className="mb-12 bg-blue-500/10 border border-blue-500/30 p-6 rounded-[30px] flex items-center gap-4 animate-pulse">
+                {/* Fixed: Added missing Info icon to imports from lucide-react */}
+                <Info className="text-blue-400" />
+                <p className="text-blue-200 text-sm font-bold">ملاحظة: للنشر في الساحة، يجب التسجيل بحساب حقيقي وليس عبر "الدخول التجريبي".</p>
+            </div>
+        )}
+
         {isLoading ? (
             <div className="py-20 text-center animate-pulse">
                 <RefreshCw className="w-12 h-12 text-amber-400 animate-spin mx-auto mb-4" />
@@ -219,11 +214,11 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       </div>
 
       {permissionError && (
-          <div className="mb-10 bg-red-600/20 border-2 border-red-600/40 p-8 rounded-[40px] flex items-center gap-6 animate-pulse">
+          <div className="mb-10 bg-red-600/20 border-2 border-red-600/40 p-8 rounded-[40px] flex items-center gap-6">
               <ShieldAlert size={48} className="text-red-500" />
               <div>
-                  <h4 className="text-white font-black text-xl">⚠️ قاعدة البيانات مغلقة</h4>
-                  <p className="text-gray-300 mt-1">يجب على المدير تحديث "قواعد الحماية V3" في لوحة التحكم لاستعادة صلاحيات الطلاب.</p>
+                  <h4 className="text-white font-black text-xl">⚠️ عذراً، لا تملك صلاحية الوصول</h4>
+                  <p className="text-gray-300 mt-1">يجب على المدير تحديث "مركز الأمان V5" في لوحة التحكم، ويجب عليك استخدام حساب حقيقي.</p>
               </div>
           </div>
       )}
@@ -264,7 +259,6 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
               </div>
             </div>
           ))}
-          {sortedPosts.length === 0 && !isLoading && !permissionError && <div className="py-40 text-center glass-panel rounded-[50px] border-2 border-dashed border-white/10 opacity-30"><MessageSquare size={64} className="mx-auto mb-6 text-gray-600" /><p className="font-black text-xl uppercase tracking-widest">لا توجد مواضيع حالياً.</p></div>}
         </div>
 
         <div className="lg:col-span-4 h-fit sticky top-32">

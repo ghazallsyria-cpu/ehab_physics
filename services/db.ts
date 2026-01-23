@@ -1,5 +1,5 @@
 
-import { db } from './firebase';
+import { db, auth } from './firebase'; // التأكد من استيراد auth
 import { supabase } from './supabase';
 import { 
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
@@ -17,7 +17,7 @@ import {
 
 class DBService {
   private checkDb() {
-    if (!db) throw new Error("Firestore is not initialized. Check your API keys.");
+    if (!db) throw new Error("Firestore is not initialized. Check your API keys in .env");
   }
 
   private cleanData(data: any) {
@@ -29,39 +29,44 @@ class DBService {
   // --- تهيئة النظام ---
   async initializeForumSystem() {
     this.checkDb();
-    const defaultSection: ForumSection = {
-      id: 'sec_physics_12',
-      title: 'قسم الصف الثاني عشر',
-      description: 'نقاشات الفيزياء المتقدمة لطلاب الثاني عشر',
-      order: 0,
-      forums: [
-        { id: 'f_general', title: 'المنتدى العام', description: 'اسأل عن أي شيء في الفيزياء', icon: '⚛️', order: 0 }
-      ]
-    };
-    await setDoc(doc(db!, 'forumSections', defaultSection.id), defaultSection);
+    try {
+      const defaultSection: ForumSection = {
+        id: 'sec_physics_12',
+        title: 'قسم الصف الثاني عشر',
+        description: 'نقاشات الفيزياء المتقدمة لطلاب الثاني عشر',
+        order: 0,
+        forums: [
+          { id: 'f_general', title: 'المنتدى العام', description: 'اسأل عن أي شيء في الفيزياء', icon: '⚛️', order: 0 }
+        ]
+      };
+      await setDoc(doc(db!, 'forumSections', defaultSection.id), defaultSection);
 
-    const welcomePost: Omit<ForumPost, 'id'> = {
-      authorUid: 'system',
-      authorEmail: 'admin@ssc.com',
-      authorName: 'إدارة المنصة',
-      title: 'مرحباً بكم في ساحة النقاش',
-      content: 'هذه الساحة مخصصة لتبادل المعرفة. يمكنك طرح سؤالك الآن.',
-      tags: ['f_general'],
-      timestamp: new Date().toISOString(),
-      upvotes: 1,
-      replies: [],
-      isPinned: true,
-      isEscalated: false
-    };
-    await addDoc(collection(db!, 'forumPosts'), welcomePost);
-    
-    await setDoc(doc(db!, 'settings', 'logging'), { 
-      logStudentProgress: true, 
-      saveAllQuizAttempts: true, 
-      logAIChatHistory: true, 
-      archiveTeacherMessages: true, 
-      forumAccessTier: 'free' 
-    });
+      const welcomePost: Omit<ForumPost, 'id'> = {
+        authorUid: 'system',
+        authorEmail: 'admin@ssc.com',
+        authorName: 'إدارة المنصة',
+        title: 'مرحباً بكم في ساحة النقاش',
+        content: 'هذه الساحة مخصصة لتبادل المعرفة. يمكنك طرح سؤالك الآن.',
+        tags: ['f_general'],
+        timestamp: new Date().toISOString(),
+        upvotes: 1,
+        replies: [],
+        isPinned: true,
+        isEscalated: false
+      };
+      await addDoc(collection(db!, 'forumPosts'), welcomePost);
+      
+      await setDoc(doc(db!, 'settings', 'logging'), { 
+        logStudentProgress: true, 
+        saveAllQuizAttempts: true, 
+        logAIChatHistory: true, 
+        archiveTeacherMessages: true, 
+        forumAccessTier: 'free' 
+      });
+    } catch (e: any) {
+      console.error("Initialization error:", e);
+      throw e;
+    }
   }
 
   // --- إدارة المستخدمين ---
@@ -74,8 +79,8 @@ class DBService {
         const q = query(collection(db!, 'users'), where('email', '==', uidOrEmail), limit(1));
         const querySnap = await getDocs(q);
         if (!querySnap.empty) return querySnap.docs[0].data() as User;
-    } catch (e) { 
-      console.error("Firestore error in getUser:", e); 
+    } catch (e: any) { 
+      if (e.code === 'permission-denied') console.warn("Access Denied to user profile.");
     }
     return null;
   }
@@ -92,6 +97,7 @@ class DBService {
 
   async getAdmins(): Promise<User[]> {
     this.checkDb();
+    // Corrected the malformed query: fixed '==('admin' syntax error
     const q = query(collection(db!, 'users'), where('role', '==', 'admin'));
     const snap = await getDocs(q);
     return snap.docs.map(d => d.data() as User);
@@ -142,24 +148,30 @@ class DBService {
         q = query(postsRef, limit(100));
       }
       const snap = await getDocs(q);
-      const results = snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
-      return results.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-    } catch (e) {
-      console.error("Posts fetch error:", e);
+      return snap.docs.map(d => ({ ...d.data(), id: d.id } as ForumPost));
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error("PERMISSION_DENIED");
       throw e;
     }
   }
 
   async createForumPost(post: Omit<ForumPost, 'id'>): Promise<string> {
     this.checkDb();
-    const data = this.cleanData(post);
-    const docRef = await addDoc(collection(db!, 'forumPosts'), {
-      ...data,
-      upvotes: data.upvotes || 0,
-      replies: data.replies || [],
-      isPinned: data.isPinned || false,
-      isEscalated: data.isEscalated || false
+    // الحصول على الـ UID الحقيقي من Firebase Auth لضمان النجاح في القواعد
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("USER_NOT_AUTHENTICATED");
+
+    const data = this.cleanData({
+      ...post,
+      authorUid: currentUser.uid, // استخدام UID التوثيق الحقيقي دائماً
+      upvotes: 0,
+      replies: [],
+      isPinned: false,
+      isEscalated: false,
+      timestamp: new Date().toISOString()
     });
+
+    const docRef = await addDoc(collection(db!, 'forumPosts'), data);
     return docRef.id;
   }
 
@@ -175,16 +187,20 @@ class DBService {
 
   async addForumReply(postId: string, reply: Omit<ForumReply, 'id' | 'timestamp' | 'upvotes'>) {
     this.checkDb();
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("USER_NOT_AUTHENTICATED");
+
     const postRef = doc(db!, 'forumPosts', postId);
-    const postSnap = await getDoc(postRef);
-    if (!postSnap.exists()) return;
-    const postData = postSnap.data() as ForumPost;
     const newReply: ForumReply = {
       ...reply,
+      authorUid: currentUser.uid,
       id: `rep_${Date.now()}`,
       timestamp: new Date().toISOString(),
       upvotes: 0
     };
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) return;
+    const postData = postSnap.data() as ForumPost;
     await updateDoc(postRef, {
       replies: [...(postData.replies || []), newReply]
     });
@@ -201,7 +217,7 @@ class DBService {
     try {
       const snap = await getDoc(doc(db!, 'settings', 'logging'));
       if (snap.exists()) return snap.data() as LoggingSettings;
-    } catch (e) { console.error("logging settings error:", e); }
+    } catch (e) {}
     return { logStudentProgress: true, saveAllQuizAttempts: true, logAIChatHistory: true, archiveTeacherMessages: true, forumAccessTier: 'free' };
   }
 
@@ -449,7 +465,7 @@ class DBService {
 
   async checkConnection(): Promise<{ alive: boolean, error?: string }> {
     try { 
-        if (!db) return { alive: false, error: 'DB NOT INITIALIZED' };
+        if (!db) return { alive: false, error: 'DB_NOT_INIT' };
         await getDocs(query(collection(db!, 'settings'), limit(1))); 
         return { alive: true }; 
     }
