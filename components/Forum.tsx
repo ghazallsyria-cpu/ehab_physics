@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, ForumPost, ForumReply, ForumSection, Forum as ForumType } from '../types';
+import { User, ForumPost, ForumReply, ForumSection, Forum as ForumType, LoggingSettings } from '../types';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
 import { 
@@ -23,7 +23,10 @@ import {
   Info,
   Hash,
   MessageCircle,
-  Quote
+  Quote,
+  Lock,
+  EyeOff,
+  Crown
 } from 'lucide-react';
 
 interface ForumProps {
@@ -41,8 +44,17 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sortBy, setSortBy] = useState<'newest' | 'top'>('newest');
+  const [forumSettings, setForumSettings] = useState<LoggingSettings | null>(null);
 
   const isRealUser = useMemo(() => auth.currentUser !== null, [user]);
+
+  // صلاحية الوصول الكامل (القراءة والمشاركة)
+  const hasFullAccess = useMemo(() => {
+    if (!user) return false;
+    if (user.role === 'admin' || user.role === 'teacher') return true;
+    if (forumSettings?.forumAccessTier === 'free') return true;
+    return user.subscription === 'premium';
+  }, [user, forumSettings]);
 
   useEffect(() => {
     loadInitialData();
@@ -51,8 +63,12 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
   const loadInitialData = async () => {
     setIsLoading(true);
     try {
-      const sectionsData = await dbService.getForumSections();
+      const [sectionsData, settingsData] = await Promise.all([
+        dbService.getForumSections(),
+        dbService.getLoggingSettings()
+      ]);
       setSections(sectionsData);
+      setForumSettings(settingsData);
     } catch (e) { console.error("Forum init failed", e); }
     finally { setIsLoading(false); }
   };
@@ -76,11 +92,15 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       alert("⚠️ للنشر في الساحة، يرجى تسجيل الدخول بحساب حقيقي.");
       return;
     }
+    if (!hasFullAccess) {
+      alert("🔒 عذراً، المشاركة في ساحة النقاش مخصصة للمشتركين في باقة التفوق.");
+      return;
+    }
     setShowAskModal(true);
   };
 
   const handleAsk = async () => {
-    if (!user || !activeForum || !isRealUser) return;
+    if (!user || !activeForum || !isRealUser || !hasFullAccess) return;
     setIsSubmitting(true);
     try {
       await dbService.createForumPost({
@@ -105,6 +125,10 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
 
   const handleReply = async () => {
     if (!user || !selectedPost || !replyContent.trim()) return;
+    if (!hasFullAccess) {
+      alert("🔒 الردود مخصصة للمشتركين.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       await dbService.addForumReply(selectedPost.id, {
@@ -115,7 +139,6 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
         role: user.role
       });
       setReplyContent('');
-      // التحديث اللحظي للردود
       const updatedPosts = await dbService.getForumPosts(activeForum!.id);
       const freshPost = updatedPosts.find(p => p.id === selectedPost.id);
       if (freshPost) {
@@ -126,7 +149,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
     finally { setIsSubmitting(false); }
   };
 
-  // واجهة الأقسام الرئيسية
+  // واجهة عرض الأقسام الرئيسية
   if (!activeForum) {
     return (
       <div className="max-w-6xl mx-auto py-12 animate-fadeIn text-right font-['Tajawal']" dir="rtl">
@@ -135,10 +158,17 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
           <h2 className="text-5xl md:text-7xl font-black text-white italic tracking-tighter leading-none">
             ساحة <span className="text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.3)]">النقاش</span>
           </h2>
-          <p className="text-gray-500 text-xl mt-4 font-medium flex items-center gap-3">
-             <MessageCircle className="text-amber-400" size={24}/>
-             تبادل المعرفة والأسئلة مع نخبة من المعلمين والزملاء.
-          </p>
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mt-6">
+              <p className="text-gray-500 text-xl font-medium flex items-center gap-3">
+                <MessageCircle className="text-amber-400" size={24}/>
+                تبادل المعرفة والأسئلة مع نخبة من المعلمين والزملاء.
+              </p>
+              {forumSettings?.forumAccessTier === 'premium' && (
+                  <span className="bg-amber-400/10 text-amber-500 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-400/20 flex items-center gap-2">
+                      <Lock size={12} /> محتوى مخصص للمتميزين
+                  </span>
+              )}
+          </div>
         </header>
 
         {sections.map((section) => (
@@ -156,8 +186,11 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
                     className="glass-panel p-8 rounded-[45px] border-white/5 hover:border-amber-400/40 cursor-pointer transition-all group relative overflow-hidden bg-black/40 hover:-translate-y-2 shadow-2xl"
                   >
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-l from-amber-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-4xl mb-6 group-hover:scale-110 group-hover:bg-amber-400 transition-all duration-500 group-hover:rotate-6">
-                        {forum.icon}
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-4xl group-hover:scale-110 group-hover:bg-amber-400 transition-all duration-500 group-hover:rotate-6">
+                            {forum.icon}
+                        </div>
+                        {!hasFullAccess && forumSettings?.forumAccessTier === 'premium' && <Lock className="text-amber-400/50" size={20} />}
                     </div>
                     <h4 className="text-2xl font-black text-white group-hover:text-amber-400 transition-colors">{forum.title}</h4>
                     <p className="text-gray-500 text-sm mt-3 leading-relaxed line-clamp-2">{forum.description}</p>
@@ -179,7 +212,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
     );
   }
 
-  // واجهة عرض المنشورات والردود
+  // واجهة عرض المنشورات
   return (
     <div className="max-w-6xl mx-auto animate-fadeIn pb-24 text-right font-['Tajawal']" dir="rtl">
       {/* Navigation Header */}
@@ -197,7 +230,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {/* Post Feed / List */}
+        {/* Post Feed */}
         <div className={`lg:col-span-8 space-y-6 ${selectedPost ? 'hidden md:block' : 'block'}`}>
           <div className="flex justify-between items-center bg-black/40 p-5 rounded-[35px] border border-white/5 backdrop-blur-xl">
              <div className="flex gap-3">
@@ -206,9 +239,9 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
              </div>
              <button 
                 onClick={handleOpenAskModal} 
-                className="bg-amber-400 text-black px-10 py-4 rounded-2xl font-black text-xs uppercase flex items-center gap-3 hover:scale-105 transition-all shadow-[0_10px_30px_rgba(251,191,36,0.2)]"
+                className={`px-10 py-4 rounded-2xl font-black text-xs uppercase flex items-center gap-3 hover:scale-105 transition-all shadow-[0_10px_30px_rgba(251,191,36,0.2)] ${!hasFullAccess ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-amber-400 text-black'}`}
              >
-                <Plus size={18}/> طرح سؤال
+                {!hasFullAccess ? <Lock size={18}/> : <Plus size={18}/>} طرح سؤال
              </button>
           </div>
 
@@ -219,6 +252,15 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
                 onClick={() => setSelectedPost(post)} 
                 className={`glass-panel p-8 rounded-[45px] border-2 cursor-pointer transition-all flex gap-8 group relative overflow-hidden ${selectedPost?.id === post.id ? 'border-amber-400 bg-amber-400/5 shadow-[0_0_50px_rgba(251,191,36,0.1)]' : 'border-white/5 bg-black/20 hover:border-white/20'}`}
               >
+                {/* Overlay for locked posts */}
+                {!hasFullAccess && (
+                    <div className="absolute inset-0 z-10 bg-black/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                         <div className="bg-amber-400 text-black px-6 py-2 rounded-full font-black text-[10px] uppercase flex items-center gap-2 shadow-2xl">
+                             <Crown size={14} /> اشترك لرؤية المحتوى
+                         </div>
+                    </div>
+                )}
+
                 <div className="flex flex-col items-center gap-2 bg-white/5 p-4 rounded-[25px] h-fit min-w-[70px] border border-white/5 shadow-inner">
                   <ArrowUp size={24} className="text-gray-500 group-hover:text-amber-400 transition-colors" />
                   <span className="font-black text-2xl text-white">{post.upvotes || 0}</span>
@@ -226,9 +268,11 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-3">
                      {post.isPinned && <Pin size={16} className="text-amber-400 fill-amber-400" />}
-                     <h3 className="text-2xl font-black text-white group-hover:text-amber-400 transition-colors truncate">{post.title}</h3>
+                     <h3 className={`text-2xl font-black text-white group-hover:text-amber-400 transition-colors truncate ${!hasFullAccess ? 'blur-[2px]' : ''}`}>{post.title}</h3>
                   </div>
-                  <p className="text-gray-500 line-clamp-2 text-sm leading-relaxed mb-6 font-medium">"{post.content}"</p>
+                  <p className={`text-gray-500 line-clamp-2 text-sm leading-relaxed mb-6 font-medium ${!hasFullAccess ? 'blur-[4px] select-none' : ''}`}>
+                    {hasFullAccess ? `"${post.content}"` : "هذا المحتوى مخصص لمشتركي باقة التفوق، يرجى الترقية لتتمكن من القراءة والمشاركة في هذا النقاش العلمي الهام."}
+                  </p>
                   <div className="flex justify-between items-center text-[10px] font-black text-gray-600 uppercase tracking-widest border-t border-white/5 pt-5">
                     <span className="flex items-center gap-2">
                        <span className="w-6 h-6 rounded-full bg-amber-400/20 flex items-center justify-center text-amber-400">👤</span>
@@ -244,111 +288,145 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
           </div>
         </div>
 
-        {/* Dynamic Content Panel (Post Detail) */}
+        {/* Post Detail Panel */}
         <div className={`lg:col-span-12 space-y-8 ${selectedPost ? 'block' : 'hidden'}`}>
           {selectedPost && (
             <div className="animate-slideUp space-y-10">
-              {/* The Post Itself */}
-              <div className="glass-panel p-10 md:p-16 rounded-[60px] border-white/10 bg-[#0a1118]/80 shadow-3xl border-2 relative">
-                <button onClick={() => setSelectedPost(null)} className="absolute top-10 left-10 p-3 bg-white/5 rounded-full hover:bg-red-500/20 hover:text-red-500 transition-all">
-                  <X size={24}/>
-                </button>
-                
-                <div className="max-w-4xl">
-                  <div className="flex items-center gap-4 mb-8">
-                     <span className="bg-amber-400/10 text-amber-400 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-400/20">سؤال فيزيائي</span>
-                     <span className="text-gray-500 text-xs font-bold flex items-center gap-2"><Clock size={14}/> نُشر في {new Date(selectedPost.timestamp).toLocaleString('ar-KW')}</span>
-                  </div>
-                  
-                  <h1 className="text-4xl md:text-5xl font-black text-white mb-8 leading-tight">{selectedPost.title}</h1>
-                  
-                  <div className="flex items-start gap-6 bg-white/[0.02] p-10 rounded-[40px] border border-white/5 mb-12 shadow-inner">
-                     <Quote className="text-amber-400 shrink-0 opacity-20" size={48} />
-                     <p className="text-2xl md:text-3xl text-gray-300 leading-relaxed font-medium italic">{selectedPost.content}</p>
-                  </div>
-
-                  <div className="flex items-center gap-4 p-5 bg-blue-500/5 rounded-3xl border border-blue-500/10 w-fit">
-                     <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400 font-black text-xl">
-                        {selectedPost.authorName.charAt(0)}
-                     </div>
-                     <div>
-                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">كاتب الموضوع</p>
-                        <p className="text-xl font-black text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.3)]">{selectedPost.authorName}</p>
-                     </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Replies Section - Under the post */}
-              <div className="space-y-8">
-                <div className="flex items-center gap-4 px-6">
-                   <h4 className="text-2xl font-black text-white italic">منصة <span className="text-blue-400">الردود العلمية</span></h4>
-                   <div className="h-px flex-1 bg-white/5"></div>
-                   <span className="bg-white/5 px-4 py-1 rounded-full text-xs font-bold text-gray-500">{selectedPost.replies?.length || 0} رد</span>
-                </div>
-
-                <div className="space-y-6">
-                  {selectedPost.replies?.map((reply, idx) => {
-                    const isAuthor = reply.authorUid === selectedPost.authorUid;
-                    const isTeacher = reply.role === 'teacher' || reply.role === 'admin';
-                    
-                    return (
-                      <div key={reply.id} className={`p-8 md:p-12 rounded-[50px] border-2 transition-all animate-slideUp relative ${isTeacher ? 'bg-amber-400/5 border-amber-400/20' : 'bg-white/[0.02] border-white/5'}`} style={{ animationDelay: `${idx * 0.1}s` }}>
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                          <div className="flex items-center gap-4">
-                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black shadow-lg ${isTeacher ? 'bg-amber-400 text-black' : isAuthor ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-400'}`}>
-                                {isTeacher ? <ShieldCheck /> : isAuthor ? <UserCheck /> : reply.authorName.charAt(0)}
-                             </div>
-                             <div>
-                                <div className="flex items-center gap-3">
-                                   <p className={`text-2xl font-black ${isTeacher ? 'text-amber-400' : isAuthor ? 'text-blue-400' : 'text-white'}`}>
-                                     {reply.authorName}
-                                   </p>
-                                   {isTeacher && <span className="bg-amber-400 text-black text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">معلم معتمد</span>}
-                                   {isAuthor && <span className="bg-blue-500/10 text-blue-400 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">صاحب السؤال</span>}
-                                </div>
-                                <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mt-1 flex items-center gap-2"><Clock size={12}/> {new Date(reply.timestamp).toLocaleString('ar-KW')}</p>
-                             </div>
-                          </div>
-                          <div className="flex gap-2">
-                             <button className="p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all text-gray-500"><ArrowUp size={18}/></button>
-                             <span className="px-4 py-2 bg-white/5 rounded-xl text-xs font-black text-gray-400">#{idx + 1}</span>
-                          </div>
-                        </div>
-
-                        <div className="pr-18">
-                           <p className="text-2xl md:text-3xl text-gray-200 leading-relaxed font-bold">
-                              {reply.content}
-                           </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Add Reply Box */}
-                <div className="glass-panel p-10 rounded-[50px] border-white/10 bg-black/60 shadow-2xl mt-12 border-2">
-                   <div className="flex items-center gap-4 mb-8">
-                      <Zap className="text-amber-400 animate-pulse" />
-                      <h5 className="text-xl font-black text-white">أضف بصمتك العلمية في النقاش</h5>
-                   </div>
-                   <textarea 
-                      value={replyContent} 
-                      onChange={e => setReplyContent(e.target.value)} 
-                      placeholder="اكتب ردك العلمي هنا بوضوح..."
-                      className="w-full bg-black/40 border-2 border-white/10 rounded-[35px] p-8 text-xl text-white outline-none focus:border-amber-400 h-48 transition-all shadow-inner placeholder:text-gray-700" 
-                   />
-                   <div className="mt-8 flex justify-end">
-                      <button 
-                          onClick={handleReply} 
-                          disabled={!replyContent.trim() || isSubmitting} 
-                          className="bg-amber-400 text-black px-16 py-6 rounded-full font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 shadow-[0_20px_50px_rgba(251,191,36,0.3)]"
-                      >
-                        {isSubmitting ? <RefreshCw className="animate-spin" size={20}/> : <Send size={20}/>} إرسال الرد الآن
+              {/* Locked Detail Message */}
+              {!hasFullAccess ? (
+                  <div className="glass-panel p-16 md:p-24 rounded-[60px] border-amber-400/30 bg-[#0a1118]/90 text-center relative overflow-hidden shadow-3xl">
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-amber-400/5 rounded-full blur-[100px]"></div>
+                      <button onClick={() => setSelectedPost(null)} className="absolute top-10 left-10 p-3 bg-white/5 rounded-full hover:bg-white/10 transition-all text-white">
+                        <X size={24}/>
                       </button>
-                   </div>
-                </div>
-              </div>
+                      
+                      <div className="w-24 h-24 bg-amber-400/10 border-2 border-amber-400/20 rounded-[40px] flex items-center justify-center mx-auto mb-10 text-amber-400 animate-float shadow-[0_0_50px_rgba(251,191,36,0.2)]">
+                         <Lock size={48} />
+                      </div>
+                      <h2 className="text-4xl md:text-5xl font-black text-white mb-6">محتوى <span className="text-amber-400 italic">حصري</span></h2>
+                      <p className="text-gray-400 text-xl mb-12 max-w-2xl mx-auto leading-relaxed font-medium">
+                         لقد وضع المدير قيوداً على هذا القسم لتكون المشاركة فيه مقتصرة على المشتركين في **باقة التفوق (Premium)** فقط.
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row justify-center gap-6">
+                        <button 
+                            onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'subscription' } }))}
+                            className="bg-amber-400 text-black px-12 py-5 rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-4"
+                        >
+                            <Crown size={20}/> اشترك وفعل حسابك الآن
+                        </button>
+                        <button 
+                            onClick={() => setSelectedPost(null)}
+                            className="bg-white/5 border border-white/10 text-white px-10 py-5 rounded-[30px] font-black text-sm uppercase tracking-widest hover:bg-white/10 transition-all"
+                        >
+                            العودة للخلف
+                        </button>
+                      </div>
+                  </div>
+              ) : (
+                <>
+                  <div className="glass-panel p-10 md:p-16 rounded-[60px] border-white/10 bg-[#0a1118]/80 shadow-3xl border-2 relative">
+                    <button onClick={() => setSelectedPost(null)} className="absolute top-10 left-10 p-3 bg-white/5 rounded-full hover:bg-red-500/20 hover:text-red-500 transition-all">
+                      <X size={24}/>
+                    </button>
+                    
+                    <div className="max-w-4xl">
+                      <div className="flex items-center gap-4 mb-8">
+                         <span className="bg-amber-400/10 text-amber-400 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-400/20">سؤال فيزيائي</span>
+                         <span className="text-gray-500 text-xs font-bold flex items-center gap-2"><Clock size={14}/> نُشر في {new Date(selectedPost.timestamp).toLocaleString('ar-KW')}</span>
+                      </div>
+                      
+                      <h1 className="text-4xl md:text-5xl font-black text-white mb-8 leading-tight">{selectedPost.title}</h1>
+                      
+                      <div className="flex items-start gap-6 bg-white/[0.02] p-10 rounded-[40px] border border-white/5 mb-12 shadow-inner">
+                         <Quote className="text-amber-400 shrink-0 opacity-20" size={48} />
+                         <p className="text-2xl md:text-3xl text-gray-300 leading-relaxed font-medium italic">{selectedPost.content}</p>
+                      </div>
+
+                      <div className="flex items-center gap-4 p-5 bg-blue-500/5 rounded-3xl border border-blue-500/10 w-fit">
+                         <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400 font-black text-xl">
+                            {selectedPost.authorName.charAt(0)}
+                         </div>
+                         <div>
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">كاتب الموضوع</p>
+                            <p className="text-xl font-black text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.3)]">{selectedPost.authorName}</p>
+                         </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Replies Section */}
+                  <div className="space-y-8">
+                    <div className="flex items-center gap-4 px-6">
+                       <h4 className="text-2xl font-black text-white italic">منصة <span className="text-blue-400">الردود العلمية</span></h4>
+                       <div className="h-px flex-1 bg-white/5"></div>
+                       <span className="bg-white/5 px-4 py-1 rounded-full text-xs font-bold text-gray-500">{selectedPost.replies?.length || 0} رد</span>
+                    </div>
+
+                    <div className="space-y-6">
+                      {selectedPost.replies?.map((reply, idx) => {
+                        const isAuthor = reply.authorUid === selectedPost.authorUid;
+                        const isTeacher = reply.role === 'teacher' || reply.role === 'admin';
+                        
+                        return (
+                          <div key={reply.id} className={`p-8 md:p-12 rounded-[50px] border-2 transition-all animate-slideUp relative ${isTeacher ? 'bg-amber-400/5 border-amber-400/20' : 'bg-white/[0.02] border-white/5'}`} style={{ animationDelay: `${idx * 0.1}s` }}>
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                              <div className="flex items-center gap-4">
+                                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black shadow-lg ${isTeacher ? 'bg-amber-400 text-black' : isAuthor ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-400'}`}>
+                                    {isTeacher ? <ShieldCheck /> : isAuthor ? <UserCheck /> : reply.authorName.charAt(0)}
+                                 </div>
+                                 <div>
+                                    <div className="flex items-center gap-3">
+                                       <p className={`text-2xl font-black ${isTeacher ? 'text-amber-400' : isAuthor ? 'text-blue-400' : 'text-white'}`}>
+                                         {reply.authorName}
+                                       </p>
+                                       {isTeacher && <span className="bg-amber-400 text-black text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">معلم معتمد</span>}
+                                       {isAuthor && <span className="bg-blue-500/10 text-blue-400 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">صاحب السؤال</span>}
+                                    </div>
+                                    <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mt-1 flex items-center gap-2"><Clock size={12}/> {new Date(reply.timestamp).toLocaleString('ar-KW')}</p>
+                                 </div>
+                              </div>
+                              <div className="flex gap-2">
+                                 <button className="p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all text-gray-500"><ArrowUp size={18}/></button>
+                                 <span className="px-4 py-2 bg-white/5 rounded-xl text-xs font-black text-gray-400">#{idx + 1}</span>
+                              </div>
+                            </div>
+
+                            <div className="pr-18">
+                               <p className="text-2xl md:text-3xl text-gray-200 leading-relaxed font-bold">
+                                  {reply.content}
+                                </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Add Reply Box */}
+                    <div className="glass-panel p-10 rounded-[50px] border-white/10 bg-black/60 shadow-2xl mt-12 border-2">
+                       <div className="flex items-center gap-4 mb-8">
+                          <Zap className="text-amber-400 animate-pulse" />
+                          <h5 className="text-xl font-black text-white">أضف بصمتك العلمية في النقاش</h5>
+                       </div>
+                       <textarea 
+                          value={replyContent} 
+                          onChange={e => setReplyContent(e.target.value)} 
+                          placeholder="اكتب ردك العلمي هنا بوضوح..."
+                          className="w-full bg-black/40 border-2 border-white/10 rounded-[35px] p-8 text-xl text-white outline-none focus:border-amber-400 h-48 transition-all shadow-inner placeholder:text-gray-700" 
+                       />
+                       <div className="mt-8 flex justify-end">
+                          <button 
+                              onClick={handleReply} 
+                              disabled={!replyContent.trim() || isSubmitting} 
+                              className="bg-amber-400 text-black px-16 py-6 rounded-full font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 shadow-[0_20px_50px_rgba(251,191,36,0.3)]"
+                          >
+                            {isSubmitting ? <RefreshCw className="animate-spin" size={20}/> : <Send size={20}/>} إرسال الرد الآن
+                          </button>
+                       </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
