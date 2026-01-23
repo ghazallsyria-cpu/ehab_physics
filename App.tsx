@@ -69,15 +69,24 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
+    // 🛡️ نظام طوارئ: إذا استغرق التحميل أكثر من 6 ثوانٍ، يتم تخطيه تلقائياً
+    const failsafeTimer = setTimeout(() => {
+        setIsAuthLoading(false);
+        setIsMaintenanceLoading(false);
+        console.warn("Failsafe triggered: Loading screens dismissed due to delay.");
+    }, 6000);
+
     // 1. إدارة معاملات الرابط للعبور السري
     const searchParams = new URLSearchParams(window.location.search);
     if (searchParams.get('admin') === 'true' || searchParams.get('master') === 'true') {
         sessionStorage.setItem('ssc_admin_bypass', 'true');
     }
 
-    // 2. الاشتراك اللحظي في حالة الصيانة (مهم جداً للرصد المباشر)
+    // 2. الاشتراك اللحظي في حالة الصيانة
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
         setMaintenance(settings);
+        setIsMaintenanceLoading(false);
+    }, (err) => {
         setIsMaintenanceLoading(false);
     });
 
@@ -92,6 +101,8 @@ const App: React.FC = () => {
                 setUser(updatedUser);
             }
             setIsAuthLoading(false);
+        }, (err) => {
+            setIsAuthLoading(false);
         });
       } else {
         if (unsubscribeUser) unsubscribeUser();
@@ -101,6 +112,7 @@ const App: React.FC = () => {
     });
 
     return () => {
+        clearTimeout(failsafeTimer);
         unsubscribeAuth();
         unsubscribeMaintenance();
         if (unsubscribeUser) unsubscribeUser();
@@ -150,8 +162,6 @@ const App: React.FC = () => {
         if (isBypassActive && !user && currentView !== 'auth') {
             return <MaintenanceMode />;
         }
-
-        // إذا كان مديراً أو معلماً (ومسموح له)، يكمل للداشبورد
     }
 
     if (isAuthLoading || isMaintenanceLoading) return (
