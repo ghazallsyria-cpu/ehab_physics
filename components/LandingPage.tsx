@@ -2,7 +2,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import anime from 'animejs';
 import { dbService } from '../services/db';
-import { PaymentSettings } from '../types';
 import { ChevronLeft, School, GraduationCap, Users, Globe, RefreshCw } from 'lucide-react';
 
 interface LandingPageProps {
@@ -17,7 +16,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
     const loadData = async () => {
         try {
             const stats = await dbService.getStudentGradeStats();
-            // نضمن تحديث الحالة فقط إذا كانت هناك أرقام حقيقية
             setGradeStats(stats);
         } catch (e) {
             console.error("Failed to load stats", e);
@@ -54,8 +52,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
     const prevValue = useRef(0);
     
     useEffect(() => {
-        // يتم تشغيل الأنيميشن فقط عندما تتغير القيمة وتكون أكبر من الصفر، أو عند انتهاء التحميل
-        if (!isLoading && counterRef.current && value !== prevValue.current) {
+        // نحدث العداد فقط إذا كانت البيانات جاهزة والقيمة تغيرت
+        if (counterRef.current && value !== prevValue.current) {
             const obj = { val: prevValue.current };
             anime({
                 targets: obj,
@@ -69,7 +67,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
             });
             prevValue.current = value;
         }
-    }, [isLoading, value]);
+    }, [value]);
 
     return (
         <div className="stats-block glass-card p-10 rounded-[50px] border-white/5 bg-black/40 flex flex-col items-center group opacity-0 transition-all hover:border-blue-400/30">
@@ -125,8 +123,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
             
             <div className="stats-block mt-12 p-10 bg-white/[0.02] border border-white/5 rounded-[50px] flex flex-col md:flex-row items-center justify-center gap-8 opacity-0">
                 <p className="text-gray-500 font-bold text-xl">إجمالي عائلة المركز السوري للعلوم:</p>
-                <div className="flex items-baseline gap-3">
-                    {isLoading ? <RefreshCw className="animate-spin text-blue-400" /> : <span className="text-6xl font-black text-[#38bdf8] tabular-nums">{gradeStats.total}</span>}
+                <div className="flex items-baseline gap-3 min-w-[150px] justify-center">
+                    {isLoading ? (
+                      <RefreshCw className="animate-spin text-blue-400" size={32} />
+                    ) : (
+                      <span className="text-6xl font-black text-[#38bdf8] tabular-nums">{gradeStats.total}</span>
+                    )}
                     <span className="text-xl font-bold text-gray-500">طالب وطالبة</span>
                 </div>
             </div>

@@ -17,7 +17,8 @@ import {
   ExternalLink,
   ChevronLeft,
   Printer,
-  Calendar
+  Calendar,
+  Phone
 } from 'lucide-react';
 import PaymentCertificate from './PaymentCertificate';
 
@@ -45,7 +46,8 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
+  // Fix: Standardized setter name to match common React patterns and fix reference errors
+  const [isLoadingPlans, setLoadingPlans] = useState(true);
   const [selectedInvoiceForCert, setSelectedInvoiceForCert] = useState<Invoice | null>(null);
 
   useEffect(() => {
@@ -60,7 +62,8 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
       } catch (e) {
         setSubscriptionPlans(DEFAULT_PLANS);
       } finally {
-        setIsLoadingPlans(false);
+        // Fix: Use correct setter name to match declaration
+        setLoadingPlans(false);
       }
     };
     fetchData();
@@ -88,6 +91,7 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
             `بيانات الطالب:\n` +
             `- الأسم: ${user.name}\n` +
             `- الصف: ${user.grade}\n` +
+            `- رقم الهاتف المسجل: ${user.phone || 'غير مسجل'}\n` +
             `- البريد: ${user.email}\n\n` +
             `يرجى تزويدي بتعليمات تحويل "ومض" لتفعيل الحساب فوراً.`
         );
@@ -144,7 +148,10 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
             </div>
             <div className="text-right">
                 <p className="text-emerald-400 font-black text-lg">خدمة "ومض" الكويت متاحة</p>
-                <p className="text-xs text-gray-500 font-bold">حوّل القيمة المطلوبة وسيتم تفعيل حسابك بمجرد تسجيل المدير للدفعة.</p>
+                <div className="flex items-center gap-3 mt-1">
+                    <span className="text-xs text-gray-500 font-bold">رقمك المسجل للتفعيل:</span>
+                    <span className="text-sm font-black text-white flex items-center gap-1"><Phone size={12} className="text-emerald-400"/> {user.phone || 'يرجى تحديث رقم الهاتف في البروفايل'}</span>
+                </div>
             </div>
         </div>
       </header>
@@ -236,7 +243,7 @@ const BillingCenter: React.FC<{ user: User; onUpdateUser: (user: User) => void }
                             </div>
                             <h4 className="text-lg font-black text-white mb-1">{inv.planId === 'plan_premium' ? 'باقة التفوق' : 'الاشتراك الأساسي'}</h4>
                             <p className="text-[10px] text-gray-500 mb-8 font-bold tabular-nums flex items-center gap-2">
-                                <Calendar className="w-3 h-3"/> {new Date(inv.date).toLocaleDateString('ar-KW', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                <Calendar className="w-3 h-3" /> {new Date(inv.date).toLocaleDateString('ar-KW', { day: 'numeric', month: 'long', year: 'numeric' })}
                             </p>
                             
                             <div className="flex justify-between items-center pt-5 border-t border-white/5">

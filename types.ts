@@ -8,74 +8,12 @@ export interface AppBranding {
     primaryColor?: string;
 }
 
-export interface InvoiceSettings {
-    headerText: string;
-    footerText: string;
-    accentColor: string;
-    showSignature: boolean;
-    signatureName: string;
-    showWatermark: boolean;
-    watermarkText: string;
-}
-
-export interface LoggingSettings {
-    logStudentProgress: boolean;
-    saveAllQuizAttempts: boolean;
-    logAIChatHistory: boolean;
-    archiveTeacherMessages: boolean;
-    forumAccessTier: 'free' | 'premium';
-}
-
-export interface Forum {
-    id: string;
-    title: string;
-    description: string;
-    icon: string;
-    imageUrl?: string;
-    order: number;
-    moderatorUid?: string;
-    moderatorName?: string;
-}
-
-export interface ForumSection {
-    id: string;
-    title: string;
-    description: string;
-    forums: Forum[];
-    order: number;
-}
-
-export interface ForumReply {
-    id: string;
-    authorUid: string;
-    authorEmail: string;
-    authorName: string;
-    content: string;
-    role: UserRole;
-    timestamp: string;
-    upvotes: number;
-}
-
-export interface ForumPost {
-    id: string;
-    authorUid: string;
-    authorEmail: string;
-    authorName: string;
-    title: string;
-    content: string;
-    tags: string[];
-    timestamp: string;
-    upvotes: number;
-    isPinned?: boolean;
-    replies?: ForumReply[];
-    isEscalated?: boolean; 
-}
-
 export interface User {
   uid: string;
   name: string;
   email: string;
   phone?: string; 
+  gender?: 'male' | 'female';
   role: UserRole;
   grade: '10' | '11' | '12' | 'uni';
   subscription: 'free' | 'premium';
@@ -114,52 +52,38 @@ export interface WeeklyReport {
     parentNote?: string;
 }
 
-export interface NotificationSettings {
-  pushForLiveSessions: boolean;
-  pushForGradedQuizzes: boolean;
-  pushForAdminAlerts: boolean;
+export interface Invoice {
+    id: string;
+    userId: string;
+    userName: string;
+    planId: string;
+    amount: number;
+    date: string;
+    status: PaymentStatus;
+    trackId: string;
+    paymentId?: string;
+    authCode?: string;
 }
 
-export interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  thinking?: string;
-}
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAIL';
 
-export interface AISolverResult {
-  law: string;
-  steps: string[];
-  finalResult: string;
-  explanation: string;
-}
-
-export interface AIRecommendation {
+export interface SubscriptionPlan {
   id: string;
-  title: string;
-  reason: string;
-  type: 'lesson' | 'quiz' | 'challenge' | 'discussion';
-  targetId: string; 
-  urgency: 'high' | 'medium' | 'low';
+  name: string;
+  price: number;
+  duration: 'monthly' | 'term' | 'yearly';
+  features: string[];
+  recommended?: boolean;
+  tier: 'free' | 'premium';
 }
-
-export interface PredictiveInsight {
-    topicId: string;
-    topicTitle: string;
-    probabilityOfDifficulty: number;
-    reasoning: string;
-    suggestedPrep: string;
-}
-
-export type ContentBlockType = 'text' | 'image' | 'video' | 'pdf' | 'youtube' | 'audio';
-export type SubjectType = 'Physics' | 'Chemistry' | 'Math' | 'English';
-export type BranchType = 'Scientific' | 'Literary';
 
 export interface ContentBlock {
   type: ContentBlockType;
   content: string; 
   caption?: string;
 }
+
+export type ContentBlockType = 'text' | 'image' | 'video' | 'pdf' | 'youtube' | 'audio';
 
 export interface Unit {
   id: string;
@@ -180,12 +104,75 @@ export interface Lesson {
 export interface Curriculum {
   id?: string; 
   grade: '10' | '11' | '12';
-  subject: 'Physics' | 'Chemistry';
+  subject: SubjectType;
   title: string;
   description: string;
   icon: string;
   units: Unit[];
   duration?: string;
+}
+
+export interface InvoiceSettings {
+    headerText: string;
+    footerText: string;
+    accentColor: string;
+    showSignature: boolean;
+    signatureName: string;
+    showWatermark: boolean;
+    watermarkText: string;
+}
+
+export interface LoggingSettings {
+    logStudentProgress: boolean;
+    saveAllQuizAttempts: boolean;
+    logAIChatHistory: boolean;
+    archiveTeacherMessages: boolean;
+    forumAccessTier: 'free' | 'premium';
+}
+
+export interface ForumSection {
+    id: string;
+    title: string;
+    description: string;
+    forums: Forum[];
+    order: number;
+}
+
+export interface Forum {
+    id: string;
+    title: string;
+    description: string;
+    icon: string;
+    imageUrl?: string;
+    order: number;
+    moderatorUid?: string;
+    moderatorName?: string;
+}
+
+export interface ForumPost {
+    id: string;
+    authorUid: string;
+    authorEmail: string;
+    authorName: string;
+    title: string;
+    content: string;
+    tags: string[];
+    timestamp: string;
+    upvotes: number;
+    isPinned?: boolean;
+    replies?: ForumReply[];
+    isEscalated?: boolean; 
+}
+
+export interface ForumReply {
+    id: string;
+    authorUid: string;
+    authorEmail: string;
+    authorName: string;
+    content: string;
+    role: UserRole;
+    timestamp: string;
+    upvotes: number;
 }
 
 export interface EducationalResource {
@@ -200,80 +187,6 @@ export interface EducationalResource {
     url: string;
 }
 
-export interface Article {
-  id: string;
-  category: string;
-  title: string;
-  summary: string;
-  imageUrl: string;
-  readTime: string;
-  content: string;
-}
-
-export interface Answer {
-  id: string;
-  text: string;
-  key?: string;
-}
-
-export type QuestionType = 'mcq' | 'short_answer' | 'essay' | 'file_upload';
-export type QuestionDifficulty = 'Easy' | 'Medium' | 'Hard';
-
-export interface Question {
-  id: string;
-  text: string;
-  question_text?: string;
-  type: QuestionType;
-  choices?: Answer[];
-  answers?: Answer[];
-  correctChoiceId?: string;
-  correct_answer?: string;
-  modelAnswer?: string;
-  score: number;
-  grade: '10' | '11' | '12' | 'uni';
-  subject: SubjectType;
-  unit: string;
-  difficulty: QuestionDifficulty;
-  isVerified: boolean;
-  solution?: string;
-  steps_array?: string[];
-  common_errors?: string[];
-  category?: string;
-  imageUrl?: string;
-  question_latex?: string;
-  hasDiagram?: boolean;
-}
-
-export interface Quiz {
-  id: string;
-  title: string;
-  description?: string;
-  category?: string;
-  grade: '10' | '11' | '12' | 'uni';
-  subject: SubjectType;
-  questionIds: string[];
-  duration: number;
-  totalScore: number;
-  maxAttempts?: number;
-  isPremium?: boolean;
-}
-
-export interface StudentQuizAttempt {
-    id: string;
-    studentId: string;
-    studentName: string;
-    quizId: string;
-    score: number;
-    totalQuestions: number;
-    maxScore: number;
-    completedAt: string;
-    answers: Record<string, any>;
-    timeSpent: number;
-    attemptNumber: number;
-    status: 'pending-review' | 'manually-graded' | 'auto-graded';
-    manualGrades?: Record<string, { awardedScore: number; feedback?: string }>;
-}
-
 export interface AppNotification {
     id: string;
     userId: string;
@@ -285,168 +198,6 @@ export interface AppNotification {
     category: 'academic' | 'general';
 }
 
-export interface Todo {
-    id: string;
-    text: string;
-    completed: boolean;
-    category: 'Study' | 'Homework' | 'Exam' | 'Lab' | 'Review';
-    createdAt: number;
-    dueDate?: string;
-}
-
-export interface TeacherMessage {
-    id: string;
-    studentId: string;
-    studentName: string;
-    teacherId: string;
-    teacherName: string;
-    content: string;
-    timestamp: string;
-    isRedacted: boolean;
-}
-
-export interface Review {
-    id: string;
-    teacherId: string;
-    studentName: string;
-    rating: number;
-    comment: string;
-    timestamp: string;
-}
-
-export interface HomePageContent {
-    id: string;
-    type: 'news' | 'alert' | 'announcement' | 'image' | 'carousel';
-    priority: 'normal' | 'high';
-    title: string;
-    content: string;
-    createdAt: string;
-    imageUrl?: string;
-    ctaText?: string;
-    ctaLink?: ViewState;
-}
-
-export interface Asset {
-    name: string;
-    url: string;
-    type: string;
-    size: number;
-}
-
-export type PaymentStatus = 'PENDING' | 'PAID' | 'FAIL';
-
-export interface SubscriptionPlan {
-  id: string;
-  name: string;
-  price: number;
-  duration: 'monthly' | 'term' | 'yearly';
-  features: string[];
-  recommended?: boolean;
-  tier: 'free' | 'premium';
-}
-
-export interface Invoice {
-    id: string;
-    userId: string;
-    userName: string;
-    planId: string;
-    amount: number;
-    date: string;
-    status: PaymentStatus;
-    trackId: string;
-    paymentId?: string;
-    authCode?: string;
-}
-
-export interface SubscriptionCode {
-    id: string;
-    code: string;
-    planId: string;
-    isUsed: boolean;
-    createdAt: string;
-    activatedAt: string | null;
-    userId: string | null;
-}
-
-export interface StudyGroup {
-    id: string;
-    name: string;
-    level: '10' | '11' | '12';
-    membersCount: number;
-    activeChallenge: string;
-}
-
-export interface ExperimentParameter {
-    id: string;
-    name: string;
-    min: number;
-    max: number;
-    step: number;
-    defaultValue: number;
-    unit: string;
-}
-
-export interface PhysicsExperiment {
-    id: string;
-    title: string;
-    description: string;
-    thumbnail: string;
-    isFutureLab: boolean;
-    parameters: ExperimentParameter[];
-}
-
-export interface SavedExperiment {
-    id: string;
-    experimentId: string;
-    experimentTitle: string;
-    timestamp: string;
-    params: Record<string, number>;
-    result: number;
-}
-
-export interface PhysicsEquation {
-    id: string;
-    category: string;
-    title: string;
-    latex: string;
-    variables: Record<string, string>;
-    solveFor?: string;
-}
-
-export interface LiveSession {
-    id: string;
-    title: string;
-    teacherName: string;
-    startTime: string;
-    status: 'upcoming' | 'live' | 'ended';
-    topic: string;
-    platform: 'zoom' | 'youtube' | 'other';
-    streamUrl: string;
-    meetingId?: string;
-    passcode?: string;
-    targetGrades?: ('10' | '11' | '12' | 'uni')[];
-    isPremium?: boolean;
-}
-
-export interface Certificate {
-  id: string;
-  studentUid: string;
-  studentName: string;
-  courseTitle: string;
-  completionDate: string;
-  issuedBy: string;
-  templateId: string;
-}
-
-export interface CertificateTemplate {
-    id: string;
-    name: string;
-    backgroundImageUrl: string;
-    signatureImageUrl: string;
-    primaryColor: string;
-    isDefault: boolean;
-}
-
 export interface PaymentSettings {
     isOnlinePaymentEnabled: boolean;
     womdaPhoneNumber: string;
@@ -454,4 +205,222 @@ export interface PaymentSettings {
         premium: number;
         basic: number;
     };
+}
+
+/** Added missing types below for application support **/
+
+export type QuestionType = 'mcq' | 'short_answer' | 'essay' | 'file_upload';
+export type SubjectType = 'Physics' | 'Chemistry' | 'Math' | 'English';
+export type BranchType = 'Scientific' | 'Literary';
+
+export interface Question {
+  id: string;
+  text: string;
+  type: QuestionType;
+  choices?: { id: string; text: string; key?: string }[];
+  correctChoiceId?: string;
+  solution?: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  subject: SubjectType;
+  grade: '10' | '11' | '12' | 'uni';
+  unit?: string;
+  category?: string;
+  score: number;
+  isVerified?: boolean;
+  question_latex?: string;
+  hasDiagram?: boolean;
+  modelAnswer?: string;
+  imageUrl?: string;
+  common_errors?: string[];
+  steps_array?: string[];
+}
+
+export interface Quiz {
+  id: string;
+  title: string;
+  description?: string;
+  grade: '10' | '11' | '12' | 'uni';
+  subject: SubjectType;
+  category: string;
+  questionIds: string[];
+  duration: number; // in minutes
+  totalScore: number;
+  isPremium: boolean;
+  maxAttempts?: number;
+}
+
+export interface StudentQuizAttempt {
+  id: string;
+  studentId: string;
+  studentName: string;
+  quizId: string;
+  score: number;
+  totalQuestions: number;
+  maxScore: number;
+  completedAt: string;
+  answers: Record<string, any>;
+  timeSpent: number; // in seconds
+  attemptNumber: number;
+  status: 'pending-review' | 'manually-graded' | 'auto-graded';
+  manualGrades?: Record<string, { awardedScore: number; feedback?: string }>;
+}
+
+export interface AISolverResult {
+  law: string;
+  steps: string[];
+  finalResult: string;
+  explanation: string;
+}
+
+export interface PredictiveInsight {
+  topicId: string;
+  topicTitle: string;
+  probabilityOfDifficulty: number;
+  reasoning: string;
+  suggestedPrep: string;
+}
+
+export interface Article {
+  id: string;
+  title: string;
+  summary: string;
+  content: string;
+  imageUrl: string;
+  category: string;
+  readTime: string;
+}
+
+export interface StudyGroup {
+  id: string;
+  name: string;
+  level: string;
+  membersCount: number;
+  activeChallenge: string;
+}
+
+export interface PhysicsExperiment {
+  id: string;
+  title: string;
+  description: string;
+  thumbnail: string;
+  isFutureLab?: boolean;
+  parameters: {
+    id: string;
+    name: string;
+    min: number;
+    max: number;
+    step: number;
+    defaultValue: number;
+    unit: string;
+  }[];
+}
+
+export interface PhysicsEquation {
+  id: string;
+  title: string;
+  latex: string;
+  variables: Record<string, string>;
+  category: string;
+  solveFor?: string;
+}
+
+export interface SavedExperiment {
+  id: string;
+  experimentId: string;
+  experimentTitle: string;
+  timestamp: string;
+  params: Record<string, number>;
+  result: number;
+}
+
+export interface Todo {
+  id: string;
+  text: string;
+  completed: boolean;
+  category: 'Study' | 'Exam' | 'Lab' | 'Review' | 'Homework';
+  createdAt: number;
+  dueDate?: string;
+}
+
+export interface TeacherMessage {
+  id: string;
+  studentId: string;
+  studentName: string;
+  teacherId: string;
+  teacherName: string;
+  content: string;
+  timestamp: string;
+  isRedacted: boolean;
+}
+
+export interface Review {
+  id: string;
+  teacherId: string;
+  studentName: string;
+  rating: number;
+  comment: string;
+  timestamp: string;
+}
+
+export interface HomePageContent {
+  id: string;
+  title: string;
+  content: string;
+  type: 'news' | 'alert' | 'announcement' | 'image' | 'carousel';
+  priority: 'normal' | 'high';
+  imageUrl?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  createdAt: string;
+}
+
+export interface Asset {
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+}
+
+export interface SubscriptionCode {
+  id: string;
+  code: string;
+  status: 'active' | 'used' | 'expired';
+  tier: 'premium';
+}
+
+export interface NotificationSettings {
+  pushForLiveSessions: boolean;
+  pushForGradedQuizzes: boolean;
+  pushForAdminAlerts: boolean;
+}
+
+export interface AIRecommendation {
+  id: string;
+  title: string;
+  reason: string;
+  type: 'lesson' | 'quiz' | 'challenge' | 'discussion';
+  targetId: string;
+  urgency: 'high' | 'medium' | 'low';
+}
+
+export interface LiveSession {
+  id: string;
+  title: string;
+  teacherName: string;
+  startTime: string;
+  status: 'upcoming' | 'live';
+  topic: string;
+  platform: 'zoom' | 'youtube' | 'other';
+  streamUrl: string;
+  meetingId?: string;
+  passcode?: string;
+  targetGrades?: string[];
+  isPremium: boolean;
+}
+
+export interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  thinking?: string | null;
 }

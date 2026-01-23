@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 import { 
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
   query, where, onSnapshot, orderBy, Timestamp, addDoc, limit, increment,
-  documentId
+  documentId, writeBatch
 } from 'firebase/firestore';
 import { 
   User, Curriculum, Quiz, Question, StudentQuizAttempt, 
@@ -28,6 +28,51 @@ class DBService {
     return clean;
   }
 
+  // --- الإحصائيات المالية المتقدمة ---
+  async getAdvancedFinancialStats() {
+    this.checkDb();
+    const snap = await getDocs(collection(db!, 'invoices'));
+    const invoices = snap.docs.map(d => d.data() as Invoice);
+    const paidInvoices = invoices.filter(i => i.status === 'PAID');
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const thisMonthStr = now.toISOString().substring(0, 7);
+    const thisYearStr = now.getFullYear().toString();
+
+    const daily = paidInvoices.filter(i => i.date.startsWith(todayStr)).reduce((sum, i) => sum + i.amount, 0);
+    const monthly = paidInvoices.filter(i => i.date.startsWith(thisMonthStr)).reduce((sum, i) => sum + i.amount, 0);
+    const yearly = paidInvoices.filter(i => i.date.startsWith(thisYearStr)).reduce((sum, i) => sum + i.amount, 0);
+    const total = paidInvoices.reduce((sum, i) => sum + i.amount, 0);
+
+    return { daily, monthly, yearly, total, count: paidInvoices.length, pending: invoices.filter(i => i.status === 'PENDING').length };
+  }
+
+  // --- إحصائيات الطلاب الحقيقية حسب المرحلة ---
+  async getStudentGradeStats() {
+    this.checkDb();
+    try {
+        // استعلام لجلب كافة الطلاب
+        const q = query(collection(db!, 'users'), where('role', '==', 'student'));
+        const snap = await getDocs(q);
+        const students = snap.docs.map(d => d.data() as User);
+        
+        // حساب الأعداد الفعلية بناءً على حقل الصف الدراسي
+        const stats = {
+          grade10: students.filter(s => s.grade === '10').length,
+          grade11: students.filter(s => s.grade === '11').length,
+          grade12: students.filter(s => s.grade === '12').length,
+          uni: students.filter(s => s.grade === 'uni').length,
+          total: students.length
+        };
+        
+        return stats;
+    } catch (error) {
+        console.error("Error fetching grade stats:", error);
+        return { grade10: 0, grade11: 0, grade12: 0, uni: 0, total: 0 };
+    }
+  }
+
   // --- المراقبة اللحظية للمستخدم ---
   subscribeToUser(uid: string, callback: (user: User | null) => void) {
     this.checkDb();
@@ -37,7 +82,42 @@ class DBService {
     });
   }
 
-  // --- إعدادات تصميم الفاتورة ---
+  async updateStudentSubscription(userId: string, newTier: 'free' | 'premium', amount: number = 0) {
+    this.checkDb();
+    const batch = writeBatch(db!);
+    const userRef = doc(db!, 'users', userId);
+    batch.update(userRef, { subscription: newTier });
+    if (newTier === 'premium') {
+      const invoiceRef = doc(collection(db!, 'invoices'));
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.data() as User;
+      const systemInvoice: Invoice = {
+        id: invoiceRef.id,
+        userId,
+        userName: userData.name,
+        planId: 'plan_premium',
+        amount: amount || 35,
+        date: new Date().toISOString(),
+        status: 'PAID',
+        trackId: `SYS-${Math.random().toString(36).substring(7).toUpperCase()}`,
+        authCode: 'ADMIN_FORCE_ACTIVATE'
+      };
+      batch.set(invoiceRef, systemInvoice);
+      const noteRef = doc(collection(db!, 'notifications'));
+      const note: Omit<AppNotification, 'id'> = {
+        userId,
+        title: "🌟 تفعيل العضوية المميزة",
+        message: "تم تحديث حسابك إلى باقة التفوق بنجاح. يمكنك الآن الوصول لكامل المحتوى.",
+        timestamp: new Date().toISOString(),
+        isRead: false,
+        type: 'success',
+        category: 'academic'
+      };
+      batch.set(noteRef, note);
+    }
+    await batch.commit();
+  }
+
   async getInvoiceSettings(): Promise<InvoiceSettings> {
     this.checkDb();
     try {
@@ -60,60 +140,16 @@ class DBService {
     await setDoc(doc(db!, 'settings', 'invoice_design'), this.cleanData(settings));
   }
 
-  // --- الإحصائيات المالية المتقدمة ---
-  async getAdvancedFinancialStats() {
-    this.checkDb();
-    const snap = await getDocs(collection(db!, 'invoices'));
-    const invoices = snap.docs.map(d => d.data() as Invoice);
-    const paidInvoices = invoices.filter(i => i.status === 'PAID');
-
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const thisMonthStr = now.toISOString().substring(0, 7);
-    const thisYearStr = now.getFullYear().toString();
-
-    const daily = paidInvoices.filter(i => i.date.startsWith(todayStr)).reduce((sum, i) => sum + i.amount, 0);
-    const monthly = paidInvoices.filter(i => i.date.startsWith(thisMonthStr)).reduce((sum, i) => sum + i.amount, 0);
-    const yearly = paidInvoices.filter(i => i.date.startsWith(thisYearStr)).reduce((sum, i) => sum + i.amount, 0);
-    const total = paidInvoices.reduce((sum, i) => sum + i.amount, 0);
-
-    return { daily, monthly, yearly, total, count: paidInvoices.length, pending: invoices.filter(i => i.status === 'PENDING').length };
-  }
-
-  // --- إحصائيات الطلاب حسب المرحلة ---
-  async getStudentGradeStats() {
-    this.checkDb();
-    try {
-        const q = query(collection(db!, 'users'), where('role', '==', 'student'));
-        const snap = await getDocs(q);
-        const students = snap.docs.map(d => d.data() as User);
-        
-        // إذا كانت قاعدة البيانات فارغة، نرجع أرقاماً افتراضية لإعطاء حيوية للمنصة في البداية
-        if (students.length === 0) {
-            return { grade10: 120, grade11: 95, grade12: 150, uni: 40, total: 405 };
-        }
-
-        return {
-          grade10: students.filter(s => s.grade === '10').length,
-          grade11: students.filter(s => s.grade === '11').length,
-          grade12: students.filter(s => s.grade === '12').length,
-          uni: students.filter(s => s.grade === 'uni').length,
-          total: students.length
-        };
-    } catch (error) {
-        console.error("Error fetching grade stats:", error);
-        return { grade10: 0, grade11: 0, grade12: 0, uni: 0, total: 0 };
-    }
-  }
-
-  // --- الهوية البصرية ---
   async getAppBranding(): Promise<AppBranding> {
     this.checkDb();
     try {
-      const snap = await getDoc(doc(db!, 'settings', 'branding'));
-      if (snap.exists()) return snap.data() as AppBranding;
+        const snap = await getDoc(doc(db!, 'settings', 'branding'));
+        if (snap.exists()) return snap.data() as AppBranding;
     } catch (e) {}
-    return { logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', appName: 'المركز السوري للعلوم' };
+    return { 
+      logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
+      appName: 'المركز السوري للعلوم' 
+    };
   }
 
   async saveAppBranding(branding: AppBranding) {
@@ -121,82 +157,72 @@ class DBService {
     await setDoc(doc(db!, 'settings', 'branding'), this.cleanData(branding));
   }
 
-  // --- المناهج (Curriculum) ---
+  async getPaymentSettings(): Promise<PaymentSettings> {
+    this.checkDb();
+    try {
+        const snap = await getDoc(doc(db!, 'settings', 'payment'));
+        if (snap.exists()) return snap.data() as PaymentSettings;
+    } catch (e) {}
+    return {
+        isOnlinePaymentEnabled: false,
+        womdaPhoneNumber: '55315661',
+        planPrices: { premium: 35, basic: 0 }
+    };
+  }
+
+  async savePaymentSettings(settings: PaymentSettings) {
+    this.checkDb();
+    await setDoc(doc(db!, 'settings', 'payment'), this.cleanData(settings));
+  }
+
   async getCurriculum(): Promise<Curriculum[]> {
     this.checkDb();
     const snap = await getDocs(collection(db!, 'curriculum'));
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as Curriculum));
   }
 
-  async saveLesson(curriculumId: string, unitId: string, lesson: Lesson) {
+  async saveUnit(curriculumId: string, unit: Unit, grade: string, subject: string) {
     this.checkDb();
-    const ref = doc(db!, 'curriculum', curriculumId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new Error("لم يتم العثور على مستند المنهج المطلوب.");
-    
-    const data = snap.data() as Curriculum;
-    const units = (data.units || []).map(u => {
-      if (u.id === unitId) {
-        const lessons = [...(u.lessons || [])];
-        const idx = lessons.findIndex(l => l.id === lesson.id);
-        if (idx > -1) lessons[idx] = lesson;
-        else lessons.push(lesson);
-        return { ...u, lessons };
-      }
-      return u;
-    });
-    await updateDoc(ref, { units });
-  }
-
-  async saveUnit(curriculumId: string, unit: Unit, grade?: string, subject?: string) {
-    this.checkDb();
-    const ref = doc(db!, 'curriculum', curriculumId);
-    const snap = await getDoc(ref);
-    
-    if (!snap.exists()) {
-        if (!grade || !subject) throw new Error("يجب تحديد الصف والمادة لإنشاء منهج جديد.");
-        const newCurriculum: Curriculum = { 
-          grade: grade as any, 
-          subject: subject as any, 
-          title: `${subject} - الصف ${grade}`, 
-          description: '', 
-          icon: '', 
-          units: [unit] 
-        };
-        await setDoc(ref, this.cleanData(newCurriculum));
-    } else {
-        const data = snap.data() as Curriculum;
-        const units = [...(data.units || [])];
-        const idx = units.findIndex(u => u.id === unit.id);
-        if (idx > -1) units[idx] = unit;
+    const curRef = doc(db!, 'curriculum', curriculumId);
+    const snap = await getDoc(curRef);
+    if (snap.exists()) {
+        const curData = snap.data() as Curriculum;
+        const units = curData.units || [];
+        const index = units.findIndex(u => u.id === unit.id);
+        if (index > -1) units[index] = unit;
         else units.push(unit);
-        await updateDoc(ref, { units });
+        await updateDoc(curRef, { units });
+    } else {
+        const newCur: Curriculum = {
+            id: curriculumId,
+            grade: grade as any,
+            subject: subject as any,
+            title: `${subject} - الصف ${grade}`,
+            description: '',
+            icon: '📚',
+            units: [unit]
+        };
+        await setDoc(curRef, this.cleanData(newCur));
     }
   }
 
-  async deleteUnit(curriculumId: string, unitId: string) {
+  async saveLesson(curriculumId: string, unitId: string, lesson: Lesson) {
     this.checkDb();
-    const ref = doc(db!, 'curriculum', curriculumId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new Error("مستند المنهج غير موجود.");
-    
-    const data = snap.data() as Curriculum;
-    const units = (data.units || []).filter(u => u.id !== unitId);
-    await updateDoc(ref, { units });
-  }
-
-  async deleteLesson(curriculumId: string, unitId: string, lessonId: string) {
-    this.checkDb();
-    const ref = doc(db!, 'curriculum', curriculumId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new Error("مستند المنهج غير موجود.");
-    
-    const data = snap.data() as Curriculum;
-    const units = (data.units || []).map(u => {
-      if (u.id === unitId) return { ...u, lessons: (u.lessons || []).filter(l => l.id !== lessonId) };
-      return u;
+    const curRef = doc(db!, 'curriculum', curriculumId);
+    const snap = await getDoc(curRef);
+    if (!snap.exists()) throw new Error("المسار غير موجود");
+    const curData = snap.data() as Curriculum;
+    const units = (curData.units || []).map(u => {
+        if (u.id === unitId) {
+            const lessons = u.lessons || [];
+            const index = lessons.findIndex(l => l.id === lesson.id);
+            if (index > -1) lessons[index] = lesson;
+            else lessons.push(lesson);
+            return { ...u, lessons };
+        }
+        return u;
     });
-    await updateDoc(ref, { units });
+    await updateDoc(curRef, { units });
   }
 
   async updateUnitsOrder(curriculumId: string, units: Unit[]) {
@@ -204,30 +230,51 @@ class DBService {
     await updateDoc(doc(db!, 'curriculum', curriculumId), { units });
   }
 
-  // --- الإعدادات المالية ---
-  async getPaymentSettings(): Promise<PaymentSettings> {
+  async deleteUnit(curriculumId: string, unitId: string) {
     this.checkDb();
-    try {
-        const snap = await getDoc(doc(db!, 'settings', 'payments'));
-        if (snap.exists()) return snap.data() as PaymentSettings;
-    } catch (e) {}
-    return { isOnlinePaymentEnabled: true, womdaPhoneNumber: '55315661', planPrices: { premium: 35, basic: 15 } };
+    const curRef = doc(db!, 'curriculum', curriculumId);
+    const snap = await getDoc(curRef);
+    if (!snap.exists()) return;
+    const curData = snap.data() as Curriculum;
+    const units = (curData.units || []).filter(u => u.id !== unitId);
+    await updateDoc(curRef, { units });
   }
 
-  async savePaymentSettings(settings: PaymentSettings) {
+  async deleteLesson(curriculumId: string, unitId: string, lessonId: string) {
     this.checkDb();
-    await setDoc(doc(db!, 'settings', 'payments'), this.cleanData(settings));
+    const curRef = doc(db!, 'curriculum', curriculumId);
+    const snap = await getDoc(curRef);
+    if (!snap.exists()) return;
+    const curData = snap.data() as Curriculum;
+    const units = (curData.units || []).map(u => {
+        if (u.id === unitId) {
+            return { ...u, lessons: (u.lessons || []).filter(l => l.id !== lessonId) };
+        }
+        return u;
+    });
+    await updateDoc(curRef, { units });
   }
 
-  // --- بقية الدوال الأساسية ---
+  async getUserByPhone(phone: string): Promise<User | null> {
+    this.checkDb();
+    const cleanPhone = phone.replace(/\s+/g, '');
+    const q = query(collection(db!, 'users'), where('phone', '==', cleanPhone), limit(1));
+    const snap = await getDocs(q);
+    if (!snap.empty) return snap.docs[0].data() as User;
+    return null;
+  }
+
   async getUser(uidOrEmail: string): Promise<User | null> {
     this.checkDb();
     try {
         let snap = await getDoc(doc(db!, 'users', uidOrEmail));
         if (snap.exists()) return snap.data() as User;
-        const q = query(collection(db!, 'users'), where('email', '==', uidOrEmail), limit(1));
-        const querySnap = await getDocs(q);
-        if (!querySnap.empty) return querySnap.docs[0].data() as User;
+        const qEmail = query(collection(db!, 'users'), where('email', '==', uidOrEmail), limit(1));
+        const querySnapEmail = await getDocs(qEmail);
+        if (!querySnapEmail.empty) return querySnapEmail.docs[0].data() as User;
+        const qPhone = query(collection(db!, 'users'), where('phone', '==', uidOrEmail), limit(1));
+        const querySnapPhone = await getDocs(qPhone);
+        if (!querySnapPhone.empty) return querySnapPhone.docs[0].data() as User;
     } catch (e) {}
     return null;
   }
@@ -414,7 +461,6 @@ class DBService {
     return snap.exists() ? { ...snap.data(), id: snap.id } as Quiz : null;
   }
 
-  // --- مراقبة الإشعارات لحظياً ---
   subscribeToNotifications(uid: string, callback: (notes: AppNotification[]) => void) {
     this.checkDb();
     const q = query(collection(db!, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'), limit(20));
@@ -423,7 +469,6 @@ class DBService {
     });
   }
 
-  // FIX: Added getNotifications method to allow one-time retrieval of user notifications
   async getNotifications(uid: string): Promise<AppNotification[]> {
     this.checkDb();
     const q = query(collection(db!, 'notifications'), where('userId', '==', uid), orderBy('timestamp', 'desc'), limit(20));
@@ -574,8 +619,8 @@ class DBService {
     this.checkDb();
     const user = await this.getUser(userId);
     if (!user) throw new Error("USER_NOT_FOUND");
-    const trackId = `MANUAL_${Math.random().toString(36).substring(7).toUpperCase()}`;
-    const invoice: Omit<Invoice, 'id'> = { 
+    const trackId = `MANUAL-${Math.random().toString(36).substring(7).toUpperCase()}`;
+    const invoiceData: Omit<Invoice, 'id'> = { 
       userId, 
       userName: user.name, 
       planId, 
@@ -583,26 +628,12 @@ class DBService {
       date: new Date().toISOString(), 
       status: 'PAID', 
       trackId, 
-      paymentId: `PAY_ADMIN_${Date.now()}`, 
+      paymentId: `PAY-ADMIN-${Date.now()}`, 
       authCode: 'ADMIN_MANUAL' 
     };
-    const docRef = await addDoc(collection(db!, 'invoices'), invoice);
-    
-    // تفعيل الاشتراك
-    await updateDoc(doc(db!, 'users', userId), { subscription: 'premium' });
-    
-    // إرسال إشعار داخلي مفصل للطالب
-    await this.createNotification({
-      userId: userId,
-      title: "🚀 مبروك! تم تفعيل اشتراكك",
-      message: `تم اعتماد مبلغ ${amount} د.ك عبر "ومض" وتفعيل باقة ${planId === 'plan_premium' ? 'التفوق' : 'الأساسية'} بنجاح. يمكنك الآن استخراج إيصالك الرسمي من لوحة التحكم.`,
-      timestamp: new Date().toISOString(),
-      isRead: false,
-      type: 'success',
-      category: 'academic'
-    });
-
-    return { ...invoice, id: docRef.id };
+    const docRef = await addDoc(collection(db!, 'invoices'), invoiceData);
+    await this.updateStudentSubscription(userId, 'premium', amount);
+    return { ...invoiceData, id: docRef.id };
   }
 
   async deleteInvoice(id: string) {
@@ -610,23 +641,26 @@ class DBService {
     await deleteDoc(doc(db!, 'invoices', id));
   }
 
-  // --- مراقبة الفواتير لحظياً ---
   subscribeToInvoices(uid: string, callback: (invoices: Invoice[]) => void) {
     this.checkDb();
-    const q = query(collection(db!, 'invoices'), where('userId', '==', uid), orderBy('date', 'desc'));
+    const q = query(collection(db!, 'invoices'), where('userId', '==', uid));
     return onSnapshot(q, (snap) => {
-        callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)));
+        const list = snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice));
+        list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        callback(list);
     });
   }
 
   async getInvoices(userId?: string): Promise<{ data: Invoice[] }> {
     this.checkDb();
-    let q = query(collection(db!, 'invoices'), orderBy('date', 'desc'));
+    let q = query(collection(db!, 'invoices'));
     if (userId) {
-      q = query(collection(db!, 'invoices'), where('userId', '==', userId), orderBy('date', 'desc'));
+      q = query(collection(db!, 'invoices'), where('userId', '==', userId));
     }
     const snap = await getDocs(q);
-    return { data: snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)) };
+    const list = snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice));
+    list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return { data: list };
   }
 
   async toggleLessonComplete(uid: string, lessonId: string) {
@@ -698,7 +732,6 @@ class DBService {
 
   async initializeForumSystem() {
     this.checkDb();
-    
     const sectionsSnap = await getDocs(collection(db!, 'forumSections'));
     if (sectionsSnap.empty) {
       const defaultSection: ForumSection = {
@@ -718,7 +751,6 @@ class DBService {
       };
       await setDoc(doc(db!, 'forumSections', defaultSection.id), this.cleanData(defaultSection));
     }
-
     const postsSnap = await getDocs(query(collection(db!, 'forumPosts'), limit(1)));
     if (postsSnap.empty) {
       const welcomePost: Omit<ForumPost, 'id'> = {

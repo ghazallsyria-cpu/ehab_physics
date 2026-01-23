@@ -5,7 +5,7 @@ import { dbService } from '../services/db';
 import { 
   Plus, RefreshCw, AlertCircle, Search, 
   X, Banknote, Zap, FileText, CheckCircle2,
-  DollarSign, Mail, TrendingUp, Calendar, Clock, Trash2, MessageCircle
+  DollarSign, Mail, TrendingUp, Calendar, Clock, Trash2, MessageCircle, Phone
 } from 'lucide-react';
 import anime from 'animejs';
 
@@ -81,10 +81,19 @@ const AdminFinancials: React.FC = () => {
     if (e) e.preventDefault();
     if (!manualSearch.trim()) return;
     setIsLoading(true);
-    const user = await dbService.getUser(manualSearch.trim());
-    if (user) setFoundUser(user);
-    else alert("عذراً، لم يتم العثور على طالب بهذا البريد الإلكتروني.");
-    setIsLoading(false);
+    setFoundUser(null);
+    try {
+        const user = await dbService.getUser(manualSearch.trim()); // يبحث بالرقم أو الإيميل آلياً الآن
+        if (user) {
+            setFoundUser(user);
+        } else {
+            alert("عذراً، لم يتم العثور على طالب بهذا الرقم أو البريد الإلكتروني.");
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const handleCreateManualInvoice = async () => {
@@ -122,7 +131,7 @@ const AdminFinancials: React.FC = () => {
             <p className="text-gray-500 mt-2 font-bold italic">مراقبة النمو المالي وتحصيل دفعات "ومض".</p>
         </div>
         <div className="flex gap-4">
-            <button onClick={() => { setShowManualModal(true); setSuccessInvoice(null); }} className="bg-emerald-500 text-black px-10 py-5 rounded-[25px] font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
+            <button onClick={() => { setShowManualModal(true); setSuccessInvoice(null); setManualSearch(''); setFoundUser(null); }} className="bg-emerald-500 text-black px-10 py-5 rounded-[25px] font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
                 <DollarSign size={20} /> تسجيل دفعة "ومض"
             </button>
             <button onClick={loadData} disabled={isLoading} className="bg-white/5 border border-white/10 px-6 py-5 rounded-[25px] text-gray-400 hover:text-white transition-all">
@@ -224,20 +233,23 @@ const AdminFinancials: React.FC = () => {
                                 <DollarSign size={48}/>
                             </div>
                             <h3 className="text-4xl font-black text-white italic tracking-tighter">تسجيل دفعة <span className="text-emerald-400">ومض</span></h3>
-                            <p className="text-gray-500 text-sm mt-3 font-medium">حوّل حالة حساب الطالب إلى متميز (Premium) فوراً.</p>
+                            <p className="text-gray-500 text-sm mt-3 font-medium">البحث عن الطالب برقم الموبايل لتفعيل الحساب.</p>
                         </header>
 
                         <div className="space-y-10">
                             <form onSubmit={searchUser} className="space-y-4">
-                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mr-4">البحث عن الطالب بالبريد</label>
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mr-4 text-right block w-full">رقم الموبايل (مثلاً: 553XXXXX)</label>
                                 <div className="flex gap-4">
-                                    <input 
-                                        type="email" 
-                                        value={manualSearch} 
-                                        onChange={e => setManualSearch(e.target.value)} 
-                                        placeholder="student@example.com" 
-                                        className="flex-1 bg-black/40 border border-white/10 rounded-[25px] px-8 py-5 text-white outline-none focus:border-emerald-500 font-bold text-left ltr" 
-                                    />
+                                    <div className="flex-1 relative">
+                                        <Phone className="absolute top-1/2 right-6 -translate-y-1/2 text-gray-500" size={18} />
+                                        <input 
+                                            type="text" 
+                                            value={manualSearch} 
+                                            onChange={e => setManualSearch(e.target.value)} 
+                                            placeholder="965XXXXXXXX" 
+                                            className="w-full bg-black/40 border border-white/10 rounded-[25px] pr-16 pl-6 py-5 text-white outline-none focus:border-emerald-500 font-black text-2xl tabular-nums ltr text-left" 
+                                        />
+                                    </div>
                                     <button type="submit" className="bg-white text-black px-10 rounded-[25px] font-black hover:bg-emerald-400 transition-all">بحث</button>
                                 </div>
                             </form>
@@ -245,10 +257,13 @@ const AdminFinancials: React.FC = () => {
                             {foundUser && (
                                 <div className="bg-white/[0.03] border-2 border-emerald-500/30 p-10 rounded-[50px] animate-slideUp">
                                     <div className="flex items-center gap-8 mb-10">
-                                        <div className="w-20 h-20 rounded-[30px] bg-emerald-500/10 flex items-center justify-center text-4xl shadow-lg">🎓</div>
+                                        <div className="w-20 h-20 rounded-[30px] bg-emerald-500/10 flex items-center justify-center text-4xl shadow-lg border border-emerald-500/20">🎓</div>
                                         <div className="text-right flex-1">
                                             <h4 className="text-2xl font-black text-white">{foundUser.name}</h4>
-                                            <span className="text-[10px] text-emerald-400 font-mono italic">{foundUser.email}</span>
+                                            <div className="flex flex-col gap-1 mt-1">
+                                                <span className="text-[10px] text-gray-400 font-mono flex items-center gap-2"><Phone size={10}/> {foundUser.phone}</span>
+                                                <span className="text-[10px] text-gray-400 font-mono flex items-center gap-2"><Mail size={10}/> {foundUser.email}</span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-8 border-t border-white/5 pt-8">
@@ -258,7 +273,7 @@ const AdminFinancials: React.FC = () => {
                                         </div>
                                         <div className="space-y-3">
                                             <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">نوع الباقة</label>
-                                            <select value={manualPlan} onChange={e => setManualPlan(e.target.value)} className="w-full h-[66px] bg-black/60 border border-white/10 rounded-2xl px-6 text-white outline-none">
+                                            <select value={manualPlan} onChange={e => setManualPlan(e.target.value)} className="w-full h-[66px] bg-black/60 border border-white/10 rounded-2xl px-6 text-white outline-none font-bold">
                                                 <option value="plan_premium">باقة التفوق</option>
                                                 <option value="plan_basic">الأساسية</option>
                                             </select>
@@ -283,7 +298,7 @@ const AdminFinancials: React.FC = () => {
                                 <MessageCircle size={24} fill="currentColor" /> إرسال الإيصال عبر واتساب
                             </button>
                             <button 
-                                onClick={() => { setShowManualModal(false); setSuccessInvoice(null); }}
+                                onClick={() => { setShowManualModal(false); setFoundUser(null); setSuccessInvoice(null); }}
                                 className="w-full py-5 text-gray-500 font-black text-xs uppercase tracking-widest hover:text-white transition-all"
                             >
                                 إغلاق النافذة

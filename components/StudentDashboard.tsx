@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { User } from '../types';
 import { dbService } from '../services/db';
-import { ArrowRight, Map, Trophy, BookOpen, Star, Zap, Crown } from 'lucide-react';
+// Added RefreshCw to imports
+import { ArrowRight, Map, Trophy, BookOpen, Star, Zap, Crown, Smartphone, UserCircle, Save, X, CheckCircle2, RefreshCw } from 'lucide-react';
 import anime from 'animejs';
 
 interface StudentDashboardProps {
@@ -11,6 +12,14 @@ interface StudentDashboardProps {
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
   const [progressData, setProgressData] = useState({ percent: 0, lessons: 0, points: 0 });
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+      phone: user.phone || '',
+      gender: user.gender || 'male'
+  });
+
+  const isProfileIncomplete = !user.phone || !user.gender;
 
   useEffect(() => {
     anime({
@@ -36,6 +45,27 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
     setProgressData(prev => ({ ...prev, lessons: completed, percent: Math.min(completed * 5, 100) }));
   }, [user]);
 
+  const handleUpdateProfile = async () => {
+      if (!profileForm.phone) {
+          alert("يرجى إدخال رقم الموبايل للتواصل.");
+          return;
+      }
+      setIsSaving(true);
+      try {
+          await dbService.saveUser({
+              ...user,
+              phone: profileForm.phone,
+              gender: profileForm.gender
+          });
+          setShowProfileModal(false);
+          // سيقوم مستمع subscribeToUser في App.tsx بتحديث الحالة تلقائياً
+      } catch (e) {
+          alert("حدث خطأ أثناء حفظ البيانات.");
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
   const navigate = (view: any) => {
     window.dispatchEvent(new CustomEvent('change-view', { detail: { view } }));
   };
@@ -50,7 +80,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
                 مرحباً بك، <span className="text-amber-400">{user.name.split(' ')[0]}</span> 👋
                 </h2>
                 {user.subscription === 'premium' && (
-                    <div className="bg-amber-400 text-black px-4 py-1.5 rounded-full flex items-center gap-2 shadow-[0_0_20px_rgba(251,191,36,0.3)] animate-pulse border border-black/10">
+                    <div className="bg-amber-400 text-black px-4 py-1.5 rounded-full flex items-center gap-2 shadow-[0_0_20px_rgba(251,191,36,0.3)] border border-black/10">
                         <Crown size={16} fill="currentColor" />
                         <span className="text-[10px] font-black uppercase tracking-tighter">عضو متميز / Premium</span>
                     </div>
@@ -67,6 +97,27 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
              </div>
          </div>
       </div>
+
+      {/* Profile Completion Alert */}
+      {isProfileIncomplete && (
+          <div className="dashboard-card bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border-2 border-blue-500/30 p-8 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse opacity-0">
+              <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 bg-blue-500 rounded-3xl flex items-center justify-center text-white shadow-lg">
+                      <Smartphone size={32} />
+                  </div>
+                  <div>
+                      <h4 className="text-xl font-black text-white">أكمل بيانات حسابك لتفعيل واتساب</h4>
+                      <p className="text-gray-400 text-sm mt-1">يجب تسجيل رقم الموبايل والجنس لضمان وصول إشعارات الدفع والتنبيهات الهامة.</p>
+                  </div>
+              </div>
+              <button 
+                onClick={() => setShowProfileModal(true)}
+                className="bg-white text-black px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl whitespace-nowrap"
+              >
+                  تحديث البيانات الآن
+              </button>
+          </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
          <div 
@@ -151,6 +202,66 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
             </button>
          </div>
       </div>
+
+      {/* Profile Update Modal */}
+      {showProfileModal && (
+          <div className="fixed inset-0 z-[500] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
+              <div className="bg-[#0a1118] border border-white/10 w-full max-w-lg rounded-[60px] p-12 relative shadow-3xl">
+                  <button onClick={() => setShowProfileModal(false)} className="absolute top-8 left-8 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full"><X size={24}/></button>
+                  
+                  <div className="text-center mb-10">
+                      <div className="w-20 h-20 bg-blue-500 rounded-[30px] flex items-center justify-center mx-auto mb-6 shadow-2xl">
+                          <UserCircle size={48} className="text-white"/>
+                      </div>
+                      <h3 className="text-3xl font-black text-white italic">تحديث الملف الشخصي</h3>
+                      <p className="text-gray-500 text-sm mt-3">بياناتك ضرورية لربط الدفعات المباشرة وتنبيهات المعلم.</p>
+                  </div>
+
+                  <div className="space-y-8">
+                      <div className="space-y-3">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mr-4 block">رقم الموبايل (مثال: 553XXXXX)</label>
+                          <div className="relative">
+                            <Smartphone className="absolute top-1/2 right-6 -translate-y-1/2 text-gray-500" size={18}/>
+                            <input 
+                                type="text" 
+                                value={profileForm.phone}
+                                onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
+                                className="w-full bg-black/40 border border-white/10 rounded-[25px] pr-16 pl-6 py-5 text-white outline-none focus:border-blue-500 font-black text-xl tabular-nums ltr text-left" 
+                                placeholder="965XXXXXXXX"
+                            />
+                          </div>
+                      </div>
+
+                      <div className="space-y-3">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mr-4 block">تحديد الجنس</label>
+                          <div className="grid grid-cols-2 gap-4">
+                              <button 
+                                onClick={() => setProfileForm({...profileForm, gender: 'male'})}
+                                className={`py-5 rounded-[25px] font-black text-xs uppercase tracking-widest border-2 transition-all ${profileForm.gender === 'male' ? 'bg-blue-500 border-blue-400 text-white shadow-lg shadow-blue-500/20' : 'bg-white/5 border-white/10 text-gray-500'}`}
+                              >
+                                  👨 ذكر
+                              </button>
+                              <button 
+                                onClick={() => setProfileForm({...profileForm, gender: 'female'})}
+                                className={`py-5 rounded-[25px] font-black text-xs uppercase tracking-widest border-2 transition-all ${profileForm.gender === 'female' ? 'bg-pink-500 border-pink-400 text-white shadow-lg shadow-pink-500/20' : 'bg-white/5 border-white/10 text-gray-500'}`}
+                              >
+                                  👩 أنثى
+                              </button>
+                          </div>
+                      </div>
+
+                      <button 
+                        onClick={handleUpdateProfile}
+                        disabled={isSaving}
+                        className="w-full mt-4 py-6 bg-emerald-500 text-black rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
+                      >
+                          {isSaving ? <RefreshCw className="animate-spin" /> : <Save size={20}/>} 
+                          حفظ وتفعيل التنبيهات
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
       
     </div>
   );
