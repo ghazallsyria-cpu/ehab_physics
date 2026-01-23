@@ -22,39 +22,6 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
   
   const emailRef = useRef<HTMLInputElement>(null);
 
-  const mockStudent: User = {
-    uid: 'demo_student_uid',
-    name: 'طالب تجريبي',
-    email: 'student@demo.com',
-    role: 'student',
-    grade: '12',
-    subscription: 'premium',
-    createdAt: new Date().toISOString(),
-    progress: {
-      completedLessonIds: ['l12-1-1'],
-      points: 7500,
-      achievements: ['ch-2'],
-    },
-    status: 'active',
-  };
-
-  const mockAdmin: User = {
-    uid: 'demo_admin_uid',
-    name: 'مدير تجريبي',
-    email: 'admin@demo.com',
-    role: 'admin',
-    grade: '12', 
-    subscription: 'premium', 
-    createdAt: new Date().toISOString(),
-    progress: { completedLessonIds: [], points: 0 },
-    jobTitle: 'مشرف النظام',
-  };
-
-  const handleDemoLogin = (role: 'student' | 'admin') => {
-    if (role === 'student') onLogin(mockStudent);
-    else onLogin(mockAdmin);
-  };
-
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
@@ -200,17 +167,6 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
                 <img src="https://www.google.com/favicon.ico" alt="Google icon" className="w-5 h-5" />
                 المتابعة باستخدام جوجل
               </button>
-              
-              <div className="relative flex py-5 items-center">
-                  <div className="flex-grow border-t border-white/10"></div>
-                  <span className="flex-shrink mx-4 text-xs text-gray-600 font-bold">للتجربة</span>
-                  <div className="flex-grow border-t border-white/10"></div>
-              </div>
-
-              <div className="flex gap-4">
-                  <button type="button" onClick={() => handleDemoLogin('student')} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold hover:bg-blue-500/20 transition-all">🎓 طالب</button>
-                  <button type="button" onClick={() => handleDemoLogin('admin')} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold hover:bg-amber-500/20 transition-all">⚙️ مدير</button>
-              </div>
 
               <div className="pt-6 border-t border-white/5 text-center mt-6"> 
                 <button type="button" onClick={() => setIsRegistering(!isRegistering)} className="text-xs font-bold text-white">{isRegistering ? 'لديك حساب بالفعل؟ تسجيل الدخول' : 'ليس لديك حساب؟ إنشاء حساب جديد'}</button> 
