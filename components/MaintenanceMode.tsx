@@ -9,15 +9,17 @@ const MaintenanceMode: React.FC = () => {
   const [settings, setSettings] = useState<MaintenanceSettings | null>(null);
   const [branding, setBranding] = useState<AppBranding | null>(null);
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0 });
-  const [clickCount, setClickCount] = useState(0);
   const [showSecretButton, setShowSecretButton] = useState(false);
 
   useEffect(() => {
-    // جلب الإعدادات (الاشتراك الفعلي يتم في App.tsx)
-    dbService.getMaintenanceSettings().then(setSettings);
+    // 📡 مراقبة لحظية للإعدادات
+    const unsubscribe = dbService.subscribeToMaintenance((updated) => {
+        setSettings(updated);
+    });
+
     dbService.getAppBranding().then(setBranding);
 
-    if (sessionStorage.getItem('ssc_admin_bypass') === 'true') {
+    if (localStorage.getItem('ssc_bypass_key') === 'true') {
         setShowSecretButton(true);
     }
 
@@ -29,13 +31,14 @@ const MaintenanceMode: React.FC = () => {
       opacity: [0.1, 0.4, 0.1],
       duration: () => anime.random(3000, 6000),
       loop: true,
-      easing: 'easeInOutQuad',
-      delay: anime.stagger(100)
+      easing: 'easeInOutQuad'
     });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (!settings?.expectedReturnTime) return;
+    if (!settings?.expectedReturnTime || !settings.showCountdown) return;
 
     const timer = setInterval(() => {
       const target = new Date(settings.expectedReturnTime).getTime();
@@ -43,7 +46,7 @@ const MaintenanceMode: React.FC = () => {
       const diff = target - now;
 
       if (diff <= 0) {
-        clearInterval(timer);
+        setTimeLeft({ d: 0, h: 0, m: 0, s: 0 });
       } else {
         setTimeLeft({
           d: Math.floor(diff / (1000 * 60 * 60 * 24)),
@@ -55,17 +58,7 @@ const MaintenanceMode: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [settings?.expectedReturnTime]);
-
-  const handleLogoClick = () => {
-      setClickCount(prev => prev + 1);
-      anime({ targets: '.maintenance-logo', scale: [1, 0.9, 1.1, 1], duration: 400 });
-      if (clickCount >= 5) {
-          sessionStorage.setItem('ssc_admin_bypass', 'true');
-          setShowSecretButton(true);
-          if ("vibrate" in navigator) navigator.vibrate(200);
-      }
-  };
+  }, [settings]);
 
   const TimeBlock = ({ value, label }: { value: number, label: string }) => (
     <div className="flex flex-col items-center">
@@ -95,10 +88,7 @@ const MaintenanceMode: React.FC = () => {
       <div className="relative z-10 max-w-4xl w-full px-8 flex flex-col items-center">
         <div className="relative mb-12">
             <div className="absolute inset-[-40px] border-2 border-blue-500/10 rounded-full animate-spin-slow"></div>
-            <div 
-                onClick={handleLogoClick}
-                className="maintenance-logo w-36 h-36 md:w-44 md:h-44 bg-[#0a1118] border-2 border-white/10 rounded-[55px] flex items-center justify-center shadow-[0_0_100px_rgba(59,130,246,0.1)] relative group cursor-pointer transition-all active:scale-95"
-            >
+            <div className="maintenance-logo w-36 h-36 md:w-44 md:h-44 bg-[#0a1118] border-2 border-white/10 rounded-[55px] flex items-center justify-center shadow-[0_0_100px_rgba(59,130,246,0.1)] relative group">
                 {branding?.logoUrl ? <img src={branding.logoUrl} className="w-2/3 h-2/3 object-contain pointer-events-none" alt="Logo" /> : <Atom size={80} className="text-blue-400 animate-spin-slow" />}
             </div>
         </div>
@@ -106,7 +96,7 @@ const MaintenanceMode: React.FC = () => {
         <div className="text-center mb-16 space-y-4">
             <div className="inline-flex items-center gap-2 bg-red-500/10 px-6 py-2 rounded-full border border-red-500/20 mb-4">
                 <Lock size={14} className="text-red-500 animate-pulse" />
-                <span className="text-[10px] font-black text-red-400 uppercase tracking-widest italic">System Lockdown in Progress</span>
+                <span className="text-[10px] font-black text-red-400 uppercase tracking-widest italic">System Lockdown In Progress</span>
             </div>
             <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-tight italic uppercase">
                 قيد <span className="text-blue-400 drop-shadow-[0_0_30px_rgba(59,130,246,0.4)]">التطوير</span>
@@ -118,10 +108,10 @@ const MaintenanceMode: React.FC = () => {
 
         {settings.showCountdown && (
             <div className="flex gap-4 md:gap-8 mb-20 animate-slideUp">
-                <TimeBlock value={timeLeft.d} label="Days" />
-                <TimeBlock value={timeLeft.h} label="Hours" />
-                <TimeBlock value={timeLeft.m} label="Minutes" />
-                <TimeBlock value={timeLeft.s} label="Seconds" />
+                <TimeBlock value={timeLeft.d} label="أيام" />
+                <TimeBlock value={timeLeft.h} label="ساعات" />
+                <TimeBlock value={timeLeft.m} label="دقائق" />
+                <TimeBlock value={timeLeft.s} label="ثواني" />
             </div>
         )}
 
@@ -139,7 +129,7 @@ const MaintenanceMode: React.FC = () => {
             {showSecretButton && (
                 <button 
                     onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'auth' } }))}
-                    className="flex items-center gap-4 text-amber-400 hover:text-white transition-all text-[10px] font-black uppercase tracking-[0.3em] bg-amber-400/10 px-10 py-5 rounded-2xl border-2 border-amber-400/20 animate-bounce shadow-[0_0_50px_rgba(251,191,36,0.2)]"
+                    className="flex items-center gap-4 text-amber-400 hover:text-white transition-all text-[10px] font-black uppercase tracking-[0.3em] bg-amber-400/10 px-10 py-5 rounded-2xl border-2 border-amber-400/20 shadow-[0_0_50px_rgba(251,191,36,0.2)]"
                 >
                     <ShieldCheck size={20}/> ولوج الإدارة المركزية
                 </button>

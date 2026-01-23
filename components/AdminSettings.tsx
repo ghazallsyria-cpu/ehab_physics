@@ -39,6 +39,25 @@ const AdminSettings: React.FC = () => {
     setIsLoading(false);
   };
 
+  const handleSave = async () => {
+    if (!settings || !notificationSettings || !branding || !maintenance) return;
+    setIsSaving(true);
+    setMessage(null);
+    try {
+      await Promise.all([
+          dbService.saveLoggingSettings(settings),
+          dbService.saveNotificationSettings(notificationSettings),
+          dbService.saveAppBranding(branding),
+          dbService.saveMaintenanceSettings(maintenance)
+      ]);
+      setMessage({ text: 'تم حفظ كافة التغييرات بنجاح! ✅', type: 'success' });
+    } catch (e) {
+      setMessage({ text: 'فشل حفظ الإعدادات.', type: 'error' });
+    }
+    setIsSaving(false);
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   const handleToggle = (key: keyof LoggingSettings) => {
     if (settings) {
       setSettings(prev => ({ ...prev!, [key]: !prev![key] }));
@@ -53,7 +72,6 @@ const AdminSettings: React.FC = () => {
     try {
         const asset = await dbService.uploadAsset(file);
         setBranding({ ...branding, logoUrl: asset.url });
-        setMessage({ text: 'تم رفع الشعار بنجاح. اضغط "حفظ" للاعتماد.', type: 'success' });
     } catch (error) {
         setMessage({ text: 'فشل رفع الشعار.', type: 'error' });
     } finally {
@@ -61,52 +79,19 @@ const AdminSettings: React.FC = () => {
     }
   };
 
-  const handleSave = async () => {
-    if (!settings || !notificationSettings || !branding || !maintenance) return;
-    setIsSaving(true);
-    setMessage(null);
-    try {
-      await Promise.all([
-          dbService.saveLoggingSettings(settings),
-          dbService.saveNotificationSettings(notificationSettings),
-          dbService.saveAppBranding(branding),
-          dbService.saveMaintenanceSettings(maintenance)
-      ]);
-      setMessage({ text: 'تم حفظ كافة التغييرات وإعدادات الصيانة بنجاح! ✅', type: 'success' });
-      window.dispatchEvent(new CustomEvent('branding-updated', { detail: branding }));
-    } catch (e) {
-      setMessage({ text: 'فشل حفظ الإعدادات.', type: 'error' });
-    }
-    setIsSaving(false);
-    setTimeout(() => setMessage(null), 3000);
+  // دالة لتحويل ISO الخاص بقاعدة البيانات إلى صيغة تفهمها مدخلات HTML (YYYY-MM-DDTHH:MM)
+  const formatForInput = (iso: string) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${mins}`;
   };
 
-  // دالة مساعدة لتحويل ISO السحابي إلى صيغة متوافقة مع الوقت المحلي للمتصفح
-  const formatISOForInput = (isoStr: string) => {
-    if (!isoStr) return '';
-    const date = new Date(isoStr);
-    const offset = date.getTimezoneOffset() * 60000; // الإزاحة بالملي ثانية
-    const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, 16);
-    return localISOTime;
-  };
-
-  const handleMaintenanceDateChange = (val: string) => {
-    if (!maintenance || !val) return;
-    // تحويل الوقت المختار محلياً إلى ISO UTC للحفظ في قاعدة البيانات
-    const selectedDate = new Date(val);
-    setMaintenance({
-        ...maintenance,
-        expectedReturnTime: selectedDate.toISOString()
-    });
-  };
-  
-  const settingOptions: { key: keyof LoggingSettings; title: string; description: string }[] = [
-    { key: 'logStudentProgress', title: 'تسجيل تقدم الطلاب', description: 'حفظ سجلات إكمال الدروس والأنشطة الأخرى.' },
-    { key: 'saveAllQuizAttempts', title: 'حفظ جميع محاولات الاختبار', description: 'حفظ كل محاولة يقوم بها الطالب.' },
-    { key: 'archiveTeacherMessages', title: 'أرشفة رسائل المعلمين', description: 'حفظ سجلات التواصل لأغراض الإشراف.' },
-  ];
-
-  if (isLoading) return <div className="py-40 text-center animate-pulse"><RefreshCw className="animate-spin mx-auto text-amber-500 mb-4" /> <p className="text-gray-500 uppercase font-black text-xs">جاري سحب الإعدادات المركزية...</p></div>;
+  if (isLoading) return <div className="py-40 text-center animate-pulse"><RefreshCw className="animate-spin mx-auto text-amber-500 mb-4" /></div>;
 
   return (
     <div className="max-w-4xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white text-right pb-32" dir="rtl">
@@ -131,10 +116,8 @@ const AdminSettings: React.FC = () => {
       )}
 
       <div className="space-y-12">
-        {/* وضع الصيانة والتطوير */}
+        {/* وضع الصيانة الذكي */}
         <div className="glass-panel p-10 md:p-12 rounded-[60px] border-red-500/20 bg-gradient-to-br from-red-500/5 to-transparent relative overflow-hidden shadow-2xl">
-            <div className="absolute top-0 left-0 p-8 opacity-5 text-9xl pointer-events-none -rotate-12"><Hammer size={120} /></div>
-            
             <div className="flex flex-col md:flex-row items-center justify-between border-b border-white/5 pb-10 mb-10 gap-6">
                 <div className="flex items-center gap-6">
                     <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all ${maintenance?.isMaintenanceActive ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)]' : 'bg-white/5 text-gray-500 border border-white/10'}`}>
@@ -162,12 +145,11 @@ const AdminSettings: React.FC = () => {
                         <Clock className="absolute top-1/2 right-6 -translate-y-1/2 text-gray-500" size={20}/>
                         <input 
                             type="datetime-local" 
-                            value={maintenance?.expectedReturnTime ? formatISOForInput(maintenance.expectedReturnTime) : ''}
-                            onChange={e => handleMaintenanceDateChange(e.target.value)}
+                            value={maintenance?.expectedReturnTime ? formatForInput(maintenance.expectedReturnTime) : ''}
+                            onChange={e => maintenance && setMaintenance({...maintenance, expectedReturnTime: new Date(e.target.value).toISOString()})}
                             className="w-full bg-black/60 border-2 border-white/5 rounded-3xl px-16 py-5 text-white outline-none focus:border-red-500/50 font-black text-lg transition-all"
                         />
                     </div>
-                    <p className="text-[9px] text-gray-600 mr-4 italic">سيظهر هذا التوقيت للطلاب كعداد تنازلي.</p>
                 </div>
                 <div className="space-y-4">
                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4 flex items-center gap-2">
@@ -177,7 +159,6 @@ const AdminSettings: React.FC = () => {
                         value={maintenance?.maintenanceMessage || ''}
                         onChange={e => maintenance && setMaintenance({...maintenance, maintenanceMessage: e.target.value})}
                         className="w-full h-32 bg-black/60 border-2 border-white/5 rounded-3xl px-6 py-5 text-white outline-none focus:border-red-500/50 text-sm leading-relaxed no-scrollbar italic"
-                        placeholder="نحن نعمل حالياً على إضافة ميزات الذكاء الاصطناعي الجديدة..."
                     />
                 </div>
             </div>
@@ -187,13 +168,13 @@ const AdminSettings: React.FC = () => {
                     onClick={() => maintenance && setMaintenance({...maintenance, showCountdown: !maintenance.showCountdown})}
                     className={`flex items-center gap-3 px-8 py-3 rounded-2xl text-[9px] font-black uppercase border transition-all ${maintenance?.showCountdown ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-transparent border-white/10 text-gray-600'}`}
                 >
-                    {maintenance?.showCountdown ? '✓ إظهار العداد الزمني' : 'إخفاء العداد الزمني'}
+                    {maintenance?.showCountdown ? '✓ العداد ظاهر' : 'العداد مخفي'}
                 </button>
                 <button 
                     onClick={() => maintenance && setMaintenance({...maintenance, allowTeachers: !maintenance.allowTeachers})}
                     className={`flex items-center gap-3 px-8 py-3 rounded-2xl text-[9px] font-black uppercase border transition-all ${maintenance?.allowTeachers ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-transparent border-white/10 text-gray-600'}`}
                 >
-                    {maintenance?.allowTeachers ? '✓ دخول المعلمين مسموح' : 'حظر دخول المعلمين أيضاً'}
+                    {maintenance?.allowTeachers ? '✓ دخول المعلمين مسموح' : 'دخول المعلمين محظور'}
                 </button>
             </div>
         </div>
@@ -249,29 +230,6 @@ const AdminSettings: React.FC = () => {
                     <input type="file" ref={logoInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
                 </div>
             </div>
-        </div>
-
-        {/* إعدادات التسجيل */}
-        <div className="glass-panel p-12 rounded-[60px] border-white/10 space-y-8 bg-black/40">
-            <div className="flex items-center gap-4 text-gray-400 border-b border-white/5 pb-8">
-                <Database size={24} />
-                <h3 className="text-2xl font-black text-white italic">إعدادات تتبع البيانات</h3>
-            </div>
-
-            {settingOptions.map(({ key, title, description }) => (
-            <div key={key} className="flex items-center justify-between p-6 bg-black/40 rounded-[30px] border border-white/5 group hover:border-white/20 transition-all">
-                <div>
-                <h4 className="text-lg font-bold text-white">{title}</h4>
-                <p className="text-xs text-gray-500 max-w-md">{description}</p>
-                </div>
-                <button
-                onClick={() => handleToggle(key)}
-                className={`w-16 h-8 rounded-full p-1 transition-colors duration-300 flex items-center ${settings?.[key] ? 'bg-green-500 justify-end' : 'bg-gray-700 justify-start'}`}
-                >
-                <div className="w-6 h-6 bg-white rounded-full shadow-lg"></div>
-                </button>
-            </div>
-            ))}
         </div>
       </div>
     </div>

@@ -60,7 +60,6 @@ const App: React.FC = () => {
     appName: 'المركز السوري للعلوم' 
   });
   
-  // 🛠️ حالة الصيانة اللحظية
   const [maintenance, setMaintenance] = useState<MaintenanceSettings | null>(null);
   const [isMaintenanceLoading, setIsMaintenanceLoading] = useState(true);
   
@@ -73,23 +72,22 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    // 1. الاشتراك اللحظي في وضع الصيانة (أهم خطوة للحل الجذري)
+    // 🔗 مراقبة لحظية لوضع الصيانة
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
         setMaintenance(settings);
         setIsMaintenanceLoading(false);
-    }, (err) => {
-        setIsMaintenanceLoading(false);
     });
 
-    // 2. إدارة العبور السري للمدراء فقط
+    // 🔑 معالجة الرابط السري ?admin=true
     const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get('admin') === 'true' || searchParams.get('master') === 'true') {
-        sessionStorage.setItem('ssc_admin_bypass', 'true');
+    if (searchParams.get('admin') === 'true') {
+        localStorage.setItem('ssc_bypass_key', 'true');
+        // تنظيف الرابط لجمالية الموقع
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     dbService.getAppBranding().then(setBranding);
     
-    // 3. مراقبة حالة المستخدم
     let unsubscribeUser: (() => void) | null = null;
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -97,8 +95,6 @@ const App: React.FC = () => {
             if (updatedUser) {
                 setUser(updatedUser);
             }
-            setIsAuthLoading(false);
-        }, (err) => {
             setIsAuthLoading(false);
         });
       } else {
@@ -138,29 +134,27 @@ const App: React.FC = () => {
   }, []);
 
   const renderContent = () => {
-    // 🛡️ فحص الصيانة قبل أي شيء آخر
-    const isBypassActive = sessionStorage.getItem('ssc_admin_bypass') === 'true';
-    
+    const isBypassActive = localStorage.getItem('ssc_bypass_key') === 'true';
+
+    // 🚧 فحص الصيانة - الأولوية القصوى
     if (maintenance?.isMaintenanceActive) {
-        // الاستثناءات: المدير دائماً مسموح له، المعلم حسب الإعدادات
         const isPrivileged = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
         
-        if (!isPrivileged) {
-            // إذا كان المستخدم طالباً أو غير مسجل دخول ولم يستخدم العبور السري
-            if (!isBypassActive) return <MaintenanceMode />;
-            
-            // حتى مع العبور السري، لو سجل دخوله كطالب، يتم طرده
-            if (user && user.role === 'student') return <MaintenanceMode />;
-            
-            // السماح فقط بعرض صفحة تسجيل الدخول للمدراء لاستخدام العبور
-            if (!user && currentView !== 'auth' && currentView !== 'landing') return <MaintenanceMode />;
+        // إذا لم يكن مديراً ولم يستخدم الرابط السري
+        if (!isPrivileged && !isBypassActive) {
+            return <MaintenanceMode />;
+        }
+        
+        // حتى لو استخدم الرابط السري، إذا سجل دخول كطالب يُطرد
+        if (user && user.role === 'student' && !isPrivileged) {
+            return <MaintenanceMode />;
         }
     }
 
     if (isAuthLoading || isMaintenanceLoading) return (
       <div className="flex flex-col items-center justify-center h-[70vh] gap-6">
         <RefreshCw className="w-16 h-16 text-amber-400 animate-spin" />
-        <p className="text-gray-400 font-black animate-pulse uppercase tracking-[0.2em]">تأمين الاتصال السحابي...</p>
+        <p className="text-gray-400 font-black animate-pulse">تأمين الاتصال السحابي...</p>
       </div>
     );
 
@@ -210,20 +204,6 @@ const App: React.FC = () => {
     }
   };
 
-  // حماية الواجهة العامة (Sidebar) في حال الصيانة
-  const showMaintenanceUI = maintenance?.isMaintenanceActive && 
-                            user?.role !== 'admin' && 
-                            !(user?.role === 'teacher' && maintenance.allowTeachers) &&
-                            !sessionStorage.getItem('ssc_admin_bypass');
-
-  if (showMaintenanceUI && currentView !== 'auth' && currentView !== 'landing') {
-      return (
-        <div className="min-h-screen bg-[#000000] text-right font-['Tajawal']" dir="rtl">
-            <MaintenanceMode />
-        </div>
-      );
-  }
-
   if (currentView === 'landing' || currentView === 'auth') {
     return (
       <div className="min-h-screen bg-[#000000] text-right font-['Tajawal']" dir="rtl">
@@ -243,7 +223,7 @@ const App: React.FC = () => {
         branding={branding}
         activeSubject={activeSubject}
         onLogout={() => {
-            sessionStorage.removeItem('ssc_admin_bypass'); 
+            localStorage.removeItem('ssc_bypass_key'); 
             signOut(auth).then(() => setViewStack(['landing']));
         }}
         isOpen={isSidebarOpen}
