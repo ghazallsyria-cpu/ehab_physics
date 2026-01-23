@@ -68,17 +68,22 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const loadInitialSettings = async () => {
-        const [brandData, maintenanceData] = await Promise.all([
-            dbService.getAppBranding(),
-            dbService.getMaintenanceSettings()
-        ]);
-        setBranding(brandData);
-        setMaintenance(maintenanceData);
+        try {
+            const [brandData, maintenanceData] = await Promise.all([
+                dbService.getAppBranding(),
+                dbService.getMaintenanceSettings()
+            ]);
+            setBranding(brandData);
+            setMaintenance(maintenanceData);
+        } catch (e) {
+            console.error("Initial load error", e);
+        }
     };
     loadInitialSettings();
 
-    // الاشتراك في تغييرات وضع الصيانة لحظياً
+    // الاشتراك في تغييرات وضع الصيانة لحظياً (Real-time)
     const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
+        console.log("Maintenance mode updated:", settings.isMaintenanceActive);
         setMaintenance(settings);
     });
 
@@ -138,15 +143,16 @@ const App: React.FC = () => {
   }, []);
 
   const renderContent = () => {
-    if (isAuthLoading) return <div className="flex flex-col items-center justify-center h-[70vh] gap-6"><RefreshCw className="w-16 h-16 text-amber-400 animate-spin" /><p className="text-gray-400 font-bold animate-pulse">جاري تحضير المنصة...</p></div>;
-    
-    // فحص وضع الصيانة وقفل المنصة
+    // 1. فحص وضع الصيانة كأولوية قصوى
+    // إذا كانت الصيانة مفعلة، نقوم بفحص ما إذا كان المستخدم الحالي لديه حق التجاوز (Admin أو Teacher مسموح له)
     if (maintenance?.isMaintenanceActive) {
         const canBypass = user?.role === 'admin' || (user?.role === 'teacher' && maintenance.allowTeachers);
         if (!canBypass) {
             return <MaintenanceMode />;
         }
     }
+
+    if (isAuthLoading) return <div className="flex flex-col items-center justify-center h-[70vh] gap-6"><RefreshCw className="w-16 h-16 text-amber-400 animate-spin" /><p className="text-gray-400 font-bold animate-pulse">جاري تحضير المنصة...</p></div>;
 
     if (!user && currentView !== 'landing' && currentView !== 'auth') return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
 

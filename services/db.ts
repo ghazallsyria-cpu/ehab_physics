@@ -1,3 +1,4 @@
+
 import { db, auth } from './firebase'; 
 import { supabase } from './supabase';
 import { 
@@ -33,11 +34,13 @@ class DBService {
     try {
         const snap = await getDoc(doc(db!, 'settings', 'maintenance'));
         if (snap.exists()) return snap.data() as MaintenanceSettings;
-    } catch (e) {}
+    } catch (e) {
+        console.warn("Maintenance settings fetch failed", e);
+    }
     return {
         isMaintenanceActive: false,
         expectedReturnTime: new Date(Date.now() + 86400000).toISOString(),
-        maintenanceMessage: "نقوم حالياً بتطوير أدوات المساعد الذكي والمختبر الافتراضي لتقديم تجربة تعليمية أفضل.",
+        maintenanceMessage: "نقوم حالياً بتطوير المنصة لتقديم تجربة تعليمية أفضل.",
         showCountdown: true,
         allowTeachers: false
     };
@@ -51,11 +54,24 @@ class DBService {
   subscribeToMaintenance(callback: (settings: MaintenanceSettings) => void) {
     this.checkDb();
     return onSnapshot(doc(db!, 'settings', 'maintenance'), (snap) => {
-        if (snap.exists()) callback(snap.data() as MaintenanceSettings);
+        if (snap.exists()) {
+            callback(snap.data() as MaintenanceSettings);
+        } else {
+            // الحالة الافتراضية إذا لم يكن المستند موجوداً
+            callback({
+                isMaintenanceActive: false,
+                expectedReturnTime: new Date().toISOString(),
+                maintenanceMessage: "",
+                showCountdown: false,
+                allowTeachers: true
+            });
+        }
+    }, (error) => {
+        console.error("Maintenance subscription error:", error);
     });
   }
 
-  // --- إحصائيات الطلاب الحقيقية ---
+  // --- بقية وظائف الخدمة ---
   async getStudentGradeStats() {
     this.checkDb();
     try {
@@ -75,7 +91,6 @@ class DBService {
     }
   }
 
-  // --- البحث المتقدم عن المستخدم (ID, Email, or Phone) ---
   async getUser(identifier: string): Promise<User | null> {
     this.checkDb();
     if (!identifier) return null;
@@ -99,19 +114,23 @@ class DBService {
     return null;
   }
 
-  // --- Financials & Subscriptions ---
   async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
     this.checkDb();
+    const DEFAULT_PLANS: SubscriptionPlan[] = [
+        { id: 'plan_premium', name: 'باقة التفوق (Premium)', price: 35, tier: 'premium', duration: 'term', features: ['دخول كامل لجميع الدروس', 'مشاهدة فيديوهات Veo', 'بنك الأسئلة المطور', 'تواصل مباشر مع المعلم'] },
+        { id: 'plan_basic', name: 'الباقة الأساسية (Basic)', price: 0, tier: 'free', duration: 'monthly', features: ['معاينة الوحدة الأولى', 'المساعد الذكي المحدود'] }
+    ];
+
     try {
         const snap = await getDocs(collection(db!, 'subscriptionPlans'));
         if (snap.empty) {
-            return [
-                { id: 'plan_premium', name: 'باقة التفوق (Premium)', price: 35, tier: 'premium', duration: 'term', features: ['دخول كامل لجميع الدروس', 'مشاهدة فيديوهات Veo', 'بنك الأسئلة المطور', 'تواصل مباشر مع المعلم'] },
-                { id: 'plan_basic', name: 'الباقة الأساسية (Basic)', price: 0, tier: 'free', duration: 'monthly', features: ['معاينة الوحدة الأولى', 'المساعد الذكي المحدود'] }
-            ];
+            return DEFAULT_PLANS;
         }
         return snap.docs.map(d => ({ ...d.data(), id: d.id } as SubscriptionPlan));
-    } catch (e) { return []; }
+    } catch (e) { 
+        console.warn("Could not fetch subscription plans, using defaults", e);
+        return DEFAULT_PLANS; 
+    }
   }
 
   async getPaymentSettings(): Promise<PaymentSettings> {
@@ -471,9 +490,6 @@ class DBService {
     };
   }
 
-  /**
-   * Correct implementation of saveUser with merge: true.
-   */
   async saveUser(user: User) {
     this.checkDb();
     await setDoc(doc(db!, 'users', user.uid), this.cleanData(user), { merge: true });
@@ -489,9 +505,6 @@ class DBService {
     await deleteDoc(doc(db!, 'users', uid));
   }
 
-  /**
-   * Correct implementation of saveQuiz with merge: true.
-   */
   async saveQuiz(quiz: Quiz) {
     this.checkDb();
     await setDoc(doc(db!, 'quizzes', quiz.id), this.cleanData(quiz), { merge: true });
