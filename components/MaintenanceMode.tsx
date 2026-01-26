@@ -13,7 +13,6 @@ const MaintenanceMode: React.FC = () => {
   const [isExploding, setIsExploding] = useState(false);
   
   const lastSecondRef = useRef<number>(-1);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsubscribe = dbService.subscribeToMaintenance((updated) => {
@@ -61,7 +60,7 @@ const MaintenanceMode: React.FC = () => {
 
   const animateQuantumPulse = (sec: number) => {
     // أنيميشن تبديل الرقم بنعومة ووهج
-    anime({
+    (anime as any)({
         targets: '.quantum-number',
         opacity: [0, 1],
         translateY: [20, 0],
@@ -72,7 +71,7 @@ const MaintenanceMode: React.FC = () => {
     });
 
     // نبضة حلقة الطاقة المحيطة
-    anime({
+    (anime as any)({
         targets: '.energy-ring',
         scale: [1, 1.2],
         opacity: [0.5, 0],
@@ -82,10 +81,10 @@ const MaintenanceMode: React.FC = () => {
 
     // اهتزاز خفيف يزيد مع اقتراب الصفر
     const intensity = Math.max(0.5, (60 - sec) / 10);
-    anime({
+    (anime as any)({
         targets: '.quantum-core-container',
-        translateX: () => anime.random(-intensity, intensity),
-        translateY: () => anime.random(-intensity, intensity),
+        translateX: () => (anime as any).random(-intensity, intensity),
+        translateY: () => (anime as any).random(-intensity, intensity),
         duration: 50,
         direction: 'alternate'
     });
@@ -94,7 +93,7 @@ const MaintenanceMode: React.FC = () => {
   const triggerSupernova = () => {
     setIsExploding(true);
     
-    const tl = anime.timeline({
+    const tl = (anime as any).timeline({
         easing: 'easeOutQuart'
     });
 
@@ -119,13 +118,13 @@ const MaintenanceMode: React.FC = () => {
     // 3. جزيئات السديم (Nebula Particles)
     .add({
         targets: '.stellar-particle',
-        translateX: () => anime.random(-window.innerWidth, window.innerWidth),
-        translateY: () => anime.random(-window.innerHeight, window.innerHeight),
-        scale: () => [anime.random(2, 6), 0],
+        translateX: () => (anime as any).random(-window.innerWidth, window.innerWidth),
+        translateY: () => (anime as any).random(-window.innerHeight, window.innerHeight),
+        scale: () => [(anime as any).random(2, 6), 0],
         opacity: [1, 0],
-        rotate: () => anime.random(-360, 360),
+        rotate: () => (anime as any).random(-360, 360),
         duration: 3000,
-        delay: anime.stagger(3),
+        delay: (anime as any).stagger(3),
         offset: '-=1500'
     })
     // 4. وميض التلاشي النهائي (Final Whiteout)

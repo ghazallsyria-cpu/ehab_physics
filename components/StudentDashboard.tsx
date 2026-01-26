@@ -26,17 +26,17 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
   useEffect(() => {
     loadDynamicContent();
 
-    anime({
+    (anime as any)({
       targets: '.dashboard-card',
       translateY: [50, 0],
       opacity: [0, 1],
-      delay: anime.stagger(150, {start: 300}),
+      delay: (anime as any).stagger(150, {start: 300}),
       easing: 'easeOutExpo',
       duration: 1000
     });
 
     const pointsObj = { val: 0 };
-    anime({
+    (anime as any)({
         targets: pointsObj,
         val: user.progress.points || 0,
         round: 1,

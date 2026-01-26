@@ -19,12 +19,12 @@ const AdminDashboard: React.FC = () => {
     verifyAdminRole();
 
     // أنيميشن دخول أدوات الإدارة
-    anime({
+    (anime as any)({
       targets: '.admin-tool-card',
       scale: [0.9, 1],
       opacity: [0, 1],
       translateY: [20, 0],
-      delay: anime.stagger(100),
+      delay: (anime as any).stagger(100),
       easing: 'easeOutExpo',
       duration: 800
     });

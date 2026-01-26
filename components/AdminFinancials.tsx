@@ -24,7 +24,7 @@ const AdminFinancials: React.FC = () => {
 
   const animateNumbers = (targetStats: typeof stats) => {
     const obj = { d: 0, m: 0, y: 0 };
-    anime({
+    (anime as any)({
       targets: obj,
       d: targetStats.daily,
       m: targetStats.monthly,

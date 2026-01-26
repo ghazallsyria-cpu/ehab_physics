@@ -28,28 +28,35 @@ class DBService {
     return clean;
   }
 
-  // --- 📊 إحصائيات شاملة ولحظية (V15 - Comprehensive Stats) ---
+  // --- 📊 إحصائيات شاملة ولحظية (V15 - Real-time Stats) ---
   subscribeToGlobalStats(callback: (stats: any) => void) {
     this.checkDb();
     
     // إحصائيات مجمعة
     const stats = {
         totalStudents: 0,
+        maleStudents: 0,
+        femaleStudents: 0,
         totalTeachers: 0,
         totalQuestions: 0,
         totalLessons: 0,
         totalExperiments: 0,
-        totalResources: 0,
         solvedProblems: 1420, // قيمة أساسية تعكس نشاط المركز التاريخي
         total: 0
     };
 
-    // 1. مراقبة المستخدمين
+    // 1. مراقبة المستخدمين (تحديث فوري عند أي تسجيل جديد)
     const unsubUsers = onSnapshot(collection(db!, 'users'), (snap) => {
         const users = snap.docs.map(d => d.data() as User);
-        stats.totalStudents = users.filter(u => u.role === 'student').length;
-        stats.totalTeachers = users.filter(u => u.role === 'teacher').length;
+        const students = users.filter(u => u.role === 'student');
+        const teachers = users.filter(u => u.role === 'teacher');
+        
+        stats.totalStudents = students.length;
+        stats.maleStudents = students.filter(s => s.gender === 'male').length;
+        stats.femaleStudents = students.filter(s => s.gender === 'female').length;
+        stats.totalTeachers = teachers.length;
         stats.total = stats.totalStudents + stats.totalTeachers;
+        
         callback({ ...stats });
     });
 
@@ -98,19 +105,24 @@ class DBService {
             getDocs(collection(db!, 'experiments'))
         ]);
         
+        const users = uSnap.docs.map(d => d.data() as User);
+        const students = users.filter(u => u.role === 'student');
+        
         let lessonCount = 0;
         cSnap.docs.forEach(d => (d.data() as Curriculum).units?.forEach(u => lessonCount += u.lessons?.length || 0));
 
         return {
-            totalStudents: uSnap.docs.filter(d => d.data().role === 'student').length,
-            totalTeachers: uSnap.docs.filter(d => d.data().role === 'teacher').length,
+            totalStudents: students.length,
+            maleStudents: students.filter(s => s.gender === 'male').length,
+            femaleStudents: students.filter(s => s.gender === 'female').length,
+            totalTeachers: users.filter(u => u.role === 'teacher').length,
             totalQuestions: qSnap.docs.length + 350,
             totalLessons: lessonCount + 45,
             totalExperiments: eSnap.docs.length + 12,
             solvedProblems: 1420,
-            total: uSnap.docs.length
+            total: users.length
         };
-    } catch (e) { return { totalStudents: 0, totalTeachers: 0, totalQuestions: 350, totalLessons: 45, totalExperiments: 12, total: 0, solvedProblems: 1420 }; }
+    } catch (e) { return { totalStudents: 0, maleStudents: 0, femaleStudents: 0, totalTeachers: 0, totalQuestions: 350, totalLessons: 45, totalExperiments: 12, total: 0, solvedProblems: 1420 }; }
   }
 
   // --- 🛠️ وضع الصيانة ---
@@ -355,6 +367,7 @@ class DBService {
   async saveForumSections(sections: ForumSection[]) { this.checkDb(); const batch = writeBatch(db!); const existing = await getDocs(collection(db!, 'forumSections')); existing.forEach(d => batch.delete(d.ref)); sections.forEach(sec => { const newRef = doc(collection(db!, 'forumSections')); batch.set(newRef, this.cleanData(sec)); }); await batch.commit(); }
   async updateForumPost(postId: string, updates: Partial<ForumPost>) { this.checkDb(); await updateDoc(doc(db!, 'forumPosts', postId), this.cleanData(updates)); }
   async deleteForumPost(postId: string) { this.checkDb(); await deleteDoc(doc(db!, 'forumPosts', postId)); }
+  async initializeForumSystem() { this.checkDb(); const sections = [ { title: 'القسم العام', description: 'نقاشات عامة حول العلوم والفيزياء.', order: 0, forums: [ { id: 'general-discussions', title: 'نقاشات مفتوحة', description: 'تحدث مع زملائك في أي موضوع علمي.', icon: '🌍', order: 0 } ]} ]; for (const sec of sections) await addDoc(collection(db!, 'forumSections'), sec); }
 
   // --- 🎥 الحصص المباشرة والمختبرات ---
   async getLiveSessions(): Promise<LiveSession[]> { this.checkDb(); const snap = await getDocs(collection(db!, 'liveSessions')); return snap.docs.map(d => ({ ...d.data(), id: d.id } as LiveSession)); }
