@@ -1,8 +1,7 @@
-
-import firebase from "firebase/app";
-import "firebase/firestore";
-import "firebase/auth";
-import "firebase/storage"; // Assuming storage is used via Supabase mostly, but keeping for compatibility if needed
+import firebase from "firebase/compat/app";
+import "firebase/compat/firestore";
+import "firebase/compat/auth";
+import "firebase/compat/storage"; // Assuming storage is used via Supabase mostly, but keeping for compatibility if needed
 
 // تأكد من مطابقة هذه المفاتيح مع ملف .env ومع vite.config.ts
 const firebaseConfig = {

@@ -1,7 +1,7 @@
-
 import { db } from './firebase'; 
 import { supabase } from './supabase';
-import firebase from 'firebase/app';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
 import { 
   User, Curriculum, Quiz, Question, StudentQuizAttempt, 
   AppNotification, Todo, TeacherMessage, Review, 

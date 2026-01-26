@@ -50,34 +50,29 @@ const HeroSection: React.FC = () => {
             width: 100%;
             display: flex;
             justify-content: center;
-            background-color: #000205; /* نفس لون خلفية الموقع لدمج الحواف */
+            background-color: #000205;
             padding-bottom: 20px;
         }
         .header-container {
           position: relative;
           width: 100%;
-          max-width: 1400px; /* تحديد عرض أقصى لعدم تمدد الفيديو بشكل مبالغ فيه */
-          height: 55vh;      /* تقليل الارتفاع ليكون متناسقاً */
-          max-height: 600px; /* حد أقصى للارتفاع */
-          min-height: 300px;
+          max-width: 1200px;
+          margin: 0 auto;
+          border-radius: 0 0 50px 50px;
           overflow: hidden;
-          background-color: #000;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+          background: #000;
+          /* السماح للحاوية بأخذ ارتفاع الفيديو تلقائياً */
+          height: auto;
           display: flex;
           justify-content: center;
           align-items: center;
-          border-radius: 0 0 50px 50px; /* حواف دائرية سفلية لجمالية التصميم */
-          box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-          margin: 0 auto;
         }
         .bg-video {
-          position: absolute;
-          top: 0;
-          left: 0;
           width: 100%;
-          height: 100%;
-          object-fit: cover; /* يضمن تغطية المساحة بدون فراغات سوداء */
+          height: auto; /* الحفاظ على نسبة العرض للارتفاع الأصلية */
+          display: block;
           z-index: 0;
-          opacity: 0.8;
         }
         .overlay {
           position: absolute;
@@ -85,36 +80,36 @@ const HeroSection: React.FC = () => {
           left: 0;
           width: 100%;
           height: 100%;
-          background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6));
+          background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6));
           z-index: 1;
         }
         .content {
-          position: relative;
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
           z-index: 2;
           color: white;
           text-align: center;
           width: 90%;
-          transform: translateY(10px);
         }
         .content h1 {
-          font-size: 3.5rem;
+          font-size: 3rem;
           margin-bottom: 0.5rem;
           font-weight: 900;
           line-height: 1.1;
         }
         .content p {
-            font-size: 1.25rem;
+            font-size: 1.2rem;
             font-weight: 500;
             opacity: 0.9;
         }
         @media (max-width: 768px) {
-          .header-container { 
-              height: 45vh; /* ارتفاع أصغر للموبايل */
-              border-radius: 0 0 30px 30px;
-              width: 100%;
+          .header-container {
+             border-radius: 0 0 30px 30px;
           }
-          .content h1 { font-size: 2rem; }
-          .content p { font-size: 1rem; }
+          .content h1 { font-size: 1.8rem; }
+          .content p { font-size: 0.9rem; }
         }
       `}</style>
     </>
