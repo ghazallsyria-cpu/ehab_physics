@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User, TeacherMessage, TeacherPermission } from '../types';
 import { dbService } from '../services/db';
 import { secondaryAuth } from '../services/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   Search, User as UserIcon, Shield, MessageSquare, Trash2, Save, 
   PlusCircle, UserPlus, Briefcase, GraduationCap, CheckCircle,
@@ -147,8 +147,9 @@ const AdminTeacherManager: React.FC = () => {
               throw new Error("نظام التوثيق الثانوي غير متاح. تأكد من تفعيل Firebase Auth.");
             }
             try {
-                const userCredential = await createUserWithEmailAndPassword(secondaryAuth, teacherToSave.email, password);
-                teacherToSave.uid = userCredential.user.uid;
+                // v8 syntax
+                const userCredential = await secondaryAuth.createUserWithEmailAndPassword(teacherToSave.email, password);
+                teacherToSave.uid = userCredential.user!.uid;
             } catch (authError: any) {
                 console.error("Auth Error Code:", authError.code);
                 let authMsg = 'فشل إنشاء الحساب.';

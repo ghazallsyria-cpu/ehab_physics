@@ -4,7 +4,6 @@ import { User, ViewState, Lesson, Quiz, StudentQuizAttempt, AppBranding, Mainten
 import { dbService } from './services/db';
 import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, ShieldAlert } from 'lucide-react';
 import { auth } from './services/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 // Core Components
 import Sidebar from './components/Sidebar';
@@ -94,7 +93,8 @@ const App: React.FC = () => {
 
     dbService.getAppBranding().then(setBranding);
     
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+    // Updated to v8 syntax
+    const unsubscribeAuth = auth.onAuthStateChanged(async (firebaseUser) => {
       setIsAuthLoading(true);
       if (firebaseUser) {
         dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
@@ -222,7 +222,7 @@ const App: React.FC = () => {
         onLogout={() => {
             localStorage.removeItem('ssc_maintenance_bypass_token');
             setHasBypass(false);
-            signOut(auth).then(() => setViewStack(['landing']));
+            auth.signOut().then(() => setViewStack(['landing']));
         }}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}

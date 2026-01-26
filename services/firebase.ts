@@ -1,7 +1,8 @@
 
-import { initializeApp, getApp, getApps } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import firebase from "firebase/app";
+import "firebase/firestore";
+import "firebase/auth";
+import "firebase/storage"; // Assuming storage is used via Supabase mostly, but keeping for compatibility if needed
 
 // تأكد من مطابقة هذه المفاتيح مع ملف .env ومع vite.config.ts
 const firebaseConfig = {
@@ -14,34 +15,28 @@ const firebaseConfig = {
 };
 
 // تهيئة التطبيق الأساسي
-let app;
-try {
-    if (!getApps().length) {
-        app = initializeApp(firebaseConfig);
-    } else {
-        app = getApp();
-    }
-} catch (e) {
-    console.error("Firebase Initialization Error:", e);
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
 }
 
 // تهيئة تطبيق ثانوي لإدارة عمليات Auth الخاصة بالمسؤول
 const secondaryAppName = "SecondaryAdminApp";
 let secondaryApp;
 try {
-    if (!getApps().find(a => a.name === secondaryAppName)) {
-        secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+    const existingApp = firebase.apps.find(a => a.name === secondaryAppName);
+    if (!existingApp) {
+        secondaryApp = firebase.initializeApp(firebaseConfig, secondaryAppName);
     } else {
-        secondaryApp = getApp(secondaryAppName);
+        secondaryApp = existingApp;
     }
 } catch (e) {
     console.error("Secondary Firebase App Error:", e);
 }
 
-export const db = app ? getFirestore(app) : null;
-export const auth = app ? getAuth(app) : ({} as any);
-export const secondaryAuth = secondaryApp ? getAuth(secondaryApp) : null;
+export const db = firebase.firestore();
+export const auth = firebase.auth();
+export const secondaryAuth = secondaryApp ? secondaryApp.auth() : null;
 
-const provider = new GoogleAuthProvider();
+const provider = new firebase.auth.GoogleAuthProvider();
 provider.setCustomParameters({ prompt: 'select_account' });
 export const googleProvider = provider;

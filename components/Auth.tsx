@@ -3,7 +3,6 @@ import React, { useState, useRef } from 'react';
 import { User } from '../types';
 import { dbService } from '../services/db';
 import { auth, googleProvider } from '../services/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile, signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { Phone, User as UserIcon, ShieldCheck } from 'lucide-react';
 
 interface AuthProps {
@@ -32,10 +31,10 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
     try {
       let user: User | null = null;
       if (isRegistering) {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(userCredential.user, { displayName: name });
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        await userCredential.user?.updateProfile({ displayName: name });
         const newUser: User = {
-            uid: userCredential.user.uid, 
+            uid: userCredential.user!.uid, 
             name, 
             email, 
             phone: phone.trim() || undefined,
@@ -50,11 +49,12 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
         await dbService.saveUser(newUser);
         user = newUser;
       } else {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        user = await dbService.getUser(userCredential.user.uid);
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        user = await dbService.getUser(userCredential.user!.uid);
       }
       if (user) onLogin(user);
     } catch (error: any) {
+        console.error(error);
         setMessage({ text: "خطأ في البريد أو كلمة المرور.", type: 'error' });
     } finally {
         setIsLoading(false);
@@ -68,8 +68,10 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
     }
     setIsLoading(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const result = await auth.signInWithPopup(googleProvider);
       const firebaseUser = result.user;
+      if (!firebaseUser) throw new Error("No user");
+      
       let appUser = await dbService.getUser(firebaseUser.uid);
       if (!appUser) {
         const newUser: User = {
@@ -87,6 +89,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
       }
       onLogin(appUser);
     } catch (error: any) {
+      console.error(error);
       setMessage({ text: 'فشل تسجيل الدخول عبر جوجل.', type: 'error' });
     } finally {
       setIsLoading(false);
@@ -104,7 +107,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
             {message.text && (<div className={`mb-6 p-4 rounded-2xl text-xs font-bold text-center ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>{message.text}</div>)}
             
             {isResetMode ? (
-              <form onSubmit={(e) => { e.preventDefault(); /* handle reset */ }} className="space-y-4">
+              <form onSubmit={(e) => { e.preventDefault(); auth.sendPasswordResetEmail(email).then(() => setMessage({text: 'تم إرسال الرابط', type: 'success'})).catch(() => setMessage({text: 'فشل الإرسال', type: 'error'})); }} className="space-y-4">
                 <div>
                     <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label>
                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all ltr text-left" placeholder="name@example.com" />

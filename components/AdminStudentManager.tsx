@@ -2,8 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User } from '../types';
 import { dbService } from '../services/db';
-import { secondaryAuth } from '../services/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   Search, User as UserIcon, Zap, Save, RefreshCw, GraduationCap, 
   Mail, Phone, School, PlusCircle, X, KeyRound, Trash2, AlertCircle, BarChart
@@ -18,7 +16,9 @@ const AdminStudentManager: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [message, setMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [password, setPassword] = useState('');
+  
+  // Notice: Student creation doesn't use firebase auth here usually, but if needed, use secondaryAuth as well.
+  // The current implementation seems to just edit profile data. Assuming no auth creation logic needed here for now.
 
   const [editForm, setEditForm] = useState<Partial<User>>({});
 
