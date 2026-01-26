@@ -55,22 +55,23 @@ const HeroSection: React.FC = () => {
         }
         .header-container {
           position: relative;
-          width: 100%;
-          max-width: 1200px;
+          width: 95%; /* عرض 95% لإعطاء هامش بسيط جميل على الشاشات الكبيرة */
+          max-width: 1100px; /* تقليل العرض الأقصى لتركيز المحتوى */
+          height: 550px; /* تثبيت الارتفاع للكمبيوتر لكي لا يكون الفيديو ضخماً جداً */
           margin: 0 auto;
           border-radius: 0 0 50px 50px;
           overflow: hidden;
           box-shadow: 0 20px 50px rgba(0,0,0,0.5);
           background: #000;
-          /* السماح للحاوية بأخذ ارتفاع الفيديو تلقائياً */
-          height: auto;
           display: flex;
           justify-content: center;
           align-items: center;
         }
         .bg-video {
           width: 100%;
-          height: auto; /* الحفاظ على نسبة العرض للارتفاع الأصلية */
+          height: 100%; /* ملء الحاوية بالكامل */
+          object-fit: cover; /* قص الأطراف الزائدة للحفاظ على التناسق */
+          object-position: center 20%; /* تركيز الفيديو (تحريكه للأعلى قليلاً إذا لزم الأمر) */
           display: block;
           z-index: 0;
         }
@@ -106,10 +107,13 @@ const HeroSection: React.FC = () => {
         }
         @media (max-width: 768px) {
           .header-container {
+             width: 100%; /* عرض كامل للموبايل */
+             height: 50vh; /* نصف ارتفاع الشاشة للموبايل (مظهر مثالي) */
+             max-height: 600px;
              border-radius: 0 0 30px 30px;
           }
-          .content h1 { font-size: 1.8rem; }
-          .content p { font-size: 0.9rem; }
+          .content h1 { font-size: 2rem; }
+          .content p { font-size: 1rem; }
         }
       `}</style>
     </>
