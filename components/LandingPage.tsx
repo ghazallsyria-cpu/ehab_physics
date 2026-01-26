@@ -2,18 +2,26 @@
 import React, { useEffect, useRef, useState } from 'react';
 import anime from 'animejs';
 import { dbService } from '../services/db';
-import { ChevronLeft, GraduationCap, Users, RefreshCw, UserCheck, Briefcase, User, Target, Zap, Activity } from 'lucide-react';
+import { ChevronLeft, GraduationCap, Users, RefreshCw, UserCheck, Briefcase, User, Target, Zap, Activity, BookOpen, FlaskConical, HelpCircle } from 'lucide-react';
 
 interface LandingPageProps {
   onStart: () => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
-  const [stats, setStats] = useState({ totalStudents: 0, maleStudents: 0, femaleStudents: 0, totalTeachers: 0, total: 0 });
+  const [stats, setStats] = useState({ 
+    totalStudents: 0, 
+    totalTeachers: 0, 
+    totalQuestions: 350, 
+    totalLessons: 45, 
+    totalExperiments: 12, 
+    solvedProblems: 1420,
+    total: 0 
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 📡 الاشتراك في الإحصائيات اللحظية (V14)
+    // 📡 الاشتراك في الإحصائيات اللحظية الشاملة (V15)
     const unsubscribe = dbService.subscribeToGlobalStats((updatedStats) => {
         setStats(updatedStats);
         setIsLoading(false);
@@ -70,18 +78,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                 val: value,
                 round: 1,
                 easing: 'easeOutExpo',
-                duration: 2000,
+                duration: 2500,
                 update: () => {
                     if (counterRef.current) counterRef.current.innerText = obj.val.toLocaleString();
                 }
             });
-            // إذا زادت القيمة (نشاط جديد)، أضف تأثير نبضة لوني
+            // إذا زادت القيمة، أضف تأثير نبضة
             if (value > prevValue.current) {
                 anime({
                     targets: counterRef.current,
-                    scale: [1, 1.2, 1],
+                    scale: [1, 1.1, 1],
                     color: ['#fff', '#38bdf8', '#fff'],
-                    duration: 800,
+                    duration: 1000,
                     easing: 'easeOutElastic(1, .5)'
                 });
             }
@@ -94,18 +102,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
             <div className={`absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-700 blur-[60px] ${glowColor}`}></div>
             
             <div className="relative bg-[#050a10]/80 backdrop-blur-3xl rounded-[44px] p-8 md:p-10 h-full border border-white/5 flex flex-col items-center text-center">
-                <div className={`relative w-20 h-20 mb-8 flex items-center justify-center rounded-[30px] ${color} shadow-2xl group-hover:rotate-[10deg] transition-all duration-500`}>
+                <div className={`relative w-16 h-16 mb-8 flex items-center justify-center rounded-[25px] ${color} shadow-2xl group-hover:rotate-[10deg] transition-all duration-500`}>
                     <div className="absolute inset-0 opacity-40 blur-xl bg-inherit rounded-full animate-pulse"></div>
-                    <Icon size={32} className="text-white relative z-10" />
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full border-4 border-[#050a10] group-hover:scale-125 transition-transform"></div>
+                    <Icon size={28} className="text-white relative z-10" />
                 </div>
 
                 <div className="space-y-1">
                     <div className="flex items-center justify-center gap-1">
-                        <span ref={counterRef} className="text-5xl md:text-6xl font-black text-white tabular-nums tracking-tighter">0</span>
-                        <span className="text-2xl font-black text-blue-400 mb-4 animate-bounce">+</span>
+                        <span ref={counterRef} className="text-4xl md:text-5xl font-black text-white tabular-nums tracking-tighter">0</span>
+                        <span className="text-xl font-black text-blue-400 mb-4 animate-bounce">+</span>
                     </div>
-                    <h4 className="text-[11px] font-black text-gray-500 uppercase tracking-[0.4em] mt-2 group-hover:text-blue-400 transition-colors">{label}</h4>
+                    <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em] mt-2 group-hover:text-blue-400 transition-colors">{label}</h4>
                 </div>
 
                 <div className="mt-8 w-12 h-1 bg-white/5 rounded-full overflow-hidden">
@@ -124,24 +131,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
           <div className="absolute bottom-[-5%] left-[-5%] w-[500px] h-[500px] bg-amber-600/5 rounded-full blur-[120px]"></div>
       </div>
 
-      <div className="hero-container relative z-10 text-center flex flex-col items-center px-6 pt-20">
+      <div className="hero-container relative z-10 text-center flex flex-col items-center px-6 pt-20 w-full">
         
-        <div className="logo-system relative w-[280px] h-[280px] flex justify-center items-center mb-12">
+        <div className="logo-system relative w-[240px] h-[240px] flex justify-center items-center mb-10">
             <div className="absolute inset-0 border-2 border-blue-500/10 rounded-full animate-spin-slow"></div>
             <div className="absolute inset-4 border border-blue-400/5 rounded-full animate-reverse-spin"></div>
             <img 
               src="https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png" 
-              className="logo-main w-[180px] h-[180px] rounded-full z-10 opacity-0 shadow-[0_0_100px_rgba(56,189,248,0.2)] border-4 border-white/5" 
+              className="logo-main w-[160px] h-[160px] rounded-full z-10 opacity-0 shadow-[0_0_100px_rgba(56,189,248,0.2)] border-4 border-white/5" 
               alt="SSC Logo"
             />
         </div>
 
-        <div className="space-y-6 mb-20">
+        <div className="space-y-6 mb-16">
             <h1 className="title-reveal text-6xl md:text-9xl font-black text-white leading-none tracking-tighter opacity-0">
                 فيزياء <span className="text-transparent bg-clip-text bg-gradient-to-l from-blue-400 to-cyan-300">الكويت</span>
             </h1>
             <p className="title-reveal text-xl md:text-3xl text-slate-500 font-bold tracking-widest italic opacity-0">
-                المركز السوري للعلوم • الريادة في التعليم الرقمي
+                المركز السوري للعلوم • دليلك الشامل للتفوق
             </p>
         </div>
         
@@ -156,41 +163,41 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
             <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6 px-4">
                 <div className="text-right">
                     <div className="inline-flex items-center gap-3 px-6 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-[10px] font-black text-blue-400 uppercase tracking-[0.5em] mb-6">
-                       <Activity size={14} className="animate-pulse" /> Live Cloud Node Active
+                       <Activity size={14} className="animate-pulse" /> Live Digital Content Stream
                     </div>
-                    <h2 className="text-5xl md:text-7xl font-black text-white italic leading-none tracking-tighter">النمو <span className="text-blue-500">الرقمي</span></h2>
-                    <p className="text-gray-600 mt-4 font-bold text-xl">مراقبة حية لأعداد المجتمع التعليمي</p>
+                    <h2 className="text-5xl md:text-7xl font-black text-white italic leading-none tracking-tighter">النبض <span className="text-blue-500">العلمي</span></h2>
+                    <p className="text-gray-600 mt-4 font-bold text-xl">مكتبة رقمية ضخمة تنمو كل ثانية</p>
                 </div>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 px-4">
                 <StatCard 
-                    value={stats.maleStudents} 
-                    label="الطلاب (بنين)" 
-                    icon={User} 
+                    value={stats.solvedProblems} 
+                    label="مسألة محلولة" 
+                    icon={Target} 
                     color="bg-gradient-to-br from-blue-600 to-blue-400" 
                     glowColor="bg-blue-500"
                 />
                 <StatCard 
-                    value={stats.femaleStudents} 
-                    label="الطالبات (بنات)" 
-                    icon={User} 
-                    color="bg-gradient-to-br from-pink-600 to-pink-400" 
-                    glowColor="bg-pink-500"
-                />
-                <StatCard 
-                    value={stats.totalTeachers} 
-                    label="الطاقم الأكاديمي" 
-                    icon={Briefcase} 
+                    value={stats.totalQuestions} 
+                    label="سؤال بالبنك" 
+                    icon={HelpCircle} 
                     color="bg-gradient-to-br from-amber-600 to-amber-400" 
                     glowColor="bg-amber-500"
                 />
                 <StatCard 
-                    value={stats.totalStudents} 
-                    label="إجمالي المسجلين" 
-                    icon={UserCheck} 
+                    value={stats.totalLessons} 
+                    label="درس تفاعلي" 
+                    icon={BookOpen} 
                     color="bg-gradient-to-br from-emerald-600 to-emerald-400" 
                     glowColor="bg-emerald-500"
+                />
+                <StatCard 
+                    value={stats.totalExperiments} 
+                    label="مختبر افتراضي" 
+                    icon={FlaskConical} 
+                    color="bg-gradient-to-br from-purple-600 to-purple-400" 
+                    glowColor="bg-purple-500"
                 />
             </div>
             
@@ -198,9 +205,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                 <div className="bg-[#050a10]/60 backdrop-blur-2xl rounded-[49px] p-10 flex flex-col md:flex-row items-center justify-center gap-12 border border-white/5">
                     <div className="flex items-center gap-6">
                         <div className="w-16 h-16 bg-white/5 rounded-3xl flex items-center justify-center text-blue-400 border border-white/10 shadow-inner">
-                            <Zap size={32} fill="currentColor" className="animate-pulse" />
+                            <Users size={32} fill="currentColor" className="animate-pulse" />
                         </div>
-                        <p className="text-gray-400 font-black text-2xl uppercase tracking-widest">المجتمع النشط:</p>
+                        <p className="text-gray-400 font-black text-2xl uppercase tracking-widest">مجتمع المبدعين:</p>
                     </div>
                     
                     <div className="flex items-baseline gap-4">
@@ -209,12 +216,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                         ) : (
                           <div className="flex flex-col items-center">
                             <span className="text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-600 tabular-nums leading-none tracking-tighter">
-                                {stats.total}
+                                {stats.totalStudents}
                             </span>
                             <div className="w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent mt-2"></div>
                           </div>
                         )}
-                        <span className="text-2xl font-black text-blue-400 uppercase tracking-[0.5em]">Member</span>
+                        <span className="text-2xl font-black text-blue-400 uppercase tracking-[0.5em]">Students Enrolled</span>
                     </div>
                 </div>
             </div>
@@ -235,6 +242,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         }
         .animate-reverse-spin {
             animation: reverse-spin 15s linear infinite;
+        }
+        .text-glow {
+            text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
         }
       `}</style>
     </div>
