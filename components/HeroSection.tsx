@@ -37,11 +37,6 @@ const HeroSection: React.FC = () => {
             >
             <source src="https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769360535528_Ehab.mp4" type="video/mp4" />
             </video>
-            <div className="overlay"></div>
-            <div className="content font-['Tajawal']">
-            <h1 className="text-white drop-shadow-lg">منصتك هنا</h1>
-            <p className="text-gray-200 drop-shadow-md">مرحباً بك في المستقبل</p>
-            </div>
         </div>
       </div>
 
@@ -51,69 +46,36 @@ const HeroSection: React.FC = () => {
             display: flex;
             justify-content: center;
             background-color: #000205;
-            padding-bottom: 20px;
+            padding-bottom: 30px;
+            padding-top: 10px;
         }
         .header-container {
           position: relative;
-          width: 95%; /* عرض 95% لإعطاء هامش بسيط جميل على الشاشات الكبيرة */
-          max-width: 1100px; /* تقليل العرض الأقصى لتركيز المحتوى */
-          height: 550px; /* تثبيت الارتفاع للكمبيوتر لكي لا يكون الفيديو ضخماً جداً */
+          width: 90%; /* عرض مرن */
+          max-width: 900px; /* تحديد عرض أقصى مريح للعين على الكمبيوتر */
           margin: 0 auto;
-          border-radius: 0 0 50px 50px;
+          border-radius: 30px; /* حواف دائرية أنيقة للفيديو */
           overflow: hidden;
-          box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+          box-shadow: 0 20px 60px rgba(0,0,0,0.6); /* ظل لإبراز الفيديو */
           background: #000;
           display: flex;
           justify-content: center;
           align-items: center;
+          line-height: 0; /* إزالة الفراغات السفلية */
         }
         .bg-video {
           width: 100%;
-          height: 100%; /* ملء الحاوية بالكامل */
-          object-fit: cover; /* قص الأطراف الزائدة للحفاظ على التناسق */
-          object-position: center 20%; /* تركيز الفيديو (تحريكه للأعلى قليلاً إذا لزم الأمر) */
+          height: auto; /* الحفاظ على الأبعاد الطبيعية للفيديو */
+          max-height: 80vh; /* ضمان عدم تجاوز ارتفاع الشاشة */
+          object-fit: contain; /* يضمن ظهور الفيديو بالكامل دون قص */
           display: block;
-          z-index: 0;
         }
-        .overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6));
-          z-index: 1;
-        }
-        .content {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          z-index: 2;
-          color: white;
-          text-align: center;
-          width: 90%;
-        }
-        .content h1 {
-          font-size: 3rem;
-          margin-bottom: 0.5rem;
-          font-weight: 900;
-          line-height: 1.1;
-        }
-        .content p {
-            font-size: 1.2rem;
-            font-weight: 500;
-            opacity: 0.9;
-        }
+        
         @media (max-width: 768px) {
           .header-container {
-             width: 100%; /* عرض كامل للموبايل */
-             height: 50vh; /* نصف ارتفاع الشاشة للموبايل (مظهر مثالي) */
-             max-height: 600px;
-             border-radius: 0 0 30px 30px;
+             width: 95%; /* استغلال مساحة أكبر على الموبايل */
+             border-radius: 20px;
           }
-          .content h1 { font-size: 2rem; }
-          .content p { font-size: 1rem; }
         }
       `}</style>
     </>
