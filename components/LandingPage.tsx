@@ -122,14 +122,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   return (
     <div className="relative min-h-screen w-full bg-[#000] overflow-x-hidden flex flex-col font-['Tajawal'] text-right" dir="rtl">
       
-      {/* 1. Hero Section New Implementation */}
+      {/* 1. Hero Section (Video) */}
       <HeroSection />
 
-      {/* 2. Content Container */}
+      {/* 2. Content Container (Ads & Stats) */}
       <div className="relative z-10 w-full flex flex-col items-center pb-40">
         
-        {/* زر الدخول للمنصة */}
-        <div className="enter-button-container opacity-0 -mt-10 mb-20 z-20">
+        {/* زر الدخول للمنصة - تم تعديل الهوامش ليكون أسفل الفيديو مباشرة */}
+        <div className="enter-button-container opacity-0 mt-8 mb-24 z-20">
             <button onClick={onStart} className="group relative px-16 py-6 bg-[#000205] overflow-hidden border border-[#38bdf8]/50 text-[#38bdf8] rounded-full font-black text-xl uppercase transition-all duration-500 hover:text-black shadow-[0_0_40px_rgba(56,189,248,0.2)] hover:shadow-[0_0_60px_rgba(56,189,248,0.5)] active:scale-95">
               <span className="absolute inset-0 w-full h-full bg-[#38bdf8] -translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-out"></span>
               <span className="relative z-10 flex items-center gap-4">
@@ -139,13 +139,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         </div>
 
         {/* Background Elements for Stats Section */}
-        <div className="absolute inset-0 pointer-events-none top-[50vh]">
+        <div className="absolute inset-0 pointer-events-none top-[20vh]">
             <div className="particles absolute inset-0 z-0"></div>
             <div className="absolute top-0 right-[-10%] w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[150px]"></div>
             <div className="absolute bottom-0 left-[-5%] w-[500px] h-[500px] bg-amber-600/5 rounded-full blur-[120px]"></div>
         </div>
 
-        <div className="w-full max-w-7xl mx-auto px-6">
+        <div className="w-full max-w-7xl mx-auto px-6 relative z-10">
             <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6 px-4">
                 <div className="text-right">
                     <div className="inline-flex items-center gap-3 px-6 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-[10px] font-black text-blue-400 uppercase tracking-[0.5em] mb-6">
@@ -156,6 +156,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                 </div>
             </div>
             
+            {/* Grid for Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 px-4">
                 <StatCard 
                     value={stats.maleStudents} 
@@ -187,6 +188,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                 />
             </div>
             
+            {/* "Live Community" Large Card */}
             <div className="stats-card-main mt-16 p-1 bg-gradient-to-r from-blue-500/20 via-transparent to-amber-500/20 rounded-[50px] opacity-0">
                 <div className="bg-[#050a10]/60 backdrop-blur-2xl rounded-[49px] p-10 flex flex-col md:flex-row items-center justify-center gap-12 border border-white/5">
                     <div className="flex items-center gap-6">

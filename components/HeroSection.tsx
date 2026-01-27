@@ -10,7 +10,6 @@ const HeroSection: React.FC = () => {
       // محاولة التشغيل التلقائي
       video.play().catch(err => console.log("Autoplay prevented, waiting for interaction", err));
       
-      // التعامل مع سياسات المتصفح التي تتطلب تفاعل المستخدم
       const handleInteraction = () => {
         if (video.paused) {
             video.play();
@@ -23,62 +22,25 @@ const HeroSection: React.FC = () => {
   }, []);
 
   return (
-    <>
-      <div className="header-wrapper">
-        <div className="header-container">
-            <video 
-                ref={videoRef} 
-                className="bg-video" 
-                autoPlay 
-                loop 
-                muted 
-                playsInline 
-                webkit-playsinline="true"
-            >
-            <source src="https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769360535528_Ehab.mp4" type="video/mp4" />
-            </video>
-        </div>
-      </div>
+    <div className="w-full flex justify-center py-8 md:py-12 px-4 relative z-0">
+      {/* خلفية جمالية خفيفة خلف الفيديو */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-blue-500/10 blur-[100px] rounded-full pointer-events-none"></div>
 
-      <style>{`
-        .header-wrapper {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            background-color: #000;
-            padding-bottom: 30px;
-            padding-top: 10px;
-        }
-        .header-container {
-          position: relative;
-          width: 90%; /* عرض مرن */
-          max-width: 900px; /* تحديد عرض أقصى مريح للعين على الكمبيوتر */
-          margin: 0 auto;
-          border-radius: 30px; /* حواف دائرية أنيقة للفيديو */
-          overflow: hidden;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.6); /* ظل لإبراز الفيديو */
-          background: #000;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          line-height: 0; /* إزالة الفراغات السفلية */
-        }
-        .bg-video {
-          width: 100%;
-          height: auto; /* الحفاظ على الأبعاد الطبيعية للفيديو */
-          max-height: 80vh; /* ضمان عدم تجاوز ارتفاع الشاشة */
-          object-fit: contain; /* يضمن ظهور الفيديو بالكامل دون قص */
-          display: block;
-        }
-        
-        @media (max-width: 768px) {
-          .header-container {
-             width: 95%; /* استغلال مساحة أكبر على الموبايل */
-             border-radius: 20px;
-          }
-        }
-      `}</style>
-    </>
+      <div className="relative w-full max-w-5xl aspect-video rounded-[30px] md:rounded-[50px] overflow-hidden border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.5)] bg-black">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent z-10 pointer-events-none"></div>
+          <video 
+              ref={videoRef} 
+              className="w-full h-full object-cover" 
+              autoPlay 
+              loop 
+              muted 
+              playsInline 
+              webkit-playsinline="true"
+          >
+          <source src="https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769360535528_Ehab.mp4" type="video/mp4" />
+          </video>
+      </div>
+    </div>
   );
 };
 
