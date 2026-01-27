@@ -30,7 +30,7 @@ const HeroSection: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent z-10 pointer-events-none"></div>
           <video 
               ref={videoRef} 
-              className="w-full h-full object-cover" 
+              className="w-full h-full object-contain" 
               autoPlay 
               loop 
               muted 
