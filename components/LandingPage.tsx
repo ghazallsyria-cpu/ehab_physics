@@ -120,7 +120,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#000205] overflow-x-hidden flex flex-col font-['Tajawal'] text-right" dir="rtl">
+    <div className="relative min-h-screen w-full bg-[#000] overflow-x-hidden flex flex-col font-['Tajawal'] text-right" dir="rtl">
       
       {/* 1. Hero Section New Implementation */}
       <HeroSection />

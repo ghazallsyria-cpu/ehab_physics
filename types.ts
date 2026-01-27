@@ -91,7 +91,7 @@ export interface ContentBlock {
   caption?: string;
 }
 
-export type ContentBlockType = 'text' | 'image' | 'video' | 'pdf' | 'youtube' | 'audio';
+export type ContentBlockType = 'text' | 'image' | 'video' | 'pdf' | 'youtube' | 'audio' | 'html';
 
 export interface Unit {
   id: string;

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Lesson, User, ContentBlock } from '../types';
 import { dbService } from '../services/db';
@@ -118,6 +119,31 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
           </div>
         );
         
+      case 'html':
+        return (
+          <div key={index} className="my-12 w-full bg-black border border-white/10 rounded-[30px] overflow-hidden shadow-2xl relative group">
+             <div className="absolute top-0 left-0 bg-[#fbbf24] text-black px-3 py-1 text-[9px] font-black uppercase tracking-widest z-10 rounded-br-xl">Custom Component</div>
+             <iframe
+                srcDoc={`
+                  <!DOCTYPE html>
+                  <html dir="rtl">
+                  <head>
+                    <meta charset="UTF-8">
+                    <style>body { margin: 0; background: transparent; color: #fff; font-family: sans-serif; }</style>
+                  </head>
+                  <body>
+                    ${block.content}
+                  </body>
+                  </html>
+                `}
+                title={`Interactive Content ${index}`}
+                className="w-full h-[500px] border-none bg-transparent"
+                sandbox="allow-scripts allow-same-origin allow-popups"
+             />
+             {block.caption && <p className="p-4 bg-black/80 text-center text-gray-500 text-sm italic">{block.caption}</p>}
+          </div>
+        );
+
       default:
         return null;
     }

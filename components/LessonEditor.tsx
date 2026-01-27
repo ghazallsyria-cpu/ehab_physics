@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { Lesson, ContentBlock, ContentBlockType } from '../types';
-import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio, CheckCircle, AlertTriangle, Code } from 'lucide-react';
 import YouTubePlayer from './YouTubePlayer';
 import { dbService } from '../services/db';
 
@@ -117,10 +118,25 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
                     {block.type === 'youtube' && <Youtube size={12}/>}
                     {block.type === 'pdf' && <FileText size={12}/>}
                     {block.type === 'audio' && <FileAudio size={12}/>}
+                    {block.type === 'html' && <Code size={12}/>}
                     {block.type} Content
                 </label>
+                
                 {block.type === 'text' ? (
                   <textarea value={block.content} onChange={e => updateBlock(index, {...block, content: e.target.value})} placeholder="اكتب الشرح هنا (يدعم Markdown والمعادلات)..." className="w-full h-32 bg-black/40 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-white/20"/>
+                ) : block.type === 'html' ? (
+                  <div className="space-y-2">
+                      <div className="text-[10px] text-gray-500 flex items-center gap-2">
+                          <AlertTriangle size={12} className="text-amber-500" />
+                          <span>يدعم HTML/CSS/JS. يمكنك استخدام روابط خارجية مثل: &lt;script src="https://..."&gt;</span>
+                      </div>
+                      <textarea 
+                        value={block.content} 
+                        onChange={e => updateBlock(index, {...block, content: e.target.value})} 
+                        placeholder="<div>...</div> <style>...</style> <script>...</script>" 
+                        className="w-full h-48 bg-black/60 border border-white/10 rounded-lg p-3 text-green-400 font-mono text-sm outline-none focus:border-white/20 ltr text-left"
+                      />
+                  </div>
                 ) : (block.type === 'image' || block.type === 'video' || block.type === 'pdf' || block.type === 'audio') ? (
                   <div className="bg-black/20 p-4 rounded-lg border border-white/5">
                     {(() => {
@@ -254,6 +270,7 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
             <button onClick={() => addBlock('youtube')} className="flex items-center gap-2 text-xs font-bold px-4 py-2 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20"><Youtube size={14}/> إضافة فيديو يوتيوب</button>
             <button onClick={() => addBlock('pdf')} className="flex items-center gap-2 text-xs font-bold px-4 py-2 bg-white/5 rounded-lg border border-white/10"><FileText size={14}/> إضافة PDF</button>
             <button onClick={() => addBlock('audio')} className="flex items-center gap-2 text-xs font-bold px-4 py-2 bg-purple-500/10 text-purple-400 rounded-lg border border-purple-500/20"><FileAudio size={14}/> إضافة صوت</button>
+            <button onClick={() => addBlock('html')} className="flex items-center gap-2 text-xs font-bold px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20"><Code size={14}/> كود HTML مخصص</button>
         </div>
       </div>
     </div>

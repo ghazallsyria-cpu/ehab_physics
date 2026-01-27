@@ -45,7 +45,7 @@ const HeroSection: React.FC = () => {
             width: 100%;
             display: flex;
             justify-content: center;
-            background-color: #000205;
+            background-color: #000;
             padding-bottom: 30px;
             padding-top: 10px;
         }
