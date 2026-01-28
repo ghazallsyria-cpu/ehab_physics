@@ -27,6 +27,7 @@ class DBService {
 
   // --- 📊 إحصائيات شاملة ولحظية (V15 - Real-time Stats) ---
   subscribeToGlobalStats(callback: (stats: any) => void) {
+    // If DB is missing, return a dummy unsubscribe function
     if (!db) return () => {};
     
     // إحصائيات مجمعة أولية
@@ -45,7 +46,7 @@ class DBService {
     // دالة للتعامل مع السيناريوهات التي لا يملك فيها الزائر صلاحية القراءة (مثل الصفحة الرئيسية قبل الدخول)
     // في هذه الحالة نعرض بيانات "وهمية" واقعية لغرض العرض التسويقي
     const handlePermissionError = (err: any) => {
-        console.log("Using demo stats due to:", err.code);
+        // console.log("Using demo stats due to:", err.code); // Suppress log for cleaner console
         callback({
             totalStudents: 1250,
             maleStudents: 600,
@@ -182,13 +183,33 @@ class DBService {
     }
     
     try {
-        return db.collection('settings').doc('maintenance').onSnapshot((snap) => {
+        // Use a timeout to ensure callback fires even if DB is slow
+        let hasCalledBack = false;
+        
+        // Immediate fallback in case connection takes too long
+        const fallbackTimer = setTimeout(() => {
+            if(!hasCalledBack) {
+                callback(defaults);
+                hasCalledBack = true;
+            }
+        }, 2000);
+
+        const unsub = db.collection('settings').doc('maintenance').onSnapshot((snap) => {
+            hasCalledBack = true;
+            clearTimeout(fallbackTimer);
             if (snap.exists) {
                 callback({ ...defaults, ...snap.data() } as MaintenanceSettings);
             } else {
                 callback(defaults);
             }
-        }, () => callback(defaults));
+        }, (error) => {
+            // Permission denied or other error
+            hasCalledBack = true;
+            clearTimeout(fallbackTimer);
+            callback(defaults);
+        });
+        
+        return unsub;
     } catch (e) {
         callback(defaults);
         return () => {};

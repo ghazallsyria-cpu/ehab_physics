@@ -74,11 +74,18 @@ const App: React.FC = () => {
 
   const QUANTUM_BYPASS_KEY = 'ssc_core_secure_v4_8822';
 
-  // 🔥 SAFETY TIMEOUT: Force stop loading after 3 seconds if DB is slow
+  // 🔥 SAFETY TIMEOUT: Force stop loading after 2.5 seconds if DB is slow
+  // This prevents the "White Screen of Death" caused by hanging promises
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
-        if (isAuthLoading) setIsAuthLoading(false);
-        if (isMaintenanceLoading) setIsMaintenanceLoading(false);
+        if (isAuthLoading) {
+            console.warn("Forcing Auth Load Complete due to timeout");
+            setIsAuthLoading(false);
+        }
+        if (isMaintenanceLoading) {
+            console.warn("Forcing Maintenance Load Complete due to timeout");
+            setIsMaintenanceLoading(false);
+        }
     }, 2500);
     return () => clearTimeout(safetyTimer);
   }, [isAuthLoading, isMaintenanceLoading]);
@@ -106,8 +113,14 @@ const App: React.FC = () => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (firebaseUser) => {
       setIsAuthLoading(true);
       if (firebaseUser) {
+        // We have a firebase user, let's get the DB user
         dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
-            if (updatedUser) setUser(updatedUser);
+            if (updatedUser) {
+                setUser(updatedUser);
+            } else {
+                // User authenticated in Firebase but no document in DB yet?
+                // Might be a new user or sync issue.
+            }
             setIsAuthLoading(false);
         });
       } else {
@@ -145,6 +158,7 @@ const App: React.FC = () => {
   }, []);
 
   const renderContent = () => {
+    // If loading is taking place, show the spinner
     if (isAuthLoading || isMaintenanceLoading) return (
       <div className="flex flex-col items-center justify-center h-screen gap-6 bg-[#000407]">
         <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />

@@ -20,7 +20,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         setIsLoading(false);
     });
 
-    // ✨ أنيميشن الخلفية
+    // ✨ أنيميشن الخلفية (تم فصل منطق الظهور لضمان استقرار العناصر الأساسية)
     try {
         const particlesContainer = document.querySelector('.particles');
         if (particlesContainer) {
@@ -43,24 +43,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
           }
         }
 
-        // تحريك العناصر بدلاً من إخفائها أولاً
-        const tl = (anime as any).timeline({ easing: 'easeOutExpo' });
-        tl.add({ 
+        // تحريك البطاقات فقط، زر الدخول يظهر تلقائياً عبر CSS
+        (anime as any)({
             targets: '.stats-card-main', 
-            scale: [0.9, 1], // تأثير تكبير بسيط بدلاً من الشفافية الكاملة
-            opacity: [0.5, 1],
+            scale: [0.95, 1],
+            opacity: [0, 1], // يبدأ من 0 لكنه يتحول لـ 1 بسرعة، وفي حال الفشل CSS يضمن الظهور
             translateY: [20, 0], 
             delay: (anime as any).stagger(150), 
-            duration: 800 
-          })
-          .add({
-            targets: '.enter-button-container',
-            scale: [0.9, 1],
-            opacity: [0, 1],
-            duration: 600
-          }, '-=400');
+            duration: 800,
+            easing: 'easeOutExpo'
+        });
+
     } catch (e) {
-        console.warn("Animation failed, elements should still be visible.", e);
+        console.warn("Animation system warning:", e);
     }
 
     return () => unsubscribe();
@@ -137,15 +132,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                </div>
             </div>
 
-            <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter mb-6 drop-shadow-2xl leading-none">
+            <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter mb-6 drop-shadow-2xl leading-none animate-slideUp">
                 الفيزياء <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">الحديثة</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 font-medium max-w-2xl leading-relaxed drop-shadow-md mb-12">
+            <p className="text-xl md:text-2xl text-gray-300 font-medium max-w-2xl leading-relaxed drop-shadow-md mb-12 animate-slideUp" style={{animationDelay: '0.2s'}}>
                 منصة تعليمية متطورة تدمج الذكاء الاصطناعي مع المنهج الكويتي لتجربة تعليمية لا مثيل لها.
             </p>
 
-            {/* زر الدخول للمنصة - تمت إزالة opacity-0 لضمان ظهوره */}
-            <div className="enter-button-container">
+            {/* زر الدخول للمنصة - بدون تعقيد JS */}
+            <div className="enter-button-container animate-slideUp" style={{animationDelay: '0.4s'}}>
                 <button onClick={onStart} className="group relative px-16 py-6 bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-full font-black text-xl uppercase transition-all duration-500 hover:bg-[#38bdf8] hover:text-black hover:border-[#38bdf8] shadow-[0_0_40px_rgba(56,189,248,0.2)] hover:shadow-[0_0_80px_rgba(56,189,248,0.6)] active:scale-95">
                 <span className="relative z-10 flex items-center gap-4">
                     دخول المنصة <ChevronLeft className="group-hover:-translate-x-2 transition-transform duration-300" size={24} />
@@ -209,7 +204,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                     />
                 </div>
                 
-                {/* "Live Community" Large Card - Removed opacity-0 */}
+                {/* "Live Community" Large Card */}
                 <div className="stats-card-main mt-16 p-1 bg-gradient-to-r from-blue-500/20 via-transparent to-amber-500/20 rounded-[50px]">
                     <div className="bg-[#050a10]/60 backdrop-blur-2xl rounded-[49px] p-10 flex flex-col md:flex-row items-center justify-center gap-12 border border-white/5">
                         <div className="flex items-center gap-6">
