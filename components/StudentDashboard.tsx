@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { User, HomePageContent } from '../types';
 import { dbService } from '../services/db';
-import { ArrowRight, Map, Trophy, BookOpen, Star, Zap, Crown, Smartphone, UserCircle, Save, X, CheckCircle2, RefreshCw, Megaphone, AlertTriangle, ExternalLink } from 'lucide-react';
+import { ArrowRight, Map, Trophy, BookOpen, Star, Zap, Crown, Smartphone, UserCircle, Save, X, CheckCircle2, RefreshCw, Megaphone, AlertTriangle, ExternalLink, Sparkles } from 'lucide-react';
 import anime from 'animejs';
 
 interface StudentDashboardProps {
@@ -139,6 +139,18 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
                 <span className="text-xl font-black text-white tabular-nums">{progressData.points} <span className="text-xs text-amber-400/60 mr-1">نقطة</span></span>
              </div>
          </div>
+      </div>
+
+      {/* New Template Promo Card */}
+      <div className="dashboard-card bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-2 border-purple-500/30 p-8 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-6 opacity-0 shadow-2xl">
+          <div className="flex items-center gap-6">
+              <div className="w-16 h-16 bg-purple-500 rounded-3xl flex items-center justify-center text-white shadow-lg"><Sparkles size={32} /></div>
+              <div>
+                  <h4 className="text-2xl font-black text-white">تجربة الدرس التفاعلي الشامل</h4>
+                  <p className="text-gray-400 text-sm mt-1">اكتشف نموذج الجيل القادم للدروس مع المحاكاة الحية والرسم البياني.</p>
+              </div>
+          </div>
+          <button onClick={() => navigate('template-demo')} className="bg-white text-purple-600 px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl whitespace-nowrap">عرض النموذج الآن</button>
       </div>
 
       {isProfileIncomplete && (

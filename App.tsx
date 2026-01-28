@@ -49,6 +49,7 @@ const AdminPaymentManager = lazy(() => import('./components/AdminPaymentManager'
 const AdminContentManager = lazy(() => import('./components/AdminContentManager'));
 const AdminLabManager = lazy(() => import('./components/AdminLabManager'));
 const AdminRecommendationManager = lazy(() => import('./components/AdminRecommendationManager'));
+const UniversalLesson = lazy(() => import('./components/UniversalLesson')); // Import the new template
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -197,6 +198,7 @@ const App: React.FC = () => {
       case 'admin-content': return <AdminContentManager />;
       case 'admin-labs': return <AdminLabManager />;
       case 'admin-recommendations': return <AdminRecommendationManager />;
+      case 'template-demo': return <UniversalLesson onBack={() => window.dispatchEvent(new CustomEvent('go-back'))} />;
       default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
     }
   };
@@ -229,42 +231,45 @@ const App: React.FC = () => {
       />
       
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 lg:mr-72`}>
-        <header className="sticky top-0 z-[100] bg-[#0A2540]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex justify-between items-center shadow-2xl">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 text-white bg-white/5 rounded-2xl hover:bg-white/10 transition-all"><Menu size={24} /></button>
-            {viewStack.length > 1 && currentView !== 'dashboard' ? (
-              <button onClick={() => window.dispatchEvent(new CustomEvent('go-back'))} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-[20px] transition-all border border-white/10 group">
-                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                <span className="font-bold text-sm">رجوع</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
-                    {branding.logoUrl ? <img src={branding.logoUrl} className="w-full h-full object-contain p-1" alt="Logo" /> : <LayoutDashboard size={20} className="text-amber-400" />}
+        {/* Special Header Handling for the immersive template */}
+        {currentView !== 'template-demo' && (
+          <header className="sticky top-0 z-[100] bg-[#0A2540]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex justify-between items-center shadow-2xl">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 text-white bg-white/5 rounded-2xl hover:bg-white/10 transition-all"><Menu size={24} /></button>
+              {viewStack.length > 1 && currentView !== 'dashboard' ? (
+                <button onClick={() => window.dispatchEvent(new CustomEvent('go-back'))} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-[20px] transition-all border border-white/10 group">
+                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                  <span className="font-bold text-sm">رجوع</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
+                      {branding.logoUrl ? <img src={branding.logoUrl} className="w-full h-full object-contain p-1" alt="Logo" /> : <LayoutDashboard size={20} className="text-amber-400" />}
+                  </div>
+                  <h1 className="font-black text-white text-lg tracking-tight uppercase">{branding.appName}</h1>
                 </div>
-                <h1 className="font-black text-white text-lg tracking-tight uppercase">{branding.appName}</h1>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4">
+              {hasBypass && <div className="hidden sm:flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full"><ShieldAlert size={12} className="text-amber-500"/><span className="text-[8px] font-black text-amber-500 uppercase">Admin Access Active</span></div>}
+              <div className="hidden sm:flex items-center gap-3 bg-black/20 p-2 pr-5 rounded-3xl border border-white/5 shadow-inner">
+                  <div className="text-right">
+                      <p className="text-[10px] font-black text-white leading-none truncate max-w-[80px]">{user?.name}</p>
+                      <p className="text-[8px] text-amber-500 font-bold uppercase mt-1.5">{user?.role}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-2xl bg-amber-400 flex items-center justify-center text-black font-black shadow-lg">{user?.name?.charAt(0)}</div>
               </div>
-            )}
-          </div>
+            </div>
+          </header>
+        )}
 
-          <div className="flex items-center gap-4">
-             {hasBypass && <div className="hidden sm:flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full"><ShieldAlert size={12} className="text-amber-500"/><span className="text-[8px] font-black text-amber-500 uppercase">Admin Access Active</span></div>}
-             <div className="hidden sm:flex items-center gap-3 bg-black/20 p-2 pr-5 rounded-3xl border border-white/5 shadow-inner">
-                <div className="text-right">
-                    <p className="text-[10px] font-black text-white leading-none truncate max-w-[80px]">{user?.name}</p>
-                    <p className="text-[8px] text-amber-500 font-bold uppercase mt-1.5">{user?.role}</p>
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-amber-400 flex items-center justify-center text-black font-black shadow-lg">{user?.name?.charAt(0)}</div>
-             </div>
-          </div>
-        </header>
-
-        <main className="flex-1 p-4 md:p-8 lg:p-12 w-full max-w-screen-2xl mx-auto overflow-x-hidden relative">
+        <main className={`flex-1 w-full max-w-screen-2xl mx-auto overflow-x-hidden relative ${currentView !== 'template-demo' ? 'p-4 md:p-8 lg:p-12' : ''}`}>
           <Suspense fallback={<div className="flex flex-col items-center justify-center h-[50vh] gap-4"><RefreshCw className="w-12 h-12 text-amber-400 animate-spin" /><p className="text-gray-500 text-xs font-bold uppercase">جاري عرض المحتوى...</p></div>}>
             {renderContent()}
           </Suspense>
           
-          {user?.role === 'student' && <FloatingNav />}
+          {user?.role === 'student' && currentView !== 'template-demo' && <FloatingNav />}
         </main>
       </div>
 
