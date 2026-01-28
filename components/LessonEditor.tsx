@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Lesson, ContentBlock, ContentBlockType, AILessonSchema } from '../types';
-import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio, CheckCircle, AlertTriangle, Code, Sparkles, RefreshCw } from 'lucide-react';
+import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio, CheckCircle, AlertTriangle, Code, Sparkles, RefreshCw, Upload, Link as LinkIcon } from 'lucide-react';
 import YouTubePlayer from './YouTubePlayer';
 import { dbService } from '../services/db';
 import { convertTextbookToLesson } from '../services/gemini';
@@ -33,8 +33,10 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
   // AI Import State
   const [showAIImport, setShowAIImport] = useState(false);
   const [aiInputText, setAiInputText] = useState('');
+  const [aiImage, setAiImage] = useState<string | null>(null);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const aiFileInputRef = useRef<HTMLInputElement>(null);
 
   const updateField = (field: keyof Lesson, value: any) => {
     setLesson(prev => ({ ...prev, [field]: value }));
@@ -86,12 +88,33 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
     onSave(lesson as Lesson, unitId, grade, subject);
   };
 
+  // AI Helper Functions
+  const handleAiImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setAiImage(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    }
+  };
+
   const handleAIImport = async () => {
-    if (!aiInputText.trim()) return;
+    if (!aiInputText.trim() && !aiImage) {
+        setAiError("يرجى إدخال نص أو رفع صورة للبدء.");
+        return;
+    }
+    
     setIsAiProcessing(true);
     setAiError(null);
     try {
-        const schema: AILessonSchema | null = await convertTextbookToLesson(aiInputText, grade);
+        const schema: AILessonSchema | null = await convertTextbookToLesson(
+            aiInputText, 
+            grade, 
+            aiImage || undefined
+        );
+        
         if (schema) {
             setLesson(prev => ({
                 ...prev,
@@ -104,12 +127,15 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
                 }))
             }));
             setShowAIImport(false);
+            // Reset fields
+            setAiInputText('');
+            setAiImage(null);
         } else {
-            setAiError("لم يتمكن النظام من تحليل النص. يرجى التأكد من أن النص يحتوي على معلومات فيزيائية واضحة أو إعادة صياغته.");
+            setAiError("لم يتمكن النظام من تحليل المدخلات. يرجى التأكد من وضوح النص أو الصورة.");
         }
     } catch (e) {
         console.error(e);
-        setAiError("حدث خطأ تقني أثناء الاتصال بالمحرك الذكي. يرجى المحاولة لاحقاً.");
+        setAiError("حدث خطأ تقني أثناء الاتصال بالمحرك الذكي.");
     } finally {
         setIsAiProcessing(false);
     }
@@ -312,31 +338,69 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
 
       {showAIImport && (
         <div className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
-            <div className="glass-panel w-full max-w-2xl p-10 rounded-[40px] border border-white/10 bg-[#0a1118] relative shadow-3xl">
+            <div className="glass-panel w-full max-w-3xl p-10 rounded-[40px] border border-white/10 bg-[#0a1118] relative shadow-3xl overflow-hidden flex flex-col max-h-[90vh]">
                 <button onClick={() => setShowAIImport(false)} className="absolute top-6 left-6 text-gray-500 hover:text-white p-2 bg-white/5 rounded-full"><X size={20}/></button>
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/30">
                         <Sparkles className="text-purple-400" size={32}/>
                     </div>
                     <h3 className="text-2xl font-black text-white">استيراد درس من الكتاب</h3>
-                    <p className="text-gray-400 text-sm mt-2">انسخ نص الصفحة أو ارفع صورتها وسيقوم الذكاء الاصطناعي ببناء الدرس.</p>
+                    <p className="text-gray-400 text-sm mt-2">انسخ نص الصفحة، أو ارفع صورتها، وسيقوم الذكاء الاصطناعي ببناء الدرس.</p>
                 </div>
+                
                 {aiError && (
                     <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-xs font-bold flex items-center gap-2">
                         <AlertTriangle size={16} />
                         {aiError}
                     </div>
                 )}
-                <textarea 
-                    value={aiInputText} 
-                    onChange={e => setAiInputText(e.target.value)} 
-                    placeholder="الصق نص الصفحة هنا (نص أو OCR)..." 
-                    className="w-full h-40 bg-black/40 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-purple-500 mb-6 font-mono text-sm"
-                />
+                
+                <div className="flex-1 overflow-y-auto no-scrollbar pr-2 space-y-6">
+                    {/* خيار رفع الصورة */}
+                    <div className="border-2 border-dashed border-white/10 rounded-2xl p-6 hover:border-purple-500/50 transition-all bg-black/20 group cursor-pointer relative" onClick={() => aiFileInputRef.current?.click()}>
+                        <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            ref={aiFileInputRef} 
+                            onChange={handleAiImageSelect} 
+                        />
+                        <div className="flex flex-col items-center justify-center gap-3 py-4">
+                            {aiImage ? (
+                                <div className="relative w-full h-48 rounded-xl overflow-hidden border border-white/10">
+                                    <img src={aiImage} alt="Selected" className="w-full h-full object-contain" />
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <p className="text-white font-bold text-sm">اضغط للتغيير</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <Upload size={32} className="text-gray-500 group-hover:text-purple-400 transition-colors" />
+                                    <p className="text-sm font-bold text-gray-400 group-hover:text-white">اضغط هنا لرفع صورة الصفحة (OCR)</p>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* خيار النص أو الرابط */}
+                    <div className="relative">
+                        <div className="absolute top-4 right-4 flex items-center gap-2 text-purple-400 text-xs font-bold bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
+                            <LinkIcon size={12} />
+                            <span>يدعم النصوص والروابط</span>
+                        </div>
+                        <textarea 
+                            value={aiInputText} 
+                            onChange={e => setAiInputText(e.target.value)} 
+                            placeholder="أو الصق نص الدرس / رابط الصفحة هنا..." 
+                            className="w-full h-40 bg-black/40 border border-white/10 rounded-2xl p-6 text-white outline-none focus:border-purple-500 font-mono text-sm leading-relaxed pt-12"
+                        />
+                    </div>
+                </div>
+
                 <button 
                     onClick={handleAIImport} 
-                    disabled={isAiProcessing || !aiInputText.trim()}
-                    className="w-full bg-purple-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-purple-500 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                    disabled={isAiProcessing || (!aiInputText.trim() && !aiImage)}
+                    className="w-full bg-purple-600 text-white py-5 mt-6 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-purple-500 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl"
                 >
                     {isAiProcessing ? <RefreshCw className="animate-spin" /> : <Sparkles size={18}/>}
                     {isAiProcessing ? 'جاري التحليل والبناء...' : 'تحويل إلى درس تفاعلي'}
