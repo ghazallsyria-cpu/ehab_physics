@@ -173,8 +173,13 @@ class DBService {
   }
 
   subscribeToMaintenance(callback: (settings: MaintenanceSettings) => void) {
-    if (!db) return () => {};
     const defaults: MaintenanceSettings = { isMaintenanceActive: false, expectedReturnTime: '', maintenanceMessage: '', showCountdown: false, allowTeachers: true };
+    
+    // Critical Fix: If DB is not available, return defaults immediately to prevent app hanging
+    if (!db) {
+        callback(defaults);
+        return () => {};
+    }
     
     try {
         return db.collection('settings').doc('maintenance').onSnapshot((snap) => {

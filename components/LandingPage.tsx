@@ -14,50 +14,54 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 📡 الاشتراك في الإحصائيات اللحظية (V14)
+    // 📡 الاشتراك في الإحصائيات
     const unsubscribe = dbService.subscribeToGlobalStats((updatedStats) => {
         setStats(updatedStats);
         setIsLoading(false);
     });
 
-    // ✨ أنيميشن الخلفية (للأقسام السفلية)
-    const particlesContainer = document.querySelector('.particles');
-    if (particlesContainer) {
-      particlesContainer.innerHTML = '';
-      for (let i = 0; i < 50; i++) {
-        const dot = document.createElement('div');
-        const size = Math.random() * 2 + 1;
-        dot.style.cssText = `width: ${size}px; height: ${size}px; left: ${Math.random() * 100}vw; top: ${Math.random() * 100}vh; position: absolute; background: #38bdf8; border-radius: 50%; opacity: 0; pointer-events: none;`;
-        particlesContainer.appendChild(dot);
-        (anime as any)({ 
-            targets: dot, 
-            opacity: [0, 0.6, 0], 
-            translateY: [0, (anime as any).random(-100, 100)],
-            scale: [0, 2, 0], 
-            duration: (anime as any).random(4000, 9000), 
-            loop: true, 
-            delay: (anime as any).random(0, 3000),
-            easing: 'easeInOutQuad'
-        });
-      }
-    }
+    // ✨ أنيميشن الخلفية
+    try {
+        const particlesContainer = document.querySelector('.particles');
+        if (particlesContainer) {
+          particlesContainer.innerHTML = '';
+          for (let i = 0; i < 50; i++) {
+            const dot = document.createElement('div');
+            const size = Math.random() * 2 + 1;
+            dot.style.cssText = `width: ${size}px; height: ${size}px; left: ${Math.random() * 100}vw; top: ${Math.random() * 100}vh; position: absolute; background: #38bdf8; border-radius: 50%; opacity: 0; pointer-events: none;`;
+            particlesContainer.appendChild(dot);
+            (anime as any)({ 
+                targets: dot, 
+                opacity: [0, 0.6, 0], 
+                translateY: [0, (anime as any).random(-100, 100)],
+                scale: [0, 2, 0], 
+                duration: (anime as any).random(4000, 9000), 
+                loop: true, 
+                delay: (anime as any).random(0, 3000),
+                easing: 'easeInOutQuad'
+            });
+          }
+        }
 
-    // تعديل الأنيميشن ليتناسب مع التصميم الجديد
-    const tl = (anime as any).timeline({ easing: 'easeOutExpo' });
-    tl.add({ 
-        targets: '.stats-card-main', 
-        opacity: [0, 1], 
-        scale: [0.8, 1],
-        translateY: [40, 0], 
-        delay: (anime as any).stagger(150), 
-        duration: 1000 
-      })
-      .add({
-        targets: '.enter-button-container',
-        opacity: [0, 1],
-        translateY: [20, 0],
-        duration: 800
-      }, '-=500');
+        // تحريك العناصر بدلاً من إخفائها أولاً
+        const tl = (anime as any).timeline({ easing: 'easeOutExpo' });
+        tl.add({ 
+            targets: '.stats-card-main', 
+            scale: [0.9, 1], // تأثير تكبير بسيط بدلاً من الشفافية الكاملة
+            opacity: [0.5, 1],
+            translateY: [20, 0], 
+            delay: (anime as any).stagger(150), 
+            duration: 800 
+          })
+          .add({
+            targets: '.enter-button-container',
+            scale: [0.9, 1],
+            opacity: [0, 1],
+            duration: 600
+          }, '-=400');
+    } catch (e) {
+        console.warn("Animation failed, elements should still be visible.", e);
+    }
 
     return () => unsubscribe();
   }, []);
@@ -68,32 +72,27 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
     
     useEffect(() => {
         if (counterRef.current) {
-            const obj = { val: prevValue.current };
-            (anime as any)({
-                targets: obj,
-                val: value,
-                round: 1,
-                easing: 'easeOutExpo',
-                duration: 2000,
-                update: () => {
-                    if (counterRef.current) counterRef.current.innerText = obj.val.toLocaleString();
-                }
-            });
-            if (value > prevValue.current) {
+            try {
+                const obj = { val: prevValue.current };
                 (anime as any)({
-                    targets: counterRef.current,
-                    scale: [1, 1.2, 1],
-                    color: ['#fff', '#38bdf8', '#fff'],
-                    duration: 800,
-                    easing: 'easeOutElastic(1, .5)'
+                    targets: obj,
+                    val: value,
+                    round: 1,
+                    easing: 'easeOutExpo',
+                    duration: 2000,
+                    update: () => {
+                        if (counterRef.current) counterRef.current.innerText = obj.val.toLocaleString();
+                    }
                 });
+                prevValue.current = value;
+            } catch (e) {
+                if (counterRef.current) counterRef.current.innerText = value.toLocaleString();
             }
-            prevValue.current = value;
         }
     }, [value]);
 
     return (
-        <div className={`stats-card-main group relative p-1 bg-gradient-to-br from-white/10 to-transparent rounded-[45px] transition-all duration-500 hover:scale-[1.05] hover:-translate-y-2 opacity-0 shadow-2xl overflow-hidden`}>
+        <div className={`stats-card-main group relative p-1 bg-gradient-to-br from-white/10 to-transparent rounded-[45px] transition-all duration-500 hover:scale-[1.05] hover:-translate-y-2 shadow-2xl overflow-hidden`}>
             <div className={`absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-700 blur-[60px] ${glowColor}`}></div>
             
             <div className="relative bg-[#050a10]/80 backdrop-blur-3xl rounded-[44px] p-8 md:p-10 h-full border border-white/5 flex flex-col items-center text-center">
@@ -145,8 +144,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                 منصة تعليمية متطورة تدمج الذكاء الاصطناعي مع المنهج الكويتي لتجربة تعليمية لا مثيل لها.
             </p>
 
-            {/* زر الدخول للمنصة */}
-            <div className="enter-button-container opacity-0">
+            {/* زر الدخول للمنصة - تمت إزالة opacity-0 لضمان ظهوره */}
+            <div className="enter-button-container">
                 <button onClick={onStart} className="group relative px-16 py-6 bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-full font-black text-xl uppercase transition-all duration-500 hover:bg-[#38bdf8] hover:text-black hover:border-[#38bdf8] shadow-[0_0_40px_rgba(56,189,248,0.2)] hover:shadow-[0_0_80px_rgba(56,189,248,0.6)] active:scale-95">
                 <span className="relative z-10 flex items-center gap-4">
                     دخول المنصة <ChevronLeft className="group-hover:-translate-x-2 transition-transform duration-300" size={24} />
@@ -210,8 +209,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                     />
                 </div>
                 
-                {/* "Live Community" Large Card */}
-                <div className="stats-card-main mt-16 p-1 bg-gradient-to-r from-blue-500/20 via-transparent to-amber-500/20 rounded-[50px] opacity-0">
+                {/* "Live Community" Large Card - Removed opacity-0 */}
+                <div className="stats-card-main mt-16 p-1 bg-gradient-to-r from-blue-500/20 via-transparent to-amber-500/20 rounded-[50px]">
                     <div className="bg-[#050a10]/60 backdrop-blur-2xl rounded-[49px] p-10 flex flex-col md:flex-row items-center justify-center gap-12 border border-white/5">
                         <div className="flex items-center gap-6">
                             <div className="w-16 h-16 bg-white/5 rounded-3xl flex items-center justify-center text-blue-400 border border-white/10 shadow-inner">

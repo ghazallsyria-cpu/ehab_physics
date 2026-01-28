@@ -49,7 +49,7 @@ const AdminPaymentManager = lazy(() => import('./components/AdminPaymentManager'
 const AdminContentManager = lazy(() => import('./components/AdminContentManager'));
 const AdminLabManager = lazy(() => import('./components/AdminLabManager'));
 const AdminRecommendationManager = lazy(() => import('./components/AdminRecommendationManager'));
-const UniversalLesson = lazy(() => import('./components/UniversalLesson')); // Import the new template
+const UniversalLesson = lazy(() => import('./components/UniversalLesson')); 
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -74,6 +74,15 @@ const App: React.FC = () => {
 
   const QUANTUM_BYPASS_KEY = 'ssc_core_secure_v4_8822';
 
+  // 🔥 SAFETY TIMEOUT: Force stop loading after 3 seconds if DB is slow
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+        if (isAuthLoading) setIsAuthLoading(false);
+        if (isMaintenanceLoading) setIsMaintenanceLoading(false);
+    }, 2500);
+    return () => clearTimeout(safetyTimer);
+  }, [isAuthLoading, isMaintenanceLoading]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const bypassParam = params.get('access') === 'quantum' || params.get('admin') === 'true';
@@ -94,7 +103,6 @@ const App: React.FC = () => {
 
     dbService.getAppBranding().then(setBranding);
     
-    // Updated to v8 syntax
     const unsubscribeAuth = auth.onAuthStateChanged(async (firebaseUser) => {
       setIsAuthLoading(true);
       if (firebaseUser) {
