@@ -44,7 +44,7 @@ export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash", // Converted to Flash for speed/cost
+      model: "gemini-3-pro-preview",
       contents: userMsg,
       config: {
         systemInstruction: `أنت المساعد الذكي في المركز السوري للعلوم لمادة ${subjectName}. 
@@ -65,7 +65,7 @@ export const getPhysicsExplanation = async (prompt: string, grade: string) => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: `اشرح لصف ${grade}: ${prompt}`,
       config: { systemInstruction: "أنت معلم فيزياء ملهم تبسط المفاهيم المعقدة." }
     });
@@ -79,7 +79,7 @@ export const getPhysicsExplanation = async (prompt: string, grade: string) => {
 export const solvePhysicsProblem = async (problem: string): Promise<AISolverResult> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash", // Use 1.5 Flash for reasoning
+    model: "gemini-3-pro-preview",
     contents: `حل المسألة الفيزيائية التالية: ${problem}`,
     config: {
       systemInstruction: "أنت خبير في حل المسائل الفيزيائية. قدم الحل بخطوات واضحة، مع ذكر القانون المستخدم، والناتج النهائي مع الوحدة، وشرح مبسط للنتيجة. استخدم صيغة JSON.",
@@ -97,7 +97,7 @@ export const solvePhysicsProblem = async (problem: string): Promise<AISolverResu
   });
 
   const jsonText = response.text?.trim() || '{}';
-  return JSON.parse(jsonText) as AISolverResult;
+  return cleanAndParseJSON(jsonText) as AISolverResult;
 };
 
 export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAttempt[]): Promise<string> => {
@@ -107,7 +107,7 @@ export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAt
     ${JSON.stringify(attempts, null, 2)}
     قدم تقريراً مفصلاً حول نقاط القوة والضعف، مع نصائح لتحسين المستوى في المواضيع التي يواجه فيها صعوبة.
   `;
-  const response = await ai.models.generateContent({ model: "gemini-1.5-flash", contents: prompt });
+  const response = await ai.models.generateContent({ model: "gemini-3-flash-preview", contents: prompt });
   return response.text || "لا توجد بيانات كافية للتحليل.";
 };
 
@@ -150,7 +150,7 @@ export const extractBankQuestionsAdvanced = async (
 ): Promise<{ questions: Question[] }> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash",
+    model: "gemini-3-pro-preview",
     contents: `Digitize the following questions text for grade ${grade}, subject ${subject}, unit ${unit}. Extract all questions into a structured JSON format. For each question, provide: question_text, type ('mcq', 'short_answer', 'essay'), choices (array of {key: 'A', text: '...'}), correct_answer (the key of the correct choice), difficulty ('Easy', 'Medium', 'Hard'), category, solution (detailed explanation), steps_array (if applicable), and common_errors (if applicable). Here is the text:\n\n${rawText}`,
     config: {
       responseMimeType: "application/json",
@@ -192,7 +192,7 @@ export const extractBankQuestionsAdvanced = async (
   });
 
   const jsonText = response.text?.trim() || '{"questions":[]}';
-  return JSON.parse(jsonText) as { questions: Question[] };
+  return cleanAndParseJSON(jsonText) as { questions: Question[] };
 };
 
 /**
@@ -211,7 +211,7 @@ export const digitizeExamPaper = async (
   };
   
   const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash", // Best for vision tasks
+    model: "gemini-3-flash-preview", 
     contents: { parts: [textPart, imagePart] },
     config: {
       responseMimeType: "application/json",
@@ -247,7 +247,7 @@ export const digitizeExamPaper = async (
   });
 
   const jsonText = response.text?.trim() || '{"questions":[]}';
-  return JSON.parse(jsonText) as { questions: Question[] };
+  return cleanAndParseJSON(jsonText) as { questions: Question[] };
 };
 
 /**
@@ -270,7 +270,7 @@ export const verifyQuestionQuality = async (
   });
 
   const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash",
+    model: "gemini-3-flash-preview",
     contents: `Please act as a quality control expert for educational content. Verify the following question for scientific accuracy, clarity, and appropriateness for the specified grade. Check if the solution correctly answers the question and if the correct answer is marked properly. Provide your feedback in JSON format. Question data: ${questionString}`,
     config: {
       responseMimeType: "application/json",
@@ -287,7 +287,7 @@ export const verifyQuestionQuality = async (
 
   const jsonText = response.text?.trim() || '{"valid": false, "feedback": "AI analysis failed."}';
   try {
-    return JSON.parse(jsonText) as { valid: boolean; feedback: string };
+    return cleanAndParseJSON(jsonText) as { valid: boolean; feedback: string };
   } catch (e) {
     return { valid: false, feedback: "Failed to parse AI response." };
   }
@@ -295,7 +295,7 @@ export const verifyQuestionQuality = async (
 
 /**
  * محرك تحويل محتوى الكتاب المدرسي إلى بنية تفاعلية.
- * يستخدم نموذج 1.5-flash القوي لدعم النصوص والصور معاً.
+ * يستخدم نموذج gemini-3-flash-preview القوي لدعم النصوص والصور معاً.
  */
 export const convertTextbookToLesson = async (
   inputContent: string, // نص الصفحة أو وصف الصورة
@@ -315,46 +315,74 @@ STRICT ACADEMIC & TECHNICAL CONSTRAINTS:
 1. ممنوع منعًا باتًا إضافة أي مفهوم علمي غير موجود صراحة في الصفحة.
 2. مسموح فقط إعادة تنظيم المحتوى وتحويله إلى تفاعل (مثلاً تحويل الرسم إلى محاكاة).
 3. الإخراج JSON فقط.
-
-REQUIRED JSON STRUCTURE:
-{
-  "lesson_metadata": { "grade": "${grade}", "subject": "Physics", "lesson_title": "...", "unit": "...", "status": "draft", "version": 1 },
-  "learning_objectives": ["..."],
-  "content_blocks": [
-    {
-      "block_id": "...",
-      "block_type": "intro|simulation|discovery|challenge|assessment|note",
-      "locked_after_approval": true,
-      "linked_concept": "...",
-      "ui_component": { "component_category": "visual|input|interactive", "react_component": "..." },
-      "textContent": "النص المستخرج أو وصف المحتوى للعرض"
-    }
-  ],
-  "formulae": [ { "formula_text": "...", "variables": ["..."] } ]
-}
 `;
 
   // تحضير أجزاء الطلب (نص + صورة إذا وجدت)
   const parts: any[] = [];
-  
-  if (inputContent) {
-    parts.push({ text: inputContent });
-  }
+  const promptText = inputContent?.trim() ? inputContent : "Extract the lesson content from the provided image and structure it as a JSON lesson plan.";
+  parts.push({ text: promptText });
   
   if (imageData) {
       parts.push(fileToGenerativePart(imageData));
   }
   
-  // إذا لم يكن هناك مدخلات، نعود فوراً
-  if (parts.length === 0) return null;
-
   try {
     const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash", // النموذج الأقوى للوسائط المتعددة واستخراج البيانات
+        model: "gemini-3-flash-preview",
         contents: { parts },
         config: {
             systemInstruction: systemInstruction,
-            responseMimeType: "application/json"
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    lesson_metadata: {
+                        type: Type.OBJECT,
+                        properties: {
+                            grade: { type: Type.STRING },
+                            subject: { type: Type.STRING },
+                            lesson_title: { type: Type.STRING },
+                            unit: { type: Type.STRING },
+                            status: { type: Type.STRING },
+                            version: { type: Type.NUMBER }
+                        }
+                    },
+                    learning_objectives: {
+                        type: Type.ARRAY,
+                        items: { type: Type.STRING }
+                    },
+                    content_blocks: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                block_id: { type: Type.STRING },
+                                block_type: { type: Type.STRING },
+                                locked_after_approval: { type: Type.BOOLEAN },
+                                linked_concept: { type: Type.STRING },
+                                ui_component: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        component_category: { type: Type.STRING },
+                                        react_component: { type: Type.STRING }
+                                    }
+                                },
+                                textContent: { type: Type.STRING }
+                            }
+                        }
+                    },
+                    formulae: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                formula_text: { type: Type.STRING },
+                                variables: { type: Type.ARRAY, items: { type: Type.STRING } }
+                            }
+                        }
+                    }
+                }
+            }
         }
     });
 
