@@ -26,24 +26,31 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
   useEffect(() => {
     loadDynamicContent();
 
-    (anime as any)({
-      targets: '.dashboard-card',
-      translateY: [50, 0],
-      opacity: [0, 1],
-      delay: (anime as any).stagger(150, {start: 300}),
-      easing: 'easeOutExpo',
-      duration: 1000
-    });
+    // حماية كود الأنيميشن: إذا فشل، تبقى العناصر ظاهرة
+    try {
+        (anime as any)({
+          targets: '.dashboard-card',
+          translateY: [50, 0],
+          opacity: [0, 1], // يبدأ من 0 في الحركة، لكن العنصر أصلاً ظاهر في الـ DOM
+          delay: (anime as any).stagger(150, {start: 300}),
+          easing: 'easeOutExpo',
+          duration: 1000
+        });
 
-    const pointsObj = { val: 0 };
-    (anime as any)({
-        targets: pointsObj,
-        val: user.progress.points || 0,
-        round: 1,
-        easing: 'easeOutQuad',
-        duration: 2000,
-        update: () => setProgressData(prev => ({ ...prev, points: pointsObj.val }))
-    });
+        const pointsObj = { val: 0 };
+        (anime as any)({
+            targets: pointsObj,
+            val: user.progress.points || 0,
+            round: 1,
+            easing: 'easeOutQuad',
+            duration: 2000,
+            update: () => setProgressData(prev => ({ ...prev, points: pointsObj.val }))
+        });
+    } catch (e) {
+        console.warn("Animation failed, falling back to static view", e);
+        // في حال فشل الأنيميشن، نضمن عرض القيم النهائية
+        setProgressData(prev => ({ ...prev, points: user.progress.points || 0 }));
+    }
 
     const completed = (user.progress.completedLessonIds || []).length;
     setProgressData(prev => ({ ...prev, lessons: completed, percent: Math.min(completed * 5, 100) }));
@@ -54,10 +61,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
         const content = await dbService.getHomePageContent();
         setDynamicContent(content);
         
-        // فحص وجود Modal Popup
         const popup = content.find(c => c.placement === 'MODAL_POPUP');
         if (popup) {
-            // ظهور البوب أب بعد ثانية واحدة بحركة anime.js
             setTimeout(() => {
                 setActivePopup(popup);
             }, 1500);
@@ -91,16 +96,17 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
     window.dispatchEvent(new CustomEvent('change-view', { detail: { view } }));
   };
 
-  // تصفية المحتوى حسب المكان
   const banners = useMemo(() => dynamicContent.filter(c => c.placement === 'TOP_BANNER'), [dynamicContent]);
   const gridAds = useMemo(() => dynamicContent.filter(c => c.placement === 'GRID_CARD'), [dynamicContent]);
 
   return (
     <div className="space-y-10 font-['Tajawal'] pb-24 text-right relative" dir="rtl">
       
-      {/* 1. TOP BANNERS (Hero Slot) */}
+      {/* تم إزالة opacity-0 من جميع العناصر لضمان ظهورها */}
+      
+      {/* 1. TOP BANNERS */}
       {banners.map(banner => (
-          <div key={banner.id} className="dashboard-card opacity-0 relative overflow-hidden rounded-[50px] border-2 border-amber-400/20 bg-gradient-to-r from-amber-400/10 to-indigo-900/40 p-10 flex flex-col md:flex-row items-center gap-10 shadow-2xl">
+          <div key={banner.id} className="dashboard-card relative overflow-hidden rounded-[50px] border-2 border-amber-400/20 bg-gradient-to-r from-amber-400/10 to-indigo-900/40 p-10 flex flex-col md:flex-row items-center gap-10 shadow-2xl">
               {banner.imageUrl && <div className="w-full md:w-64 h-40 rounded-3xl overflow-hidden shrink-0 shadow-2xl border border-white/10"><img src={banner.imageUrl} className="w-full h-full object-cover" alt="ad" /></div>}
               <div className="flex-1">
                   <div className="flex items-center gap-3 mb-4">
@@ -142,7 +148,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       </div>
 
       {/* New Template Promo Card */}
-      <div className="dashboard-card bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-2 border-purple-500/30 p-8 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-6 opacity-0 shadow-2xl">
+      <div className="dashboard-card bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-2 border-purple-500/30 p-8 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
           <div className="flex items-center gap-6">
               <div className="w-16 h-16 bg-purple-500 rounded-3xl flex items-center justify-center text-white shadow-lg"><Sparkles size={32} /></div>
               <div>
@@ -154,7 +160,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       </div>
 
       {isProfileIncomplete && (
-          <div className="dashboard-card bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border-2 border-blue-500/30 p-8 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse opacity-0">
+          <div className="dashboard-card bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border-2 border-blue-500/30 p-8 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
               <div className="flex items-center gap-6">
                   <div className="w-16 h-16 bg-blue-500 rounded-3xl flex items-center justify-center text-white shadow-lg"><Smartphone size={32} /></div>
                   <div>
@@ -167,7 +173,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-         <div onClick={() => navigate('curriculum')} className="dashboard-card lg:col-span-8 bg-gradient-to-br from-blue-600/20 to-blue-900/20 border border-blue-500/20 p-10 rounded-[50px] cursor-pointer hover:border-blue-400/40 transition-all group relative overflow-hidden opacity-0">
+         <div onClick={() => navigate('curriculum')} className="dashboard-card lg:col-span-8 bg-gradient-to-br from-blue-600/20 to-blue-900/20 border border-blue-500/20 p-10 rounded-[50px] cursor-pointer hover:border-blue-400/40 transition-all group relative overflow-hidden">
            <div className="absolute top-[-20%] left-[-10%] w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] group-hover:bg-blue-500/20 transition-all"></div>
            <div className="relative z-10">
               <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400 mb-8 border border-blue-500/30"><BookOpen size={32} /></div>
@@ -177,7 +183,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
            </div>
          </div>
          
-         <div className="dashboard-card lg:col-span-4 space-y-8 opacity-0">
+         <div className="dashboard-card lg:col-span-4 space-y-8">
            <div onClick={() => navigate('journey-map')} className="bg-gradient-to-br from-amber-500/10 to-yellow-600/10 border border-amber-500/20 p-8 rounded-[40px] cursor-pointer hover:border-amber-400/40 transition-all group relative overflow-hidden h-full flex flex-col justify-between">
               <div>
                 <Map className="text-amber-400 mb-6" size={40} />
@@ -188,9 +194,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
            </div>
          </div>
 
-         {/* 2. GRID CARDS (Ad Slot) */}
+         {/* 2. GRID CARDS */}
          {gridAds.map(ad => (
-             <div key={ad.id} onClick={() => ad.ctaLink && navigate(ad.ctaLink)} className="dashboard-card lg:col-span-4 glass-panel p-8 rounded-[40px] border-amber-400/20 bg-amber-400/5 cursor-pointer hover:-translate-y-2 transition-all opacity-0 relative overflow-hidden group">
+             <div key={ad.id} onClick={() => ad.ctaLink && navigate(ad.ctaLink)} className="dashboard-card lg:col-span-4 glass-panel p-8 rounded-[40px] border-amber-400/20 bg-amber-400/5 cursor-pointer hover:-translate-y-2 transition-all relative overflow-hidden group">
                  <div className="absolute top-0 left-0 w-full h-1 bg-amber-400"></div>
                  <div className="flex items-center gap-4 mb-6">
                      <div className="w-10 h-10 bg-amber-400 text-black rounded-xl flex items-center justify-center"><Zap size={20} fill="currentColor"/></div>
@@ -202,7 +208,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
              </div>
          ))}
 
-         <div className="dashboard-card lg:col-span-4 glass-panel p-8 rounded-[40px] border-white/5 opacity-0">
+         <div className="dashboard-card lg:col-span-4 glass-panel p-8 rounded-[40px] border-white/5">
             <h4 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-8 flex items-center gap-2"><Zap size={14} className="text-amber-400" /> مستوى الإنجاز</h4>
             <div className="space-y-6">
                 <div className="flex justify-between items-end">
@@ -219,7 +225,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
             </div>
          </div>
 
-         <div className="dashboard-card lg:col-span-4 glass-panel p-8 rounded-[40px] border-white/5 opacity-0">
+         <div className="dashboard-card lg:col-span-4 glass-panel p-8 rounded-[40px] border-white/5">
             <h4 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-8 flex items-center gap-2"><Trophy size={14} className="text-amber-400" /> آخر الإنجازات</h4>
             <div className="flex items-center gap-6 p-4 bg-white/5 rounded-3xl border border-white/5">
                 <div className="w-14 h-14 bg-amber-400/10 rounded-2xl flex items-center justify-center text-2xl border border-amber-400/20">🏆</div>
@@ -228,7 +234,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
          </div>
       </div>
 
-      {/* 3. MODAL POPUP (Initial Entry Slot) */}
+      {/* 3. MODAL POPUP */}
       {activePopup && (
           <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-fadeIn">
               <div id="modal-popup" className="bg-[#0a1118] border-2 border-amber-400/30 w-full max-w-lg rounded-[60px] p-12 relative shadow-[0_0_100px_rgba(251,191,36,0.15)] text-center">

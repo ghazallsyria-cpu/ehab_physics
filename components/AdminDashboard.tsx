@@ -18,16 +18,20 @@ const AdminDashboard: React.FC = () => {
     checkHealth();
     verifyAdminRole();
 
-    // أنيميشن دخول أدوات الإدارة
-    (anime as any)({
-      targets: '.admin-tool-card',
-      scale: [0.9, 1],
-      opacity: [0, 1],
-      translateY: [20, 0],
-      delay: (anime as any).stagger(100),
-      easing: 'easeOutExpo',
-      duration: 800
-    });
+    // حماية كود الأنيميشن
+    try {
+        (anime as any)({
+          targets: '.admin-tool-card',
+          scale: [0.9, 1],
+          opacity: [0, 1],
+          translateY: [20, 0],
+          delay: (anime as any).stagger(100),
+          easing: 'easeOutExpo',
+          duration: 800
+        });
+    } catch (e) {
+        console.warn("Animation error", e);
+    }
   }, []);
 
   const verifyAdminRole = async () => {
@@ -97,7 +101,8 @@ const AdminDashboard: React.FC = () => {
                 <div 
                   key={tool.view} 
                   onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: tool.view } }))} 
-                  className="admin-tool-card glass-panel p-8 rounded-[45px] border-white/5 bg-black/20 cursor-pointer group hover:border-amber-400/40 transition-all flex flex-col gap-6 opacity-0"
+                  // تمت إزالة opacity-0 من هنا
+                  className="admin-tool-card glass-panel p-8 rounded-[45px] border-white/5 bg-black/20 cursor-pointer group hover:border-amber-400/40 transition-all flex flex-col gap-6"
                 >
                   <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-amber-400 group-hover:bg-amber-400 group-hover:text-black transition-all duration-500"><tool.icon size={24} /></div>
                   <div>
