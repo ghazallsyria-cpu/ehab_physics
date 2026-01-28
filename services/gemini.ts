@@ -211,7 +211,7 @@ export const digitizeExamPaper = async (
   };
   
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview", 
+    model: "gemini-3-pro-preview", // Upgraded to Pro for better OCR
     contents: { parts: [textPart, imagePart] },
     config: {
       responseMimeType: "application/json",
@@ -295,7 +295,7 @@ export const verifyQuestionQuality = async (
 
 /**
  * محرك تحويل محتوى الكتاب المدرسي إلى بنية تفاعلية.
- * يستخدم نموذج gemini-3-flash-preview القوي لدعم النصوص والصور معاً.
+ * يستخدم نموذج gemini-3-pro-preview القوي لدعم النصوص والصور معاً بدقة عالية.
  */
 export const convertTextbookToLesson = async (
   inputContent: string, // نص الصفحة أو وصف الصورة
@@ -305,21 +305,26 @@ export const convertTextbookToLesson = async (
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const systemInstruction = `
-أنت محرك تحويل محتوى تعليمي إلى بنية تفاعلية برمجية.
-تعمل كطبقة وسيطة بين كتاب الطالب ومنصة تعليمية مبنية بـ React.
+أنت محرك تحويل محتوى تعليمي متخصص في المناهج الدراسية.
+مهمتك: تحليل المدخلات (صورة صفحة كتاب أو نص) وتحويلها إلى درس تفاعلي منظم بصيغة JSON.
 
-أنت لا تشرح، لا تضيف، ولا تبتكر خارج المحتوى المدخل.
-مهمتك الوحيدة: تحويل صفحة كتاب الفيزياء إلى مخطط تفاعلي JSON قابل للتنفيذ.
+خطوات العمل:
+1. اقرأ النص الموجود في الصورة (OCR) بدقة متناهية، أو استخدم النص المدخل.
+2. استخرج المفاهيم العلمية، التعاريف، القوانين، والأمثلة.
+3. قم ببناء هيكل درس تفاعلي يحتوي على مقدمة، محاكاة (إذا لزم الأمر)، وشرح للمفاهيم، واختبار قصير.
 
-STRICT ACADEMIC & TECHNICAL CONSTRAINTS:
-1. ممنوع منعًا باتًا إضافة أي مفهوم علمي غير موجود صراحة في الصفحة.
-2. مسموح فقط إعادة تنظيم المحتوى وتحويله إلى تفاعل (مثلاً تحويل الرسم إلى محاكاة).
-3. الإخراج JSON فقط.
+ملاحظات هامة:
+- التزم بالمنهج الدراسي للصف المحدد (${grade}).
+- اجعل الشرح مبسطاً وجذاباً.
+- الإخراج يجب أن يكون JSON صالحاً تماماً وفق المخطط المطلوب.
 `;
 
   // تحضير أجزاء الطلب (نص + صورة إذا وجدت)
   const parts: any[] = [];
-  const promptText = inputContent?.trim() ? inputContent : "Extract the lesson content from the provided image and structure it as a JSON lesson plan.";
+  const promptText = inputContent?.trim() 
+    ? `Analyze this content: ${inputContent}` 
+    : "Analyze the provided image deeply. Extract all scientific concepts, definitions, and examples, then structure them into a lesson.";
+    
   parts.push({ text: promptText });
   
   if (imageData) {
@@ -328,7 +333,7 @@ STRICT ACADEMIC & TECHNICAL CONSTRAINTS:
   
   try {
     const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3-pro-preview", // استخدام النموذج الأقوى للتعامل مع الصور المعقدة
         contents: { parts },
         config: {
             systemInstruction: systemInstruction,
