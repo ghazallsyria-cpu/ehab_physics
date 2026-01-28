@@ -2,20 +2,54 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AISolverResult, User, StudentQuizAttempt, Question, Curriculum, AILessonSchema } from "../types";
 
+// --- Helper for Robust JSON Parsing ---
+const cleanAndParseJSON = (text: string) => {
+  if (!text) return null;
+  try {
+    // 1. إزالة علامات المارك داون
+    let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    
+    // 2. البحث عن أول قوس فتح { وآخر قوس إغلاق }
+    const firstBrace = clean.indexOf('{');
+    const lastBrace = clean.lastIndexOf('}');
+    
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      clean = clean.substring(firstBrace, lastBrace + 1);
+    }
+    
+    return JSON.parse(clean);
+  } catch (e) {
+    console.error("JSON Parsing Failed. Raw text:", text);
+    return null;
+  }
+};
+
+// Helper function to convert data URL to parts for Gemini
+const fileToGenerativePart = (dataUrl: string) => {
+    const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
+    if (!match) {
+        throw new Error('Invalid data URL');
+    }
+    return {
+        inlineData: {
+            mimeType: match[1],
+            data: match[2]
+        }
+    };
+};
+
 // Always create a new instance right before use to ensure the latest API key is used.
-// Guidelines: Must use named parameter { apiKey: process.env.API_KEY }.
 export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, subject: 'Physics' | 'Chemistry') => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-1.5-flash", // Converted to Flash for speed/cost
       contents: userMsg,
       config: {
         systemInstruction: `أنت المساعد الذكي في المركز السوري للعلوم لمادة ${subjectName}. 
         تحدث بلغة العلم الراقية والداعمة. 
         استخدم صيغة LaTeX للمعادلات الرياضية، مثلاً $E=mc^2$ للمعادلات المضمنة و $$F=ma$$ للكتل المنفصلة.`,
-        thinkingConfig: { thinkingBudget: 1024 } 
       }
     });
     return { text: response.text || "", thinking: null };
@@ -31,7 +65,7 @@ export const getPhysicsExplanation = async (prompt: string, grade: string) => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: `اشرح لصف ${grade}: ${prompt}`,
       config: { systemInstruction: "أنت معلم فيزياء ملهم تبسط المفاهيم المعقدة." }
     });
@@ -45,7 +79,7 @@ export const getPhysicsExplanation = async (prompt: string, grade: string) => {
 export const solvePhysicsProblem = async (problem: string): Promise<AISolverResult> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview",
+    model: "gemini-1.5-flash", // Use 1.5 Flash for reasoning
     contents: `حل المسألة الفيزيائية التالية: ${problem}`,
     config: {
       systemInstruction: "أنت خبير في حل المسائل الفيزيائية. قدم الحل بخطوات واضحة، مع ذكر القانون المستخدم، والناتج النهائي مع الوحدة، وشرح مبسط للنتيجة. استخدم صيغة JSON.",
@@ -73,7 +107,7 @@ export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAt
     ${JSON.stringify(attempts, null, 2)}
     قدم تقريراً مفصلاً حول نقاط القوة والضعف، مع نصائح لتحسين المستوى في المواضيع التي يواجه فيها صعوبة.
   `;
-  const response = await ai.models.generateContent({ model: "gemini-3-flash-preview", contents: prompt });
+  const response = await ai.models.generateContent({ model: "gemini-1.5-flash", contents: prompt });
   return response.text || "لا توجد بيانات كافية للتحليل.";
 };
 
@@ -105,20 +139,6 @@ export const generatePhysicsVisualization = async (prompt: string): Promise<stri
     return URL.createObjectURL(blob);
 };
 
-// Helper function to convert data URL to parts for Gemini
-const fileToGenerativePart = (dataUrl: string) => {
-    const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
-    if (!match) {
-        throw new Error('Invalid data URL');
-    }
-    return {
-        inlineData: {
-            mimeType: match[1],
-            data: match[2]
-        }
-    };
-};
-
 /**
  * Extracts questions from raw text using Gemini.
  */
@@ -130,7 +150,7 @@ export const extractBankQuestionsAdvanced = async (
 ): Promise<{ questions: Question[] }> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview",
+    model: "gemini-1.5-flash",
     contents: `Digitize the following questions text for grade ${grade}, subject ${subject}, unit ${unit}. Extract all questions into a structured JSON format. For each question, provide: question_text, type ('mcq', 'short_answer', 'essay'), choices (array of {key: 'A', text: '...'}), correct_answer (the key of the correct choice), difficulty ('Easy', 'Medium', 'Hard'), category, solution (detailed explanation), steps_array (if applicable), and common_errors (if applicable). Here is the text:\n\n${rawText}`,
     config: {
       responseMimeType: "application/json",
@@ -191,7 +211,7 @@ export const digitizeExamPaper = async (
   };
   
   const response = await ai.models.generateContent({
-    model: "gemini-3-pro-image-preview", // A model that supports image input
+    model: "gemini-1.5-flash", // Best for vision tasks
     contents: { parts: [textPart, imagePart] },
     config: {
       responseMimeType: "application/json",
@@ -250,7 +270,7 @@ export const verifyQuestionQuality = async (
   });
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview", // Flash is sufficient for this verification task
+    model: "gemini-1.5-flash",
     contents: `Please act as a quality control expert for educational content. Verify the following question for scientific accuracy, clarity, and appropriateness for the specified grade. Check if the solution correctly answers the question and if the correct answer is marked properly. Provide your feedback in JSON format. Question data: ${questionString}`,
     config: {
       responseMimeType: "application/json",
@@ -275,7 +295,7 @@ export const verifyQuestionQuality = async (
 
 /**
  * محرك تحويل محتوى الكتاب المدرسي إلى بنية تفاعلية.
- * هذا النظام يتبع القواعد الأكاديمية الصارمة لضمان دقة المحتوى الفيزيائي.
+ * يستخدم نموذج 1.5-flash القوي لدعم النصوص والصور معاً.
  */
 export const convertTextbookToLesson = async (
   inputContent: string, // نص الصفحة أو وصف الصورة
@@ -314,15 +334,23 @@ REQUIRED JSON STRUCTURE:
 }
 `;
 
-  const parts: any[] = [{ text: inputContent }];
+  // تحضير أجزاء الطلب (نص + صورة إذا وجدت)
+  const parts: any[] = [];
+  
+  if (inputContent) {
+    parts.push({ text: inputContent });
+  }
+  
   if (imageData) {
       parts.push(fileToGenerativePart(imageData));
   }
+  
+  // إذا لم يكن هناك مدخلات، نعود فوراً
+  if (parts.length === 0) return null;
 
   try {
-    // استخدام نموذج مستقر جداً مع النصوص الكبيرة
     const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash", 
+        model: "gemini-1.5-flash", // النموذج الأقوى للوسائط المتعددة واستخراج البيانات
         contents: { parts },
         config: {
             systemInstruction: systemInstruction,
@@ -330,24 +358,12 @@ REQUIRED JSON STRUCTURE:
         }
     });
 
-    let jsonText = response.text?.trim();
-    if (!jsonText) return null;
-
-    // --- Critical Fix: Clean Markdown Fences ---
-    // إزالة علامات المارك داون التي يضعها الذكاء الاصطناعي أحياناً
-    jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+    // استخدام دالة التنظيف القوية لاستخراج JSON الصحيح
+    const jsonText = response.text || "";
+    return cleanAndParseJSON(jsonText) as AILessonSchema;
     
-    // محاولة استخراج JSON الصحيح في حال وجود نص قبله أو بعده
-    const firstBrace = jsonText.indexOf('{');
-    const lastBrace = jsonText.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1) {
-        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
-    }
-
-    return JSON.parse(jsonText) as AILessonSchema;
   } catch (e) {
     console.error("Lesson Conversion Error:", e);
-    // يمكن هنا إرجاع null ليتم التعامل معه في الواجهة
     return null;
   }
 };
