@@ -107,7 +107,45 @@ export interface Lesson {
   type: 'THEORY' | 'EXAMPLE' | 'EXERCISE';
   duration: string;
   bookReference?: string;
+  aiGeneratedData?: AILessonSchema; // ربط مع المخطط الذكي
 }
+
+// --- AI Lesson Schema (Strict Academic Constraints) ---
+export interface AILessonSchema {
+  lesson_metadata: {
+    grade: string;
+    subject: string;
+    lesson_title: string;
+    unit: string;
+    source_page_id?: string;
+    status: 'draft' | 'approved' | 'locked';
+    version: number;
+  };
+  learning_objectives: string[];
+  content_blocks: AIContentBlock[];
+  formulae?: { formula_text: string; variables: string[] }[];
+  student_interaction_tracking?: any;
+}
+
+export interface AIContentBlock {
+  block_id: string;
+  block_type: 'intro' | 'simulation' | 'discovery' | 'challenge' | 'assessment' | 'note';
+  locked_after_approval: boolean;
+  linked_concept: string;
+  ui_component: {
+    component_category: 'visual' | 'input' | 'interactive';
+    react_component?: string;
+    allowed_variables?: string[];
+    fixed_assumptions?: string[];
+  };
+  student_actions?: string[];
+  feedback_logic?: {
+    on_correct: string;
+    on_incorrect: string;
+  };
+  textContent?: string; // For mapping to legacy ContentBlock
+}
+// -----------------------------------------------------
 
 export interface Curriculum {
   id?: string; 

@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import { Lesson, ContentBlock, ContentBlockType } from '../types';
-import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio, CheckCircle, AlertTriangle, Code } from 'lucide-react';
+import { Lesson, ContentBlock, ContentBlockType, AILessonSchema } from '../types';
+import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio, CheckCircle, AlertTriangle, Code, Sparkles, RefreshCw } from 'lucide-react';
 import YouTubePlayer from './YouTubePlayer';
 import { dbService } from '../services/db';
+import { convertTextbookToLesson } from '../services/gemini';
 
 interface LessonEditorProps {
   lessonData: Partial<Lesson>;
@@ -28,7 +29,11 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
   const [lesson, setLesson] = useState<Partial<Lesson>>(lessonData);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [showUrlInputFor, setShowUrlInputFor] = useState<Record<number, boolean>>({});
-
+  
+  // AI Import State
+  const [showAIImport, setShowAIImport] = useState(false);
+  const [aiInputText, setAiInputText] = useState('');
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
 
   const updateField = (field: keyof Lesson, value: any) => {
     setLesson(prev => ({ ...prev, [field]: value }));
@@ -80,11 +85,40 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
     onSave(lesson as Lesson, unitId, grade, subject);
   };
 
+  const handleAIImport = async () => {
+    if (!aiInputText.trim()) return;
+    setIsAiProcessing(true);
+    try {
+        const schema: AILessonSchema | null = await convertTextbookToLesson(aiInputText, grade);
+        if (schema) {
+            setLesson(prev => ({
+                ...prev,
+                title: schema.lesson_metadata.lesson_title,
+                aiGeneratedData: schema,
+                content: schema.content_blocks.map(block => ({
+                    type: block.block_type === 'intro' ? 'text' : block.block_type === 'simulation' ? 'html' : 'text',
+                    content: block.textContent || JSON.stringify(block.ui_component, null, 2),
+                    caption: block.linked_concept
+                }))
+            }));
+            setShowAIImport(false);
+        } else {
+            alert("فشل التحويل الآلي. يرجى التأكد من النص المدخل.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("حدث خطأ أثناء الاتصال بالمحرك الذكي.");
+    } finally {
+        setIsAiProcessing(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto py-12 animate-fadeIn font-['Tajawal'] text-white">
       <div className="flex justify-between items-center mb-10">
         <h2 className="text-3xl font-black">{lessonData.id?.startsWith('new_') ? 'إضافة درس جديد' : 'تعديل الدرس'}</h2>
         <div className="flex gap-4">
+            <button onClick={() => setShowAIImport(true)} className="flex items-center gap-2 px-6 py-3 bg-purple-500 text-white rounded-lg text-xs font-bold shadow-lg hover:bg-purple-600 transition-all"><Sparkles size={14}/> استيراد ذكي (AI)</button>
             <button onClick={onCancel} className="flex items-center gap-2 px-6 py-3 bg-white/5 text-white rounded-lg text-xs font-bold border border-white/10"><X size={14}/> إلغاء</button>
             <button onClick={handleSaveClick} className="flex items-center gap-2 px-6 py-3 bg-green-500 text-black rounded-lg text-xs font-bold border border-green-500/20"><Save size={14}/> حفظ الدرس</button>
         </div>
@@ -273,6 +307,35 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
             <button onClick={() => addBlock('html')} className="flex items-center gap-2 text-xs font-bold px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20"><Code size={14}/> كود HTML مخصص</button>
         </div>
       </div>
+
+      {showAIImport && (
+        <div className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
+            <div className="glass-panel w-full max-w-2xl p-10 rounded-[40px] border border-white/10 bg-[#0a1118] relative shadow-3xl">
+                <button onClick={() => setShowAIImport(false)} className="absolute top-6 left-6 text-gray-500 hover:text-white p-2 bg-white/5 rounded-full"><X size={20}/></button>
+                <div className="text-center mb-8">
+                    <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/30">
+                        <Sparkles className="text-purple-400" size={32}/>
+                    </div>
+                    <h3 className="text-2xl font-black text-white">استيراد درس من الكتاب</h3>
+                    <p className="text-gray-400 text-sm mt-2">انسخ نص الصفحة أو ارفع صورتها وسيقوم الذكاء الاصطناعي ببناء الدرس.</p>
+                </div>
+                <textarea 
+                    value={aiInputText} 
+                    onChange={e => setAiInputText(e.target.value)} 
+                    placeholder="الصق نص الصفحة هنا..." 
+                    className="w-full h-40 bg-black/40 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-purple-500 mb-6"
+                />
+                <button 
+                    onClick={handleAIImport} 
+                    disabled={isAiProcessing || !aiInputText.trim()}
+                    className="w-full bg-purple-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-purple-500 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                >
+                    {isAiProcessing ? <RefreshCw className="animate-spin" /> : <Sparkles size={18}/>}
+                    {isAiProcessing ? 'جاري التحليل والبناء...' : 'تحويل إلى درس تفاعلي'}
+                </button>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

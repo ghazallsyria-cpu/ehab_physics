@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { AISolverResult, User, StudentQuizAttempt, Question, Curriculum } from "../types";
+import { AISolverResult, User, StudentQuizAttempt, Question, Curriculum, AILessonSchema } from "../types";
 
 // Always create a new instance right before use to ensure the latest API key is used.
 // Guidelines: Must use named parameter { apiKey: process.env.API_KEY }.
@@ -270,5 +270,70 @@ export const verifyQuestionQuality = async (
     return JSON.parse(jsonText) as { valid: boolean; feedback: string };
   } catch (e) {
     return { valid: false, feedback: "Failed to parse AI response." };
+  }
+};
+
+/**
+ * محرك تحويل محتوى الكتاب المدرسي إلى بنية تفاعلية.
+ * هذا النظام يتبع القواعد الأكاديمية الصارمة لضمان دقة المحتوى الفيزيائي.
+ */
+export const convertTextbookToLesson = async (
+  inputContent: string, // نص الصفحة أو وصف الصورة
+  grade: string = "12",
+  imageData?: string // اختياري: صورة الصفحة
+): Promise<AILessonSchema | null> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const systemInstruction = `
+أنت محرك تحويل محتوى تعليمي إلى بنية تفاعلية برمجية.
+تعمل كطبقة وسيطة بين كتاب الطالب ومنصة تعليمية مبنية بـ React.
+
+أنت لا تشرح، لا تضيف، ولا تبتكر خارج المحتوى المدخل.
+مهمتك الوحيدة: تحويل صفحة كتاب الفيزياء إلى مخطط تفاعلي JSON قابل للتنفيذ.
+
+STRICT ACADEMIC & TECHNICAL CONSTRAINTS:
+1. ممنوع منعًا باتًا إضافة أي مفهوم علمي غير موجود صراحة في الصفحة.
+2. مسموح فقط إعادة تنظيم المحتوى وتحويله إلى تفاعل (مثلاً تحويل الرسم إلى محاكاة).
+3. الإخراج JSON فقط.
+
+REQUIRED JSON STRUCTURE:
+{
+  "lesson_metadata": { "grade": "${grade}", "subject": "Physics", "lesson_title": "...", "unit": "...", "status": "draft", "version": 1 },
+  "learning_objectives": ["..."],
+  "content_blocks": [
+    {
+      "block_id": "...",
+      "block_type": "intro|simulation|discovery|challenge|assessment|note",
+      "locked_after_approval": true,
+      "linked_concept": "...",
+      "ui_component": { "component_category": "visual|input|interactive", "react_component": "..." },
+      "textContent": "النص المستخرج أو وصف المحتوى للعرض"
+    }
+  ],
+  "formulae": [ { "formula_text": "...", "variables": ["..."] } ]
+}
+`;
+
+  const parts: any[] = [{ text: inputContent }];
+  if (imageData) {
+      parts.push(fileToGenerativePart(imageData));
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash", // Use flash for fast structured data extraction
+        contents: { parts },
+        config: {
+            systemInstruction: systemInstruction,
+            responseMimeType: "application/json"
+        }
+    });
+
+    const jsonText = response.text?.trim();
+    if (!jsonText) return null;
+    return JSON.parse(jsonText) as AILessonSchema;
+  } catch (e) {
+    console.error("Lesson Conversion Error:", e);
+    return null;
   }
 };
