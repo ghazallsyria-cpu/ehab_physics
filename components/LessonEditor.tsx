@@ -34,6 +34,7 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
   const [showAIImport, setShowAIImport] = useState(false);
   const [aiInputText, setAiInputText] = useState('');
   const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const updateField = (field: keyof Lesson, value: any) => {
     setLesson(prev => ({ ...prev, [field]: value }));
@@ -88,6 +89,7 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
   const handleAIImport = async () => {
     if (!aiInputText.trim()) return;
     setIsAiProcessing(true);
+    setAiError(null);
     try {
         const schema: AILessonSchema | null = await convertTextbookToLesson(aiInputText, grade);
         if (schema) {
@@ -103,11 +105,11 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
             }));
             setShowAIImport(false);
         } else {
-            alert("فشل التحويل الآلي. يرجى التأكد من النص المدخل.");
+            setAiError("لم يتمكن النظام من تحليل النص. يرجى التأكد من أن النص يحتوي على معلومات فيزيائية واضحة أو إعادة صياغته.");
         }
     } catch (e) {
         console.error(e);
-        alert("حدث خطأ أثناء الاتصال بالمحرك الذكي.");
+        setAiError("حدث خطأ تقني أثناء الاتصال بالمحرك الذكي. يرجى المحاولة لاحقاً.");
     } finally {
         setIsAiProcessing(false);
     }
@@ -319,11 +321,17 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
                     <h3 className="text-2xl font-black text-white">استيراد درس من الكتاب</h3>
                     <p className="text-gray-400 text-sm mt-2">انسخ نص الصفحة أو ارفع صورتها وسيقوم الذكاء الاصطناعي ببناء الدرس.</p>
                 </div>
+                {aiError && (
+                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-xs font-bold flex items-center gap-2">
+                        <AlertTriangle size={16} />
+                        {aiError}
+                    </div>
+                )}
                 <textarea 
                     value={aiInputText} 
                     onChange={e => setAiInputText(e.target.value)} 
-                    placeholder="الصق نص الصفحة هنا..." 
-                    className="w-full h-40 bg-black/40 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-purple-500 mb-6"
+                    placeholder="الصق نص الصفحة هنا (نص أو OCR)..." 
+                    className="w-full h-40 bg-black/40 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-purple-500 mb-6 font-mono text-sm"
                 />
                 <button 
                     onClick={handleAIImport} 

@@ -191,7 +191,7 @@ export const digitizeExamPaper = async (
   };
   
   const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview", // A model that supports image input
+    model: "gemini-3-pro-image-preview", // A model that supports image input
     contents: { parts: [textPart, imagePart] },
     config: {
       responseMimeType: "application/json",
@@ -320,8 +320,9 @@ REQUIRED JSON STRUCTURE:
   }
 
   try {
+    // استخدام نموذج مستقر جداً مع النصوص الكبيرة
     const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash", // Use flash for fast structured data extraction
+        model: "gemini-1.5-flash", 
         contents: { parts },
         config: {
             systemInstruction: systemInstruction,
@@ -329,11 +330,24 @@ REQUIRED JSON STRUCTURE:
         }
     });
 
-    const jsonText = response.text?.trim();
+    let jsonText = response.text?.trim();
     if (!jsonText) return null;
+
+    // --- Critical Fix: Clean Markdown Fences ---
+    // إزالة علامات المارك داون التي يضعها الذكاء الاصطناعي أحياناً
+    jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    // محاولة استخراج JSON الصحيح في حال وجود نص قبله أو بعده
+    const firstBrace = jsonText.indexOf('{');
+    const lastBrace = jsonText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+    }
+
     return JSON.parse(jsonText) as AILessonSchema;
   } catch (e) {
     console.error("Lesson Conversion Error:", e);
+    // يمكن هنا إرجاع null ليتم التعامل معه في الواجهة
     return null;
   }
 };
