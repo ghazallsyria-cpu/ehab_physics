@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, LiveSession, AppNotification } from '../types';
 import { dbService } from '../services/db';
@@ -12,9 +13,9 @@ const TeacherDashboard: React.FC<{ user: User }> = ({ user }) => {
 
   // Mock data for notifications as a real-time system is not yet fully implemented for teachers
   const mockNotifications: AppNotification[] = [
-    { id: '1', userId: user.uid, title: 'تصحيح مطلوب', message: 'الطالب "محمد الأحمد" سلم اختبار الفيزياء النووية.', timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), isRead: false, category: 'academic' },
-    { id: '2', userId: user.uid, title: 'طالب جديد انضم', message: 'انضم "علي مصطفى" إلى صف الثاني عشر.', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), isRead: false, category: 'general' },
-    { id: '3', userId: user.uid, title: 'رسالة جديدة', message: 'لديك رسالة من الطالبة "فاطمة الزهراء".', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), isRead: true, category: 'general' },
+    { id: '1', userId: user.uid, title: 'تصحيح مطلوب', message: 'الطالب "محمد الأحمد" سلم اختبار الفيزياء النووية.', timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), isRead: false, type: 'info', category: 'academic' },
+    { id: '2', userId: user.uid, title: 'طالب جديد انضم', message: 'انضم "علي مصطفى" إلى صف الثاني عشر.', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), isRead: false, type: 'success', category: 'general' },
+    { id: '3', userId: user.uid, title: 'رسالة جديدة', message: 'لديك رسالة من الطالبة "فاطمة الزهراء".', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), isRead: true, type: 'info', category: 'general' },
   ];
 
   const formatRelativeTime = (timestamp: string) => {

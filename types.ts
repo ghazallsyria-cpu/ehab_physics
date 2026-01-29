@@ -141,6 +141,8 @@ export interface UniversalLessonConfig {
     graphConfig?: {
         xAxisVariableId: string;
         yAxisLabel: string;
+        chartType: 'line' | 'bar' | 'area';
+        lineColor: string;
     };
 }
 

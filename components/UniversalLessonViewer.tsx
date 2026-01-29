@@ -2,14 +2,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   BookOpen, Calculator, LineChart, ChevronDown, ChevronUp, 
-  ZoomIn, X, CheckCircle2, FlaskConical, Share2, Info 
+  ZoomIn, X, CheckCircle2, FlaskConical, Share2, Info, BarChart as BarChartIcon
 } from 'lucide-react';
 import katex from 'katex';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
-import { Line } from 'react-chartjs-2';
+import { 
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement, 
+  LineElement, BarElement, Title, Tooltip, Legend, Filler 
+} from 'chart.js';
+import { Line, Bar } from 'react-chartjs-2';
 import { Lesson, UniversalLessonConfig } from '../types';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
 
 // Math Renderer Component
 const MathBlock: React.FC<{ tex: string; inline?: boolean }> = ({ tex, inline }) => {
@@ -49,19 +52,8 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
   // Dynamic Calculation
   useEffect(() => {
     try {
-        // Construct the function dynamically
-        // Note: In a real production environment, validate this more strictly.
-        // We map the variable IDs to their values.
         const vars = Object.keys(calcValues);
         const values = Object.values(calcValues);
-        
-        // Replace variable IDs in formula with parameter names if needed, 
-        // but here we assume the formula uses the variable IDs directly as defined in the Admin Editor.
-        // E.g. Formula: "0.5 * m * v**2" -> we pass 'm' and 'v' as keys.
-        
-        // Since the user might use symbols in the formula that match variable IDs:
-        // We create a function context.
-        
         const func = new Function(...vars, `return ${config.calculationFormula};`);
         const res = func(...values);
         setResult(isNaN(res) ? 0 : res);
@@ -72,16 +64,17 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
 
   // Chart Logic
   const chartData = useMemo(() => {
-    if (!config.graphConfig) return null;
+    if (!config.graphConfig || !config.graphConfig.xAxisVariableId) return null;
     
     const xVarId = config.graphConfig.xAxisVariableId;
     const xVar = config.variables.find(v => v.id === xVarId);
     
     if (!xVar) return null;
 
-    // Generate X labels (range based on min/max of the X variable)
-    const step = (xVar.max - xVar.min) / 6; // 6 points
-    const labels = Array.from({length: 7}, (_, i) => Math.round(xVar.min + i * step));
+    // Generate 10 points for smoother graphs
+    const stepsCount = 10;
+    const stepSize = (xVar.max - xVar.min) / (stepsCount - 1);
+    const labels = Array.from({length: stepsCount}, (_, i) => parseFloat((xVar.min + i * stepSize).toFixed(1)));
 
     // Generate Data
     const dataPoints = labels.map(val => {
@@ -92,131 +85,176 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
         } catch { return 0; }
     });
 
+    const color = config.graphConfig.lineColor || '#00d2ff';
+    const isArea = config.graphConfig.chartType === 'area';
+
     return {
         labels,
         datasets: [{
             label: `${config.graphConfig.yAxisLabel}`,
             data: dataPoints,
-            borderColor: '#00d2ff',
-            backgroundColor: 'rgba(0, 210, 255, 0.2)',
+            borderColor: color,
+            backgroundColor: isArea ? `${color}33` : `${color}88`, // Transparent fill
+            borderWidth: 3,
             tension: 0.4,
-            pointRadius: 6,
-            pointHoverRadius: 8
+            pointRadius: 4,
+            pointHoverRadius: 8,
+            fill: isArea
         }]
     };
   }, [calcValues, config]);
 
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
-      legend: { labels: { color: '#fff', font: { family: 'Tajawal' } } },
-      tooltip: { backgroundColor: '#0a1118', titleColor: '#fbbf24', bodyFont: { family: 'Tajawal' } }
+      legend: { labels: { color: '#fff', font: { family: 'Tajawal', size: 12 } } },
+      tooltip: { 
+          backgroundColor: 'rgba(0,0,0,0.9)', 
+          titleColor: config.graphConfig?.lineColor || '#00d2ff', 
+          bodyFont: { family: 'Tajawal' },
+          padding: 12,
+          cornerRadius: 10,
+          displayColors: false
+      }
     },
     scales: {
-      y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#aaa' } },
-      x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#aaa' } }
-    }
+      y: { 
+          grid: { color: 'rgba(255,255,255,0.05)' }, 
+          ticks: { color: '#aaa', font: { family: 'Tajawal' } },
+          border: { display: false }
+      },
+      x: { 
+          grid: { color: 'rgba(255,255,255,0.05)' }, 
+          ticks: { color: '#aaa', font: { family: 'Tajawal' } },
+          border: { display: false }
+      }
+    },
+    interaction: {
+        mode: 'index' as const,
+        intersect: false,
+    },
   };
 
   return (
     <div className="min-h-screen bg-[#0A2540] font-['Tajawal'] text-right text-white pb-20 animate-fadeIn" dir="rtl">
         {/* Header */}
-        <div className="relative h-[300px] overflow-hidden rounded-b-[60px] border-b border-white/10 shadow-2xl mb-12">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-900 via-[#0A2540] to-black opacity-90 z-10"></div>
+        <div className="relative h-[350px] overflow-hidden rounded-b-[80px] border-b border-white/10 shadow-2xl mb-12">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-950 via-[#0A2540] to-black opacity-90 z-10"></div>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 z-0"></div>
-            <div className="relative z-20 container mx-auto px-6 h-full flex flex-col justify-center items-start">
-                <div className="flex gap-3 mb-4">
-                    <span className="px-4 py-1 bg-[#fbbf24] text-black rounded-full text-xs font-black uppercase tracking-widest">درس تفاعلي</span>
+            <div className="relative z-20 container mx-auto px-6 h-full flex flex-col justify-center items-start pt-10">
+                <div className="flex gap-3 mb-6">
+                    <span className="px-5 py-2 bg-[#fbbf24] text-black rounded-full text-xs font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20">درس تفاعلي ذكي</span>
                 </div>
-                <h1 className="text-4xl md:text-6xl font-black mb-4 leading-tight">{lesson.title}</h1>
-                <p className="text-gray-300 text-lg max-w-2xl leading-relaxed">{config.introduction}</p>
-                <button onClick={onBack} className="absolute top-8 left-8 p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/10"><X size={24}/></button>
+                <h1 className="text-5xl md:text-7xl font-black mb-6 leading-tight tracking-tighter">{lesson.title}</h1>
+                <p className="text-gray-300 text-lg md:text-xl max-w-3xl leading-relaxed font-light">{config.introduction}</p>
+                <button onClick={onBack} className="absolute top-8 left-8 p-4 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/10 group">
+                    <X size={24} className="group-hover:rotate-90 transition-transform"/>
+                </button>
             </div>
         </div>
 
         <div className="container mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-10">
             <div className="lg:col-span-8 space-y-12">
-                {/* Objectives */}
-                <div className="bg-white/[0.02] border border-white/5 rounded-[40px] p-8">
-                    <h3 className="text-2xl font-black text-[#fbbf24] mb-6 flex items-center gap-3"><CheckCircle2 /> أهداف الدرس</h3>
+                
+                {/* Visual Graph Area - Priority Display */}
+                {chartData && (
+                    <div className="glass-panel p-8 rounded-[50px] border-white/5 bg-gradient-to-b from-white/[0.02] to-transparent shadow-2xl relative overflow-hidden group">
+                        <div className="flex justify-between items-center mb-8 px-2">
+                            <h3 className="text-2xl font-black text-white flex items-center gap-3">
+                                {config.graphConfig?.chartType === 'bar' ? <BarChartIcon className="text-[#00d2ff]" /> : <LineChart className="text-[#00d2ff]" />} 
+                                التحليل البياني المباشر
+                            </h3>
+                            <span className="text-[10px] font-black text-gray-500 bg-black/30 px-3 py-1 rounded-lg border border-white/5">
+                                متغير X: {config.variables.find(v => v.id === config.graphConfig?.xAxisVariableId)?.name}
+                            </span>
+                        </div>
+                        <div className="h-[450px] w-full relative z-10">
+                            {config.graphConfig?.chartType === 'bar' ? 
+                                <Bar data={chartData} options={chartOptions} /> : 
+                                <Line data={chartData} options={chartOptions} />
+                            }
+                        </div>
+                    </div>
+                )}
+
+                {/* Main Equation */}
+                <div className="glass-panel p-10 rounded-[40px] border-r-4 border-[#00d2ff] bg-black/20">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="w-10 h-10 bg-[#00d2ff]/10 rounded-xl flex items-center justify-center text-[#00d2ff]"><Calculator size={20}/></div>
+                        <h3 className="text-xl font-black text-white">الصيغة الرياضية</h3>
+                    </div>
+                    <MathBlock tex={config.mainEquation} />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 text-center">
+                        {config.variables.map((v, i) => (
+                            <div key={i} className="bg-white/5 p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center">
+                                <MathBlock tex={v.symbol} inline />
+                                <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase tracking-widest">{v.name}</p>
+                                <p className="text-[9px] text-[#fbbf24] font-mono mt-1">[{v.unit}]</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Learning Objectives */}
+                <div className="bg-white/[0.02] border border-white/5 rounded-[40px] p-10">
+                    <h3 className="text-xl font-black text-gray-300 mb-6 flex items-center gap-3"><CheckCircle2 size={20} className="text-green-500" /> ماذا سنتعلم؟</h3>
                     <ul className="space-y-4">
                         {config.objectives.map((obj, i) => (
                             <li key={i} className="flex items-start gap-4">
-                                <span className="w-6 h-6 rounded-full bg-[#00d2ff]/20 text-[#00d2ff] flex items-center justify-center text-xs font-black shrink-0 mt-1">{i + 1}</span>
-                                <span className="text-gray-300 leading-relaxed">{obj}</span>
+                                <span className="w-6 h-6 rounded-full bg-green-500/10 text-green-500 flex items-center justify-center text-[10px] font-black shrink-0 mt-1">{i + 1}</span>
+                                <span className="text-gray-400 leading-relaxed text-sm font-medium">{obj}</span>
                             </li>
                         ))}
                     </ul>
                 </div>
 
-                {/* Main Content & Equation */}
-                <div className="glass-panel p-10 rounded-[40px] border-l-4 border-[#00d2ff] bg-gradient-to-r from-[#00d2ff]/5 to-transparent">
-                    <h3 className="text-xl font-black text-white mb-6">الصيغة الرياضية</h3>
-                    <MathBlock tex={config.mainEquation} />
-                    <div className="grid grid-cols-3 gap-4 mt-8 text-center">
-                        {config.variables.map((v, i) => (
-                            <div key={i} className="bg-black/30 p-4 rounded-2xl border border-white/5">
-                                <MathBlock tex={v.symbol} inline />
-                                <p className="text-xs text-gray-400 mt-2 font-bold">{v.name}</p>
-                                <p className="text-[10px] text-[#fbbf24] font-mono mt-1">({v.unit})</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Content Sections from standard Lesson.content if mixed */}
+                {/* Additional Content */}
                 {lesson.content && lesson.content.map((block, i) => (
                     <div key={i} className="space-y-4">
                         {block.caption && <h3 className="text-2xl font-bold text-white border-r-4 border-[#fbbf24] pr-4">{block.caption}</h3>}
                         {block.type === 'text' && (
-                            <div className="prose prose-invert max-w-none text-gray-300 text-lg leading-loose">
+                            <div className="prose prose-invert max-w-none text-gray-300 text-lg leading-loose font-light">
                                 <p dangerouslySetInnerHTML={{__html: block.content.replace(/\$(.*?)\$/g, (match) => katex.renderToString(match.slice(1, -1), {throwOnError:false}))}} />
                             </div>
                         )}
                         {block.type === 'image' && (
-                            <div className="relative group rounded-[30px] overflow-hidden border border-white/10 cursor-zoom-in" onClick={() => setLightboxImage(block.content)}>
-                                <img src={block.content} className="w-full h-64 object-cover" alt="visual" />
+                            <div className="relative group rounded-[40px] overflow-hidden border border-white/10 cursor-zoom-in shadow-2xl" onClick={() => setLightboxImage(block.content)}>
+                                <img src={block.content} className="w-full h-auto object-cover" alt="visual" />
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><ZoomIn className="text-white w-10 h-10"/></div>
                             </div>
                         )}
                     </div>
                 ))}
-
-                {/* Dynamic Chart */}
-                {chartData && (
-                    <div className="glass-panel p-8 rounded-[40px] border-white/5 bg-black/40">
-                        <h3 className="text-xl font-black text-white mb-6 flex items-center gap-3"><LineChart className="text-[#00d2ff]" /> التحليل البياني</h3>
-                        <div className="h-[300px] w-full"><Line data={chartData} options={chartOptions} /></div>
-                    </div>
-                )}
             </div>
 
             {/* Sidebar Calculator */}
             <div className="lg:col-span-4 space-y-8">
                 <div className="sticky top-8">
-                    <div className="glass-panel p-8 rounded-[40px] border-[#fbbf24]/20 bg-[#fbbf24]/5 shadow-xl mb-8 relative overflow-hidden">
-                        <div className="absolute -top-10 -left-10 w-32 h-32 bg-[#fbbf24]/10 rounded-full blur-[50px]"></div>
-                        <h3 className="text-xl font-black text-[#fbbf24] mb-6 flex items-center gap-3 relative z-10"><Calculator /> المختبر الحسابي</h3>
+                    <div className="glass-panel p-8 rounded-[40px] border-[#fbbf24]/20 bg-[#fbbf24]/5 shadow-[0_0_50px_rgba(251,191,36,0.1)] mb-8 relative overflow-hidden">
+                        <div className="absolute -top-20 -left-20 w-40 h-40 bg-[#fbbf24]/10 rounded-full blur-[60px]"></div>
+                        <h3 className="text-xl font-black text-[#fbbf24] mb-8 flex items-center gap-3 relative z-10"><Calculator /> المختبر الحسابي</h3>
                         
-                        <div className="space-y-6 relative z-10">
+                        <div className="space-y-8 relative z-10">
                             {config.variables.map(variable => (
-                                <div key={variable.id} className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-400 flex justify-between">
-                                        <span>{variable.name} ({variable.symbol})</span>
-                                        <span className="text-[#00d2ff]">{calcValues[variable.id]} {variable.unit}</span>
-                                    </label>
+                                <div key={variable.id} className="space-y-3">
+                                    <div className="flex justify-between items-center text-xs font-bold text-gray-400">
+                                        <span>{variable.name} <span className="font-serif text-[#fbbf24] mx-1">({variable.symbol})</span></span>
+                                        <span className="bg-black/30 px-2 py-1 rounded text-[#00d2ff]">{calcValues[variable.id]} {variable.unit}</span>
+                                    </div>
                                     <input 
                                         type="range" min={variable.min} max={variable.max} step={variable.step}
                                         value={calcValues[variable.id] || variable.defaultValue}
                                         onChange={(e) => setCalcValues({...calcValues, [variable.id]: Number(e.target.value)})}
-                                        className="w-full h-2 bg-black/40 rounded-full appearance-none accent-[#fbbf24] cursor-pointer"
+                                        className="w-full h-2 bg-black/40 rounded-full appearance-none accent-[#fbbf24] cursor-pointer hover:accent-[#00d2ff] transition-all"
                                     />
                                 </div>
                             ))}
-                            <div className="pt-6 border-t border-white/10 text-center animate-pulse">
-                                <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest mb-2">النتيجة النهائية</p>
-                                <div className="text-5xl font-black text-white drop-shadow-[0_0_15px_rgba(251,191,36,0.5)] tabular-nums">
-                                    {result.toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-lg text-[#fbbf24]">{config.resultUnit}</span>
+                            
+                            <div className="pt-8 border-t border-white/10 text-center">
+                                <p className="text-[9px] font-black uppercase text-gray-500 tracking-[0.2em] mb-2">القيمة المحسوبة</p>
+                                <div className="text-6xl font-black text-white drop-shadow-[0_0_20px_rgba(251,191,36,0.4)] tabular-nums tracking-tighter">
+                                    {result.toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-xl text-[#fbbf24] font-medium">{config.resultUnit}</span>
                                 </div>
                             </div>
                         </div>
@@ -226,15 +264,15 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
                     {config.interactiveQuiz && (
                         <div className="bg-black/40 rounded-[30px] border border-white/5 overflow-hidden">
                             <button onClick={() => setShowQuiz(!showQuiz)} className="w-full flex justify-between items-center p-6 hover:bg-white/5 transition-all">
-                                <span className="font-bold flex items-center gap-3"><Info size={18} className="text-green-400"/> اختبر فهمك</span>
-                                {showQuiz ? <ChevronUp size={18}/> : <ChevronDown size={18}/>}
+                                <span className="font-bold flex items-center gap-3 text-sm"><Info size={18} className="text-green-400"/> اختبر فهمك</span>
+                                {showQuiz ? <ChevronUp size={18} className="text-gray-500"/> : <ChevronDown size={18} className="text-gray-500"/>}
                             </button>
                             {showQuiz && (
                                 <div className="p-6 pt-0 border-t border-white/5 bg-black/20">
-                                    <p className="text-sm text-gray-300 mb-4">{config.interactiveQuiz.question}</p>
-                                    <div className="space-y-2">
+                                    <p className="text-sm text-gray-300 mb-6 font-medium leading-relaxed">{config.interactiveQuiz.question}</p>
+                                    <div className="space-y-3">
                                         {config.interactiveQuiz.options.map((opt, idx) => (
-                                            <button key={idx} onClick={() => alert(idx === config.interactiveQuiz?.correctIndex ? "إجابة صحيحة! أحسنت." : "حاول مرة أخرى.")} className="w-full text-right p-3 rounded-xl bg-white/5 hover:bg-[#00d2ff]/20 hover:text-[#00d2ff] transition-all text-xs font-bold border border-white/5">
+                                            <button key={idx} onClick={() => alert(idx === config.interactiveQuiz?.correctIndex ? "إجابة صحيحة! أحسنت." : "حاول مرة أخرى.")} className="w-full text-right p-4 rounded-2xl bg-white/5 hover:bg-[#00d2ff]/20 hover:text-[#00d2ff] hover:border-[#00d2ff]/30 transition-all text-xs font-bold border border-white/5">
                                                 {opt}
                                             </button>
                                         ))}
@@ -245,8 +283,9 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
                     )}
 
                     <div className="mt-8 flex justify-end">
-                        <button onClick={onComplete} className={`px-8 py-4 rounded-2xl font-bold text-xs uppercase transition-all shadow-xl w-full ${isCompleted ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95'}`}>
-                            {isCompleted ? '✓ تم إكمال الدرس' : 'إتمام الدرس والحصول على النقاط'}
+                        <button onClick={onComplete} className={`px-8 py-5 rounded-2xl font-black text-xs uppercase transition-all shadow-xl w-full flex items-center justify-center gap-3 ${isCompleted ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-[#fbbf24] text-black hover:scale-105 active:scale-95'}`}>
+                            {isCompleted ? <CheckCircle2 size={18}/> : <Share2 size={18}/>}
+                            {isCompleted ? 'تم إكمال الدرس' : 'إتمام الدرس والحصول على النقاط'}
                         </button>
                     </div>
                 </div>

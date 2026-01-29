@@ -33,7 +33,9 @@ const InteractiveLessonBuilder: React.FC = () => {
         },
         graphConfig: {
             xAxisVariableId: 'a',
-            yAxisLabel: 'القوة (F)'
+            yAxisLabel: 'القوة (F)',
+            chartType: 'line',
+            lineColor: '#00d2ff'
         }
     }
   });

@@ -82,7 +82,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
           grade: '12',
           subscription: 'free',
           createdAt: new Date().toISOString(),
-          progress: { completedLessonIds: [], points: 0 }
+          progress: { completedLessonIds: [], points: 0, achievements: [] }
         };
         await dbService.saveUser(newUser);
         appUser = newUser;
