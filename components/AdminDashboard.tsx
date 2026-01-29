@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Briefcase, Settings, Video, RefreshCw, HeartPulse, Library, MessageSquare, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard, Newspaper, FlaskConical, Zap, Sparkles } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Settings, Video, RefreshCw, HeartPulse, Library, MessageSquare, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard, Newspaper, FlaskConical, Zap, Sparkles, Cpu } from 'lucide-react';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
 import SupabaseConnectionFixer from './SupabaseConnectionFixer';
@@ -40,7 +40,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const adminTools = [
-    { view: 'template-demo', icon: Sparkles, title: 'نموذج الدرس التفاعلي', description: 'معاينة القالب الشامل الجديد.' },
+    { view: 'lesson-builder', icon: Cpu, title: 'مختبر الدروس الذكية', description: 'بناء وتجربة الدروس التفاعلية (Universal System).' },
     { view: 'admin-curriculum', icon: BookOpen, title: 'إدارة المناهج', description: 'تعديل الدروس والمحتوى.' },
     { view: 'admin-quizzes', icon: ClipboardList, title: 'إدارة الاختبارات', description: 'بنوك الأسئلة والتقييم.' },
     { view: 'admin-labs', icon: FlaskConical, title: 'إدارة المختبرات', description: 'تجارب HTML5 و Phet.' },
@@ -86,12 +86,14 @@ const AdminDashboard: React.FC = () => {
                 <div 
                   key={tool.view} 
                   onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: tool.view } }))} 
-                  className="glass-panel p-8 rounded-[45px] border-white/5 bg-black/20 cursor-pointer group hover:border-amber-400/40 transition-all flex flex-col gap-6 animate-slideUp"
+                  className={`glass-panel p-8 rounded-[45px] border-white/5 bg-black/20 cursor-pointer group transition-all flex flex-col gap-6 animate-slideUp hover:border-amber-400/40 ${idx === 0 ? 'bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-500/30' : ''}`}
                   style={{ animationDelay: `${idx * 0.05}s` }}
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-amber-400 group-hover:bg-amber-400 group-hover:text-black transition-all duration-500"><tool.icon size={24} /></div>
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 ${idx === 0 ? 'bg-purple-500 text-white shadow-lg' : 'bg-white/5 text-amber-400 group-hover:bg-amber-400 group-hover:text-black'}`}>
+                      <tool.icon size={24} />
+                  </div>
                   <div>
-                    <h3 className="text-xl font-black text-white group-hover:text-amber-400 transition-colors">{tool.title}</h3>
+                    <h3 className={`text-xl font-black transition-colors ${idx === 0 ? 'text-white' : 'text-white group-hover:text-amber-400'}`}>{tool.title}</h3>
                     <p className="text-[10px] text-gray-500 mt-1 font-bold uppercase tracking-widest">{tool.description}</p>
                   </div>
                 </div>

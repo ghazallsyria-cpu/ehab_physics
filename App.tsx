@@ -49,7 +49,8 @@ const AdminPaymentManager = lazy(() => import('./components/AdminPaymentManager'
 const AdminContentManager = lazy(() => import('./components/AdminContentManager'));
 const AdminLabManager = lazy(() => import('./components/AdminLabManager'));
 const AdminRecommendationManager = lazy(() => import('./components/AdminRecommendationManager'));
-const UniversalLesson = lazy(() => import('./components/UniversalLesson')); 
+const UniversalLesson = lazy(() => import('./components/UniversalLesson')); // Old static one if needed
+const InteractiveLessonBuilder = lazy(() => import('./components/InteractiveLessonBuilder')); // New dynamic builder
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -227,6 +228,7 @@ const App: React.FC = () => {
       case 'admin-labs': return <AdminLabManager />;
       case 'admin-recommendations': return <AdminRecommendationManager />;
       case 'template-demo': return <UniversalLesson onBack={() => window.dispatchEvent(new CustomEvent('go-back'))} />;
+      case 'lesson-builder': return <InteractiveLessonBuilder />;
       default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
     }
   };
@@ -237,6 +239,15 @@ const App: React.FC = () => {
           {renderContent()}
       </div>
     );
+  }
+
+  // Hide header and sidebar for the builder to give immersive experience
+  if (currentView === 'lesson-builder') {
+      return (
+          <Suspense fallback={<div className="flex items-center justify-center h-screen bg-[#0A2540] text-white">Loading Builder...</div>}>
+              {renderContent()}
+          </Suspense>
+      );
   }
 
   return (
