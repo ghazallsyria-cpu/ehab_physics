@@ -2,8 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { User, HomePageContent } from '../types';
 import { dbService } from '../services/db';
-import { ArrowRight, Map, Trophy, BookOpen, Star, Zap, Crown, Smartphone, UserCircle, Save, X, CheckCircle2, RefreshCw, Megaphone, AlertTriangle, ExternalLink, Sparkles } from 'lucide-react';
-import anime from 'animejs';
+import { ArrowRight, Map, Trophy, BookOpen, Star, Zap, Crown, Smartphone, UserCircle, Save, X, Megaphone, AlertTriangle, Sparkles, RefreshCw } from 'lucide-react';
 
 interface StudentDashboardProps {
   user: User;
@@ -25,35 +24,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
 
   useEffect(() => {
     loadDynamicContent();
-
-    // حماية كود الأنيميشن: إذا فشل، تبقى العناصر ظاهرة
-    try {
-        (anime as any)({
-          targets: '.dashboard-card',
-          translateY: [50, 0],
-          opacity: [0, 1], // يبدأ من 0 في الحركة، لكن العنصر أصلاً ظاهر في الـ DOM
-          delay: (anime as any).stagger(150, {start: 300}),
-          easing: 'easeOutExpo',
-          duration: 1000
-        });
-
-        const pointsObj = { val: 0 };
-        (anime as any)({
-            targets: pointsObj,
-            val: user.progress.points || 0,
-            round: 1,
-            easing: 'easeOutQuad',
-            duration: 2000,
-            update: () => setProgressData(prev => ({ ...prev, points: pointsObj.val }))
-        });
-    } catch (e) {
-        console.warn("Animation failed, falling back to static view", e);
-        // في حال فشل الأنيميشن، نضمن عرض القيم النهائية
-        setProgressData(prev => ({ ...prev, points: user.progress.points || 0 }));
-    }
-
     const completed = (user.progress.completedLessonIds || []).length;
-    setProgressData(prev => ({ ...prev, lessons: completed, percent: Math.min(completed * 5, 100) }));
+    setProgressData({ 
+        lessons: completed, 
+        percent: Math.min(completed * 5, 100), 
+        points: user.progress.points || 0 
+    });
   }, [user]);
 
   const loadDynamicContent = async () => {
@@ -100,13 +76,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
   const gridAds = useMemo(() => dynamicContent.filter(c => c.placement === 'GRID_CARD'), [dynamicContent]);
 
   return (
-    <div className="space-y-10 font-['Tajawal'] pb-24 text-right relative" dir="rtl">
-      
-      {/* تم إزالة opacity-0 من جميع العناصر لضمان ظهورها */}
+    <div className="space-y-10 font-['Tajawal'] pb-24 text-right relative animate-fadeIn" dir="rtl">
       
       {/* 1. TOP BANNERS */}
-      {banners.map(banner => (
-          <div key={banner.id} className="dashboard-card relative overflow-hidden rounded-[50px] border-2 border-amber-400/20 bg-gradient-to-r from-amber-400/10 to-indigo-900/40 p-10 flex flex-col md:flex-row items-center gap-10 shadow-2xl">
+      {banners.map((banner, idx) => (
+          <div key={banner.id} className="relative overflow-hidden rounded-[50px] border-2 border-amber-400/20 bg-gradient-to-r from-amber-400/10 to-indigo-900/40 p-10 flex flex-col md:flex-row items-center gap-10 shadow-2xl animate-slideUp" style={{animationDelay: `${idx * 0.1}s`}}>
               {banner.imageUrl && <div className="w-full md:w-64 h-40 rounded-3xl overflow-hidden shrink-0 shadow-2xl border border-white/10"><img src={banner.imageUrl} className="w-full h-full object-cover" alt="ad" /></div>}
               <div className="flex-1">
                   <div className="flex items-center gap-3 mb-4">
@@ -124,7 +98,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
           </div>
       ))}
 
-      <div className="flex flex-col md:flex-row justify-between items-start gap-6 overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start gap-6 overflow-hidden animate-slideUp">
          <div className="welcome-text">
             <div className="flex items-center gap-4 mb-2">
                 <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
@@ -148,7 +122,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       </div>
 
       {/* New Template Promo Card */}
-      <div className="dashboard-card bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-2 border-purple-500/30 p-8 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+      <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-2 border-purple-500/30 p-8 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl animate-slideUp">
           <div className="flex items-center gap-6">
               <div className="w-16 h-16 bg-purple-500 rounded-3xl flex items-center justify-center text-white shadow-lg"><Sparkles size={32} /></div>
               <div>
@@ -160,7 +134,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       </div>
 
       {isProfileIncomplete && (
-          <div className="dashboard-card bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border-2 border-blue-500/30 p-8 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
+          <div className="bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border-2 border-blue-500/30 p-8 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
               <div className="flex items-center gap-6">
                   <div className="w-16 h-16 bg-blue-500 rounded-3xl flex items-center justify-center text-white shadow-lg"><Smartphone size={32} /></div>
                   <div>
@@ -172,8 +146,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
           </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-         <div onClick={() => navigate('curriculum')} className="dashboard-card lg:col-span-8 bg-gradient-to-br from-blue-600/20 to-blue-900/20 border border-blue-500/20 p-10 rounded-[50px] cursor-pointer hover:border-blue-400/40 transition-all group relative overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-slideUp">
+         <div onClick={() => navigate('curriculum')} className="lg:col-span-8 bg-gradient-to-br from-blue-600/20 to-blue-900/20 border border-blue-500/20 p-10 rounded-[50px] cursor-pointer hover:border-blue-400/40 transition-all group relative overflow-hidden">
            <div className="absolute top-[-20%] left-[-10%] w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] group-hover:bg-blue-500/20 transition-all"></div>
            <div className="relative z-10">
               <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400 mb-8 border border-blue-500/30"><BookOpen size={32} /></div>
@@ -183,7 +157,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
            </div>
          </div>
          
-         <div className="dashboard-card lg:col-span-4 space-y-8">
+         <div className="lg:col-span-4 space-y-8">
            <div onClick={() => navigate('journey-map')} className="bg-gradient-to-br from-amber-500/10 to-yellow-600/10 border border-amber-500/20 p-8 rounded-[40px] cursor-pointer hover:border-amber-400/40 transition-all group relative overflow-hidden h-full flex flex-col justify-between">
               <div>
                 <Map className="text-amber-400 mb-6" size={40} />
@@ -196,7 +170,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
 
          {/* 2. GRID CARDS */}
          {gridAds.map(ad => (
-             <div key={ad.id} onClick={() => ad.ctaLink && navigate(ad.ctaLink)} className="dashboard-card lg:col-span-4 glass-panel p-8 rounded-[40px] border-amber-400/20 bg-amber-400/5 cursor-pointer hover:-translate-y-2 transition-all relative overflow-hidden group">
+             <div key={ad.id} onClick={() => ad.ctaLink && navigate(ad.ctaLink)} className="lg:col-span-4 glass-panel p-8 rounded-[40px] border-amber-400/20 bg-amber-400/5 cursor-pointer hover:-translate-y-2 transition-all relative overflow-hidden group">
                  <div className="absolute top-0 left-0 w-full h-1 bg-amber-400"></div>
                  <div className="flex items-center gap-4 mb-6">
                      <div className="w-10 h-10 bg-amber-400 text-black rounded-xl flex items-center justify-center"><Zap size={20} fill="currentColor"/></div>
@@ -208,7 +182,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
              </div>
          ))}
 
-         <div className="dashboard-card lg:col-span-4 glass-panel p-8 rounded-[40px] border-white/5">
+         <div className="lg:col-span-4 glass-panel p-8 rounded-[40px] border-white/5">
             <h4 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-8 flex items-center gap-2"><Zap size={14} className="text-amber-400" /> مستوى الإنجاز</h4>
             <div className="space-y-6">
                 <div className="flex justify-between items-end">
@@ -225,7 +199,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
             </div>
          </div>
 
-         <div className="dashboard-card lg:col-span-4 glass-panel p-8 rounded-[40px] border-white/5">
+         <div className="lg:col-span-4 glass-panel p-8 rounded-[40px] border-white/5">
             <h4 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-8 flex items-center gap-2"><Trophy size={14} className="text-amber-400" /> آخر الإنجازات</h4>
             <div className="flex items-center gap-6 p-4 bg-white/5 rounded-3xl border border-white/5">
                 <div className="w-14 h-14 bg-amber-400/10 rounded-2xl flex items-center justify-center text-2xl border border-amber-400/20">🏆</div>
@@ -237,7 +211,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       {/* 3. MODAL POPUP */}
       {activePopup && (
           <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-fadeIn">
-              <div id="modal-popup" className="bg-[#0a1118] border-2 border-amber-400/30 w-full max-w-lg rounded-[60px] p-12 relative shadow-[0_0_100px_rgba(251,191,36,0.15)] text-center">
+              <div id="modal-popup" className="bg-[#0a1118] border-2 border-amber-400/30 w-full max-w-lg rounded-[60px] p-12 relative shadow-[0_0_100px_rgba(251,191,36,0.15)] text-center animate-slideUp">
                   <button onClick={() => setActivePopup(null)} className="absolute top-8 left-8 text-gray-500 hover:text-white p-2 bg-white/5 rounded-full transition-all"><X size={24}/></button>
                   <div className="w-24 h-24 bg-amber-400/10 rounded-[35px] border-2 border-amber-400/20 flex items-center justify-center mx-auto mb-10 text-amber-400 animate-float shadow-2xl">
                       <AlertTriangle size={48} />
@@ -263,7 +237,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       {/* Profile Modal */}
       {showProfileModal && (
           <div className="fixed inset-0 z-[500] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fadeIn">
-              <div className="bg-[#0a1118] border border-white/10 w-full max-w-lg rounded-[60px] p-12 relative shadow-3xl">
+              <div className="bg-[#0a1118] border border-white/10 w-full max-w-lg rounded-[60px] p-12 relative shadow-3xl animate-slideUp">
                   <button onClick={() => setShowProfileModal(false)} className="absolute top-8 left-8 text-gray-500 hover:text-white p-3 bg-white/5 rounded-full"><X size={24}/></button>
                   <div className="text-center mb-10"><div className="w-20 h-20 bg-blue-500 rounded-[30px] flex items-center justify-center mx-auto mb-6 shadow-2xl"><UserCircle size={48} className="text-white"/></div><h3 className="text-3xl font-black text-white italic">تحديث الملف الشخصي</h3><p className="text-gray-500 text-sm mt-3">بياناتك ضرورية لربط الدفعات المباشرة وتنبيهات المعلم.</p></div>
                   <div className="space-y-8">

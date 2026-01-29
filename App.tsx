@@ -5,16 +5,16 @@ import { dbService } from './services/db';
 import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, ShieldAlert } from 'lucide-react';
 import { auth } from './services/firebase';
 
-// Core Components
+// Core Components (Direct Import for Stability)
 import Sidebar from './components/Sidebar';
 import PWAPrompt from './components/PWAPrompt';
 import NotificationPanel from './components/NotificationPanel';
 import MaintenanceMode from './components/MaintenanceMode';
 import FloatingNav from './components/FloatingNav';
+import LandingPage from './components/LandingPage'; // Direct import
+import Auth from './components/Auth'; // Direct import
 
-// Lazy-loaded Components
-const LandingPage = lazy(() => import('./components/LandingPage'));
-const Auth = lazy(() => import('./components/Auth'));
+// Lazy-loaded Components (Secondary)
 const StudentDashboard = lazy(() => import('./components/StudentDashboard'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const TeacherDashboard = lazy(() => import('./components/TeacherDashboard'));
@@ -74,19 +74,13 @@ const App: React.FC = () => {
 
   const QUANTUM_BYPASS_KEY = 'ssc_core_secure_v4_8822';
 
-  // 🔥 SAFETY TIMEOUT: Force stop loading after 1 second
+  // Force loading to complete quickly if it gets stuck
   useEffect(() => {
-    const safetyTimer = setTimeout(() => {
-        if (isAuthLoading) {
-            console.warn("Forcing Auth Load Complete due to timeout");
-            setIsAuthLoading(false);
-        }
-        if (isMaintenanceLoading) {
-            console.warn("Forcing Maintenance Load Complete due to timeout");
-            setIsMaintenanceLoading(false);
-        }
-    }, 1000); // تم تقليل الوقت إلى 1 ثانية
-    return () => clearTimeout(safetyTimer);
+    const timer = setTimeout(() => {
+        if (isAuthLoading) setIsAuthLoading(false);
+        if (isMaintenanceLoading) setIsMaintenanceLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [isAuthLoading, isMaintenanceLoading]);
 
   useEffect(() => {
@@ -102,32 +96,36 @@ const App: React.FC = () => {
         if (storedToken === QUANTUM_BYPASS_KEY) setHasBypass(true);
     }
 
-    const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
-        setMaintenance(settings);
-        setIsMaintenanceLoading(false);
-    });
-
-    dbService.getAppBranding().then(setBranding);
-    
-    const unsubscribeAuth = auth.onAuthStateChanged(async (firebaseUser) => {
-      setIsAuthLoading(true);
-      if (firebaseUser) {
-        dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
-            if (updatedUser) {
-                setUser(updatedUser);
-            }
-            setIsAuthLoading(false);
+    // Load initial data
+    try {
+        const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
+            setMaintenance(settings);
+            setIsMaintenanceLoading(false);
         });
-      } else {
-        setUser(null);
-        setIsAuthLoading(false);
-      }
-    });
 
-    return () => {
-        unsubscribeAuth();
-        unsubscribeMaintenance();
-    };
+        dbService.getAppBranding().then(setBranding).catch(console.error);
+        
+        const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
+          if (firebaseUser) {
+            dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
+                if (updatedUser) setUser(updatedUser);
+                setIsAuthLoading(false);
+            });
+          } else {
+            setUser(null);
+            setIsAuthLoading(false);
+          }
+        });
+
+        return () => {
+            if (unsubscribeAuth) unsubscribeAuth();
+            if (unsubscribeMaintenance) unsubscribeMaintenance();
+        };
+    } catch (e) {
+        console.error("Initialization error", e);
+        setIsAuthLoading(false);
+        setIsMaintenanceLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -156,7 +154,7 @@ const App: React.FC = () => {
     if (isAuthLoading || isMaintenanceLoading) return (
       <div className="flex flex-col items-center justify-center h-screen gap-6 bg-[#000407]">
         <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
-        <p className="text-gray-500 font-black animate-pulse tracking-[0.3em]">SECURE NODE LOADING...</p>
+        <p className="text-gray-500 font-black animate-pulse tracking-[0.3em]">LOADING SYSTEM...</p>
       </div>
     );
 
@@ -183,6 +181,7 @@ const App: React.FC = () => {
         if (user?.role === 'admin') return <AdminDashboard />;
         if (user?.role === 'teacher') return <TeacherDashboard user={user} />;
         return user ? <StudentDashboard user={user} /> : null;
+      // All other views
       case 'curriculum': return user ? <CurriculumBrowser user={user} subject={activeSubject} /> : null;
       case 'lesson': return activeLesson && user ? <LessonViewer user={user} lesson={activeLesson} /> : null;
       case 'quiz_center': return user ? <QuizCenter user={user} /> : null;
@@ -222,9 +221,7 @@ const App: React.FC = () => {
   if (currentView === 'landing' || currentView === 'auth') {
     return (
       <div className="min-h-screen bg-[#000000] text-right font-['Tajawal']" dir="rtl">
-        <Suspense fallback={<div className="h-screen flex items-center justify-center bg-black"><RefreshCw className="animate-spin text-white" /></div>}>
           {renderContent()}
-        </Suspense>
       </div>
     );
   }

@@ -1,9 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Briefcase, Settings, Video, RefreshCw, HeartPulse, LayoutDashboard, Library, MessageSquare, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard, Newspaper, FlaskConical, Zap } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Settings, Video, RefreshCw, HeartPulse, Library, MessageSquare, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard, Newspaper, FlaskConical, Zap } from 'lucide-react';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
-import anime from 'animejs';
 import SupabaseConnectionFixer from './SupabaseConnectionFixer';
 import EscalatedPostsWidget from './EscalatedPostsWidget';
 
@@ -17,21 +16,6 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     checkHealth();
     verifyAdminRole();
-
-    // حماية كود الأنيميشن
-    try {
-        (anime as any)({
-          targets: '.admin-tool-card',
-          scale: [0.9, 1],
-          opacity: [0, 1],
-          translateY: [20, 0],
-          delay: (anime as any).stagger(100),
-          easing: 'easeOutExpo',
-          duration: 800
-        });
-    } catch (e) {
-        console.warn("Animation error", e);
-    }
   }, []);
 
   const verifyAdminRole = async () => {
@@ -97,12 +81,12 @@ const AdminDashboard: React.FC = () => {
            <EscalatedPostsWidget />
            
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {adminTools.map(tool => (
+              {adminTools.map((tool, idx) => (
                 <div 
                   key={tool.view} 
                   onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: tool.view } }))} 
-                  // تمت إزالة opacity-0 من هنا
-                  className="admin-tool-card glass-panel p-8 rounded-[45px] border-white/5 bg-black/20 cursor-pointer group hover:border-amber-400/40 transition-all flex flex-col gap-6"
+                  className="glass-panel p-8 rounded-[45px] border-white/5 bg-black/20 cursor-pointer group hover:border-amber-400/40 transition-all flex flex-col gap-6 animate-slideUp"
+                  style={{ animationDelay: `${idx * 0.05}s` }}
                 >
                   <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-amber-400 group-hover:bg-amber-400 group-hover:text-black transition-all duration-500"><tool.icon size={24} /></div>
                   <div>

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { dbService } from '../services/db';
-import { ChevronLeft, User, Briefcase, UserCheck, Activity, Zap } from 'lucide-react';
+import { ChevronLeft, User, Briefcase, UserCheck, Activity, Zap, PlayCircle } from 'lucide-react';
 import HeroSection from './HeroSection';
 
 interface LandingPageProps {
@@ -17,24 +17,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
       total: 1295 
   });
 
-  // جلب الإحصائيات الحقيقية إن وجدت
   useEffect(() => {
+    // Attempt to load real stats, fail silently if database is restricted
     try {
         const unsubscribe = dbService.subscribeToGlobalStats((updatedStats) => {
             if (updatedStats) setStats(updatedStats);
         });
         return () => unsubscribe();
     } catch (e) {
-        console.warn("Stats load skipped");
+        // Keep default stats
     }
   }, []);
 
-  const StatCard = ({ value, label, icon: Icon, color, delay }: any) => {
+  const StatCard = ({ value, label, icon: Icon, color }: any) => {
     return (
-        <div 
-            className={`relative p-1 bg-gradient-to-br from-white/10 to-transparent rounded-[45px] transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1 shadow-2xl overflow-hidden animate-slideUp`}
-            style={{ animationDelay: delay }}
-        >
+        <div className="relative p-1 bg-gradient-to-br from-white/10 to-transparent rounded-[45px] transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 shadow-2xl overflow-hidden animate-slideUp">
             <div className="relative bg-[#050a10]/80 backdrop-blur-3xl rounded-[44px] p-8 h-full border border-white/5 flex flex-col items-center text-center">
                 <div className={`relative w-16 h-16 mb-6 flex items-center justify-center rounded-[25px] ${color} shadow-2xl`}>
                     <Icon size={28} className="text-white relative z-10" />
@@ -57,14 +54,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   return (
     <div className="relative min-h-screen w-full bg-[#000] overflow-x-hidden font-['Tajawal'] text-right" dir="rtl">
       
-      {/* خلفية الفيديو - مكون مستقل آمن */}
+      {/* Background (Fixed & Guaranteed) */}
       <HeroSection />
 
-      {/* المحتوى الرئيسي */}
+      {/* Main Content Overlay */}
       <div className="relative z-10 w-full flex flex-col">
         
-        {/* قسم الترحيب - ملء الشاشة */}
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        {/* Full Screen Welcome Area */}
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
             
             <div className="mb-10 animate-float">
                <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-[35px] border border-white/20 flex items-center justify-center shadow-[0_0_60px_rgba(56,189,248,0.3)]">
@@ -76,32 +73,30 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                 الفيزياء <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">الحديثة</span>
             </h1>
             
-            <p className="text-lg md:text-2xl text-gray-300 font-medium max-w-2xl leading-relaxed drop-shadow-md mb-12 animate-slideUp" style={{ animationDelay: '0.2s' }}>
+            <p className="text-lg md:text-2xl text-gray-300 font-medium max-w-2xl leading-relaxed drop-shadow-md mb-12 animate-slideUp delay-200">
                 منصة تعليمية متطورة تدمج الذكاء الاصطناعي مع المنهج الكويتي لتجربة تعليمية لا مثيل لها.
             </p>
 
-            <div className="animate-slideUp" style={{ animationDelay: '0.4s' }}>
+            <div className="animate-slideUp delay-500">
                 <button 
                     onClick={onStart} 
-                    className="group relative px-12 py-5 bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-full font-black text-lg uppercase transition-all duration-300 hover:bg-[#38bdf8] hover:text-black hover:border-[#38bdf8] shadow-[0_0_40px_rgba(56,189,248,0.2)] hover:shadow-[0_0_80px_rgba(56,189,248,0.6)] active:scale-95"
+                    className="group relative px-12 py-5 bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-full font-black text-lg uppercase transition-all duration-300 hover:bg-[#38bdf8] hover:text-black hover:border-[#38bdf8] shadow-[0_0_40px_rgba(56,189,248,0.2)] hover:shadow-[0_0_80px_rgba(56,189,248,0.6)] active:scale-95 flex items-center gap-4"
                 >
-                    <span className="relative z-10 flex items-center gap-4">
-                        دخول المنصة <ChevronLeft className="group-hover:-translate-x-2 transition-transform duration-300" size={24} />
-                    </span>
+                    دخول المنصة <ChevronLeft className="group-hover:-translate-x-2 transition-transform duration-300" size={24} />
                 </button>
             </div>
 
-            {/* مؤشر التمرير */}
+            {/* Scroll Indicator */}
             <div className="absolute bottom-10 animate-bounce text-white/50 hidden md:block">
                <span className="text-xs font-black uppercase tracking-[0.3em]">اكتشف الإحصائيات</span>
                <div className="w-[1px] h-12 bg-gradient-to-b from-white/50 to-transparent mx-auto mt-4"></div>
             </div>
         </div>
 
-        {/* قسم الإحصائيات - يظهر عند التمرير */}
+        {/* Stats Section */}
         <div className="w-full bg-gradient-to-b from-transparent via-[#000000]/90 to-[#000000] pb-32 pt-10">
             <div className="max-w-7xl mx-auto px-6 relative z-10">
-                <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6 px-4 animate-fadeIn">
+                <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6 px-4 animate-slideUp">
                     <div className="text-right">
                         <div className="inline-flex items-center gap-3 px-6 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-[10px] font-black text-blue-400 uppercase tracking-[0.5em] mb-6">
                            <Activity size={14} className="animate-pulse" /> Live Cloud Node Active
@@ -111,10 +106,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-4">
-                    <StatCard value={stats.maleStudents} label="الطلاب (بنين)" icon={User} color="bg-blue-600" delay="0.1s" />
-                    <StatCard value={stats.femaleStudents} label="الطالبات (بنات)" icon={User} color="bg-pink-600" delay="0.2s" />
-                    <StatCard value={stats.totalTeachers} label="الطاقم الأكاديمي" icon={Briefcase} color="bg-amber-600" delay="0.3s" />
-                    <StatCard value={stats.totalStudents} label="إجمالي المسجلين" icon={UserCheck} color="bg-emerald-600" delay="0.4s" />
+                    <StatCard value={stats.maleStudents} label="الطلاب (بنين)" icon={User} color="bg-blue-600" />
+                    <StatCard value={stats.femaleStudents} label="الطالبات (بنات)" icon={User} color="bg-pink-600" />
+                    <StatCard value={stats.totalTeachers} label="الطاقم الأكاديمي" icon={Briefcase} color="bg-amber-600" />
+                    <StatCard value={stats.totalStudents} label="إجمالي المسجلين" icon={UserCheck} color="bg-emerald-600" />
                 </div>
             </div>
         </div>
