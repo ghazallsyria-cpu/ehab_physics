@@ -74,8 +74,7 @@ const App: React.FC = () => {
 
   const QUANTUM_BYPASS_KEY = 'ssc_core_secure_v4_8822';
 
-  // 🔥 SAFETY TIMEOUT: Force stop loading after 2.5 seconds if DB is slow
-  // This prevents the "White Screen of Death" caused by hanging promises
+  // 🔥 SAFETY TIMEOUT: Force stop loading after 1 second
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
         if (isAuthLoading) {
@@ -86,7 +85,7 @@ const App: React.FC = () => {
             console.warn("Forcing Maintenance Load Complete due to timeout");
             setIsMaintenanceLoading(false);
         }
-    }, 2500);
+    }, 1000); // تم تقليل الوقت إلى 1 ثانية
     return () => clearTimeout(safetyTimer);
   }, [isAuthLoading, isMaintenanceLoading]);
 
@@ -113,13 +112,9 @@ const App: React.FC = () => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (firebaseUser) => {
       setIsAuthLoading(true);
       if (firebaseUser) {
-        // We have a firebase user, let's get the DB user
         dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
             if (updatedUser) {
                 setUser(updatedUser);
-            } else {
-                // User authenticated in Firebase but no document in DB yet?
-                // Might be a new user or sync issue.
             }
             setIsAuthLoading(false);
         });
@@ -158,7 +153,6 @@ const App: React.FC = () => {
   }, []);
 
   const renderContent = () => {
-    // If loading is taking place, show the spinner
     if (isAuthLoading || isMaintenanceLoading) return (
       <div className="flex flex-col items-center justify-center h-screen gap-6 bg-[#000407]">
         <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
@@ -253,7 +247,6 @@ const App: React.FC = () => {
       />
       
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 lg:mr-72`}>
-        {/* Special Header Handling for the immersive template */}
         {currentView !== 'template-demo' && (
           <header className="sticky top-0 z-[100] bg-[#0A2540]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex justify-between items-center shadow-2xl">
             <div className="flex items-center gap-4">
