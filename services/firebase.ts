@@ -4,31 +4,34 @@ import "firebase/compat/firestore";
 import "firebase/compat/auth";
 import "firebase/compat/storage";
 
-// مفاتيح التكوين الثابتة لضمان عمل التطبيق (Hardcoded for stability)
-const firebaseConfig = {
-  apiKey: "AIzaSyAwbn6xMl8RZ52cWk571CS_hI4Qo9Kh1VY",
-  authDomain: "physi-kuwait-prod-46032.firebaseapp.com",
-  projectId: "physi-kuwait-prod-46032",
-  storageBucket: "physi-kuwait-prod-46032.firebasestorage.app",
-  messagingSenderId: "27783754762",
-  appId: "1:27783754762:web:fa0065227eed7e52081bf3"
+// استرجاع القيم من متغيرات البيئة (Vite يستخدم import.meta.env)
+const getEnv = (key: string) => {
+  // @ts-ignore
+  return import.meta.env[key] || process.env[key];
 };
 
-// تهيئة التطبيق الأساسي مع معالجة الأخطاء
+const firebaseConfig = {
+  apiKey: getEnv('VITE_FIREBASE_API_KEY'),
+  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: getEnv('VITE_FIREBASE_PROJECT_ID'),
+  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: getEnv('VITE_FIREBASE_APP_ID')
+};
+
+// تهيئة التطبيق الأساسي مع التحقق من عدم التكرار
 let app;
 try {
     if (!firebase.apps.length) {
         app = firebase.initializeApp(firebaseConfig);
-        console.log("Firebase initialized successfully");
     } else {
         app = firebase.app();
     }
 } catch (error) {
-    console.error("Firebase Initialization Critical Error:", error);
+    console.error("Firebase Initialization Error:", error);
 }
 
-// تصدير الخدمات بأمان
-// إذا فشلت التهيئة، ستكون هذه المتغيرات غير معرفة، لذا يجب التعامل معها بحذر في الملفات الأخرى
+// تصدير الخدمات
 export const db = app ? firebase.firestore() : null;
 export const auth = app ? firebase.auth() : null;
 
@@ -37,7 +40,7 @@ const provider = new firebase.auth.GoogleAuthProvider();
 provider.setCustomParameters({ prompt: 'select_account' });
 export const googleProvider = provider;
 
-// التوثيق الثانوي (لإدارة المستخدمين)
+// التوثيق الثانوي (لإدارة المستخدمين من قبل الأدمن)
 export let secondaryAuth: firebase.auth.Auth | null = null;
 try {
     const secondaryAppName = "SecondaryAdminApp";
@@ -45,5 +48,5 @@ try {
     const secApp = existingApp || firebase.initializeApp(firebaseConfig, secondaryAppName);
     secondaryAuth = secApp.auth();
 } catch (e) {
-    console.warn("Secondary Auth failed to load:", e);
+    console.warn("Secondary Auth failed to load (Check env vars):", e);
 }

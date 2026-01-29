@@ -1,10 +1,14 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY as string;
+// استرجاع القيم من متغيرات البيئة
+// @ts-ignore
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+// @ts-ignore
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Supabase URL or Anon Key is missing. Please check your environment variables.");
+    console.warn("⚠️ تحذير: متغيرات Supabase غير موجودة في ملف .env");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl || "", supabaseAnonKey || "");
