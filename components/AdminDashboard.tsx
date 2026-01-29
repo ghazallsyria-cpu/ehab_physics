@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Briefcase, Settings, Video, RefreshCw, HeartPulse, Library, MessageSquare, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard, Newspaper, FlaskConical, Zap } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Settings, Video, RefreshCw, HeartPulse, Library, MessageSquare, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard, Newspaper, FlaskConical, Zap, Sparkles } from 'lucide-react';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
 import SupabaseConnectionFixer from './SupabaseConnectionFixer';
@@ -40,6 +40,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const adminTools = [
+    { view: 'template-demo', icon: Sparkles, title: 'نموذج الدرس التفاعلي', description: 'معاينة القالب الشامل الجديد.' },
     { view: 'admin-curriculum', icon: BookOpen, title: 'إدارة المناهج', description: 'تعديل الدروس والمحتوى.' },
     { view: 'admin-quizzes', icon: ClipboardList, title: 'إدارة الاختبارات', description: 'بنوك الأسئلة والتقييم.' },
     { view: 'admin-labs', icon: FlaskConical, title: 'إدارة المختبرات', description: 'تجارب HTML5 و Phet.' },
