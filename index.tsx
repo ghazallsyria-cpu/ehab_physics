@@ -2,6 +2,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 import 'katex/dist/katex.min.css';
 
 // Handle PWA and Storage safely
@@ -19,11 +20,9 @@ initStorage();
 // PWA Registration with relative path fallback
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    // Use simple relative path to avoid URL parsing errors in certain sandboxes
     navigator.serviceWorker.register('./sw.js', { scope: './' })
       .then(reg => console.log('SSC SW Registered!', reg.scope))
       .catch(err => {
-        // Log warning but do not crash application
         console.warn('SW Registration Warning:', err.message || err);
       });
   });
@@ -34,7 +33,9 @@ if (container) {
   const root = createRoot(container);
   root.render(
     <React.StrictMode>
-      <App />
+      <GlobalErrorBoundary>
+        <App />
+      </GlobalErrorBoundary>
     </React.StrictMode>
   );
 }
