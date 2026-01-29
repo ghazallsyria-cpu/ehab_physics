@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="https://i.ibb.co/yBGp3sN/ssc-logo-final.png" type="image/png">
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/3063/3063206.png" type="image/png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;700;800;900&display=swap" rel="stylesheet">
@@ -54,6 +54,7 @@
     "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
     "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
     "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+    "firebase/storage": "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js",
     "katex": "https://esm.sh/katex@0.16.10",
     "react-qr-code": "https://esm.sh/react-qr-code@2.0.12",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7",
@@ -72,6 +73,22 @@
 </head>
 <body>
     <div id="root"></div>
+    <script>
+      // Global Error Handler to catch crash before React mounts
+      window.onerror = function(message, source, lineno, colno, error) {
+        const root = document.getElementById('root');
+        if (root && root.innerHTML.trim() === '') {
+           root.innerHTML = `
+             <div style="color: white; font-family: monospace; padding: 20px; direction: ltr; text-align: left;">
+               <h1 style="color: red;">Application Critical Error</h1>
+               <p>The application failed to start.</p>
+               <pre style="background: #333; padding: 10px; border-radius: 5px; overflow: auto;">${message}\nat ${source}:${lineno}:${colno}</pre>
+               <button onclick="window.location.reload()" style="margin-top: 20px; padding: 10px 20px; font-weight: bold; cursor: pointer;">Reload Page</button>
+             </div>
+           `;
+        }
+      };
+    </script>
     <script type="module" src="./index.tsx"></script>
 </body>
 </html>

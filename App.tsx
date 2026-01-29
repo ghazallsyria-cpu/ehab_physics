@@ -11,10 +11,10 @@ import PWAPrompt from './components/PWAPrompt';
 import NotificationPanel from './components/NotificationPanel';
 import MaintenanceMode from './components/MaintenanceMode';
 import FloatingNav from './components/FloatingNav';
-import LandingPage from './components/LandingPage'; // Direct import
-import Auth from './components/Auth'; // Direct import
+import LandingPage from './components/LandingPage'; 
+import Auth from './components/Auth'; 
 
-// Lazy-loaded Components (Secondary)
+// Lazy-loaded Components
 const StudentDashboard = lazy(() => import('./components/StudentDashboard'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const TeacherDashboard = lazy(() => import('./components/TeacherDashboard'));
@@ -56,7 +56,7 @@ const App: React.FC = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [viewStack, setViewStack] = useState<ViewState[]>(['landing']);
   const [branding, setBranding] = useState<AppBranding>({ 
-    logoUrl: 'https://cdn-icons-png.flaticon.com/512/3063/3063206.png', // Stable fallback icon
+    logoUrl: 'https://cdn-icons-png.flaticon.com/512/3063/3063206.png', 
     appName: 'المركز السوري للعلوم' 
   });
   
@@ -77,9 +77,12 @@ const App: React.FC = () => {
   // Force loading to complete extremely quickly if it gets stuck
   useEffect(() => {
     const timer = setTimeout(() => {
-        if (isAuthLoading) setIsAuthLoading(false);
+        if (isAuthLoading) {
+            console.warn("Auth loading timed out, forcing UI render");
+            setIsAuthLoading(false);
+        }
         if (isMaintenanceLoading) setIsMaintenanceLoading(false);
-    }, 500); // 500ms timeout
+    }, 1000); 
     return () => clearTimeout(timer);
   }, [isAuthLoading, isMaintenanceLoading]);
 
@@ -96,7 +99,6 @@ const App: React.FC = () => {
         if (storedToken === QUANTUM_BYPASS_KEY) setHasBypass(true);
     }
 
-    // Load initial data safely
     try {
         const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
             setMaintenance(settings);
@@ -109,22 +111,29 @@ const App: React.FC = () => {
             }
         }).catch(console.error);
         
-        const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
-          if (firebaseUser) {
-            dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
-                if (updatedUser) setUser(updatedUser);
+        // Safety check for auth object
+        if (auth) {
+            const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
+              if (firebaseUser) {
+                dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
+                    if (updatedUser) setUser(updatedUser);
+                    setIsAuthLoading(false);
+                });
+              } else {
+                setUser(null);
                 setIsAuthLoading(false);
+              }
             });
-          } else {
-            setUser(null);
+            return () => {
+                if (unsubscribeAuth) unsubscribeAuth();
+                if (unsubscribeMaintenance) unsubscribeMaintenance();
+            };
+        } else {
+            console.error("Auth object is null");
             setIsAuthLoading(false);
-          }
-        });
+            return () => { if (unsubscribeMaintenance) unsubscribeMaintenance(); };
+        }
 
-        return () => {
-            if (unsubscribeAuth) unsubscribeAuth();
-            if (unsubscribeMaintenance) unsubscribeMaintenance();
-        };
     } catch (e) {
         console.error("Initialization error", e);
         setIsAuthLoading(false);
@@ -241,7 +250,8 @@ const App: React.FC = () => {
         onLogout={() => {
             localStorage.removeItem('ssc_maintenance_bypass_token');
             setHasBypass(false);
-            auth.signOut().then(() => setViewStack(['landing']));
+            if (auth) auth.signOut().then(() => setViewStack(['landing']));
+            else setViewStack(['landing']);
         }}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
