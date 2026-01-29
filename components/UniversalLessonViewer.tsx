@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   BookOpen, Calculator, LineChart, ChevronDown, ChevronUp, 
-  ZoomIn, X, CheckCircle2, FlaskConical, Share2, Info, BarChart as BarChartIcon
+  ZoomIn, X, CheckCircle2, FlaskConical, Share2, Info, BarChart as BarChartIcon, Code
 } from 'lucide-react';
 import katex from 'katex';
 import { 
@@ -14,10 +14,17 @@ import { Lesson, UniversalLessonConfig } from '../types';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
 
-// Math Renderer Component
+// Math Renderer Component - Fixed Direction to LTR
 const MathBlock: React.FC<{ tex: string; inline?: boolean }> = ({ tex, inline }) => {
   const html = katex.renderToString(tex, { throwOnError: false, displayMode: !inline });
-  return <span dangerouslySetInnerHTML={{ __html: html }} className={inline ? "font-serif text-[#00d2ff]" : "block my-4 text-center text-xl md:text-2xl text-white"} />;
+  return (
+    <div dir="ltr" className={`${inline ? "inline-block mx-1" : "flex justify-center my-6"}`}>
+       <span 
+         dangerouslySetInnerHTML={{ __html: html }} 
+         className={inline ? "font-serif text-[#00d2ff] text-lg font-bold" : "text-xl md:text-3xl text-white font-bold"} 
+       />
+    </div>
+  );
 };
 
 interface UniversalLessonViewerProps {
@@ -209,15 +216,56 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
                     </ul>
                 </div>
 
-                {/* Additional Content */}
+                {/* Additional Content Blocks */}
                 {lesson.content && lesson.content.map((block, i) => (
                     <div key={i} className="space-y-4">
                         {block.caption && <h3 className="text-2xl font-bold text-white border-r-4 border-[#fbbf24] pr-4">{block.caption}</h3>}
+                        
+                        {/* Text Block with Inline Math LTR Fix */}
                         {block.type === 'text' && (
                             <div className="prose prose-invert max-w-none text-gray-300 text-lg leading-loose font-light">
-                                <p dangerouslySetInnerHTML={{__html: block.content.replace(/\$(.*?)\$/g, (match) => katex.renderToString(match.slice(1, -1), {throwOnError:false}))}} />
+                                <p dangerouslySetInnerHTML={{
+                                    __html: block.content.replace(/\$(.*?)\$/g, (match, tex) => 
+                                        `<span dir="ltr" class="inline-block mx-1 font-bold text-[#00d2ff] font-serif">${katex.renderToString(tex, {throwOnError:false})}</span>`
+                                    )
+                                }} />
                             </div>
                         )}
+
+                        {/* HTML/Simulation Block */}
+                        {block.type === 'html' && (
+                            <div className="my-8 w-full bg-black/40 border border-white/10 rounded-[30px] overflow-hidden shadow-2xl relative group">
+                                <div className="absolute top-0 left-0 bg-[#fbbf24] text-black px-3 py-1 text-[9px] font-black uppercase tracking-widest z-10 rounded-br-xl shadow-lg flex items-center gap-2">
+                                    <Code size={10} /> محاكاة / كود
+                                </div>
+                                <iframe
+                                    srcDoc={`
+                                        <!DOCTYPE html>
+                                        <html dir="rtl">
+                                        <head>
+                                            <meta charset="UTF-8">
+                                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                            <style>
+                                                body { margin: 0; padding: 0; background: transparent; color: #fff; font-family: 'Tajawal', sans-serif; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
+                                                * { box-sizing: border-box; }
+                                                ::-webkit-scrollbar { width: 6px; }
+                                                ::-webkit-scrollbar-track { background: #000; }
+                                                ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+                                            </style>
+                                        </head>
+                                        <body>
+                                            ${block.content}
+                                        </body>
+                                        </html>
+                                    `}
+                                    title={`Interactive-Block-${i}`}
+                                    className="w-full h-[500px] border-none bg-transparent"
+                                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                                />
+                            </div>
+                        )}
+
+                        {/* Image Block */}
                         {block.type === 'image' && (
                             <div className="relative group rounded-[40px] overflow-hidden border border-white/10 cursor-zoom-in shadow-2xl" onClick={() => setLightboxImage(block.content)}>
                                 <img src={block.content} className="w-full h-auto object-cover" alt="visual" />
