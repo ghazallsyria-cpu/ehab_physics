@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Unit, Lesson, Curriculum } from '../types';
 import { dbService } from '../services/db';
-import { Check, Play, Lock, Zap, RefreshCw, BookOpen } from 'lucide-react';
+import { Check, Play, Lock, Zap, RefreshCw, BookOpen, Star, Pin } from 'lucide-react';
 
 interface CurriculumBrowserProps {
   user: User;
@@ -89,13 +89,19 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
               </button>
               <div className={`transition-all duration-500 ease-in-out ${expandedUnitId === unit.id ? 'max-h-[1000px] opacity-100 pb-8' : 'max-h-0 opacity-0'}`}>
                  <div className="px-8 space-y-3">
-                    {unit.lessons?.map((lesson, lIdx) => (
-                        <div key={lesson.id} onClick={() => navigateToLesson(lesson)} className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${isSubscriber ? 'bg-white/5 border-white/5 hover:border-white/10' : 'bg-black/40 border-white/5 opacity-80'}`}>
+                    {unit.lessons?.sort((a,b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0)).map((lesson, lIdx) => (
+                        <div key={lesson.id} onClick={() => navigateToLesson(lesson)} className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${lesson.isPinned ? 'bg-gradient-to-r from-amber-500/10 to-transparent border-amber-500/30 hover:border-amber-500/50' : isSubscriber ? 'bg-white/5 border-white/5 hover:border-white/10' : 'bg-black/40 border-white/5 opacity-80'}`}>
                            <div className="flex items-center gap-4">
-                              <span className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black bg-white/5 text-gray-500">
-                                  {isSubscriber ? lIdx + 1 : <Lock size={12} className="text-amber-500" />}
+                              <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black ${lesson.isPinned ? 'bg-amber-500 text-black' : 'bg-white/5 text-gray-500'}`}>
+                                  {lesson.isPinned ? <Pin size={14}/> : isSubscriber ? lIdx + 1 : <Lock size={12} className="text-amber-500" />}
                               </span>
-                              <p className={`text-sm ${!isSubscriber ? 'text-gray-500' : 'text-gray-200'}`}>{lesson.title}</p>
+                              <div>
+                                  <p className={`text-sm flex items-center gap-2 ${lesson.isPinned ? 'font-black text-amber-400' : !isSubscriber ? 'text-gray-500' : 'text-gray-200'}`}>
+                                      {lesson.title}
+                                      {lesson.isPinned && <span className="text-[8px] bg-amber-500 text-black px-2 rounded-full">مثبت</span>}
+                                  </p>
+                                  {lesson.templateType === 'UNIVERSAL' && <p className="text-[9px] text-[#00d2ff] flex items-center gap-1 font-bold mt-0.5"><Star size={8} fill="currentColor"/> درس تفاعلي ذكي</p>}
+                              </div>
                            </div>
                            {!isSubscriber && <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded uppercase">Premium</span>}
                         </div>

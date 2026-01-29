@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Curriculum, Unit, Lesson } from '../types';
 import { dbService } from '../services/db';
-import { BookOpen, Edit, Plus, Trash2, X, RefreshCw, CheckCircle, ChevronUp, ChevronDown, Layers, AlertCircle } from 'lucide-react';
+import { BookOpen, Edit, Plus, Trash2, X, RefreshCw, CheckCircle, ChevronUp, ChevronDown, Layers, AlertCircle, Cpu } from 'lucide-react';
 import LessonEditor from './LessonEditor';
 
 const AdminCurriculumManager: React.FC = () => {
@@ -51,6 +51,14 @@ const AdminCurriculumManager: React.FC = () => {
   };
 
   const handleEditLesson = (lesson: Lesson, unitId: string) => {
+    // Check if it's a Universal Lesson, if so, redirect to Builder
+    if (lesson.templateType === 'UNIVERSAL') {
+        window.dispatchEvent(new CustomEvent('change-view', { 
+            detail: { view: 'lesson-builder', lesson: lesson } 
+        }));
+        return;
+    }
+    
     if (!activeTopic?.id) return;
     setEditingLesson({ lesson, unitId, curriculumId: activeTopic.id, grade: activeGrade, subject: activeSubject });
   };
@@ -239,14 +247,15 @@ const AdminCurriculumManager: React.FC = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {unit.lessons && unit.lessons.map((lesson, lIdx) => (
-                  <div key={lesson.id} className="flex items-center justify-between p-6 bg-black/40 rounded-[30px] border border-white/5 hover:border-white/10 transition-all group/lesson relative">
+                  <div key={lesson.id} className={`flex items-center justify-between p-6 bg-black/40 rounded-[30px] border border-white/5 hover:border-white/10 transition-all group/lesson relative ${lesson.isPinned ? 'border-amber-500/30' : ''}`}>
                     <div className="flex gap-4 items-center flex-1">
                       <span className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-[10px] font-black text-gray-600">{lIdx + 1}</span>
                       <div>
-                        <p className="font-bold text-gray-200">{lesson.title}</p>
+                        <p className={`font-bold ${lesson.isPinned ? 'text-amber-400' : 'text-gray-200'}`}>{lesson.title}</p>
                         <div className="flex gap-3 mt-1">
                             <span className="text-[9px] font-black text-[#00d2ff] uppercase">{lesson.type}</span>
                             <span className="text-[9px] font-bold text-gray-600">⏱ {lesson.duration}</span>
+                            {lesson.templateType === 'UNIVERSAL' && <span className="text-[9px] font-bold text-purple-400 flex items-center gap-1"><Cpu size={10}/> تفاعلي</span>}
                         </div>
                       </div>
                     </div>

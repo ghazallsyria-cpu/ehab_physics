@@ -1,23 +1,37 @@
 
-import React, { useState } from 'react';
-import { Lesson } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Lesson, Curriculum, Unit } from '../types';
 import AdminUniversalLessonEditor from './AdminUniversalLessonEditor';
 import UniversalLessonViewer from './UniversalLessonViewer';
-import { Edit, Eye, ArrowLeft, RefreshCw, Save } from 'lucide-react';
+import { Edit, Eye, ArrowLeft, RefreshCw, Save, CheckCircle2, Pin, Layers, BookOpen, AlertCircle } from 'lucide-react';
 import { dbService } from '../services/db';
 
-const InteractiveLessonBuilder: React.FC = () => {
+interface InteractiveLessonBuilderProps {
+    initialLesson?: Lesson;
+}
+
+const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ initialLesson }) => {
   const [mode, setMode] = useState<'EDIT' | 'PREVIEW'>('EDIT');
   const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
   
+  // Save Modal State
+  const [targetGrade, setTargetGrade] = useState<'10'|'11'|'12'>('12');
+  const [targetSubject, setTargetSubject] = useState<'Physics'|'Chemistry'>('Physics');
+  const [availableUnits, setAvailableUnits] = useState<Unit[]>([]);
+  const [selectedUnitId, setSelectedUnitId] = useState<string>('');
+  const [isPinned, setIsPinned] = useState(false);
+  const [curriculums, setCurriculums] = useState<Curriculum[]>([]);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   // الحالة المبدئية للدرس
-  const [currentLesson, setCurrentLesson] = useState<Lesson>({
+  const [currentLesson, setCurrentLesson] = useState<Lesson>(initialLesson || {
     id: `temp_${Date.now()}`,
     title: 'عنوان الدرس الجديد',
     type: 'THEORY',
     duration: '15 د',
     templateType: 'UNIVERSAL',
+    isPinned: false,
     content: [],
     universalConfig: {
         introduction: 'اكتب مقدمة الدرس هنا...',
@@ -46,67 +60,96 @@ const InteractiveLessonBuilder: React.FC = () => {
   // تحديث الحالة عند التعديل في المحرر
   const handleUpdateDraft = (updatedLesson: Lesson) => {
       setCurrentLesson(updatedLesson);
-      // حفظ تلقائي في LocalStorage للحماية من فقدان البيانات أثناء العمل
-      localStorage.setItem('ssc_draft_lesson', JSON.stringify(updatedLesson));
+      if (!initialLesson) {
+          localStorage.setItem('ssc_draft_lesson', JSON.stringify(updatedLesson));
+      }
   };
 
-  const handleSaveToDB = async (lessonToSave: Lesson) => {
-      setIsSaving(true);
-      setSaveMessage(null);
-      
-      // نطلب من المستخدم تحديد الصف والمادة (مؤقتاً، يمكن تحسينها لتكون داخل المحرر)
-      const targetGrade = prompt("أدخل الصف المستهدف (10, 11, 12, uni):", "12");
-      if (!targetGrade) { setIsSaving(false); return; }
-      
-      const targetSubject = prompt("أدخل المادة (Physics, Chemistry):", "Physics");
-      if (!targetSubject) { setIsSaving(false); return; }
+  // تحميل الوحدات المتاحة عند فتح نافذة الحفظ
+  useEffect(() => {
+      if (showSaveModal) {
+          const loadCurriculums = async () => {
+              const data = await dbService.getCurriculum();
+              setCurriculums(data);
+              updateAvailableUnits(data, targetGrade, targetSubject);
+          };
+          loadCurriculums();
+      }
+  }, [showSaveModal]);
 
-      // نحتاج وحدة (Unit) لحفظ الدرس فيها. سأقوم بإنشاء وحدة "مسودات" أو طلب ID الوحدة
-      // للتبسيط في هذا الرد، سنبحث عن المنهج ونضيفها لأول وحدة، أو نطلب Unit ID
-      const unitId = prompt("أدخل معرف الوحدة (Unit ID) لإضافة الدرس إليها (أو اترك فارغاً للإنشاء في وحدة جديدة):");
+  // تحديث الوحدات عند تغيير الصف/المادة
+  useEffect(() => {
+      if (curriculums.length > 0) {
+          updateAvailableUnits(curriculums, targetGrade, targetSubject);
+      }
+  }, [targetGrade, targetSubject]);
+
+  const updateAvailableUnits = (data: Curriculum[], grade: string, subject: string) => {
+      const targetCurriculum = data.find(c => c.grade === grade && c.subject === subject);
+      const units = targetCurriculum?.units || [];
+      setAvailableUnits(units);
+      if (units.length > 0) {
+          setSelectedUnitId(units[0].id);
+      } else {
+          setSelectedUnitId('');
+      }
+  };
+
+  const handleSaveToDB = async () => {
+      if (!selectedUnitId) {
+          // إذا لم توجد وحدات، نقترح إنشاء وحدة جديدة
+          const confirmCreate = confirm("لا توجد وحدات في هذا المنهج. هل تود إنشاء وحدة افتراضية؟");
+          if (!confirmCreate) return;
+      }
+
+      setIsSaving(true);
       
       try {
-          // جلب المنهج المناسب
-          const curriculums = await dbService.getCurriculum();
-          let targetCurriculum = curriculums.find(c => c.grade === targetGrade && c.subject === targetSubject);
+          const targetCurriculum = curriculums.find(c => c.grade === targetGrade && c.subject === targetSubject);
           
           if (!targetCurriculum) {
-              // إنشاء منهج جديد إذا لم يوجد
-              // (هذا جزء متقدم، سنفترض وجود المنهج أو نعطي خطأ)
-              alert("لم يتم العثور على منهج لهذا الصف والمادة. يرجى إنشاؤه أولاً من إدارة المناهج.");
+              alert("خطأ: المنهج غير موجود.");
               setIsSaving(false);
               return;
           }
 
-          let targetUnitId = unitId;
-          
-          // إذا لم يحدد وحدة، ننشئ وحدة "دروس تفاعلية جديدة"
-          if (!targetUnitId) {
+          let finalUnitId = selectedUnitId;
+
+          // إنشاء وحدة تلقائية إذا لم توجد وحدات
+          if (!finalUnitId) {
               const newUnit = { 
                   id: `u_${Date.now()}`, 
-                  title: 'دروس تفاعلية جديدة', 
-                  description: 'تم إنشاؤها عبر الباني الذكي', 
+                  title: 'وحدة الدروس التفاعلية', 
+                  description: 'تم إنشاؤها تلقائياً', 
                   lessons: [] 
               };
               await dbService.saveUnit(targetCurriculum.id!, newUnit, targetGrade, targetSubject as any);
-              targetUnitId = newUnit.id;
+              finalUnitId = newUnit.id;
           }
 
-          // حفظ الدرس
-          // تأكد من أن الـ ID ليس temp
-          const finalLesson = { ...lessonToSave, id: lessonToSave.id.startsWith('temp') ? `l_${Date.now()}` : lessonToSave.id };
+          // تجهيز الدرس النهائي
+          const finalLesson: Lesson = { 
+              ...currentLesson, 
+              id: currentLesson.id.startsWith('temp') ? `l_${Date.now()}` : currentLesson.id,
+              isPinned: isPinned
+          };
           
-          await dbService.saveLesson(targetCurriculum.id!, targetUnitId!, finalLesson);
+          await dbService.saveLesson(targetCurriculum.id!, finalUnitId, finalLesson);
           
-          setSaveMessage("تم الحفظ في قاعدة البيانات بنجاح! ✅");
-          localStorage.removeItem('ssc_draft_lesson'); // مسح المسودة
+          setSaveSuccess(true);
+          localStorage.removeItem('ssc_draft_lesson');
+          
+          setTimeout(() => {
+              setSaveSuccess(false);
+              setShowSaveModal(false);
+              // Option: Redirect or stay
+          }, 2000);
           
       } catch (e: any) {
           console.error(e);
-          setSaveMessage(`فشل الحفظ: ${e.message}`);
+          alert(`فشل الحفظ: ${e.message}`);
       } finally {
           setIsSaving(false);
-          setTimeout(() => setSaveMessage(null), 5000);
       }
   };
 
@@ -122,7 +165,6 @@ const InteractiveLessonBuilder: React.FC = () => {
                     <h2 className="text-xl font-black text-white flex items-center gap-2">
                         مختبر <span className="text-[#00d2ff]">الدروس الذكية</span>
                     </h2>
-                    {saveMessage && <span className="text-[10px] font-bold text-green-400 animate-pulse">{saveMessage}</span>}
                 </div>
             </div>
             
@@ -146,19 +188,18 @@ const InteractiveLessonBuilder: React.FC = () => {
         <div className="pt-20 h-screen overflow-hidden">
             {mode === 'EDIT' ? (
                 <div className="h-full overflow-y-auto no-scrollbar pb-20 animate-fadeIn">
-                    {/* شريط معلومات سريع */}
-                    <div className="max-w-6xl mx-auto px-6 mb-6 mt-4">
+                    <div className="max-w-6xl mx-auto px-6 mb-6 mt-4 flex justify-between items-center">
                         <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-2xl text-blue-300 text-xs font-bold flex items-center gap-3">
                             <Save size={16} />
-                            <span>يتم حفظ المسودة محلياً تلقائياً. اضغط "حفظ النظام" داخل المحرر للنشر في قاعدة البيانات.</span>
+                            <span>يتم حفظ المسودة محلياً. اضغط "حفظ النظام" للنشر.</span>
                         </div>
                     </div>
                     
                     <AdminUniversalLessonEditor 
                         initialLesson={currentLesson} 
                         onSave={(lesson) => {
-                            handleUpdateDraft(lesson); // تحديث الحالة المحلية
-                            handleSaveToDB(lesson);    // الحفظ في القاعدة
+                            handleUpdateDraft(lesson);
+                            setShowSaveModal(true); // Open Modal instead of direct save
                         }}
                         onCancel={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'dashboard' } }))}
                     />
@@ -175,10 +216,115 @@ const InteractiveLessonBuilder: React.FC = () => {
             )}
         </div>
         
-        {isSaving && (
-            <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center text-white">
-                <RefreshCw className="w-16 h-16 text-[#00d2ff] animate-spin mb-4" />
-                <p className="text-xl font-black">جاري الحفظ في السحابة...</p>
+        {/* Modern Save Modal */}
+        {showSaveModal && (
+            <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+                <div className="bg-[#0a1118] border border-white/10 w-full max-w-lg rounded-[40px] p-8 shadow-3xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#00d2ff]/10 rounded-full blur-[80px]"></div>
+                    
+                    {saveSuccess ? (
+                        <div className="flex flex-col items-center justify-center py-10 animate-slideUp">
+                            <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_#22c55e]">
+                                <CheckCircle2 size={40} className="text-white" />
+                            </div>
+                            <h3 className="text-2xl font-black text-white mb-2">تم النشر بنجاح!</h3>
+                            <p className="text-gray-400">أصبح الدرس متاحاً للطلاب الآن.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <h3 className="text-2xl font-black text-white mb-8 relative z-10 flex items-center gap-3">
+                                <Save className="text-[#fbbf24]" /> نشر الدرس التفاعلي
+                            </h3>
+                            
+                            <div className="space-y-6 relative z-10">
+                                {/* Grade & Subject Selection */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">الصف الدراسي</label>
+                                        <select 
+                                            value={targetGrade} 
+                                            onChange={e => setTargetGrade(e.target.value as any)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-[#00d2ff]"
+                                        >
+                                            <option value="10">الصف 10</option>
+                                            <option value="11">الصف 11</option>
+                                            <option value="12">الصف 12</option>
+                                            <option value="uni">جامعي</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">المادة</label>
+                                        <select 
+                                            value={targetSubject} 
+                                            onChange={e => setTargetSubject(e.target.value as any)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-[#00d2ff]"
+                                        >
+                                            <option value="Physics">الفيزياء</option>
+                                            <option value="Chemistry">الكيمياء</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Unit Selection */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                        <Layers size={12}/> الوحدة الدراسية
+                                    </label>
+                                    {availableUnits.length > 0 ? (
+                                        <select 
+                                            value={selectedUnitId} 
+                                            onChange={e => setSelectedUnitId(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-[#00d2ff]"
+                                        >
+                                            {availableUnits.map(u => (
+                                                <option key={u.id} value={u.id}>{u.title}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl text-xs text-yellow-500 flex items-center gap-2">
+                                            <AlertCircle size={14}/> سيتم إنشاء وحدة جديدة تلقائياً لهذا المنهج.
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Pin Option */}
+                                <div 
+                                    onClick={() => setIsPinned(!isPinned)}
+                                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${isPinned ? 'bg-[#fbbf24]/10 border-[#fbbf24] text-[#fbbf24]' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Pin size={20} fill={isPinned ? "currentColor" : "none"} />
+                                        <div>
+                                            <p className="font-bold text-sm">تثبيت وتمييز الدرس</p>
+                                            <p className="text-[10px] opacity-70">سيظهر بلون مميز وفي أعلى قائمة الدروس.</p>
+                                        </div>
+                                    </div>
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isPinned ? 'border-[#fbbf24] bg-[#fbbf24]' : 'border-gray-600'}`}>
+                                        {isPinned && <CheckCircle2 size={16} className="text-black" />}
+                                    </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="grid grid-cols-2 gap-4 mt-8">
+                                    <button 
+                                        onClick={() => setShowSaveModal(false)}
+                                        className="py-4 rounded-2xl font-bold text-xs uppercase bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                                    >
+                                        إلغاء
+                                    </button>
+                                    <button 
+                                        onClick={handleSaveToDB}
+                                        disabled={isSaving}
+                                        className="py-4 rounded-2xl font-bold text-xs uppercase bg-[#00d2ff] text-black shadow-lg hover:scale-105 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        {isSaving ? <RefreshCw className="animate-spin" size={16}/> : <Save size={16}/>}
+                                        نشر في قاعدة البيانات
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
         )}
     </div>

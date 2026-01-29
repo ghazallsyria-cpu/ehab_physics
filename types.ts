@@ -103,6 +103,7 @@ export interface Lesson {
     duration: string;
     content?: ContentBlock[];
     templateType?: 'STANDARD' | 'UNIVERSAL';
+    isPinned?: boolean; // New property for highlighting lessons
     universalConfig?: UniversalLessonConfig;
     aiGeneratedData?: AILessonSchema;
 }

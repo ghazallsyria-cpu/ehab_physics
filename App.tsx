@@ -228,7 +228,8 @@ const App: React.FC = () => {
       case 'admin-labs': return <AdminLabManager />;
       case 'admin-recommendations': return <AdminRecommendationManager />;
       case 'template-demo': return <UniversalLesson onBack={() => window.dispatchEvent(new CustomEvent('go-back'))} />;
-      case 'lesson-builder': return <InteractiveLessonBuilder />;
+      // Update: Pass activeLesson to builder for editing
+      case 'lesson-builder': return <InteractiveLessonBuilder initialLesson={activeLesson || undefined} />;
       default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
     }
   };
