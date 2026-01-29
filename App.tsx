@@ -74,12 +74,12 @@ const App: React.FC = () => {
 
   const QUANTUM_BYPASS_KEY = 'ssc_core_secure_v4_8822';
 
-  // Force loading to complete quickly if it gets stuck
+  // Force loading to complete extremely quickly if it gets stuck
   useEffect(() => {
     const timer = setTimeout(() => {
         if (isAuthLoading) setIsAuthLoading(false);
         if (isMaintenanceLoading) setIsMaintenanceLoading(false);
-    }, 1500);
+    }, 500); // 500ms timeout
     return () => clearTimeout(timer);
   }, [isAuthLoading, isMaintenanceLoading]);
 
@@ -96,7 +96,7 @@ const App: React.FC = () => {
         if (storedToken === QUANTUM_BYPASS_KEY) setHasBypass(true);
     }
 
-    // Load initial data
+    // Load initial data safely
     try {
         const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
             setMaintenance(settings);
