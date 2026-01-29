@@ -56,7 +56,7 @@ const App: React.FC = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [viewStack, setViewStack] = useState<ViewState[]>(['landing']);
   const [branding, setBranding] = useState<AppBranding>({ 
-    logoUrl: 'https://spxlxypbosipfwbijbjk.supabase.co/storage/v1/object/public/assets/1769130153314_IMG_2848.png', 
+    logoUrl: 'https://cdn-icons-png.flaticon.com/512/3063/3063206.png', // Stable fallback icon
     appName: 'المركز السوري للعلوم' 
   });
   
@@ -103,7 +103,11 @@ const App: React.FC = () => {
             setIsMaintenanceLoading(false);
         });
 
-        dbService.getAppBranding().then(setBranding).catch(console.error);
+        dbService.getAppBranding().then((b) => {
+            if (b && b.logoUrl && !b.logoUrl.includes('404')) {
+                setBranding(b);
+            }
+        }).catch(console.error);
         
         const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
           if (firebaseUser) {
