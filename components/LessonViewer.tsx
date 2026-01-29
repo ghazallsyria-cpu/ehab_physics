@@ -5,6 +5,7 @@ import { dbService } from '../services/db';
 import katex from 'katex';
 import YouTubePlayer from './YouTubePlayer';
 import { Share2, Copy, Send, Twitter, Mail, X, Check, Eye, EyeOff, Lock, Zap, FileText, Download, ExternalLink } from 'lucide-react';
+import UniversalLessonViewer from './UniversalLessonViewer';
 
 interface LessonViewerProps {
   user: User;
@@ -57,6 +58,22 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user, lesson }) => {
         });
     }
   };
+
+  const handleBack = () => {
+      window.dispatchEvent(new CustomEvent('go-back'));
+  };
+
+  // ROUTING: Check for Universal Lesson Template
+  if (lesson.templateType === 'UNIVERSAL') {
+      return (
+          <UniversalLessonViewer 
+              lesson={lesson} 
+              onBack={handleBack} 
+              onComplete={handleToggleComplete}
+              isCompleted={isCompleted}
+          />
+      );
+  }
 
   const renderContentBlock = (block: ContentBlock, index: number) => {
     // 🛡️ حماية المحتوى

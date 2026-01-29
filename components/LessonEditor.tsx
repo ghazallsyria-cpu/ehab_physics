@@ -1,10 +1,11 @@
 
 import React, { useState, useRef } from 'react';
 import { Lesson, ContentBlock, ContentBlockType, AILessonSchema } from '../types';
-import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio, CheckCircle, AlertTriangle, Code, Sparkles, RefreshCw, Upload, Link as LinkIcon } from 'lucide-react';
+import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio, CheckCircle, AlertTriangle, Code, Sparkles, RefreshCw, Upload, Link as LinkIcon, Cpu } from 'lucide-react';
 import YouTubePlayer from './YouTubePlayer';
 import { dbService } from '../services/db';
 import { convertTextbookToLesson } from '../services/gemini';
+import AdminUniversalLessonEditor from './AdminUniversalLessonEditor';
 
 interface LessonEditorProps {
   lessonData: Partial<Lesson>;
@@ -27,6 +28,9 @@ const extractYoutubeId = (url: string): string | null => {
 
 const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, subject, onSave, onCancel }) => {
   const [lesson, setLesson] = useState<Partial<Lesson>>(lessonData);
+  const [editorMode, setEditorMode] = useState<'STANDARD' | 'UNIVERSAL'>(lessonData.templateType || 'STANDARD');
+  
+  // Standard Editor State
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [showUrlInputFor, setShowUrlInputFor] = useState<Record<number, boolean>>({});
   
@@ -38,6 +42,7 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
   const [aiError, setAiError] = useState<string | null>(null);
   const aiFileInputRef = useRef<HTMLInputElement>(null);
 
+  // --- Handlers for Standard Editor ---
   const updateField = (field: keyof Lesson, value: any) => {
     setLesson(prev => ({ ...prev, [field]: value }));
   };
@@ -79,13 +84,18 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
     updateField('content', content);
   };
   
-  const handleSaveClick = () => {
-    // Basic validation
+  const handleSaveStandard = () => {
     if (!lesson.title?.trim() || !lesson.content || lesson.content.length === 0) {
       alert("يرجى ملء عنوان الدرس وإضافة محتوى واحد على الأقل.");
       return;
     }
-    onSave(lesson as Lesson, unitId, grade, subject);
+    // Ensure template type matches
+    const finalLesson = { ...lesson, templateType: 'STANDARD' } as Lesson;
+    onSave(finalLesson, unitId, grade, subject);
+  };
+
+  const handleSaveUniversal = (universalLesson: Lesson) => {
+      onSave(universalLesson, unitId, grade, subject);
   };
 
   // AI Helper Functions
@@ -127,7 +137,6 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
                 }))
             }));
             setShowAIImport(false);
-            // Reset fields
             setAiInputText('');
             setAiImage(null);
         } else {
@@ -141,14 +150,33 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
     }
   };
 
+  // Switcher
+  if (editorMode === 'UNIVERSAL') {
+      return (
+          <div>
+              <div className="flex justify-end p-4">
+                  <button onClick={() => setEditorMode('STANDARD')} className="text-xs text-gray-500 hover:text-white underline">العودة للمحرر التقليدي</button>
+              </div>
+              <AdminUniversalLessonEditor 
+                  initialLesson={lesson} 
+                  onSave={handleSaveUniversal} 
+                  onCancel={onCancel} 
+              />
+          </div>
+      );
+  }
+
   return (
     <div className="max-w-5xl mx-auto py-12 animate-fadeIn font-['Tajawal'] text-white">
       <div className="flex justify-between items-center mb-10">
         <h2 className="text-3xl font-black">{lessonData.id?.startsWith('new_') ? 'إضافة درس جديد' : 'تعديل الدرس'}</h2>
         <div className="flex gap-4">
+            <button onClick={() => setEditorMode('UNIVERSAL')} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg text-xs font-bold shadow-lg hover:scale-105 transition-all border border-cyan-400/30">
+                <Cpu size={14}/> استخدام المحرر التفاعلي الشامل (New)
+            </button>
             <button onClick={() => setShowAIImport(true)} className="flex items-center gap-2 px-6 py-3 bg-purple-500 text-white rounded-lg text-xs font-bold shadow-lg hover:bg-purple-600 transition-all"><Sparkles size={14}/> استيراد ذكي (AI)</button>
             <button onClick={onCancel} className="flex items-center gap-2 px-6 py-3 bg-white/5 text-white rounded-lg text-xs font-bold border border-white/10"><X size={14}/> إلغاء</button>
-            <button onClick={handleSaveClick} className="flex items-center gap-2 px-6 py-3 bg-green-500 text-black rounded-lg text-xs font-bold border border-green-500/20"><Save size={14}/> حفظ الدرس</button>
+            <button onClick={handleSaveStandard} className="flex items-center gap-2 px-6 py-3 bg-green-500 text-black rounded-lg text-xs font-bold border border-green-500/20"><Save size={14}/> حفظ الدرس</button>
         </div>
       </div>
 

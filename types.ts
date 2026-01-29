@@ -3,9 +3,8 @@ export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 export type ViewState = 'landing' | 'auth' | 'dashboard' | 'curriculum' | 'quiz_center' | 'discussions' | 'subscription' | 'lesson' | 'quiz_player' | 'privacy-policy' | 'ai-chat' | 'recommendations' | 'virtual-lab' | 'live-sessions' | 'reports' | 'help-center' | 'admin-curriculum' | 'admin-students' | 'admin-teachers' | 'admin-financials' | 'quiz-performance' | 'admin-settings' | 'journey-map' | 'payment-certificate' | 'admin-live-sessions' | 'admin-quizzes' | 'attempt_review' | 'admin-content' | 'admin-assets' | 'admin-parents' | 'admin-videos' | 'admin-quiz-attempts' | 'admin-certificates' | 'admin-reviews' | 'admin-pricing' | 'admin-subscriptions' | 'admin-payments-log' | 'admin-payment-settings' | 'admin-email-notifications' | 'admin-internal-messages' | 'admin-forums' | 'admin-forum-posts' | 'admin-security-fix' | 'verify-certificate' | 'resources-center' | 'admin-managers' | 'admin-payment-manager' | 'admin-labs' | 'admin-recommendations' | 'template-demo';
 
 export interface MaintenanceSettings {
-// ... rest of the file remains exactly the same as previously provided, just added 'template-demo' to ViewState
     isMaintenanceActive: boolean;
-    expectedReturnTime: string; // ISO String
+    expectedReturnTime: string; 
     maintenanceMessage: string;
     showCountdown: boolean;
     allowTeachers: boolean;
@@ -101,6 +100,34 @@ export interface Unit {
   lessons: Lesson[];
 }
 
+// --- Universal Lesson Configuration ---
+export interface UniversalLessonConfig {
+  objectives: string[];
+  introduction: string;
+  mainEquation: string; // LaTeX
+  variables: { 
+    id: string; 
+    symbol: string; // LaTeX for symbol e.g., 'v_0'
+    name: string; 
+    unit: string; 
+    defaultValue: number;
+    min: number;
+    max: number;
+    step: number;
+  }[];
+  calculationFormula: string; // JS Formula e.g., "0.5 * m * Math.pow(v, 2)"
+  resultUnit: string;
+  graphConfig?: {
+    xAxisVariableId: string; // Which variable is on X axis
+    yAxisLabel: string;
+  };
+  interactiveQuiz?: {
+    question: string;
+    options: string[];
+    correctIndex: number;
+  };
+}
+
 export interface Lesson {
   id: string;
   title: string;
@@ -108,10 +135,14 @@ export interface Lesson {
   type: 'THEORY' | 'EXAMPLE' | 'EXERCISE';
   duration: string;
   bookReference?: string;
-  aiGeneratedData?: AILessonSchema; // ربط مع المخطط الذكي
+  aiGeneratedData?: AILessonSchema; 
+  
+  // New Field for the Smart System
+  templateType?: 'STANDARD' | 'UNIVERSAL';
+  universalConfig?: UniversalLessonConfig;
 }
 
-// --- AI Lesson Schema (Strict Academic Constraints) ---
+// --- AI Lesson Schema ---
 export interface AILessonSchema {
   lesson_metadata: {
     grade: string;
@@ -144,7 +175,7 @@ export interface AIContentBlock {
     on_correct: string;
     on_incorrect: string;
   };
-  textContent?: string; // For mapping to legacy ContentBlock
+  textContent?: string;
 }
 // -----------------------------------------------------
 
@@ -263,7 +294,7 @@ export interface Question {
   text: string;
   type: QuestionType;
   choices?: { id: string; text: string; key?: string }[];
-  answers?: { id: string; text: string; key?: string }[]; // Added optional answers property
+  answers?: { id: string; text: string; key?: string }[]; 
   correctChoiceId?: string;
   solution?: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
