@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Curriculum, Unit, Lesson } from '../types';
@@ -10,7 +11,7 @@ const AdminCurriculumManager: React.FC = () => {
   const [curriculum, setCurriculum] = useState<Curriculum[]>([]);
   const [activeGrade, setActiveGrade] = useState<'10' | '11' | '12'>('12');
   const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
-  const [editingLesson, setEditingLesson] = useState<{ lesson: Partial<Lesson>, unitId: string, curriculumId: string, grade: '10'|'11'|'12', subject: 'Physics' | 'Chemistry' } | null>(null);
+  const [editingLesson, setEditingLesson] = useState<{ lesson: Partial<Lesson>, unitId: string } | null>(null);
   const [editingUnit, setEditingUnit] = useState<{ unit: Partial<Unit>, curriculumId: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
@@ -23,7 +24,7 @@ const AdminCurriculumManager: React.FC = () => {
   const loadCurriculum = async () => {
     setIsLoading(true);
     try {
-      const data = await dbService.getCurriculum();
+      const data = await dbService.getCurriculumSupabase();
       setCurriculum(data);
     } catch (e) {
       console.error("Load failed", e);
@@ -45,30 +46,21 @@ const AdminCurriculumManager: React.FC = () => {
         content: [{ type: 'text', content: '' }]
       },
       unitId,
-      curriculumId: activeTopic.id,
-      grade: activeGrade,
-      subject: activeSubject
     });
   };
 
   const handleEditLesson = (lesson: Lesson, unitId: string) => {
-    // Check if it's a Universal Lesson, if so, redirect to Builder
     if (lesson.templateType === 'UNIVERSAL') {
-        window.dispatchEvent(new CustomEvent('change-view', { 
-            detail: { view: 'lesson-builder', lesson: lesson } 
-        }));
+        navigate(`/lesson-builder/${lesson.id}`);
         return;
     }
-    
-    if (!activeTopic?.id) return;
-    setEditingLesson({ lesson, unitId, curriculumId: activeTopic.id, grade: activeGrade, subject: activeSubject });
+    setEditingLesson({ lesson, unitId });
   };
   
-  const handleSaveLesson = async (lesson: Lesson, unitId: string, grade: '10'|'11'|'12', subject: 'Physics' | 'Chemistry') => {
-    if (!editingLesson?.curriculumId) return;
+  const handleSaveLesson = async (lesson: Lesson, unitId: string) => {
     setSaveStatus('saving');
     try {
-      await dbService.saveLesson(editingLesson.curriculumId, unitId, lesson);
+      await dbService.saveLesson(lesson, unitId);
       setEditingLesson(null);
       await loadCurriculum();
       setSaveStatus('success');
@@ -87,10 +79,8 @@ const AdminCurriculumManager: React.FC = () => {
     setSaveStatus('saving');
     try {
         await dbService.saveUnit(
-          editingUnit.curriculumId, 
           editingUnit.unit as Unit, 
-          activeGrade, 
-          activeSubject
+          editingUnit.curriculumId, 
         );
         setEditingUnit(null);
         await loadCurriculum();
@@ -112,7 +102,7 @@ const AdminCurriculumManager: React.FC = () => {
     
     setSaveStatus('saving');
     try {
-      await dbService.updateUnitsOrder(activeTopic.id, newUnits);
+      await dbService.updateUnitsOrderSupabase(newUnits);
       await loadCurriculum();
       setSaveStatus('success');
     } catch (e) {
@@ -122,11 +112,10 @@ const AdminCurriculumManager: React.FC = () => {
   };
 
   const deleteUnit = async (unitId: string) => {
-    if (!activeTopic?.id) return;
     if (!confirm('⚠️ تحذير: سيتم حذف القسم وجميع دروسه، هل أنت متأكد؟')) return;
     setSaveStatus('saving');
     try {
-      await dbService.deleteUnit(activeTopic.id, unitId);
+      await dbService.deleteUnit(unitId);
       await loadCurriculum();
       setSaveStatus('success');
     } catch (e: any) {
@@ -137,12 +126,11 @@ const AdminCurriculumManager: React.FC = () => {
     setTimeout(() => { setSaveStatus('idle'); setErrorMessage(null); }, 4000);
   };
 
-  const deleteLesson = async (unitId: string, lessonId: string) => {
-    if (!activeTopic?.id) return;
+  const deleteLesson = async (lessonId: string) => {
     if (!confirm('هل تود حذف هذا الدرس نهائياً؟')) return;
     setSaveStatus('saving');
     try {
-      await dbService.deleteLesson(activeTopic.id, unitId, lessonId);
+      await dbService.deleteLesson(lessonId);
       await loadCurriculum();
       setSaveStatus('success');
     } catch (e: any) {
@@ -156,8 +144,8 @@ const AdminCurriculumManager: React.FC = () => {
     return <LessonEditor 
               lessonData={editingLesson.lesson} 
               unitId={editingLesson.unitId}
-              grade={editingLesson.grade}
-              subject={editingLesson.subject}
+              grade={activeGrade}
+              subject={activeSubject}
               onSave={handleSaveLesson} 
               onCancel={() => setEditingLesson(null)} 
            />;
@@ -183,7 +171,7 @@ const AdminCurriculumManager: React.FC = () => {
                 <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
             </button>
             <button 
-                onClick={() => setEditingUnit({ unit: { id: `u_${Date.now()}`, title: '', description: '', lessons: [] }, curriculumId: activeTopic?.id || `${activeGrade}_${activeSubject}` })} 
+                onClick={() => setEditingUnit({ unit: { id: `u_${Date.now()}`, title: '', description: '', lessons: [] }, curriculumId: activeTopic?.id || '' })} 
                 className="bg-[#fbbf24] text-black px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
             >
                 <Plus size={16}/> إضافة وحدة جديدة
@@ -257,13 +245,16 @@ const AdminCurriculumManager: React.FC = () => {
                             <span className="text-[9px] font-black text-[#00d2ff] uppercase">{lesson.type}</span>
                             <span className="text-[9px] font-bold text-gray-600">⏱ {lesson.duration}</span>
                             {lesson.templateType === 'UNIVERSAL' && <span className="text-[9px] font-bold text-purple-400 flex items-center gap-1"><Cpu size={10}/> تفاعلي</span>}
+                            {lesson.templateType === 'PATH' && <span className="text-[9px] font-bold text-purple-400 flex items-center gap-1"><Waypoints size={10}/> مسار</span>}
                         </div>
                       </div>
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover/lesson:opacity-100 transition-opacity">
-                      <button onClick={() => navigate(`/admin/lesson/${lesson.id}/path-builder`)} className="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl hover:bg-purple-500 hover:text-white transition-all" title="محرر المسار التفاعلي"><Waypoints size={14}/></button>
+                      {lesson.templateType === 'PATH' && (
+                        <button onClick={() => navigate(`/admin/lesson/${lesson.id}/path-builder`)} className="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl hover:bg-purple-500 hover:text-white transition-all" title="محرر المسار التفاعلي"><Waypoints size={14}/></button>
+                      )}
                       <button onClick={() => handleEditLesson(lesson, unit.id)} className="p-2.5 bg-white/5 rounded-xl hover:bg-white/10 transition-all"><Edit size={14}/></button>
-                      <button onClick={() => deleteLesson(unit.id, lesson.id)} className="p-2.5 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all border border-red-500/20"><Trash2 size={14}/></button>
+                      <button onClick={() => deleteLesson(lesson.id)} className="p-2.5 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all border border-red-500/20"><Trash2 size={14}/></button>
                     </div>
                   </div>
                 ))}

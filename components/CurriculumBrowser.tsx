@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Unit, Lesson, Curriculum } from '../types';
 import { dbService } from '../services/db';
-import { Check, Play, Lock, Zap, RefreshCw, BookOpen, Star, Pin } from 'lucide-react';
+import { Check, Play, Lock, Zap, RefreshCw, BookOpen, Star, Pin, Waypoints } from 'lucide-react';
 
 interface CurriculumBrowserProps {
   user: User;
@@ -43,7 +43,17 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
         navigate('/subscription');
         return;
     }
-    // The LessonViewer component will now fetch the lesson data using the ID from the URL.
+
+    if (lesson.templateType === 'PATH') {
+        if (lesson.pathRootSceneId) {
+            navigate(`/lesson/${lesson.id}/path/${lesson.pathRootSceneId}`);
+        } else {
+            alert("هذا الدرس التفاعلي قيد الإنشاء حالياً. يرجى المحاولة لاحقاً.");
+        }
+        return;
+    }
+    
+    // Default navigation for STANDARD and UNIVERSAL
     navigate(`/lesson/${lesson.id}`);
   };
 
@@ -104,6 +114,7 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
                                       {lesson.isPinned && <span className="text-[8px] bg-amber-500 text-black px-2 rounded-full">مثبت</span>}
                                   </p>
                                   {lesson.templateType === 'UNIVERSAL' && <p className="text-[9px] text-[#00d2ff] flex items-center gap-1 font-bold mt-0.5"><Star size={8} fill="currentColor"/> درس تفاعلي ذكي</p>}
+                                  {lesson.templateType === 'PATH' && <p className="text-[9px] text-purple-400 flex items-center gap-1 font-bold mt-0.5"><Waypoints size={10}/> مسار تفاعلي</p>}
                               </div>
                            </div>
                            {!isSubscriber && <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded uppercase">Premium</span>}

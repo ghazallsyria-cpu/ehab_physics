@@ -60,7 +60,8 @@ const InteractiveLessonBuilder: React.FC = () => {
     const loadLesson = async () => {
         setIsLoading(true);
         if (lessonId) {
-            const curriculumData = await dbService.getCurriculum();
+// FIX: The method to fetch curriculum data was renamed. Updated to use the correct `getCurriculumSupabase` method.
+            const curriculumData = await dbService.getCurriculumSupabase();
             let foundLesson: Lesson | null = null;
             for (const curriculum of curriculumData) {
                 for (const unit of curriculum.units) {
@@ -101,7 +102,8 @@ const InteractiveLessonBuilder: React.FC = () => {
   useEffect(() => {
       if (showSaveModal) {
           const loadCurriculums = async () => {
-              const data = await dbService.getCurriculum();
+// FIX: The method to fetch curriculum data was renamed. Updated to use the correct `getCurriculumSupabase` method.
+              const data = await dbService.getCurriculumSupabase();
               setCurriculums(data);
               updateAvailableUnits(data, targetGrade, targetSubject);
           };
@@ -132,12 +134,14 @@ const InteractiveLessonBuilder: React.FC = () => {
           let finalUnitId = selectedUnitId;
           if (!finalUnitId) {
               const newUnit = { id: `u_${Date.now()}`, title: 'وحدة الدروس التفاعلية', description: 'تم إنشاؤها تلقائياً', lessons: [] };
-              await dbService.saveUnit(targetCurriculum.id!, newUnit, targetGrade, targetSubject);
+// FIX: `saveUnit` expects 2 arguments (Unit, curriculumId), but 4 were provided. Corrected the call.
+              await dbService.saveUnit(newUnit, targetCurriculum.id!);
               finalUnitId = newUnit.id;
           }
 
           const finalLesson: Lesson = { ...currentLesson, id: lessonId || `l_${Date.now()}`, isPinned };
-          await dbService.saveLesson(targetCurriculum.id!, finalUnitId, finalLesson);
+// FIX: `saveLesson` expects 2 arguments (Lesson, unitId), but 3 were provided. Corrected the call.
+          await dbService.saveLesson(finalLesson, finalUnitId);
           
           setSaveSuccess(true);
           localStorage.removeItem('ssc_draft_lesson');

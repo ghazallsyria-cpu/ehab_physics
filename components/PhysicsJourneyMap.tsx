@@ -17,7 +17,8 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const data = await dbService.getCurriculum();
+// FIX: The method to fetch curriculum data was renamed. Updated to use the correct `getCurriculumSupabase` method.
+        const data = await dbService.getCurriculumSupabase();
         setCurriculums(data);
       } catch (e) {
         console.error(e);

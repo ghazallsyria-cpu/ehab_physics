@@ -9,22 +9,27 @@ const LessonPathBuilder: React.FC = () => {
     const { lessonId } = useParams<{ lessonId: string }>();
     const navigate = useNavigate();
 
+    const [lesson, setLesson] = useState<Lesson | null>(null);
     const [scenes, setScenes] = useState<LessonScene[]>([]);
     const [selectedScene, setSelectedScene] = useState<LessonScene | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (!lessonId) return;
-        loadScenes();
+        loadData();
     }, [lessonId]);
     
-    const loadScenes = async () => {
+    const loadData = async () => {
         if (!lessonId) return;
         setIsLoading(true);
         try {
-            const scenesData = await dbService.getLessonScenesForBuilder(lessonId);
+            const [scenesData, lessonData] = await Promise.all([
+                dbService.getLessonScenesForBuilder(lessonId),
+                dbService.getLessonSupabase(lessonId)
+            ]);
             setScenes(scenesData);
-        } catch (e) { console.error("Failed to load scenes:", e); }
+            setLesson(lessonData);
+        } catch (e) { console.error("Failed to load data:", e); }
         finally { setIsLoading(false); }
     };
 
@@ -48,7 +53,7 @@ const LessonPathBuilder: React.FC = () => {
         setIsLoading(true);
         try {
             await dbService.saveLessonScene(selectedScene);
-            await loadScenes();
+            await loadData();
         } catch (e) { console.error("Save error:", e); }
         finally { setIsLoading(false); }
     };
@@ -59,13 +64,23 @@ const LessonPathBuilder: React.FC = () => {
         try {
             await dbService.deleteLessonScene(sceneId);
             setSelectedScene(null);
-            await loadScenes();
+            await loadData();
         } catch (e) { console.error("Delete error:", e); }
         finally { setIsLoading(false); }
     };
 
     const updateSelectedScene = (field: keyof LessonScene, value: any) => {
         if (selectedScene) setSelectedScene({ ...selectedScene, [field]: value });
+    };
+
+    const handleSetAsStartScene = async (sceneId: string) => {
+        if (!lessonId) return;
+        try {
+            await dbService.updateLesson(lessonId, { pathRootSceneId: sceneId });
+            setLesson(prev => prev ? {...prev, pathRootSceneId: sceneId} : null);
+        } catch (e) {
+            console.error("Failed to set start scene", e);
+        }
     };
 
     return (
@@ -80,12 +95,20 @@ const LessonPathBuilder: React.FC = () => {
                     <button onClick={handleAddNewScene} className="p-2 bg-[#fbbf24] text-black rounded-lg hover:scale-110 transition-transform"><Plus size={16}/></button>
                 </div>
                 <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1">
-                    {scenes.map(scene => (
-                        <div key={scene.id} onClick={() => handleSelectScene(scene)} className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedScene?.id === scene.id ? 'border-[#fbbf24] bg-[#fbbf24]/10' : 'border-transparent bg-white/5 hover:bg-white/10'}`}>
-                            <p className="font-bold text-sm truncate">{scene.title}</p>
-                            <span className="text-xs text-gray-500 font-mono">#{scene.id.substring(0, 8)}</span>
-                        </div>
-                    ))}
+                    {scenes.map(scene => {
+                        const isStartScene = lesson?.pathRootSceneId === scene.id;
+                        return (
+                            <div key={scene.id} onClick={() => handleSelectScene(scene)} className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex justify-between items-center ${selectedScene?.id === scene.id ? 'border-[#fbbf24] bg-[#fbbf24]/10' : 'border-transparent bg-white/5 hover:bg-white/10'}`}>
+                                <div>
+                                    <p className="font-bold text-sm truncate">{scene.title}</p>
+                                    <span className="text-xs text-gray-500 font-mono">#{scene.id.substring(0, 8)}</span>
+                                </div>
+                                <button onClick={(e) => { e.stopPropagation(); handleSetAsStartScene(scene.id); }} className={`p-2 rounded-full transition-colors ${isStartScene ? 'text-amber-400' : 'text-gray-600 hover:text-amber-300'}`} title="تعيين كمشهد بداية">
+                                    <Zap size={16} fill={isStartScene ? 'currentColor' : 'none'} />
+                                </button>
+                            </div>
+                        )
+                    })}
                 </div>
             </aside>
 
@@ -118,13 +141,13 @@ const LessonPathBuilder: React.FC = () => {
                                 {selectedScene.decisions?.map((dec, idx) => (
                                     <div key={idx} className="flex items-center gap-2 p-2 bg-black/20 rounded-lg">
                                         <input type="text" placeholder="نص الزر..." value={dec.text} onChange={e => {
-                                            const newDecs = [...selectedScene.decisions];
+                                            const newDecs = [...(selectedScene.decisions || [])];
                                             newDecs[idx].text = e.target.value;
                                             updateSelectedScene('decisions', newDecs);
                                         }} className="flex-1 bg-black/40 p-2 rounded text-xs"/>
                                         <span className="text-xs">»</span>
                                         <select value={dec.next_scene_id} onChange={e => {
-                                            const newDecs = [...selectedScene.decisions];
+                                            const newDecs = [...(selectedScene.decisions || [])];
                                             newDecs[idx].next_scene_id = e.target.value;
                                             updateSelectedScene('decisions', newDecs);
                                         }} className="flex-1 bg-black/40 p-2 rounded text-xs">
@@ -132,12 +155,12 @@ const LessonPathBuilder: React.FC = () => {
                                             {scenes.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
                                         </select>
                                         <button onClick={() => {
-                                             const newDecs = selectedScene.decisions.filter((_, i) => i !== idx);
+                                             const newDecs = (selectedScene.decisions || []).filter((_, i) => i !== idx);
                                              updateSelectedScene('decisions', newDecs);
                                         }} className="p-1 text-red-500"><Trash2 size={14}/></button>
                                     </div>
                                 ))}
-                                <button onClick={() => updateSelectedScene('decisions', [...selectedScene.decisions, {text: '', next_scene_id: ''}])} className="text-xs text-green-400">+ قرار جديد</button>
+                                <button onClick={() => updateSelectedScene('decisions', [...(selectedScene.decisions || []), {text: '', next_scene_id: ''}])} className="text-xs text-green-400">+ قرار جديد</button>
                             </div>
                         </div>
                     </div>

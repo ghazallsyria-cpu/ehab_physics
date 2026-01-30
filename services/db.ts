@@ -311,13 +311,7 @@ class DBService {
     await db!.collection('settings').doc('branding').set(this.cleanData(branding), { merge: true });
   }
 
-  // --- 📚 المناهج والمحتوى ---
-  async getCurriculum(): Promise<Curriculum[]> {
-    this.checkDb();
-    const snap = await db!.collection('curriculum').get();
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Curriculum));
-  }
-
+  // --- 📚 المناهج والمحتوى (Legacy - To be removed) ---
   async getHomePageContent(): Promise<HomePageContent[]> {
     this.checkDb();
     // Use try-catch to return empty array if collection doesn't exist or permission denied
@@ -511,81 +505,111 @@ class DBService {
   async checkConnection() { try { this.checkDb(); await db!.collection('settings').limit(1).get(); return { alive: true }; } catch (e: any) { return { alive: false, error: e.message }; } }
   async checkSupabaseConnection() { try { const { data, error } = await supabase.storage.listBuckets(); if (error) throw error; return { alive: true }; } catch (e: any) { return { alive: false, error: e.message }; } }
   async getStudentProgressForParent(uid: string) { const user = await this.getUser(uid); return { user, report: user?.weeklyReports?.[0] || null }; }
-
-  // --- 🛠️ إدارة المنهج ---
-  async saveLesson(curriculumId: string, unitId: string, lesson: Lesson) { this.checkDb(); const curRef = db!.collection('curriculum').doc(curriculumId); const snap = await curRef.get(); if (!snap.exists) throw new Error("Curriculum not found"); const data = snap.data() as Curriculum; const uIdx = data.units.findIndex(u => u.id === unitId); if (uIdx === -1) throw new Error("Unit not found"); const lessons = data.units[uIdx].lessons || []; const lIdx = lessons.findIndex(l => l.id === lesson.id); if (lIdx > -1) lessons[lIdx] = lesson; else lessons.push(lesson); data.units[uIdx].lessons = lessons; await curRef.update({ units: data.units }); }
-  async saveUnit(curriculumId: string, unit: Unit, grade: string, subject: string) { this.checkDb(); const curRef = db!.collection('curriculum').doc(curriculumId); const snap = await curRef.get(); if (!snap.exists) { await curRef.set({ grade, subject, title: `منهج ${subject}`, description: '', icon: '📚', units: [unit] }); return; } const data = snap.data() as Curriculum; const uIdx = data.units.findIndex(u => u.id === unit.id); if (uIdx > -1) data.units[uIdx] = unit; else data.units.push(unit); await curRef.update({ units: data.units }); }
-  async updateUnitsOrder(curriculumId: string, units: Unit[]) { this.checkDb(); await db!.collection('curriculum').doc(curriculumId).update({ units }); }
-  async deleteUnit(curriculumId: string, unitId: string) { this.checkDb(); const curRef = db!.collection('curriculum').doc(curriculumId); const snap = await curRef.get(); if (!snap.exists) return; const data = snap.data() as Curriculum; data.units = data.units.filter(u => u.id !== unitId); await curRef.update({ units: data.units }); }
-  async deleteLesson(curriculumId: string, unitId: string, lessonId: string) { this.checkDb(); const curRef = db!.collection('curriculum').doc(curriculumId); const snap = await curRef.get(); if (!snap.exists) return; const data = snap.data() as Curriculum; const uIdx = data.units.findIndex(u => u.id === unitId); if (uIdx > -1) { data.units[uIdx].lessons = data.units[uIdx].lessons.filter(l => l.id !== lessonId); await curRef.update({ units: data.units }); } }
   async toggleLessonComplete(uid: string, lessonId: string) { this.checkDb(); const userRef = db!.collection('users').doc(uid); const snap = await userRef.get(); if (!snap.exists) return; const user = snap.data() as User; const completed = user.progress.completedLessonIds || []; const index = completed.indexOf(lessonId); if (index > -1) completed.splice(index, 1); else completed.push(lessonId); await userRef.update({ 'progress.completedLessonIds': completed, 'progress.points': firebase.firestore.FieldValue.increment(index > -1 ? -10 : 10) }); }
 
   // --- ☁️ خدمات Supabase ---
+
+  // Helper to map Supabase snake_case to our camelCase
+  private mapLessonFromSupabase(data: any): Lesson {
+    if (!data) return {} as Lesson;
+    return {
+        ...(data as any),
+        id: data.id,
+        isPinned: data.is_pinned,
+        templateType: data.template_type,
+        universalConfig: data.universal_config,
+        pathRootSceneId: data.path_root_scene_id,
+    } as Lesson;
+  }
+
+  // --- 🛠️ إدارة المنهج (Supabase) ---
   async getCurriculumSupabase(): Promise<Curriculum[]> {
     const { data, error } = await supabase
       .from('curriculums')
       .select(`
-        id,
-        grade,
-        subject,
-        title,
-        description,
-        icon,
-        units (
-          id,
-          title,
-          description,
-          order,
-          lessons (
-            id,
-            title,
-            type,
-            duration,
-            is_pinned,
-            template_type
-          )
+        id, grade, subject, title, description, icon,
+        units ( id, title, description, order,
+          lessons ( id, title, type, duration, is_pinned, template_type, path_root_scene_id )
         )
       `)
       .order('order', { foreignTable: 'units', ascending: true });
 
-    if (error) {
-      console.error('Supabase getCurriculum error:', error);
-      throw error;
-    }
-    // Map Supabase snake_case to our camelCase types
+    if (error) { console.error('Supabase getCurriculum error:', error); throw error; }
+
     return (data as any[]).map(curriculum => ({
       ...curriculum,
       units: curriculum.units.map((unit: any) => ({
         ...unit,
-        lessons: unit.lessons.map((lesson: any) => ({
-          ...lesson,
-          isPinned: lesson.is_pinned,
-          templateType: lesson.template_type
-        }))
+        lessons: unit.lessons.map(this.mapLessonFromSupabase)
       }))
     }));
   }
   
   async getLessonSupabase(id: string): Promise<Lesson | null> {
-    const { data, error } = await supabase
-      .from('lessons')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error('Supabase getLesson error:', error);
-      return null;
-    }
-    // Map snake_case to camelCase
-    return {
-      ...(data as any),
-      isPinned: data.is_pinned,
-      templateType: data.template_type,
-      universalConfig: data.universal_config,
-    } as Lesson;
+    const { data, error } = await supabase.from('lessons').select('*').eq('id', id).single();
+    if (error) { console.error('Supabase getLesson error:', error); return null; }
+    return this.mapLessonFromSupabase(data);
   }
 
+  async saveLesson(lesson: Lesson, unitId: string): Promise<Lesson> {
+    const { id, ...rest } = lesson;
+    const lessonPayload = {
+        id: id.startsWith('l_') ? undefined : id, // Let Supabase generate ID for new lessons
+        title: rest.title,
+        unit_id: unitId,
+        type: rest.type,
+        duration: rest.duration,
+        content: rest.content || null,
+        template_type: rest.templateType || 'STANDARD',
+        universal_config: rest.universalConfig || null,
+        is_pinned: rest.isPinned || false,
+        path_root_scene_id: rest.pathRootSceneId || null,
+    };
+    const { data, error } = await supabase.from('lessons').upsert(lessonPayload).select().single();
+    if (error) throw error;
+    return this.mapLessonFromSupabase(data);
+  }
+  
+  async saveUnit(unit: Unit, curriculumId: string): Promise<Unit> {
+    const { id, ...rest } = unit;
+    const unitPayload = {
+        id: id.startsWith('u_') ? undefined : id,
+        title: rest.title,
+        description: rest.description,
+        curriculum_id: curriculumId,
+        order: rest.order,
+    };
+    const { data, error } = await supabase.from('units').upsert(unitPayload).select().single();
+    if (error) throw error;
+    return data as Unit;
+  }
+
+  async updateLesson(lessonId: string, updates: Partial<Lesson>) {
+    const updatePayload: Record<string, any> = {};
+    if (updates.pathRootSceneId) updatePayload.path_root_scene_id = updates.pathRootSceneId;
+    
+    if (Object.keys(updatePayload).length === 0) return;
+
+    const { error } = await supabase.from('lessons').update(updatePayload).eq('id', lessonId);
+    if (error) throw error;
+  }
+
+  async updateUnitsOrderSupabase(units: Unit[]) {
+    const updates = units.map((unit, index) => ({ id: unit.id, order: index }));
+    const { error } = await supabase.from('units').upsert(updates);
+    if (error) throw error;
+  }
+  
+  async deleteUnit(unitId: string) {
+    const { error } = await supabase.from('units').delete().eq('id', unitId);
+    if (error) throw error;
+  }
+  
+  async deleteLesson(lessonId: string) {
+    const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
+    if (error) throw error;
+  }
+  
   async getQuizzesSupabase(grade: string): Promise<Quiz[]> {
     let query = supabase.from('quizzes').select(`
         id, title, description, grade, subject, category, duration, is_premium, max_attempts,
@@ -698,7 +722,6 @@ class DBService {
     return { ...attempt, id: data.id };
   }
   
-// FIX: Added missing Supabase methods for interactive lesson paths.
   async getLessonScenesForBuilder(lessonId: string): Promise<LessonScene[]> {
     const { data, error } = await supabase
         .from('lesson_scenes')
@@ -713,13 +736,10 @@ class DBService {
   }
 
   async saveLessonScene(scene: LessonScene) {
+    const { id, ...rest } = scene;
     const payload = {
-        id: scene.id,
-        lesson_id: scene.lesson_id,
-        title: scene.title,
-        content: scene.content,
-        decisions: scene.decisions,
-        is_premium: scene.is_premium,
+        id: id.startsWith('scene_') ? undefined : id,
+        ...rest
     };
     const { error } = await supabase.from('lesson_scenes').upsert(payload);
     if (error) {

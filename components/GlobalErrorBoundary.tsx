@@ -11,16 +11,15 @@ interface State {
 }
 
 class GlobalErrorBoundary extends Component<Props, State> {
-  // FIX: Refactored to use a constructor for state initialization, which is a more robust pattern
-  // and resolves tooling or TypeScript configuration issues with class property initializers that
-  // were causing errors on `this.state`, `this.setState`, and `this.props`.
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-    };
-  }
+  // FIX: Replaced the constructor with a class property for state initialization.
+  // Although the constructor is a valid way to initialize state, some TypeScript/build
+  // configurations can have issues recognizing class properties like 'state', 'setState',
+  // and 'props' when using a constructor. This modern class property syntax is often
+  // more robust and directly resolves the reported errors.
+  state: State = {
+    hasError: false,
+    error: null,
+  };
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };

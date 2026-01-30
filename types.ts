@@ -1,5 +1,6 @@
 
 
+
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 
 export type ViewState = 
@@ -95,6 +96,8 @@ export interface Unit {
     title: string;
     description: string;
     lessons: Lesson[];
+// FIX: Added optional 'order' property to allow for unit ordering in Supabase queries and updates.
+    order?: number;
 }
 
 export interface Lesson {

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Lesson, ContentBlock, ContentBlockType, AILessonSchema } from '../types';
-import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio, CheckCircle, AlertTriangle, Code, Sparkles, RefreshCw, Upload, Link as LinkIcon, Cpu } from 'lucide-react';
+import { Book, Image, Video, FileText, Trash2, ArrowUp, ArrowDown, Type, Save, X, Youtube, FileAudio, CheckCircle, AlertTriangle, Code, Sparkles, RefreshCw, Upload, Link as LinkIcon, Cpu, Waypoints } from 'lucide-react';
 import YouTubePlayer from './YouTubePlayer';
 import { dbService } from '../services/db';
 import { convertTextbookToLesson } from '../services/gemini';
@@ -12,7 +12,7 @@ interface LessonEditorProps {
   unitId: string;
   grade: '10' | '11' | '12';
   subject: 'Physics' | 'Chemistry';
-  onSave: (lesson: Lesson, unitId: string, grade: '10' | '11' | '12', subject: 'Physics' | 'Chemistry') => void;
+  onSave: (lesson: Lesson, unitId: string) => void;
   onCancel: () => void;
 }
 
@@ -28,7 +28,6 @@ const extractYoutubeId = (url: string): string | null => {
 
 const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, subject, onSave, onCancel }) => {
   const [lesson, setLesson] = useState<Partial<Lesson>>(lessonData);
-  const [editorMode, setEditorMode] = useState<'STANDARD' | 'UNIVERSAL'>(lessonData.templateType || 'STANDARD');
   
   // Standard Editor State
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
@@ -85,17 +84,11 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
   };
   
   const handleSaveStandard = () => {
-    if (!lesson.title?.trim() || !lesson.content || lesson.content.length === 0) {
+    if (!lesson.title?.trim() || (!lesson.content || lesson.content.length === 0) && lesson.templateType === 'STANDARD') {
       alert("يرجى ملء عنوان الدرس وإضافة محتوى واحد على الأقل.");
       return;
     }
-    // Ensure template type matches
-    const finalLesson = { ...lesson, templateType: 'STANDARD' } as Lesson;
-    onSave(finalLesson, unitId, grade, subject);
-  };
-
-  const handleSaveUniversal = (universalLesson: Lesson) => {
-      onSave(universalLesson, unitId, grade, subject);
+    onSave(lesson as Lesson, unitId);
   };
 
   // AI Helper Functions
@@ -150,30 +143,11 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
     }
   };
 
-  // Switcher
-  if (editorMode === 'UNIVERSAL') {
-      return (
-          <div>
-              <div className="flex justify-end p-4">
-                  <button onClick={() => setEditorMode('STANDARD')} className="text-xs text-gray-500 hover:text-white underline">العودة للمحرر التقليدي</button>
-              </div>
-              <AdminUniversalLessonEditor 
-                  initialLesson={lesson} 
-                  onSave={handleSaveUniversal} 
-                  onCancel={onCancel} 
-              />
-          </div>
-      );
-  }
-
   return (
     <div className="max-w-5xl mx-auto py-12 animate-fadeIn font-['Tajawal'] text-white">
       <div className="flex justify-between items-center mb-10">
-        <h2 className="text-3xl font-black">{lessonData.id?.startsWith('new_') ? 'إضافة درس جديد' : 'تعديل الدرس'}</h2>
+        <h2 className="text-3xl font-black">{lesson.id?.startsWith('l_') ? 'إضافة درس جديد' : 'تعديل الدرس'}</h2>
         <div className="flex gap-4">
-            <button onClick={() => setEditorMode('UNIVERSAL')} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg text-xs font-bold shadow-lg hover:scale-105 transition-all border border-cyan-400/30">
-                <Cpu size={14}/> استخدام المحرر التفاعلي الشامل (New)
-            </button>
             <button onClick={() => setShowAIImport(true)} className="flex items-center gap-2 px-6 py-3 bg-purple-500 text-white rounded-lg text-xs font-bold shadow-lg hover:bg-purple-600 transition-all"><Sparkles size={14}/> استيراد ذكي (AI)</button>
             <button onClick={onCancel} className="flex items-center gap-2 px-6 py-3 bg-white/5 text-white rounded-lg text-xs font-bold border border-white/10"><X size={14}/> إلغاء</button>
             <button onClick={handleSaveStandard} className="flex items-center gap-2 px-6 py-3 bg-green-500 text-black rounded-lg text-xs font-bold border border-green-500/20"><Save size={14}/> حفظ الدرس</button>
@@ -182,12 +156,19 @@ const LessonEditor: React.FC<LessonEditorProps> = ({ lessonData, unitId, grade, 
 
       <div className="glass-panel p-10 rounded-[40px] border border-white/5 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <input type="text" placeholder="عنوان الدرس" value={lesson.title || ''} onChange={e => updateField('title', e.target.value)} className="md:col-span-2 w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-[#fbbf24]"/>
+          <input type="text" placeholder="عنوان الدرس" value={lesson.title || ''} onChange={e => updateField('title', e.target.value)} className="md:col-span-3 w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-[#fbbf24]"/>
           <select value={lesson.type || 'THEORY'} onChange={e => updateField('type', e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-[#fbbf24]">
             <option value="THEORY">شرح نظري</option>
             <option value="EXAMPLE">مثال محلول</option>
             <option value="EXERCISE">تمرين</option>
           </select>
+          <div className="md:col-span-2">
+            <select value={lesson.templateType || 'STANDARD'} onChange={e => updateField('templateType', e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-[#fbbf24]">
+              <option value="STANDARD">قالب عادي</option>
+              <option value="UNIVERSAL">قالب تفاعلي شامل</option>
+              <option value="PATH">مسار تفاعلي متفرع</option>
+            </select>
+          </div>
         </div>
 
         {/* Content Blocks */}
