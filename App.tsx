@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, Suspense, lazy, createContext } from 'react';
 import { Routes, Route, Outlet, useNavigate, useLocation, Navigate, NavLink } from 'react-router-dom';
 import { User, AppBranding, MaintenanceSettings, ViewState } from './types';
@@ -49,6 +50,7 @@ const AdminSettings = lazy(() => import('./components/AdminSettings'));
 const LabHub = lazy(() => import('./components/LabHub'));
 const LessonPathViewer = lazy(() => import('./components/LessonPathViewer'));
 const LessonPathBuilder = lazy(() => import('./components/LessonPathBuilder'));
+const AdminAnalytics = lazy(() => import('./components/AdminAnalytics'));
 
 // A reusable layout for all authenticated pages that include the sidebar and header.
 const AppLayout: React.FC<{ user: User; branding: AppBranding; onLogout: () => void; }> = ({ user, branding, onLogout }) => {
@@ -169,6 +171,7 @@ const App: React.FC = () => {
                         <Route path="live-sessions" element={<AdminLiveSessions />} />
                         <Route path="assets" element={<AdminAssetManager />} />
                         <Route path="settings" element={<AdminSettings />} />
+                        <Route path="lesson/:lessonId/analytics" element={<AdminAnalytics />} />
                     </Route>
                     <Route path="/lesson-builder" element={<InteractiveLessonBuilder />} />
                     <Route path="/lesson-builder/:lessonId" element={<InteractiveLessonBuilder />} />

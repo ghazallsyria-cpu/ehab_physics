@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Curriculum, Unit, Lesson } from '../types';
 import { dbService } from '../services/db';
-import { BookOpen, Edit, Plus, Trash2, X, RefreshCw, CheckCircle, ChevronUp, ChevronDown, Layers, AlertCircle, Cpu, Waypoints } from 'lucide-react';
+import { BookOpen, Edit, Plus, Trash2, X, RefreshCw, CheckCircle, ChevronUp, ChevronDown, Layers, AlertCircle, Cpu, Waypoints, BarChart3 } from 'lucide-react';
 import LessonEditor from './LessonEditor';
 
 const AdminCurriculumManager: React.FC = () => {
@@ -251,7 +251,10 @@ const AdminCurriculumManager: React.FC = () => {
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover/lesson:opacity-100 transition-opacity">
                       {lesson.templateType === 'PATH' && (
-                        <button onClick={() => navigate(`/admin/lesson/${lesson.id}/path-builder`)} className="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl hover:bg-purple-500 hover:text-white transition-all" title="محرر المسار التفاعلي"><Waypoints size={14}/></button>
+                        <>
+                          <button onClick={() => navigate(`/admin/lesson/${lesson.id}/analytics`)} className="p-2.5 bg-green-500/10 text-green-400 rounded-xl hover:bg-green-500 hover:text-white transition-all" title="التحليلات المباشرة"><BarChart3 size={14}/></button>
+                          <button onClick={() => navigate(`/admin/lesson/${lesson.id}/path-builder`)} className="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl hover:bg-purple-500 hover:text-white transition-all" title="محرر المسار التفاعلي"><Waypoints size={14}/></button>
+                        </>
                       )}
                       <button onClick={() => handleEditLesson(lesson, unit.id)} className="p-2.5 bg-white/5 rounded-xl hover:bg-white/10 transition-all"><Edit size={14}/></button>
                       <button onClick={() => deleteLesson(lesson.id)} className="p-2.5 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all border border-red-500/20"><Trash2 size={14}/></button>

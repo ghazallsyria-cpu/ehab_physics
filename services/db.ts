@@ -1,4 +1,5 @@
 
+
 import { db, storage } from './firebase'; 
 import { supabase } from './supabase';
 import firebase from 'firebase/compat/app';
@@ -12,7 +13,7 @@ import {
   Unit, Lesson, LiveSession, EducationalResource, PaymentStatus, UserRole,
   AppBranding, Article, PhysicsExperiment, PhysicsEquation, StudyGroup,
   SubscriptionPlan, InvoiceSettings, MaintenanceSettings,
-  LessonScene, StudentLessonProgress
+  LessonScene, StudentLessonProgress, StudentInteractionEvent, LessonAnalyticsData
 } from '../types';
 
 class DBService {
@@ -809,6 +810,96 @@ class DBService {
         const { error } = await supabase.from('student_lesson_progress').insert(payload);
         if (error) throw error;
     }
+  }
+
+  async logStudentInteraction(event: StudentInteractionEvent): Promise<void> {
+    const { error } = await supabase.from('student_interaction_events').insert({
+        student_id: event.student_id,
+        lesson_id: event.lesson_id,
+        from_scene_id: event.from_scene_id,
+        to_scene_id: event.to_scene_id,
+        decision_text: event.decision_text,
+    });
+
+    if (error) {
+        console.error("Failed to log student interaction:", error);
+        // We don't throw an error here to avoid breaking the user's navigation flow.
+    }
+  }
+
+// FIX: Added 'getLessonAnalytics' method to fetch and aggregate student interaction data for a specific lesson from Supabase.
+async getLessonAnalytics(lessonId: string): Promise<LessonAnalyticsData> {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    // 1. Get all events for the lesson, joining with user data
+    const { data: events, error: eventsError } = await supabase
+        .from('student_interaction_events')
+        .select('*, student:users(name)')
+        .eq('lesson_id', lessonId);
+    if (eventsError) throw eventsError;
+
+    // 2. Get all scene titles for the lesson
+    const { data: scenes, error: scenesError } = await supabase
+        .from('lesson_scenes')
+        .select('id, title')
+        .eq('lesson_id', lessonId);
+    if (scenesError) throw scenesError;
+    const sceneTitleMap = new Map(scenes.map(s => [s.id, s.title]));
+
+    // 3. Process data in JavaScript
+    const visitCounts: Record<string, { scene_id: string; title: string; visit_count: number }> = {};
+    const decisionCounts: Record<string, { from_scene_id: string; decision_text: string; to_scene_id: string; choice_count: number }> = {};
+    
+    for (const event of events) {
+        const toSceneId = event.to_scene_id;
+        if (!visitCounts[toSceneId]) {
+            visitCounts[toSceneId] = { scene_id: toSceneId, title: sceneTitleMap.get(toSceneId) || 'Unknown Scene', visit_count: 0 };
+        }
+        visitCounts[toSceneId].visit_count++;
+      
+        const key = `${event.from_scene_id}|${event.decision_text}|${event.to_scene_id}`;
+        if (!decisionCounts[key]) {
+            decisionCounts[key] = { from_scene_id: event.from_scene_id, to_scene_id: event.to_scene_id, decision_text: event.decision_text, choice_count: 0 };
+        }
+        decisionCounts[key].choice_count++;
+    }
+
+    const live_events = (events as (StudentInteractionEvent & { student: { name: string } })[])
+        .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
+        .slice(0, 20)
+        .map(e => ({ ...e, student_name: e.student?.name || 'Unknown' }));
+
+    return {
+        scene_visits: Object.values(visitCounts).sort((a,b) => b.visit_count - a.visit_count),
+        decision_counts: Object.values(decisionCounts).sort((a,b) => b.choice_count - a.choice_count),
+        live_events
+    };
+}
+
+// FIX: Added 'subscribeToLessonInteractions' method to listen for real-time inserts on the student interaction table using Supabase Realtime.
+subscribeToLessonInteractions(lessonId: string, callback: (payload: any) => void) {
+    if (!supabase) return { unsubscribe: () => {} };
+    
+    const channel = supabase
+      .channel(`public:student_interaction_events:lesson_id=eq.${lessonId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'student_interaction_events', filter: `lesson_id=eq.${lessonId}` },
+// FIX: Cast payload.new to a known type to resolve the TypeScript error where its properties are considered 'unknown'.
+        async (payload) => {
+          const newEvent = payload.new as StudentInteractionEvent;
+          // Enrich payload with student name before sending to component
+          const { data: user } = await supabase.from('users').select('name').eq('uid', newEvent.student_id).single();
+          callback({...newEvent, student_name: user?.name || 'Unknown'});
+        }
+      )
+      .subscribe();
+    
+    return {
+      unsubscribe: () => {
+        supabase.removeChannel(channel);
+      }
+    };
   }
 }
 

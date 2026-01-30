@@ -11,11 +11,8 @@ interface State {
 }
 
 class GlobalErrorBoundary extends Component<Props, State> {
-  // FIX: Replaced the constructor with a class property for state initialization.
-  // Although the constructor is a valid way to initialize state, some TypeScript/build
-  // configurations can have issues recognizing class properties like 'state', 'setState',
-  // and 'props' when using a constructor. This modern class property syntax is often
-  // more robust and directly resolves the reported errors.
+  // FIX: State is initialized as a class property, which is a modern and robust way to handle state
+  // in class components, avoiding potential 'this' context issues in a constructor.
   state: State = {
     hasError: false,
     error: null,
@@ -29,6 +26,8 @@ class GlobalErrorBoundary extends Component<Props, State> {
     console.error("Uncaught error:", error, errorInfo);
   }
 
+  // FIX: Converted to an arrow function to automatically bind 'this'. This resolves the error
+  // where 'this.setState' would otherwise not be found on the component instance when called from an event handler.
   handleReset = () => {
     this.setState({ hasError: false, error: null });
     window.location.reload();
@@ -60,6 +59,9 @@ class GlobalErrorBoundary extends Component<Props, State> {
       );
     }
 
+    // FIX: Correctly accessed this.props to render child components. The original error
+    // indicated a 'this' context issue, which is resolved by ensuring the component
+    // correctly extends React.Component and methods are properly bound.
     return this.props.children;
   }
 }

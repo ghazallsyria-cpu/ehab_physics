@@ -1,4 +1,5 @@
 
+
 -- schema.sql
 
 -- 1. PREPARATION & HELPERS
@@ -202,7 +203,8 @@ CREATE TABLE public.student_lesson_progress (
   current_scene_id UUID NOT NULL REFERENCES public.lesson_scenes ON DELETE CASCADE,
   answers JSONB,
   uploaded_files JSONB,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(student_id, lesson_id)
 );
 
 -- Add foreign key constraint to lessons table now that lesson_scenes exists
@@ -225,3 +227,30 @@ CREATE POLICY "Admins/Teachers can manage scenes." ON public.lesson_scenes FOR A
 
 CREATE POLICY "Students can manage their own progress." ON public.student_lesson_progress FOR ALL USING (auth.uid() = student_id);
 CREATE POLICY "Admins/Teachers can view all student progress." ON public.student_lesson_progress FOR SELECT USING (get_user_role(auth.uid()) IN ('admin', 'teacher'));
+
+
+-- 6. STUDENT INTERACTION & ANALYTICS TABLE (NEW)
+CREATE TABLE public.student_interaction_events (
+    id BIGSERIAL PRIMARY KEY,
+    student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    lesson_id UUID NOT NULL REFERENCES public.lessons(id) ON DELETE CASCADE,
+    from_scene_id UUID REFERENCES public.lesson_scenes(id) ON DELETE SET NULL,
+    to_scene_id UUID REFERENCES public.lesson_scenes(id) ON DELETE SET NULL,
+    decision_text TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for analytics
+CREATE INDEX ON public.student_interaction_events (lesson_id);
+CREATE INDEX ON public.student_interaction_events (student_id);
+
+-- RLS for analytics events
+ALTER TABLE public.student_interaction_events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Students can log their own interactions."
+ON public.student_interaction_events FOR INSERT
+WITH CHECK (auth.uid() = student_id);
+
+CREATE POLICY "Admins and Teachers can view all interactions."
+ON public.student_interaction_events FOR SELECT
+USING (get_user_role(auth.uid()) IN ('admin', 'teacher'));

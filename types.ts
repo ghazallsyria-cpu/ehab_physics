@@ -1,6 +1,8 @@
 
 
 
+
+
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 
 export type ViewState = 
@@ -545,4 +547,22 @@ export interface StudentLessonProgress {
     answers: Record<string, string>; // sceneId: decisionText
     uploaded_files: Record<string, Asset>; // sceneId: Asset
     updated_at: string;
+}
+
+// --- NEW TYPES FOR ANALYTICS ---
+
+export interface StudentInteractionEvent {
+    id?: string;
+    student_id: string;
+    lesson_id: string;
+    from_scene_id: string;
+    to_scene_id: string;
+    decision_text: string;
+    created_at?: string;
+}
+
+export interface LessonAnalyticsData {
+    scene_visits: { scene_id: string; title: string; visit_count: number }[];
+    decision_counts: { from_scene_id: string; decision_text: string; to_scene_id: string; choice_count: number }[];
+    live_events: (StudentInteractionEvent & { student_name: string })[];
 }
