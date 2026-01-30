@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User, Quiz, Question, StudentQuizAttempt } from '../types';
@@ -31,12 +32,11 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
 
     const loadQuizData = async () => {
       setIsLoading(true);
-      const quizData = await dbService.getQuizById(quizId);
-      if (quizData) {
-        setQuiz(quizData);
-        setTimeLeft(quizData.duration * 60);
-        const quizQuestions = await dbService.getQuestionsForQuiz(quizId);
-        setQuestions(quizQuestions);
+      const data = await dbService.getQuizWithQuestionsSupabase(quizId);
+      if (data) {
+        setQuiz(data.quiz);
+        setQuestions(data.questions);
+        setTimeLeft(data.quiz.duration * 60);
       }
       setIsLoading(false);
     };
@@ -63,7 +63,7 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
     if (!file) return;
     setUploadingQuestions(prev => ({ ...prev, [questionId]: true }));
     try {
-      const asset = await dbService.uploadAsset(file);
+      const asset = await dbService.uploadAsset(file, true); // Use Supabase
       if (asset && asset.url) {
         setUserAnswers(prev => ({ ...prev, [questionId]: asset.url }));
       } else {
@@ -89,10 +89,10 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
     setIsFinished(true);
 
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
-    const userAttempts = await dbService.getUserAttempts(user.uid, quiz.id);
+    const userAttempts = await dbService.getUserAttemptsSupabase(user.uid, quiz.id);
 
     const attempt: StudentQuizAttempt = {
-      id: `attempt_${Date.now()}`,
+      id: '', // Will be set by Supabase
       studentId: user.uid,
       studentName: user.name,
       quizId: quiz.id,
@@ -106,8 +106,8 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
       status: 'pending-review',
     };
 
-    await dbService.saveAttempt(attempt);
-    setFinalAttempt(attempt);
+    const savedAttempt = await dbService.saveAttemptSupabase(attempt);
+    setFinalAttempt(savedAttempt);
     
     await dbService.createNotification({
         userId: user.uid,

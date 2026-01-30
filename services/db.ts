@@ -584,6 +584,118 @@ class DBService {
       universalConfig: data.universal_config,
     } as Lesson;
   }
+
+  async getQuizzesSupabase(grade: string): Promise<Quiz[]> {
+    let query = supabase.from('quizzes').select(`
+        id, title, description, grade, subject, category, duration, is_premium, max_attempts,
+        quiz_questions ( questions ( id ) )
+    `).eq('grade', grade);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return data.map((q: any) => ({
+        id: q.id,
+        title: q.title,
+        description: q.description,
+        grade: q.grade,
+        subject: q.subject,
+        category: q.category,
+        duration: q.duration,
+        isPremium: q.is_premium,
+        maxAttempts: q.max_attempts,
+        questionIds: q.quiz_questions.map((qq: any) => qq.questions.id),
+        totalScore: 0 // NOTE: Needs calculation if required on this view
+    }));
+  }
+
+  async getQuizWithQuestionsSupabase(id: string): Promise<{ quiz: Quiz; questions: Question[] } | null> {
+    const { data, error } = await supabase
+        .from('quizzes')
+        .select(`*, quiz_questions ( questions ( * ) )`)
+        .eq('id', id)
+        .single();
+    
+    if (error || !data) {
+        console.error("Error fetching quiz with questions:", error);
+        return null;
+    }
+
+    const questions: Question[] = data.quiz_questions.map((qq: any) => ({
+        ...(qq.questions),
+        correctChoiceId: qq.questions.correct_choice_id,
+        imageUrl: qq.questions.image_url,
+    }));
+
+    const quiz: Quiz = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        grade: data.grade,
+        subject: data.subject,
+        category: data.category,
+        duration: data.duration,
+        isPremium: data.is_premium,
+        maxAttempts: data.max_attempts,
+        questionIds: questions.map((q: Question) => q.id),
+        totalScore: questions.reduce((sum: number, q: Question) => sum + (q.score || 0), 0)
+    };
+
+    return { quiz, questions };
+  }
+  
+  async getUserAttemptsSupabase(uid: string, quizId?: string): Promise<StudentQuizAttempt[]> {
+    let query = supabase.from('student_quiz_attempts').select('*').eq('student_id', uid);
+    if (quizId) {
+        query = query.eq('quiz_id', quizId);
+    }
+    const { data, error } = await query.order('completed_at', { ascending: false });
+    if (error) throw error;
+
+    return data.map((a: any) => ({
+        id: a.id,
+        studentId: a.student_id,
+        quizId: a.quiz_id,
+        score: a.score,
+        maxScore: a.max_score,
+        completedAt: a.completed_at,
+        answers: a.answers,
+        timeSpent: a.time_spent,
+        status: a.status,
+        manualGrades: a.manual_grades,
+        studentName: '', totalQuestions: 0, attemptNumber: 0 // Fields not in DB
+    }));
+  }
+
+  async getAttemptByIdSupabase(id: string): Promise<StudentQuizAttempt | null> {
+    const { data, error } = await supabase.from('student_quiz_attempts').select('*').eq('id', id).single();
+    if (error) { console.error(error); return null; }
+    if (!data) return null;
+    return {
+        id: data.id, studentId: data.student_id, quizId: data.quiz_id, score: data.score,
+        maxScore: data.max_score, completedAt: data.completed_at, answers: data.answers,
+        timeSpent: data.time_spent, status: data.status, manualGrades: data.manual_grades,
+        studentName: '', totalQuestions: 0, attemptNumber: 0
+    };
+  }
+
+  async saveAttemptSupabase(attempt: StudentQuizAttempt): Promise<StudentQuizAttempt> {
+    const payload = {
+        student_id: attempt.studentId,
+        quiz_id: attempt.quizId,
+        score: attempt.score,
+        max_score: attempt.maxScore,
+        answers: attempt.answers,
+        time_spent: attempt.timeSpent,
+        status: attempt.status,
+        manual_grades: attempt.manualGrades,
+        completed_at: attempt.completedAt,
+    };
+    const { data, error } = await supabase.from('student_quiz_attempts').insert(payload).select().single();
+    if (error) throw error;
+    
+    return { ...attempt, id: data.id };
+  }
 }
 
 export const dbService = new DBService();

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User, StudentQuizAttempt, Quiz, Question } from '../types';
@@ -26,23 +27,21 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user }) => {
     const loadData = async () => {
       setIsLoading(true);
       
-      // Since there's no direct dbService.getAttemptById, we fetch all user attempts and find the one.
-      const userAttempts = await dbService.getUserAttempts(user.uid);
-      const foundAttempt = userAttempts.find(a => a.id === attemptId);
+      const attemptData = await dbService.getAttemptByIdSupabase(attemptId);
       
-      if (!foundAttempt) {
+      if (!attemptData) {
         setIsLoading(false);
         return;
       }
-      setAttempt(foundAttempt);
+      setAttempt(attemptData);
       
-      const [quizData, questionsData] = await Promise.all([
-        dbService.getQuizById(foundAttempt.quizId),
-        dbService.getQuestionsForQuiz(foundAttempt.quizId),
-      ]);
+      const quizAndQuestionsData = await dbService.getQuizWithQuestionsSupabase(attemptData.quizId);
 
-      setQuiz(quizData);
-      setQuestions(questionsData);
+      if (quizAndQuestionsData) {
+        setQuiz(quizAndQuestionsData.quiz);
+        setQuestions(quizAndQuestionsData.questions);
+      }
+      
       setIsLoading(false);
     };
     loadData();

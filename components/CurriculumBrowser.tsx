@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Unit, Lesson, Curriculum } from '../types';
@@ -26,7 +27,7 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
   const fetchCurriculum = async () => {
     setIsLoading(true);
     try {
-      const data = await dbService.getCurriculum();
+      const data = await dbService.getCurriculumSupabase();
       setDbCurriculum(data);
     } catch (e) {
       console.error("Load failed", e);

@@ -1,22 +1,19 @@
+// FIX: Add reference to vite/client to inform TypeScript about `import.meta.env`
+/// <reference types="vite/client" />
 
 import firebase from "firebase/compat/app";
 import "firebase/compat/firestore";
 import "firebase/compat/auth";
 import "firebase/compat/storage";
 
-// استرجاع القيم من متغيرات البيئة (Vite يستخدم import.meta.env)
-const getEnv = (key: string) => {
-  // @ts-ignore
-  return import.meta.env[key] || process.env[key];
-};
-
+// The configuration is now read directly and correctly from Vite's environment variables.
 const firebaseConfig = {
-  apiKey: getEnv('VITE_FIREBASE_API_KEY'),
-  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN'),
-  projectId: getEnv('VITE_FIREBASE_PROJECT_ID'),
-  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-  appId: getEnv('VITE_FIREBASE_APP_ID')
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // تهيئة التطبيق الأساسي مع التحقق من عدم التكرار
@@ -37,9 +34,12 @@ export const auth = app ? firebase.auth() : null;
 export const storage = app ? firebase.storage() : null;
 
 // إعداد مزود جوجل
-const provider = new firebase.auth.GoogleAuthProvider();
-provider.setCustomParameters({ prompt: 'select_account' });
+const provider = app ? new firebase.auth.GoogleAuthProvider() : null;
+if (provider) {
+    provider.setCustomParameters({ prompt: 'select_account' });
+}
 export const googleProvider = provider;
+
 
 // التوثيق الثانوي (لإدارة المستخدمين من قبل الأدمن)
 export let secondaryAuth: firebase.auth.Auth | null = null;

@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface Props {
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
 interface State {
@@ -10,18 +10,24 @@ interface State {
   error: Error | null;
 }
 
-class GlobalErrorBoundary extends React.Component<Props, State> {
-  // FIX: Use class property for state initialization to simplify the component and avoid potential constructor-related issues with `this` context.
-  state: State = {
-    hasError: false,
-    error: null,
-  };
+class GlobalErrorBoundary extends Component<Props, State> {
+  // FIX: The errors about missing `setState` and `props` on a class component suggest a potential
+  // tooling or TypeScript configuration issue with class property initializers.
+  // Refactoring to use a constructor for state initialization is a more traditional and widely
+  // supported pattern that resolves this type of problem.
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+    };
+  }
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
   }
 

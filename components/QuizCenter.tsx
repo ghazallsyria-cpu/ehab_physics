@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Quiz, StudentQuizAttempt } from '../types';
@@ -32,11 +33,10 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
     setIsLoading(true);
     try {
         const [allQuizzes, allAttempts] = await Promise.all([
-            dbService.getQuizzes(),
-            dbService.getUserAttempts(user.uid)
+            dbService.getQuizzesSupabase(user.grade),
+            dbService.getUserAttemptsSupabase(user.uid)
         ]);
-        const userGradeQuizzes = allQuizzes.filter(q => q.grade === user.grade);
-        setQuizzes(userGradeQuizzes);
+        setQuizzes(allQuizzes);
         setUserAttempts(allAttempts);
     } catch (e) {
         console.error("Failed to load quiz center data", e);
