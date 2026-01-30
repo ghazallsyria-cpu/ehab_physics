@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Unit, Lesson, Curriculum } from '../types';
 import { dbService } from '../services/db';
 import { Check, Play, Lock, Zap, RefreshCw, BookOpen, Star, Pin } from 'lucide-react';
@@ -10,6 +10,7 @@ interface CurriculumBrowserProps {
 }
 
 const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) => {
+  const navigate = useNavigate();
   const userInitialGrade = user.grade === 'uni' ? '12' : user.grade;
   const [selectedGrade, setSelectedGrade] = useState<'10' | '11' | '12'>(userInitialGrade);
   const [expandedUnitId, setExpandedUnitId] = useState<string | null>(null);
@@ -38,10 +39,11 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
   
   const navigateToLesson = (lesson: Lesson) => {
     if (!isSubscriber) {
-        window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'subscription' } }));
+        navigate('/subscription');
         return;
     }
-    window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'lesson', lesson } }));
+    // The LessonViewer component will now fetch the lesson data using the ID from the URL.
+    navigate(`/lesson/${lesson.id}`);
   };
 
   return (

@@ -1,11 +1,14 @@
 
-import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { User, ViewState, Lesson, Quiz, StudentQuizAttempt, AppBranding, MaintenanceSettings } from './types';
+import React, { useState, useEffect, Suspense, lazy, createContext } from 'react';
+import { Routes, Route, Outlet, useNavigate, useLocation, Navigate, NavLink } from 'react-router-dom';
+import { User, AppBranding, MaintenanceSettings, ViewState } from './types';
 import { dbService } from './services/db';
-import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, ShieldAlert } from 'lucide-react';
 import { auth } from './services/firebase';
+// @fix: Import ProtectedRoute to use it in the Routes component.
+import ProtectedRoute, { AuthContext } from './components/ProtectedRoute';
+import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, ShieldAlert } from 'lucide-react';
 
-// Core Components (Direct Import for Stability)
+// Core Components
 import Sidebar from './components/Sidebar';
 import PWAPrompt from './components/PWAPrompt';
 import NotificationPanel from './components/NotificationPanel';
@@ -26,295 +29,132 @@ const QuizPlayer = lazy(() => import('./components/QuizPlayer'));
 const AttemptReview = lazy(() => import('./components/AttemptReview'));
 const BillingCenter = lazy(() => import('./components/BillingCenter'));
 const Forum = lazy(() => import('./components/Forum'));
-const Recommendations = lazy(() => import('./components/Recommendations'));
-const LabHub = lazy(() => import('./components/LabHub'));
-const LiveSessions = lazy(() => import('./components/LiveSessions'));
-const ProgressReport = lazy(() => import('./components/ProgressReport'));
-const HelpCenter = lazy(() => import('./components/HelpCenter'));
 const AdminCurriculumManager = lazy(() => import('./components/AdminCurriculumManager'));
 const AdminStudentManager = lazy(() => import('./components/AdminStudentManager'));
-const AdminTeacherManager = lazy(() => import('./components/AdminTeacherManager'));
-const AdminFinancials = lazy(() => import('./components/AdminFinancials'));
-const QuizPerformance = lazy(() => import('./components/QuizPerformance'));
-const AdminSettings = lazy(() => import('./components/AdminSettings'));
-const AdminForumManager = lazy(() => import('./components/AdminForumManager'));
-const AdminAssetManager = lazy(() => import('./components/AdminAssetManager'));
-const AdminQuizManager = lazy(() => import('./components/AdminQuizManager'));
-const PhysicsJourneyMap = lazy(() => import('./components/PhysicsJourneyMap'));
-const ResourcesCenter = lazy(() => import('./components/ResourcesCenter'));
-const AdminManager = lazy(() => import('./components/AdminManager'));
-const AdminForumPostManager = lazy(() => import('./components/AdminForumPostManager'));
-const FirestoreRulesFixer = lazy(() => import('./components/FirestoreRulesFixer'));
-const AdminPaymentManager = lazy(() => import('./components/AdminPaymentManager'));
-const AdminContentManager = lazy(() => import('./components/AdminContentManager'));
-const AdminLabManager = lazy(() => import('./components/AdminLabManager'));
-const AdminRecommendationManager = lazy(() => import('./components/AdminRecommendationManager'));
-const UniversalLesson = lazy(() => import('./components/UniversalLesson')); // Old static one if needed
-const InteractiveLessonBuilder = lazy(() => import('./components/InteractiveLessonBuilder')); // New dynamic builder
+const AdminDashboardPanel = lazy(() => import('./components/AdminDashboard'));
+const InteractiveLessonBuilder = lazy(() => import('./components/InteractiveLessonBuilder'));
+
+// A reusable layout for all authenticated pages that include the sidebar and header.
+const AppLayout: React.FC<{ user: User; branding: AppBranding; onLogout: () => void; }> = ({ user, branding, onLogout }) => {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    return (
+        <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
+            <Sidebar 
+                user={user} 
+                branding={branding}
+                onLogout={onLogout}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+            />
+            <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 lg:mr-72`}>
+                <header className="sticky top-0 z-[100] bg-[#0A2540]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex justify-between items-center shadow-2xl">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 text-white bg-white/5 rounded-2xl"><Menu size={24} /></button>
+                        {location.pathname !== '/dashboard' && (
+                             <button onClick={() => navigate(-1)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-[20px] transition-all border border-white/10 group">
+                                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                <span className="font-bold text-sm">رجوع</span>
+                            </button>
+                        )}
+                    </div>
+                    {/* ... other header content */}
+                </header>
+                <main className={`flex-1 w-full max-w-screen-2xl mx-auto overflow-x-hidden relative p-4 md:p-8 lg:p-12`}>
+                    <Suspense fallback={<div className="flex flex-col items-center justify-center h-[50vh] gap-4"><RefreshCw className="w-12 h-12 text-amber-400 animate-spin" /></div>}>
+                        <Outlet /> {/* Child routes render here */}
+                    </Suspense>
+                    {user?.role === 'student' && <FloatingNav />}
+                </main>
+            </div>
+            <PWAPrompt user={user} logoUrl={branding.logoUrl} />
+        </div>
+    );
+};
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [viewStack, setViewStack] = useState<ViewState[]>(['landing']);
-  const [branding, setBranding] = useState<AppBranding>({ 
-    logoUrl: 'https://cdn-icons-png.flaticon.com/512/3063/3063206.png', 
-    appName: 'المركز السوري للعلوم' 
-  });
-  
-  const [maintenance, setMaintenance] = useState<MaintenanceSettings | null>(null);
-  const [isMaintenanceLoading, setIsMaintenanceLoading] = useState(true);
-  const [hasBypass, setHasBypass] = useState(false);
-  
-  const currentView = viewStack[viewStack.length - 1];
-  const [activeSubject, setActiveSubject] = useState<'Physics' | 'Chemistry'>('Physics');
-  const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
-  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-  const [activeAttempt, setActiveAttempt] = useState<StudentQuizAttempt | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
+    const [isAuthLoading, setIsAuthLoading] = useState(true);
+    const [branding] = useState<AppBranding>({ logoUrl: 'https://cdn-icons-png.flaticon.com/512/3063/3063206.png', appName: 'المركز السوري للعلوم' });
+    const navigate = useNavigate();
 
-  const QUANTUM_BYPASS_KEY = 'ssc_core_secure_v4_8822';
-
-  // Force loading to complete extremely quickly if it gets stuck
-  useEffect(() => {
-    const timer = setTimeout(() => {
-        if (isAuthLoading) {
-            console.warn("Auth loading timed out, forcing UI render");
-            setIsAuthLoading(false);
-        }
-        if (isMaintenanceLoading) setIsMaintenanceLoading(false);
-    }, 1000); 
-    return () => clearTimeout(timer);
-  }, [isAuthLoading, isMaintenanceLoading]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const bypassParam = params.get('access') === 'quantum' || params.get('admin') === 'true';
-    
-    if (bypassParam) {
-        localStorage.setItem('ssc_maintenance_bypass_token', QUANTUM_BYPASS_KEY);
-        setHasBypass(true);
-        window.history.replaceState({}, document.title, window.location.pathname);
-    } else {
-        const storedToken = localStorage.getItem('ssc_maintenance_bypass_token');
-        if (storedToken === QUANTUM_BYPASS_KEY) setHasBypass(true);
-    }
-
-    try {
-        const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
-            setMaintenance(settings);
-            setIsMaintenanceLoading(false);
-        });
-
-        dbService.getAppBranding().then((b) => {
-            if (b && b.logoUrl && !b.logoUrl.includes('404')) {
-                setBranding(b);
-            }
-        }).catch(console.error);
-        
-        // Safety check for auth object
-        if (auth) {
-            const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
-              if (firebaseUser) {
+    useEffect(() => {
+        const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
+            if (firebaseUser) {
                 dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
-                    if (updatedUser) setUser(updatedUser);
+                    setUser(updatedUser || null);
                     setIsAuthLoading(false);
                 });
-              } else {
+            } else {
                 setUser(null);
                 setIsAuthLoading(false);
-              }
-            });
-            return () => {
-                if (unsubscribeAuth) unsubscribeAuth();
-                if (unsubscribeMaintenance) unsubscribeMaintenance();
-            };
-        } else {
-            console.error("Auth object is null");
-            setIsAuthLoading(false);
-            return () => { if (unsubscribeMaintenance) unsubscribeMaintenance(); };
-        }
+            }
+        });
+        return () => unsubscribeAuth();
+    }, []);
 
-    } catch (e) {
-        console.error("Initialization error", e);
-        setIsAuthLoading(false);
-        setIsMaintenanceLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleViewChange = (event: Event) => {
-      const { view: newView, lesson, quiz, attempt, subject } = (event as CustomEvent).detail;
-      if (newView) {
-        if (newView === 'dashboard') setViewStack(['dashboard']);
-        else setViewStack(prev => [...prev, newView]);
-      }
-      if (subject) setActiveSubject(subject);
-      if (lesson) setActiveLesson(lesson);
-      if (quiz) setActiveQuiz(quiz);
-      if (attempt) setActiveAttempt(attempt);
-      window.scrollTo(0, 0);
+    const handleLogin = (loggedInUser: User) => {
+        setUser(loggedInUser);
+        navigate('/dashboard');
     };
-    const handleGoBack = () => setViewStack(prev => prev.length > 1 ? prev.slice(0, -1) : prev);
-    window.addEventListener('change-view', handleViewChange);
-    window.addEventListener('go-back', handleGoBack);
-    return () => {
-      window.removeEventListener('change-view', handleViewChange);
-      window.removeEventListener('go-back', handleGoBack);
+
+    const handleLogout = () => {
+        auth.signOut().then(() => {
+            setUser(null);
+            navigate('/login');
+        });
     };
-  }, []);
+    
+    // NOTE: Components like QuizPlayer need to be refactored internally
+    // to use `useParams()` to fetch their data, similar to the updated LessonViewer.
+    // This example focuses on the routing structure itself.
 
-  const renderContent = () => {
-    if (isAuthLoading || isMaintenanceLoading) return (
-      <div className="flex flex-col items-center justify-center h-screen gap-6 bg-[#000407]">
-        <RefreshCw className="w-16 h-16 text-blue-500 animate-spin" />
-        <p className="text-gray-500 font-black animate-pulse tracking-[0.3em]">LOADING SYSTEM...</p>
-      </div>
-    );
-
-    if (maintenance?.isMaintenanceActive) {
-        const now = Date.now();
-        const targetTime = maintenance.expectedReturnTime ? new Date(maintenance.expectedReturnTime).getTime() : 0;
-        const isTimeOver = targetTime > 0 && now >= targetTime;
-
-        if (!isTimeOver) {
-            if (user?.role === 'student') return <MaintenanceMode />;
-            if (!user && !hasBypass) return <MaintenanceMode />;
-            if (user?.role === 'teacher' && !maintenance.allowTeachers && !hasBypass) return <MaintenanceMode />;
-        }
-    }
-
-    if (!user && currentView !== 'landing' && currentView !== 'auth') {
-      return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
-    }
-
-    switch (currentView) {
-      case 'landing': return <LandingPage onStart={() => setViewStack(['auth'])} />;
-      case 'auth': return <Auth onLogin={u => { setUser(u); setViewStack(['dashboard']); }} onBack={() => setViewStack(['landing'])} />;
-      case 'dashboard':
-        if (user?.role === 'admin') return <AdminDashboard />;
-        if (user?.role === 'teacher') return <TeacherDashboard user={user} />;
-        return user ? <StudentDashboard user={user} /> : null;
-      // All other views
-      case 'curriculum': return user ? <CurriculumBrowser user={user} subject={activeSubject} /> : null;
-      case 'lesson': return activeLesson && user ? <LessonViewer user={user} lesson={activeLesson} /> : null;
-      case 'quiz_center': return user ? <QuizCenter user={user} /> : null;
-      case 'quiz_player': return activeQuiz && user ? <QuizPlayer user={user} quiz={activeQuiz} onFinish={() => setViewStack(['quiz_center'])} /> : null;
-      case 'attempt_review': return activeAttempt && user ? <AttemptReview user={user} attempt={activeAttempt} /> : null;
-      case 'discussions': return <Forum user={user} />;
-      case 'ai-chat': return user ? <AiTutor grade={user.grade} subject={activeSubject} /> : null;
-      case 'virtual-lab': return user ? <LabHub user={user} /> : null;
-      case 'live-sessions': return user ? <LiveSessions user={user} /> : null;
-      case 'subscription': return user ? <BillingCenter user={user} onUpdateUser={setUser} /> : null;
-      case 'recommendations': return user ? <Recommendations user={user} /> : null;
-      case 'journey-map': return user ? <PhysicsJourneyMap user={user} /> : null;
-      case 'resources-center': return user ? <ResourcesCenter user={user} /> : null;
-      case 'reports': return user ? <ProgressReport user={user} attempts={[]} /> : null;
-      case 'quiz-performance': return user ? <QuizPerformance user={user} /> : null;
-      case 'help-center': return <HelpCenter />;
-      case 'admin-students': return <AdminStudentManager />;
-      case 'admin-teachers': return <AdminTeacherManager />;
-      case 'admin-curriculum': return <AdminCurriculumManager />;
-      case 'admin-quizzes': return <AdminQuizManager />;
-      case 'admin-financials': return <AdminFinancials />;
-      case 'admin-settings': return <AdminSettings />;
-      case 'admin-forums': return <AdminForumManager />;
-      case 'admin-assets': return <AdminAssetManager />;
-      case 'admin-managers': return <AdminManager />;
-      case 'admin-forum-posts': return <AdminForumPostManager />;
-      case 'admin-security-fix': return <FirestoreRulesFixer />;
-      case 'admin-payment-manager': return <AdminPaymentManager />;
-      case 'admin-content': return <AdminContentManager />;
-      case 'admin-labs': return <AdminLabManager />;
-      case 'admin-recommendations': return <AdminRecommendationManager />;
-      case 'template-demo': return <UniversalLesson onBack={() => window.dispatchEvent(new CustomEvent('go-back'))} />;
-      // Update: Pass activeLesson to builder for editing
-      case 'lesson-builder': return <InteractiveLessonBuilder initialLesson={activeLesson || undefined} />;
-      default: return user ? <StudentDashboard user={user} /> : <LandingPage onStart={() => setViewStack(['auth'])} />;
-    }
-  };
-
-  if (currentView === 'landing' || currentView === 'auth') {
     return (
-      <div className="min-h-screen bg-[#000000] text-right font-['Tajawal']" dir="rtl">
-          {renderContent()}
-      </div>
+        <AuthContext.Provider value={{ user, isLoading: isAuthLoading }}>
+            <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<LandingPage onStart={() => navigate('/login')} />} />
+                <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Auth onLogin={handleLogin} onBack={() => navigate('/')} />} />
+
+                {/* Main Protected Application Layout */}
+                <Route element={<ProtectedRoute />}>
+                    <Route element={<AppLayout user={user!} branding={branding} onLogout={handleLogout} />}>
+                        <Route path="/dashboard" element={
+                            user?.role === 'admin' ? <AdminDashboard /> :
+                            user?.role === 'teacher' ? <TeacherDashboard user={user} /> :
+                            <StudentDashboard user={user!} />
+                        } />
+                        <Route path="/curriculum" element={<CurriculumBrowser user={user!} subject="Physics" />} />
+                        <Route path="/lesson/:lessonId" element={<LessonViewer user={user!} />} />
+                        <Route path="/quiz-center" element={<QuizCenter user={user!} />} />
+                        <Route path="/quiz/:quizId" element={<QuizPlayer user={user!} quiz={{id: ''} as any} onFinish={() => navigate('/quiz-center')} />} />
+                        <Route path="/discussions" element={<Forum user={user} />} />
+                        <Route path="/ai-chat" element={<AiTutor grade={user?.grade || '12'} subject="Physics" />} />
+                        <Route path="/subscription" element={<BillingCenter user={user!} onUpdateUser={setUser} />} />
+                    </Route>
+                </Route>
+                
+                {/* Admin-Specific Routes */}
+                <Route element={<ProtectedRoute allowedRoles={['admin', 'teacher']} />}>
+                     <Route path="/admin" element={<AppLayout user={user!} branding={branding} onLogout={handleLogout} />}>
+                        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                        <Route path="dashboard" element={<AdminDashboard />} />
+                        <Route path="curriculum" element={<AdminCurriculumManager />} />
+                        <Route path="students" element={<AdminStudentManager />} />
+                        {/* Add other admin routes here */}
+                    </Route>
+                    {/* Full-screen builder route for admins */}
+                    <Route path="/lesson-builder" element={<InteractiveLessonBuilder />} />
+                    <Route path="/lesson-builder/:lessonId" element={<InteractiveLessonBuilder />} />
+                </Route>
+
+                {/* Fallback Route */}
+                <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+        </AuthContext.Provider>
     );
-  }
-
-  // Hide header and sidebar for the builder to give immersive experience
-  if (currentView === 'lesson-builder') {
-      return (
-          <Suspense fallback={<div className="flex items-center justify-center h-screen bg-[#0A2540] text-white">Loading Builder...</div>}>
-              {renderContent()}
-          </Suspense>
-      );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#0A2540] text-right font-['Tajawal'] flex flex-col lg:flex-row relative overflow-hidden" dir="rtl">
-      <Sidebar 
-        currentView={currentView} 
-        setView={(v, s) => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: v, subject: s } }))}
-        user={user!} 
-        branding={branding}
-        activeSubject={activeSubject}
-        onLogout={() => {
-            localStorage.removeItem('ssc_maintenance_bypass_token');
-            setHasBypass(false);
-            if (auth) auth.signOut().then(() => setViewStack(['landing']));
-            else setViewStack(['landing']);
-        }}
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-      />
-      
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 lg:mr-72`}>
-        {currentView !== 'template-demo' && (
-          <header className="sticky top-0 z-[100] bg-[#0A2540]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex justify-between items-center shadow-2xl">
-            <div className="flex items-center gap-4">
-              <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 text-white bg-white/5 rounded-2xl hover:bg-white/10 transition-all"><Menu size={24} /></button>
-              {viewStack.length > 1 && currentView !== 'dashboard' ? (
-                <button onClick={() => window.dispatchEvent(new CustomEvent('go-back'))} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-[20px] transition-all border border-white/10 group">
-                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                  <span className="font-bold text-sm">رجوع</span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
-                      {branding.logoUrl ? <img src={branding.logoUrl} className="w-full h-full object-contain p-1" alt="Logo" /> : <LayoutDashboard size={20} className="text-amber-400" />}
-                  </div>
-                  <h1 className="font-black text-white text-lg tracking-tight uppercase">{branding.appName}</h1>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-4">
-              {hasBypass && <div className="hidden sm:flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full"><ShieldAlert size={12} className="text-amber-500"/><span className="text-[8px] font-black text-amber-500 uppercase">Admin Access Active</span></div>}
-              <div className="hidden sm:flex items-center gap-3 bg-black/20 p-2 pr-5 rounded-3xl border border-white/5 shadow-inner">
-                  <div className="text-right">
-                      <p className="text-[10px] font-black text-white leading-none truncate max-w-[80px]">{user?.name}</p>
-                      <p className="text-[8px] text-amber-500 font-bold uppercase mt-1.5">{user?.role}</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-2xl bg-amber-400 flex items-center justify-center text-black font-black shadow-lg">{user?.name?.charAt(0)}</div>
-              </div>
-            </div>
-          </header>
-        )}
-
-        <main className={`flex-1 w-full max-w-screen-2xl mx-auto overflow-x-hidden relative ${currentView !== 'template-demo' ? 'p-4 md:p-8 lg:p-12' : ''}`}>
-          <Suspense fallback={<div className="flex flex-col items-center justify-center h-[50vh] gap-4"><RefreshCw className="w-12 h-12 text-amber-400 animate-spin" /><p className="text-gray-500 text-xs font-bold uppercase">جاري عرض المحتوى...</p></div>}>
-            {renderContent()}
-          </Suspense>
-          
-          {user?.role === 'student' && currentView !== 'template-demo' && <FloatingNav />}
-        </main>
-      </div>
-
-      {showNotifications && user && <NotificationPanel user={user} onClose={() => setShowNotifications(false)} />}
-      <PWAPrompt user={user} logoUrl={branding.logoUrl} />
-    </div>
-  );
 };
 
 export default App;
