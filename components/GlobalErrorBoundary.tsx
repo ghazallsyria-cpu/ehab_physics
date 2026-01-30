@@ -11,13 +11,17 @@ interface State {
 }
 
 class GlobalErrorBoundary extends Component<Props, State> {
-  // FIX: Replaced constructor with class property initializers for state and an arrow function for `handleReset`.
-  // This is a modern and robust way to handle `this` context and resolves the reported errors
-  // regarding `this.state`, `this.setState`, and `this.props` not being available.
-  state: State = {
-    hasError: false,
-    error: null,
-  };
+  // FIX: Reverted to using a constructor to explicitly bind `this` and initialize state.
+  // The class property initializers were not correctly resolving `this` in the provided environment,
+  // leading to errors where `this.state`, `this.setState`, and `this.props` were unavailable.
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+    };
+    this.handleReset = this.handleReset.bind(this);
+  }
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
@@ -27,7 +31,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  handleReset = () => {
+  handleReset() {
     this.setState({ hasError: false, error: null });
     window.location.reload();
   }
