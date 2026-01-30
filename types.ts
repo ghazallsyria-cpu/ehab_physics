@@ -3,6 +3,12 @@
 
 
 
+
+
+
+
+
+
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 
 export type ViewState = 
@@ -98,7 +104,6 @@ export interface Unit {
     title: string;
     description: string;
     lessons: Lesson[];
-// FIX: Added optional 'order' property to allow for unit ordering in Supabase queries and updates.
     order?: number;
 }
 
@@ -535,6 +540,10 @@ export interface LessonScene {
   decisions: {
       text: string; // Button text
       next_scene_id: string; // ID of the next scene
+// FIX: Added optional properties to support adaptive learning paths based on the correctness of a student's decision.
+      is_correct?: boolean;
+      remedial_scene_id?: string | null;
+      advanced_scene_id?: string | null;
   }[];
   is_premium: boolean;
 }
@@ -559,10 +568,15 @@ export interface StudentInteractionEvent {
     to_scene_id: string;
     decision_text: string;
     created_at?: string;
+// FIX: Added optional properties to log the correctness of a decision and to categorize the type of interaction for detailed analytics.
+    is_correct?: boolean;
+    event_type?: 'navigation' | 'suggestion_shown' | 'suggestion_accepted' | 'suggestion_skipped' | 'ai_help_requested';
 }
 
 export interface LessonAnalyticsData {
     scene_visits: { scene_id: string; title: string; visit_count: number }[];
     decision_counts: { from_scene_id: string; decision_text: string; to_scene_id: string; choice_count: number }[];
     live_events: (StudentInteractionEvent & { student_name: string })[];
+// FIX: Added a new property to specifically track the number of AI help requests for the analytics dashboard.
+    ai_help_requests?: number;
 }

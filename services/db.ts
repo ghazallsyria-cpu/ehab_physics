@@ -1,5 +1,15 @@
 
 
+
+
+
+
+
+
+
+
+
+
 import { db, storage } from './firebase'; 
 import { supabase } from './supabase';
 import firebase from 'firebase/compat/app';
@@ -742,11 +752,12 @@ class DBService {
         id: id.startsWith('scene_') ? undefined : id,
         ...rest
     };
-    const { error } = await supabase.from('lesson_scenes').upsert(payload);
+    const { data, error } = await supabase.from('lesson_scenes').upsert(payload).select().single();
     if (error) {
         console.error('Supabase saveLessonScene error:', error);
         throw error;
     }
+    return data as LessonScene;
   }
 
   async deleteLessonScene(sceneId: string) {
@@ -812,6 +823,7 @@ class DBService {
     }
   }
 
+// FIX: Updated `logStudentInteraction` to include `is_correct` and `event_type` for enhanced analytics and adaptive learning triggers.
   async logStudentInteraction(event: StudentInteractionEvent): Promise<void> {
     const { error } = await supabase.from('student_interaction_events').insert({
         student_id: event.student_id,
@@ -819,26 +831,25 @@ class DBService {
         from_scene_id: event.from_scene_id,
         to_scene_id: event.to_scene_id,
         decision_text: event.decision_text,
+        is_correct: event.is_correct,
+        event_type: event.event_type || 'navigation'
     });
 
     if (error) {
         console.error("Failed to log student interaction:", error);
-        // We don't throw an error here to avoid breaking the user's navigation flow.
     }
   }
 
-// FIX: Added 'getLessonAnalytics' method to fetch and aggregate student interaction data for a specific lesson from Supabase.
+// FIX: Updated `getLessonAnalytics` to aggregate and return the count of AI help requests, enabling real-time tracking on the admin dashboard.
 async getLessonAnalytics(lessonId: string): Promise<LessonAnalyticsData> {
     if (!supabase) throw new Error("Supabase client not initialized.");
 
-    // 1. Get all events for the lesson, joining with user data
     const { data: events, error: eventsError } = await supabase
         .from('student_interaction_events')
-        .select('*, student:users(name)')
+        .select('*, student:profiles(name)')
         .eq('lesson_id', lessonId);
     if (eventsError) throw eventsError;
 
-    // 2. Get all scene titles for the lesson
     const { data: scenes, error: scenesError } = await supabase
         .from('lesson_scenes')
         .select('id, title')
@@ -846,22 +857,23 @@ async getLessonAnalytics(lessonId: string): Promise<LessonAnalyticsData> {
     if (scenesError) throw scenesError;
     const sceneTitleMap = new Map(scenes.map(s => [s.id, s.title]));
 
-    // 3. Process data in JavaScript
     const visitCounts: Record<string, { scene_id: string; title: string; visit_count: number }> = {};
     const decisionCounts: Record<string, { from_scene_id: string; decision_text: string; to_scene_id: string; choice_count: number }> = {};
     
     for (const event of events) {
-        const toSceneId = event.to_scene_id;
-        if (!visitCounts[toSceneId]) {
-            visitCounts[toSceneId] = { scene_id: toSceneId, title: sceneTitleMap.get(toSceneId) || 'Unknown Scene', visit_count: 0 };
+        if (event.event_type !== 'ai_help_requested') {
+            const toSceneId = event.to_scene_id;
+            if (!visitCounts[toSceneId]) {
+                visitCounts[toSceneId] = { scene_id: toSceneId, title: sceneTitleMap.get(toSceneId) || 'Unknown Scene', visit_count: 0 };
+            }
+            visitCounts[toSceneId].visit_count++;
+          
+            const key = `${event.from_scene_id}|${event.decision_text}|${event.to_scene_id}`;
+            if (!decisionCounts[key]) {
+                decisionCounts[key] = { from_scene_id: event.from_scene_id, to_scene_id: event.to_scene_id, decision_text: event.decision_text, choice_count: 0 };
+            }
+            decisionCounts[key].choice_count++;
         }
-        visitCounts[toSceneId].visit_count++;
-      
-        const key = `${event.from_scene_id}|${event.decision_text}|${event.to_scene_id}`;
-        if (!decisionCounts[key]) {
-            decisionCounts[key] = { from_scene_id: event.from_scene_id, to_scene_id: event.to_scene_id, decision_text: event.decision_text, choice_count: 0 };
-        }
-        decisionCounts[key].choice_count++;
     }
 
     const live_events = (events as (StudentInteractionEvent & { student: { name: string } })[])
@@ -872,11 +884,11 @@ async getLessonAnalytics(lessonId: string): Promise<LessonAnalyticsData> {
     return {
         scene_visits: Object.values(visitCounts).sort((a,b) => b.visit_count - a.visit_count),
         decision_counts: Object.values(decisionCounts).sort((a,b) => b.choice_count - a.choice_count),
-        live_events
+        live_events,
+        ai_help_requests: events.filter(e => e.event_type === 'ai_help_requested').length
     };
 }
 
-// FIX: Added 'subscribeToLessonInteractions' method to listen for real-time inserts on the student interaction table using Supabase Realtime.
 subscribeToLessonInteractions(lessonId: string, callback: (payload: any) => void) {
     if (!supabase) return { unsubscribe: () => {} };
     
@@ -885,12 +897,15 @@ subscribeToLessonInteractions(lessonId: string, callback: (payload: any) => void
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'student_interaction_events', filter: `lesson_id=eq.${lessonId}` },
-// FIX: Cast payload.new to a known type to resolve the TypeScript error where its properties are considered 'unknown'.
         async (payload) => {
           const newEvent = payload.new as StudentInteractionEvent;
-          // Enrich payload with student name before sending to component
-          const { data: user } = await supabase.from('users').select('name').eq('uid', newEvent.student_id).single();
-          callback({...newEvent, student_name: user?.name || 'Unknown'});
+// FIX: The user object from Supabase may not be strictly typed, causing `user.name` to be 'unknown'.
+// Explicitly cast `newEvent.student_id` to string to satisfy the `.eq()` method's type requirement.
+// FIX: The user object from Supabase may not be strictly typed, causing `user.name` to be 'unknown'.
+// Explicitly cast `newEvent.student_id` to string to satisfy the `.eq()` method's type requirement.
+          const { data: user } = await supabase.from('profiles').select('name').eq('id', String(newEvent.student_id)).single();
+          const userName = (user as { name: string } | null)?.name ?? 'Unknown';
+          callback({...newEvent, student_name: userName});
         }
       )
       .subscribe();

@@ -1,17 +1,16 @@
-
 import React, { useEffect, useState } from 'react';
-// Updated undefined QuizAttempt to StudentQuizAttempt
+// FIX: Updated undefined QuizAttempt to StudentQuizAttempt
 import { User, WeeklyReport, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
 
 interface ProgressReportProps {
   user: User;
-  // Updated undefined QuizAttempt to StudentQuizAttempt
+  // FIX: Updated undefined QuizAttempt to StudentQuizAttempt
   attempts: StudentQuizAttempt[];
 }
 
 const ProgressReport: React.FC<ProgressReportProps> = ({ user, attempts: initialAttempts }) => {
-  // Updated undefined QuizAttempt to StudentQuizAttempt
+  // FIX: Updated undefined QuizAttempt to StudentQuizAttempt
   const [attempts, setAttempts] = useState<StudentQuizAttempt[]>(initialAttempts);
 
   useEffect(() => {
@@ -100,7 +99,7 @@ const ProgressReport: React.FC<ProgressReportProps> = ({ user, attempts: initial
                       <div className={`w-3 h-3 rounded-full ${att.score / att.maxScore >= 0.9 ? 'bg-green-500' : 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.2)]'}`}></div>
                    </div>
                  )) : (
-                   <div className="py-20 text-center opacity-30 italic text-xs">لا يوجد محاولات مسجلة بعد.</div>
+                   <div className="py-20 text-center opacity-30 italic text-xs">لا توجد محاولات مسجلة بعد.</div>
                  )}
               </div>
            </div>

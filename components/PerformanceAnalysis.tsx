@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 // Updated undefined QuizAttempt to StudentQuizAttempt
-import { User, StudentQuizAttempt, PredictiveInsight } from '../types';
+import { User, StudentQuizAttempt, Question, PredictiveInsight } from '../types';
 import { getPerformanceAnalysis } from '../services/gemini';
 
 interface PerformanceAnalysisProps {
@@ -10,25 +10,28 @@ interface PerformanceAnalysisProps {
   attempts: StudentQuizAttempt[];
 }
 
-const PerformanceAnalysis: React.FC<PerformanceAnalysisProps> = ({ user, attempts }) => {
+const PerformanceAnalysis: React.FC<PerformanceAnalysisProps> = ({ user, attempts: initialAttempts }) => {
+  // Updated undefined QuizAttempt to StudentQuizAttempt
+  const [attempts, setAttempts] = useState<StudentQuizAttempt[]>(initialAttempts || []);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [analysis, setAnalysis] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [insights, setInsights] = useState<PredictiveInsight[]>([]);
 
   useEffect(() => {
-    if (attempts.length > 0) {
-      runAnalysis();
+    if (initialAttempts.length > 0) {
+      runAnalysis(initialAttempts);
     }
     setInsights([
       { topicId: 'kwt-12-t2', topicTitle: 'الفيزياء النووية', probabilityOfDifficulty: 78, reasoning: 'لاحظنا بعض الصعوبات في الأسئلة المتعلقة بالموجات، مما قد يؤثر على فهمك للفيزياء النووية.', suggestedPrep: 'راجع درس "تركيب النواة" بتركيز.' },
       { topicId: 'kwt-11-t2', topicTitle: 'العزوم', probabilityOfDifficulty: 25, reasoning: 'مستواك ممتاز في قوانين نيوتن، وهذا سيسهل عليك فهم درس العزوم.', suggestedPrep: 'ابدأ بحل مسائل العزوم مباشرة.' }
     ]);
-  }, [attempts]);
+  }, [initialAttempts]);
 
-  const runAnalysis = async () => {
+  const runAnalysis = async (currentAttempts: StudentQuizAttempt[]) => {
     setIsLoading(true);
     try {
-      const result = await getPerformanceAnalysis(user, attempts);
+      const result = await getPerformanceAnalysis(user, currentAttempts);
       setAnalysis(result);
     } catch (e) {
       setAnalysis("فشل الاتصال بنظام التحليل.");
@@ -61,7 +64,7 @@ const PerformanceAnalysis: React.FC<PerformanceAnalysisProps> = ({ user, attempt
               <p className="text-gray-500">نصائح مخصصة لك بناءً على {attempts.length} اختباراً منجزاً.</p>
            </div>
            <button 
-             onClick={runAnalysis} 
+             onClick={() => runAnalysis(attempts)} 
              disabled={isLoading || attempts.length === 0}
              className="bg-white/5 border border-white/10 px-8 py-4 rounded-3xl text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30"
            >

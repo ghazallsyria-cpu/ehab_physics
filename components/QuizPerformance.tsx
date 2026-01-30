@@ -1,175 +1,116 @@
-
 import React, { useState, useEffect } from 'react';
-// Updated undefined QuizAttempt to StudentQuizAttempt
-import { User, StudentQuizAttempt, Question } from '../types';
-import { dbService } from '../services/db';
-import { Target, Clock, BarChart, AlertTriangle, CheckCircle, Percent } from 'lucide-react';
+import { User, StudentQuizAttempt, Question, PredictiveInsight } from '../types';
+import { getPerformanceAnalysis } from '../services/gemini';
 
-interface QuizPerformanceProps {
+interface PerformanceAnalysisProps {
   user: User;
+  attempts: StudentQuizAttempt[];
 }
 
-const QuizPerformance: React.FC<QuizPerformanceProps> = ({ user }) => {
-  // Updated undefined QuizAttempt to StudentQuizAttempt
-  const [attempts, setAttempts] = useState<StudentQuizAttempt[]>([]);
+const PerformanceAnalysis: React.FC<PerformanceAnalysisProps> = ({ user, attempts: initialAttempts }) => {
+  const [attempts, setAttempts] = useState<StudentQuizAttempt[]>(initialAttempts || []);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [stats, setStats] = useState({
-    totalAttempts: 0,
-    averageScore: 0,
-    averageTime: 0,
-    weakestAreas: [] as { area: string; count: number }[],
-  });
-  const [isLoading, setIsLoading] = useState(true);
+  const [analysis, setAnalysis] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [insights, setInsights] = useState<PredictiveInsight[]>([]);
 
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      const [userAttempts, allQuestions] = await Promise.all([
-        dbService.getUserAttempts(user.uid),
-        dbService.getAllQuestions(),
-      ]);
-      setAttempts(userAttempts.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()));
-      setQuestions(allQuestions);
-      setIsLoading(false);
-    };
-    loadData();
-  }, [user.uid]);
-
-  useEffect(() => {
-    if (attempts.length > 0 && questions.length > 0) {
-      calculateStats();
-    } else if (!isLoading) {
-      // Ensure stats are reset if there are no attempts
-      setStats({ totalAttempts: 0, averageScore: 0, averageTime: 0, weakestAreas: [] });
+    if (initialAttempts.length > 0) {
+      runAnalysis(initialAttempts);
     }
-  }, [attempts, questions, isLoading]);
+    setInsights([
+      { topicId: 'kwt-12-t2', topicTitle: 'الفيزياء النووية', probabilityOfDifficulty: 78, reasoning: 'لاحظنا بعض الصعوبات في الأسئلة المتعلقة بالموجات، مما قد يؤثر على فهمك للفيزياء النووية.', suggestedPrep: 'راجع درس "تركيب النواة" بتركيز.' },
+      { topicId: 'kwt-11-t2', topicTitle: 'العزوم', probabilityOfDifficulty: 25, reasoning: 'مستواك ممتاز في قوانين نيوتن، وهذا سيسهل عليك فهم درس العزوم.', suggestedPrep: 'ابدأ بحل مسائل العزوم مباشرة.' }
+    ]);
+  }, [initialAttempts]);
 
-  const calculateStats = () => {
-    const totalAttempts = attempts.length;
-    const totalScorePercent = attempts.reduce((acc, attempt) => {
-      const maxScore = attempt.maxScore || attempt.totalQuestions;
-      return acc + (maxScore > 0 ? (attempt.score / maxScore) * 100 : 0);
-    }, 0);
-    const averageScore = totalAttempts > 0 ? totalScorePercent / totalAttempts : 0;
-    
-    const totalTime = attempts.reduce((acc, attempt) => acc + (attempt.timeSpent || 0), 0);
-    const averageTime = totalAttempts > 0 ? totalTime / totalAttempts : 0;
+  const runAnalysis = async (currentAttempts: StudentQuizAttempt[]) => {
+    setIsLoading(true);
+    try {
+      const result = await getPerformanceAnalysis(user, currentAttempts);
+      setAnalysis(result);
+    } catch (e) {
+      setAnalysis("فشل الاتصال بنظام التحليل.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const wrongAnswers: Record<string, number> = {};
-    // FIX: Explicitly type the Map to ensure TypeScript correctly infers the type of its values.
-    const allQuestionsMap = new Map<string, Question>(questions.map(q => [q.id, q]));
-
-    attempts.forEach(attempt => {
-      Object.entries(attempt.answers).forEach(([questionId, answerId]) => {
-        const question = allQuestionsMap.get(questionId);
-        // FIX: Use `correctChoiceId` to match the `Question` type definition.
-        if (question && answerId !== question.correctChoiceId) {
-          const area = question.unit || 'General';
-          wrongAnswers[area] = (wrongAnswers[area] || 0) + 1;
-        }
-      });
+  const renderContent = (content: string) => {
+    return content.split('\n').map((line, i) => {
+      const trimmed = line.trim();
+      const firstChar = trimmed[0];
+      const isDigit = firstChar >= '0' && firstChar <= '9';
+      
+      if (isDigit || trimmed.startsWith('-') || trimmed.startsWith('*')) {
+        return <p key={i} className="mb-4 text-gray-300 font-medium border-r-2 border-[#00d2ff] pr-4 py-1">{line}</p>;
+      }
+      return <p key={i} className="mb-4 text-gray-400 leading-relaxed">{line}</p>;
     });
-
-    const weakestAreas = Object.entries(wrongAnswers)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
-      .map(([area, count]) => ({ area, count }));
-
-    setStats({ totalAttempts, averageScore, averageTime, weakestAreas });
   };
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
-
-  if (isLoading) {
-    return (
-        <div className="w-full h-full flex items-center justify-center">
-          <div className="w-16 h-16 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-    );
-  }
-
-  if (attempts.length === 0) {
-    return (
-      <div className="py-32 text-center opacity-40 border-2 border-dashed border-white/10 rounded-[50px] font-['Tajawal'] text-white">
-         <span className="text-6xl mb-4 block">📊</span>
-         <p className="font-bold text-lg">لا توجد بيانات اختبارات كافية للتحليل</p>
-         <p className="text-sm text-gray-500 mt-2">أكمل بعض الاختبارات في مركز الاختبارات أولاً.</p>
-      </div>
-    );
-  }
 
   return (
-    <div className="max-w-7xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white" dir="rtl">
-      <header className="mb-12 border-r-4 border-[#00d2ff] pr-8">
-        <h2 className="text-5xl font-black mb-4 tracking-tighter">تحليل أداء <span className="text-[#00d2ff]">الاختبارات</span></h2>
-        <p className="text-gray-500 text-xl font-medium">نظرة شاملة على نتائجك لتحديد نقاط القوة والضعف.</p>
-      </header>
+    <div className="max-w-5xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] space-y-12">
+      <div className="glass-panel p-12 rounded-[60px] border-[#00d2ff]/20 relative overflow-hidden">
+        <div className="absolute -top-32 -left-32 w-64 h-64 bg-[#00d2ff]/5 rounded-full blur-[100px]"></div>
+        
+        <header className="flex flex-col md:flex-row justify-between items-center mb-16 gap-8">
+           <div className="text-right">
+              <h2 className="text-4xl font-black mb-2 tracking-tighter">تحليل <span className="text-[#00d2ff]">الأداء الدراسي</span></h2>
+              <p className="text-gray-500">نصائح مخصصة لك بناءً على {attempts.length} اختباراً منجزاً.</p>
+           </div>
+           <button 
+             onClick={() => runAnalysis(attempts)} 
+             disabled={isLoading || attempts.length === 0}
+             className="bg-white/5 border border-white/10 px-8 py-4 rounded-3xl text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-30"
+           >
+             {isLoading ? 'جاري التحليل...' : 'تحديث التحليل'}
+           </button>
+        </header>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-        <StatCard icon={<Target />} label="الاختبارات المنجزة" value={stats.totalAttempts.toString()} color="text-[#00d2ff]" />
-        <StatCard icon={<Percent />} label="متوسط الدرجات" value={`${stats.averageScore.toFixed(1)}%`} color="text-green-400" />
-        <StatCard icon={<Clock />} label="متوسط الوقت" value={formatTime(stats.averageTime)} color="text-yellow-400" />
-        <StatCard icon={<BarChart />} label="أفضل أداء" value={`${Math.max(0, ...attempts.map(a => (a.maxScore ? (a.score / a.maxScore) * 100 : 0))).toFixed(1)}%`} color="text-purple-400" />
+        {isLoading ? (
+          <div className="py-32 text-center animate-pulse">
+             <div className="w-16 h-16 border-4 border-[#00d2ff] border-t-transparent rounded-full animate-spin mx-auto mb-8"></div>
+             <p className="text-[10px] font-black text-[#00d2ff] uppercase tracking-[0.5em]">جاري معالجة بياناتك...</p>
+          </div>
+        ) : attempts.length === 0 ? (
+          <div className="py-32 text-center opacity-30 border-2 border-dashed border-white/5 rounded-[40px]">
+             <span className="text-6xl mb-6 block">📉</span>
+             <p className="font-black text-sm uppercase tracking-widest">لا توجد بيانات كافية للتحليل. أنجز اختباراتك أولاً.</p>
+          </div>
+        ) : (
+          <div className="prose prose-invert max-w-none">
+             <div className="bg-black/40 p-10 rounded-[40px] border border-white/5 shadow-2xl">
+                {renderContent(analysis)}
+             </div>
+          </div>
+        )}
       </div>
 
-      {/* Weaknesses and Recent Attempts */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-4">
-          <div className="glass-panel p-8 rounded-[40px] border-red-500/20 bg-red-500/5 h-full">
-            <h3 className="text-xl font-black text-red-400 mb-6 flex items-center gap-3"><AlertTriangle /> مناطق تحتاج للتركيز</h3>
-            {stats.weakestAreas.length > 0 ? (
-                <div className="space-y-4">
-                {stats.weakestAreas.map((area, index) => (
-                    <div key={index} className="flex justify-between items-center p-4 bg-black/40 rounded-2xl border border-white/5">
-                    <span className="font-bold text-sm text-white">{area.area}</span>
-                    <span className="text-xs font-mono text-red-400 bg-red-500/10 px-2 py-1 rounded">{area.count} أخطاء</span>
-                    </div>
-                ))}
-                </div>
-            ) : (
-                <div className="text-center py-10 text-green-400">
-                    <CheckCircle className="w-10 h-10 mx-auto mb-4"/>
-                    <p className="font-bold text-sm">أداء ممتاز! لم يتم رصد أخطاء متكررة.</p>
-                </div>
-            )}
-          </div>
-        </div>
-
-        <div className="lg:col-span-8">
-          <div className="glass-panel p-8 rounded-[40px] border-white/5 h-full">
-            <h3 className="text-xl font-black text-white mb-6">سجل المحاولات الأخيرة</h3>
-            <div className="space-y-3 max-h-[400px] overflow-y-auto no-scrollbar pr-1">
-              {attempts.map(attempt => (
-                <div key={attempt.id} className="grid grid-cols-12 items-center p-4 bg-black/40 rounded-2xl border border-white/5 text-sm gap-4">
-                  <div className="col-span-4 font-bold truncate">اختبار {attempt.quizId}</div>
-                  <div className={`col-span-3 font-black text-center tabular-nums ${attempt.score / (attempt.maxScore || 1) >= 0.8 ? 'text-green-400' : 'text-yellow-400'}`}>
-                    {attempt.score} / {attempt.maxScore || attempt.totalQuestions}
-                  </div>
-                  <div className="col-span-2 text-center text-gray-400 font-mono">{formatTime(attempt.timeSpent || 0)}</div>
-                  <div className="col-span-3 text-left text-xs text-gray-500 font-mono">{new Date(attempt.completedAt).toLocaleDateString('ar-KW')}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      <div className="glass-panel p-12 rounded-[60px] border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent">
+         <h3 className="text-2xl font-black mb-10 flex items-center gap-4">
+            <span className="text-3xl">🔮</span> توقعات الأداء المستقبلي
+         </h3>
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {insights.map((insight, idx) => (
+              <div key={idx} className="p-8 bg-black/40 rounded-[40px] border border-white/5 group hover:border-purple-500/40 transition-all">
+                 <div className="flex justify-between items-start mb-6">
+                    <h4 className="text-lg font-black text-white">{insight.topicTitle}</h4>
+                    <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase ${insight.probabilityOfDifficulty > 50 ? 'bg-red-500/20 text-red-500' : 'bg-green-500/20 text-green-500'}`}>
+                       مستوى الصعوبة المتوقع: {insight.probabilityOfDifficulty}%
+                    </span>
+                 </div>
+                 <p className="text-xs text-gray-500 leading-relaxed mb-6 italic">"{insight.reasoning}"</p>
+                 <div className="pt-6 border-t border-white/5">
+                    <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2">نصيحة المعلم</p>
+                    <p className="text-sm text-gray-300 font-bold">{insight.suggestedPrep}</p>
+                 </div>
+              </div>
+            ))}
+         </div>
       </div>
     </div>
   );
 };
 
-const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string; color: string; }> = ({ icon, label, value, color }) => (
-  <div className="glass-panel p-6 rounded-[30px] border-white/5">
-    <div className={`w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-2xl mb-4 ${color}`}>
-      {icon}
-    </div>
-    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">{label}</p>
-    <p className={`text-3xl font-black tabular-nums ${color}`}>{value}</p>
-  </div>
-);
-
-export default QuizPerformance;
+export default PerformanceAnalysis;

@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { dbService } from '../services/db';
 import { Lesson, LessonAnalyticsData, StudentInteractionEvent } from '../types';
-import { BarChart3, Users, Clock, Eye, RefreshCw, AlertTriangle } from 'lucide-react';
+import { BarChart3, Users, Clock, Eye, RefreshCw, AlertTriangle, BrainCircuit } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 
@@ -13,6 +12,8 @@ const AdminAnalytics: React.FC = () => {
     const { lessonId } = useParams<{ lessonId: string }>();
     const [lesson, setLesson] = useState<Lesson | null>(null);
     const [analytics, setAnalytics] = useState<LessonAnalyticsData | null>(null);
+// FIX: Added state to track the number of AI help requests for the new analytics card.
+    const [aiRequests, setAiRequests] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -27,6 +28,8 @@ const AdminAnalytics: React.FC = () => {
                 ]);
                 setLesson(lessonData);
                 setAnalytics(analyticsData);
+// FIX: Initialized the AI help request count from the fetched analytics data.
+                setAiRequests(analyticsData.ai_help_requests || 0);
             } catch (e) {
                 console.error("Failed to load analytics", e);
             } finally {
@@ -39,7 +42,11 @@ const AdminAnalytics: React.FC = () => {
         const subscription = dbService.subscribeToLessonInteractions(lessonId, (payload) => {
             console.log("Real-time update received!", payload);
             // Refetch analytics to get updated aggregates
-            dbService.getLessonAnalytics(lessonId).then(setAnalytics);
+// FIX: The real-time subscription now refetches analytics and updates all metrics, including the new AI help request count.
+            dbService.getLessonAnalytics(lessonId).then(data => {
+                setAnalytics(data);
+                setAiRequests(data.ai_help_requests || 0);
+            });
         });
 
         return () => {
@@ -91,6 +98,18 @@ const AdminAnalytics: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-8 space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="glass-panel p-8 rounded-[40px] border-white/5 bg-black/20 text-center">
+                                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">إجمالي الطلاب</h3>
+                                <p className="text-5xl font-black text-white">{new Set(analytics.live_events.map(e => e.student_id)).size}</p>
+                            </div>
+                            {/* FIX: Added a new analytics card to display the real-time count of AI help requests. */}
+                             <div className="glass-panel p-8 rounded-[40px] border-purple-500/20 bg-purple-500/5 text-center">
+                                <h3 className="text-sm font-bold text-purple-400 uppercase tracking-widest mb-4 flex items-center justify-center gap-2"><BrainCircuit size={16}/> طلبات مساعدة AI</h3>
+                                <p className="text-5xl font-black text-white">{aiRequests}</p>
+                            </div>
+                        </div>
+
                         <div className="glass-panel p-8 rounded-[40px] border-white/5 bg-black/20">
                             <h3 className="text-xl font-bold mb-6 flex items-center gap-3"><Eye /> المشاهد الأكثر زيارة</h3>
                             <div className="h-96">

@@ -189,7 +189,7 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
                                          <p className={`text-sm font-bold ${isLessonDone ? 'text-green-400 line-through' : 'text-gray-300'}`}>{lesson.title}</p>
                                          <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">{lesson.type}</p>
                                       </div>
-                                      {isLessonActive && <div className="w-2 h-2 bg-[#fbbf24] rounded-full animate-pulse"></div>}
+                                      {isLessonActive && <div className="w-2 h-2 bg-[#fbbf24] rounded-full animate-ping"></div>}
                                    </div>
                                 )
                              })}

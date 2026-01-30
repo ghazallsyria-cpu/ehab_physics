@@ -135,8 +135,8 @@ const InteractiveLessonBuilder: React.FC = () => {
           if (!finalUnitId) {
               const newUnit = { id: `u_${Date.now()}`, title: 'وحدة الدروس التفاعلية', description: 'تم إنشاؤها تلقائياً', lessons: [] };
 // FIX: `saveUnit` expects 2 arguments (Unit, curriculumId), but 4 were provided. Corrected the call.
-              await dbService.saveUnit(newUnit, targetCurriculum.id!);
-              finalUnitId = newUnit.id;
+              const savedUnit = await dbService.saveUnit(newUnit, targetCurriculum.id!);
+              finalUnitId = savedUnit.id;
           }
 
           const finalLesson: Lesson = { ...currentLesson, id: lessonId || `l_${Date.now()}`, isPinned };
