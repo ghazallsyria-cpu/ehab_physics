@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
       'process.env.API_KEY': JSON.stringify(process.env.API_KEY || process.env.VITE_FIREBASE_API_KEY),
     },
     build: {
-      outDir: 'dist',
+      outDir: 'build',
       sourcemap: false,
       chunkSizeWarningLimit: 1600,
       rollupOptions: {
