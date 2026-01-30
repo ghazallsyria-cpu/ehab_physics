@@ -1,4 +1,6 @@
 
+
+
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AISolverResult, User, StudentQuizAttempt, Question, Curriculum, AILessonSchema } from "../types";
 
@@ -41,6 +43,7 @@ const fileToGenerativePart = (dataUrl: string) => {
 // Always create a new instance right before use to ensure the latest API key is used.
 export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, subject: 'Physics' | 'Chemistry') => {
   try {
+    // FIX: Switched to process.env.API_KEY as per Gemini API guidelines.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
     const response = await ai.models.generateContent({
@@ -63,6 +66,7 @@ export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, 
 
 export const getPhysicsExplanation = async (prompt: string, grade: string) => {
   try {
+    // FIX: Switched to process.env.API_KEY as per Gemini API guidelines.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -77,6 +81,7 @@ export const getPhysicsExplanation = async (prompt: string, grade: string) => {
 };
 
 export const solvePhysicsProblem = async (problem: string): Promise<AISolverResult> => {
+  // FIX: Switched to process.env.API_KEY as per Gemini API guidelines.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
@@ -101,6 +106,7 @@ export const solvePhysicsProblem = async (problem: string): Promise<AISolverResu
 };
 
 export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAttempt[]): Promise<string> => {
+  // FIX: Switched to process.env.API_KEY as per Gemini API guidelines.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `
     حلل أداء الطالب ${user.name} بناءً على نتائج اختباراته:
@@ -112,6 +118,7 @@ export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAt
 };
 
 export const generatePhysicsVisualization = async (prompt: string): Promise<string> => {
+    // FIX: Switched to process.env.API_KEY as per Gemini API guidelines.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     let operation = await ai.models.generateVideos({
@@ -134,6 +141,7 @@ export const generatePhysicsVisualization = async (prompt: string): Promise<stri
         throw new Error("Video generation failed to produce a download link.");
     }
 
+    // FIX: Switched to process.env.API_KEY as per Gemini API guidelines.
     const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
     const blob = await response.blob();
     return URL.createObjectURL(blob);
@@ -148,6 +156,7 @@ export const extractBankQuestionsAdvanced = async (
   subject: string,
   unit: string
 ): Promise<{ questions: Question[] }> => {
+  // FIX: Switched to process.env.API_KEY as per Gemini API guidelines.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
@@ -203,6 +212,7 @@ export const digitizeExamPaper = async (
   grade: string,
   subject: string,
 ): Promise<{ questions: Question[] }> => {
+  // FIX: Switched to process.env.API_KEY as per Gemini API guidelines.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const imagePart = fileToGenerativePart(imageDataUrl);
 
@@ -256,6 +266,7 @@ export const digitizeExamPaper = async (
 export const verifyQuestionQuality = async (
   question: Question
 ): Promise<{ valid: boolean; feedback: string }> => {
+  // FIX: Switched to process.env.API_KEY as per Gemini API guidelines.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const questionString = JSON.stringify({
@@ -302,6 +313,7 @@ export const convertTextbookToLesson = async (
   grade: string = "12",
   imageData?: string // اختياري: صورة الصفحة
 ): Promise<AILessonSchema | null> => {
+  // FIX: Switched to process.env.API_KEY as per Gemini API guidelines.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const systemInstruction = `

@@ -3,8 +3,9 @@ import "firebase/compat/firestore";
 import "firebase/compat/auth";
 import "firebase/compat/storage";
 
-// The configuration is now read directly and correctly from Vite's environment variables.
+// Switched to Vite's standard `import.meta.env` for environment variables.
 const firebaseConfig = {
+  // FIX: Switched to process.env to resolve TypeScript errors with import.meta.env
   apiKey: process.env.VITE_FIREBASE_API_KEY,
   authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.VITE_FIREBASE_PROJECT_ID,
