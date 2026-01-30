@@ -126,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, branding, onLogout, isOpen, onC
                 {group.items.map((item: any) => {
                   // FIX: Replaced complex and buggy active state logic with a simpler, more reliable check.
                   // This correctly handles the root path for the dashboard and prefix-based matching for other routes.
-                  const isActive = (item.id === 'dashboard' && location.pathname === '/') || (item.path && location.pathname.startsWith(item.path));
+                  const isActive = item.id === 'dashboard' ? location.pathname === item.path : (item.path && location.pathname.startsWith(item.path));
                   return (
                     <button
                       key={item.path + (item.subject || '')}

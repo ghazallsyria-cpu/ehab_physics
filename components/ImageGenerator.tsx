@@ -40,7 +40,6 @@ const ImageGenerator: React.FC = () => {
 
     try {
       // Create new instance to use the latest key from the dialog
-      // FIX: Switched to process.env.API_KEY as per Gemini API guidelines.
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       const response: GenerateContentResponse = await ai.models.generateContent({
