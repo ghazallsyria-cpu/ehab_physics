@@ -1,38 +1,50 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { User, Quiz, Question, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
-import { UploadCloud, Check, X, ArrowRight, ArrowLeft, AlertTriangle, Loader2, FileIcon, ExternalLink } from 'lucide-react';
+import { UploadCloud, Check, X, ArrowRight, ArrowLeft, AlertTriangle, Loader2, FileIcon, ExternalLink, RefreshCw } from 'lucide-react';
 import katex from 'katex';
 
 interface QuizPlayerProps {
   user: User;
-  quiz: Quiz;
   onFinish: () => void;
 }
 
-const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
+const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
+  const { quizId } = useParams<{ quizId: string }>();
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, any>>({});
   const [uploadingQuestions, setUploadingQuestions] = useState<Record<string, boolean>>({});
-  const [timeLeft, setTimeLeft] = useState(quiz.duration * 60);
+  const [timeLeft, setTimeLeft] = useState(0);
   const [startTime] = useState(Date.now());
   const [isFinished, setIsFinished] = useState(false);
   const [finalAttempt, setFinalAttempt] = useState<StudentQuizAttempt | null>(null);
 
   useEffect(() => {
-    const loadQuestions = async () => {
+    if (!quizId) {
+        setIsLoading(false);
+        return;
+    };
+
+    const loadQuizData = async () => {
       setIsLoading(true);
-      const quizQuestions = await dbService.getQuestionsForQuiz(quiz.id);
-      setQuestions(quizQuestions);
+      const quizData = await dbService.getQuizById(quizId);
+      if (quizData) {
+        setQuiz(quizData);
+        setTimeLeft(quizData.duration * 60);
+        const quizQuestions = await dbService.getQuestionsForQuiz(quizId);
+        setQuestions(quizQuestions);
+      }
       setIsLoading(false);
     };
-    loadQuestions();
-  }, [quiz.id]);
+    loadQuizData();
+  }, [quizId]);
 
   useEffect(() => {
-    if (!isFinished && timeLeft > 0 && !isLoading) {
+    if (!isFinished && timeLeft > 0 && !isLoading && quiz) {
       const timer = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -45,21 +57,14 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [isFinished, timeLeft, isLoading]);
+  }, [isFinished, timeLeft, isLoading, quiz]);
 
   const handleFileUpload = async (questionId: string, file: File) => {
     if (!file) return;
-    
-    // إشعار البدء بالرفع
     setUploadingQuestions(prev => ({ ...prev, [questionId]: true }));
-    
     try {
-      console.log(`Starting upload for question ${questionId}: ${file.name}`);
       const asset = await dbService.uploadAsset(file);
-      
       if (asset && asset.url) {
-        console.log(`Upload success! URL: ${asset.url}`);
-        // نضع الرابط المباشر في الإجابات
         setUserAnswers(prev => ({ ...prev, [questionId]: asset.url }));
       } else {
         throw new Error("لم يتم استلام رابط صالح من السحابة.");
@@ -73,9 +78,8 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
   };
 
   const handleSubmit = async () => {
-    if (isFinished) return;
+    if (isFinished || !quiz) return;
     
-    // التحقق من وجود عمليات رفع لم تنتهِ
     const isStillUploading = Object.values(uploadingQuestions).some(val => val === true);
     if (isStillUploading) {
         alert("يرجى الانتظار حتى اكتمال رفع ملفات الإجابة بنسبة 100%.");
@@ -87,7 +91,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
     const userAttempts = await dbService.getUserAttempts(user.uid, quiz.id);
 
-    // تجميع الإجابات النهائية
     const attempt: StudentQuizAttempt = {
       id: `attempt_${Date.now()}`,
       studentId: user.uid,
@@ -97,13 +100,12 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
       totalQuestions: questions.length,
       maxScore: quiz.totalScore || questions.reduce((s, q) => s + q.score, 0),
       completedAt: new Date().toISOString(),
-      answers: userAnswers, // هنا يتم حفظ الروابط (URLs)
+      answers: userAnswers,
       timeSpent: timeSpent,
       attemptNumber: userAttempts.length + 1,
       status: 'pending-review',
     };
 
-    console.log("Saving student attempt with answers:", userAnswers);
     await dbService.saveAttempt(attempt);
     setFinalAttempt(attempt);
     
@@ -129,16 +131,16 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, quiz, onFinish }) => {
   };
 
   if (isLoading) {
-    return <div className="fixed inset-0 bg-[#0A2540] flex items-center justify-center text-white font-bold animate-pulse">جاري تحضير الاختبار...</div>;
+    return <div className="fixed inset-0 bg-[#0A2540] flex items-center justify-center text-white font-bold animate-pulse"><RefreshCw className="animate-spin mr-4" /> جاري تحضير الاختبار...</div>;
   }
   
-  if (!isLoading && questions.length === 0) {
+  if (!isLoading && (!quiz || questions.length === 0)) {
     return (
         <div className="fixed inset-0 bg-[#0A2540] flex flex-col items-center justify-center text-white text-center p-8 font-['Tajawal']" dir="rtl">
             <div className="glass-panel p-12 rounded-[50px] border-red-500/20 bg-red-500/5">
                 <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-6" />
                 <h2 className="text-3xl font-black mb-4">خطأ تقني</h2>
-                <p className="text-gray-400 mb-8">عذراً، لم نتمكن من العثور على الأسئلة. يرجى التواصل مع المعلم.</p>
+                <p className="text-gray-400 mb-8">عذراً، لم نتمكن من العثور على هذا الاختبار. قد يكون قد تم حذفه.</p>
                 <button onClick={onFinish} className="bg-red-500 text-white px-10 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 transition-all">العودة</button>
             </div>
         </div>

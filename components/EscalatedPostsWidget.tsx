@@ -1,10 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ForumPost } from '../types';
 import { dbService } from '../services/db';
 import { AlertTriangle, ChevronsRight, RefreshCw } from 'lucide-react';
 
 const EscalatedPostsWidget: React.FC = () => {
+    const navigate = useNavigate();
     const [posts, setPosts] = useState<ForumPost[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -23,10 +24,6 @@ const EscalatedPostsWidget: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
-
-    const navigateToForums = () => {
-        window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'discussions' } }));
     };
 
     if (isLoading) {
@@ -61,7 +58,7 @@ const EscalatedPostsWidget: React.FC = () => {
                             <p className="font-bold text-sm text-white truncate group-hover:text-red-400 transition-colors">{post.title}</p>
                             <p className="text-[10px] text-gray-500 font-mono">بواسطة: {post.authorName}</p>
                         </div>
-                        <button onClick={navigateToForums} className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-1 transition-colors">
+                        <button onClick={() => navigate('/discussions')} className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-1 transition-colors">
                             مراجعة <ChevronsRight size={14} />
                         </button>
                     </div>

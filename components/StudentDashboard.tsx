@@ -1,5 +1,5 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, HomePageContent } from '../types';
 import { dbService } from '../services/db';
 import { ArrowRight, Map, Trophy, BookOpen, Star, Zap, Crown, Smartphone, UserCircle, Save, X, Megaphone, AlertTriangle, Sparkles, RefreshCw } from 'lucide-react';
@@ -9,6 +9,7 @@ interface StudentDashboardProps {
 }
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
+  const navigate = useNavigate();
   const [progressData, setProgressData] = useState({ percent: 0, lessons: 0, points: 0 });
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -68,10 +69,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       }
   };
 
-  const navigate = (view: any) => {
-    window.dispatchEvent(new CustomEvent('change-view', { detail: { view } }));
-  };
-
   const banners = useMemo(() => dynamicContent.filter(c => c.placement === 'TOP_BANNER'), [dynamicContent]);
   const gridAds = useMemo(() => dynamicContent.filter(c => c.placement === 'GRID_CARD'), [dynamicContent]);
 
@@ -90,7 +87,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
                   <h3 className="text-3xl font-black text-white mb-4 leading-tight">{banner.title}</h3>
                   <p className="text-gray-300 text-lg mb-8 leading-relaxed italic">"{banner.content}"</p>
                   {banner.ctaText && (
-                      <button onClick={() => banner.ctaLink && navigate(banner.ctaLink)} className="bg-white text-black px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl">
+                      <button onClick={() => banner.ctaLink && navigate(`/${banner.ctaLink}`)} className="bg-white text-black px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl">
                           {banner.ctaText}
                       </button>
                   )}
@@ -130,7 +127,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
                   <p className="text-gray-400 text-sm mt-1">اكتشف نموذج الجيل القادم للدروس مع المحاكاة الحية والرسم البياني.</p>
               </div>
           </div>
-          <button onClick={() => navigate('template-demo')} className="bg-white text-purple-600 px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl whitespace-nowrap">عرض النموذج الآن</button>
+          <button onClick={() => navigate('/template-demo')} className="bg-white text-purple-600 px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl whitespace-nowrap">عرض النموذج الآن</button>
       </div>
 
       {isProfileIncomplete && (
@@ -147,7 +144,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-slideUp">
-         <div onClick={() => navigate('curriculum')} className="lg:col-span-8 bg-gradient-to-br from-blue-600/20 to-blue-900/20 border border-blue-500/20 p-10 rounded-[50px] cursor-pointer hover:border-blue-400/40 transition-all group relative overflow-hidden">
+         <div onClick={() => navigate('/curriculum')} className="lg:col-span-8 bg-gradient-to-br from-blue-600/20 to-blue-900/20 border border-blue-500/20 p-10 rounded-[50px] cursor-pointer hover:border-blue-400/40 transition-all group relative overflow-hidden">
            <div className="absolute top-[-20%] left-[-10%] w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] group-hover:bg-blue-500/20 transition-all"></div>
            <div className="relative z-10">
               <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400 mb-8 border border-blue-500/30"><BookOpen size={32} /></div>
@@ -158,7 +155,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
          </div>
          
          <div className="lg:col-span-4 space-y-8">
-           <div onClick={() => navigate('journey-map')} className="bg-gradient-to-br from-amber-500/10 to-yellow-600/10 border border-amber-500/20 p-8 rounded-[40px] cursor-pointer hover:border-amber-400/40 transition-all group relative overflow-hidden h-full flex flex-col justify-between">
+           <div onClick={() => navigate('/journey-map')} className="bg-gradient-to-br from-amber-500/10 to-yellow-600/10 border border-amber-500/20 p-8 rounded-[40px] cursor-pointer hover:border-amber-400/40 transition-all group relative overflow-hidden h-full flex flex-col justify-between">
               <div>
                 <Map className="text-amber-400 mb-6" size={40} />
                 <h3 className="text-2xl font-black text-white mb-2">خريطة الطريق</h3>
@@ -170,7 +167,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
 
          {/* 2. GRID CARDS */}
          {gridAds.map(ad => (
-             <div key={ad.id} onClick={() => ad.ctaLink && navigate(ad.ctaLink)} className="lg:col-span-4 glass-panel p-8 rounded-[40px] border-amber-400/20 bg-amber-400/5 cursor-pointer hover:-translate-y-2 transition-all relative overflow-hidden group">
+             <div key={ad.id} onClick={() => ad.ctaLink && navigate(`/${ad.ctaLink}`)} className="lg:col-span-4 glass-panel p-8 rounded-[40px] border-amber-400/20 bg-amber-400/5 cursor-pointer hover:-translate-y-2 transition-all relative overflow-hidden group">
                  <div className="absolute top-0 left-0 w-full h-1 bg-amber-400"></div>
                  <div className="flex items-center gap-4 mb-6">
                      <div className="w-10 h-10 bg-amber-400 text-black rounded-xl flex items-center justify-center"><Zap size={20} fill="currentColor"/></div>
@@ -221,7 +218,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
                   {activePopup.ctaText && (
                       <button 
                         onClick={() => {
-                            if (activePopup.ctaLink) navigate(activePopup.ctaLink);
+                            if (activePopup.ctaLink) navigate(`/${activePopup.ctaLink}`);
                             setActivePopup(null);
                         }} 
                         className="w-full py-6 bg-amber-400 text-black rounded-3xl font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all"

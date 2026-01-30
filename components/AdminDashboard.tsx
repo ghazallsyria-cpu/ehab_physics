@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BookOpen, Users, Briefcase, Settings, Video, RefreshCw, HeartPulse, Library, MessageSquare, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard, Newspaper, FlaskConical, Zap, Sparkles, Cpu } from 'lucide-react';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
@@ -7,6 +7,7 @@ import SupabaseConnectionFixer from './SupabaseConnectionFixer';
 import EscalatedPostsWidget from './EscalatedPostsWidget';
 
 const AdminDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [firestoreStatus, setFirestoreStatus] = useState<{ alive: boolean | null, error?: string }>({ alive: null });
   const [supabaseStatus, setSupabaseStatus] = useState<{ alive: boolean | null, error?: string }>({ alive: null });
   const [isChecking, setIsChecking] = useState(false);
@@ -58,6 +59,11 @@ const AdminDashboard: React.FC = () => {
     { view: 'admin-settings', icon: Settings, title: 'الإعدادات', description: 'سياسات النظام.' },
   ];
 
+  const handleNavigate = (view: string) => {
+    const path = view.startsWith('admin-') ? `/admin/${view.replace('admin-', '')}` : `/${view}`;
+    navigate(path);
+  };
+
   return (
     <div className="animate-fadeIn space-y-10 pb-20">
       <header className="flex flex-col md:flex-row justify-between items-end gap-6">
@@ -85,7 +91,7 @@ const AdminDashboard: React.FC = () => {
               {adminTools.map((tool, idx) => (
                 <div 
                   key={tool.view} 
-                  onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: tool.view } }))} 
+                  onClick={() => handleNavigate(tool.view)}
                   className={`glass-panel p-8 rounded-[45px] border-white/5 bg-black/20 cursor-pointer group transition-all flex flex-col gap-6 animate-slideUp hover:border-amber-400/40 ${idx === 0 ? 'bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-500/30' : ''}`}
                   style={{ animationDelay: `${idx * 0.05}s` }}
                 >

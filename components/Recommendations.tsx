@@ -1,10 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, AIRecommendation } from '../types';
 import { dbService } from '../services/db';
 import { AlertTriangle, BookOpen, Brain, MessageSquare, Target, RefreshCw, Sparkles, ChevronLeft } from 'lucide-react';
 
 const Recommendations: React.FC<{ user: User }> = ({ user }) => {
+  const navigate = useNavigate();
   const [recommendations, setRecommendations] = useState<AIRecommendation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -22,6 +23,21 @@ const Recommendations: React.FC<{ user: User }> = ({ user }) => {
     } finally {
         setIsLoading(false);
     }
+  };
+
+  const handleNavigate = (rec: AIRecommendation) => {
+    // A simple mapping from recommendation type/ID to a URL
+    let path = `/${rec.type}/${rec.targetId}`;
+    if (rec.type === 'lesson') path = `/lesson/${rec.targetId}`;
+    if (rec.type === 'quiz') path = `/quiz/${rec.targetId}`;
+    if (rec.type === 'discussion') path = '/discussions'; // May need specific post ID later
+    
+    // Fallback if targetId is a view name
+    if (['dashboard', 'curriculum', 'quiz-center'].includes(rec.targetId)) {
+        path = `/${rec.targetId}`;
+    }
+
+    navigate(path);
   };
 
   const getUrgencyStyles = (urgency: 'high' | 'medium' | 'low') => {
@@ -79,7 +95,7 @@ const Recommendations: React.FC<{ user: User }> = ({ user }) => {
                   </div>
                   <p className="text-gray-400 text-lg italic leading-relaxed mb-8">"{rec.reason}"</p>
                   <div className="flex justify-center md:justify-end">
-                    <button onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: rec.targetId } }))} className="bg-white text-black font-black text-xs px-12 py-4 rounded-3xl shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
+                    <button onClick={() => handleNavigate(rec)} className="bg-white text-black font-black text-xs px-12 py-4 rounded-3xl shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
                         الانتقال للمهمة <ChevronLeft size={16}/>
                     </button>
                   </div>

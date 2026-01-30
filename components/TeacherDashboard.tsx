@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, LiveSession, AppNotification } from '../types';
 import { dbService } from '../services/db';
 import { Video, Calendar, Users, MessageSquare, Play, Settings, Bell, FileCheck, UserPlus } from 'lucide-react';
@@ -7,6 +7,7 @@ import ZoomMeeting from './ZoomMeeting';
 import ActivityStats from './ActivityStats';
 
 const TeacherDashboard: React.FC<{ user: User }> = ({ user }) => {
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<LiveSession[]>([]);
   const [activeZoomSession, setActiveZoomSession] = useState<LiveSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,7 +88,7 @@ const TeacherDashboard: React.FC<{ user: User }> = ({ user }) => {
                     <h3 className="text-2xl font-black text-white flex items-center gap-3">
                         <Video className="text-[#fbbf24]" /> حصصي المجدولة
                     </h3>
-                    <button onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'admin-live-sessions' } }))} className="text-[10px] font-black text-blue-400 hover:underline">إدارة الجدولة ←</button>
+                    <button onClick={() => navigate('/admin/live-sessions')} className="text-[10px] font-black text-blue-400 hover:underline">إدارة الجدولة ←</button>
                 </div>
 
                 {isLoading ? (
@@ -136,7 +137,7 @@ const TeacherDashboard: React.FC<{ user: User }> = ({ user }) => {
                     <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center text-purple-400 mb-6"><Settings /></div>
                     <h4 className="text-xl font-black mb-2">إعدادات المحتوى</h4>
                     <p className="text-xs text-gray-500 mb-6">قم بتعديل دروسك أو إضافة أسئلة جديدة إلى بنك الأسئلة المركزي.</p>
-                    <button onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'admin-curriculum' } }))} className="text-[10px] font-black text-purple-400 uppercase tracking-widest hover:underline">إدارة المحتوى ←</button>
+                    <button onClick={() => navigate('/admin/curriculum')} className="text-[10px] font-black text-purple-400 uppercase tracking-widest hover:underline">إدارة المحتوى ←</button>
                 </div>
             </div>
         </div>

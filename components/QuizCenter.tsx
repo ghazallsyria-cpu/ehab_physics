@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Quiz, StudentQuizAttempt } from '../types';
 import { dbService } from '../services/db';
 import { 
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 
 const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
+  const navigate = useNavigate();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [userAttempts, setUserAttempts] = useState<StudentQuizAttempt[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -57,15 +59,11 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
        return;
     }
 
-    window.dispatchEvent(new CustomEvent('change-view', { 
-      detail: { view: 'quiz_player', quiz: quiz } 
-    }));
+    navigate(`/quiz/${quiz.id}`);
   };
   
   const reviewAttempt = (attempt: StudentQuizAttempt) => {
-    window.dispatchEvent(new CustomEvent('change-view', {
-      detail: { view: 'attempt_review', attempt: attempt }
-    }));
+    navigate(`/review/${attempt.id}`);
   };
 
   const groupedQuizzes = useMemo(() => {

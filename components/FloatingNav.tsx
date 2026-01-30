@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ViewState } from '../types';
 import { Grid, X, LayoutDashboard, BookOpen, Target, BrainCircuit, FlaskConical, Map } from 'lucide-react';
 
 const FloatingNav: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const navigate = useNavigate();
 
     const navItems = [
-        { view: 'dashboard', label: 'الرئيسية', icon: <LayoutDashboard size={20} /> },
-        { view: 'curriculum', label: 'المنهج', icon: <BookOpen size={20} /> },
-        { view: 'quiz_center', label: 'الاختبارات', icon: <Target size={20} /> },
-        { view: 'ai-chat', label: 'المساعد الذكي', icon: <BrainCircuit size={20} /> },
-        { view: 'virtual-lab', label: 'المختبر', icon: <FlaskConical size={20} /> },
-        { view: 'journey-map', label: 'الرحلة', icon: <Map size={20} /> },
+        { path: '/dashboard', label: 'الرئيسية', icon: <LayoutDashboard size={20} /> },
+        { path: '/curriculum', label: 'المنهج', icon: <BookOpen size={20} /> },
+        { path: '/quiz-center', label: 'الاختبارات', icon: <Target size={20} /> },
+        { path: '/ai-chat', label: 'المساعد الذكي', icon: <BrainCircuit size={20} /> },
+        { path: '/lab-hub', label: 'المختبر', icon: <FlaskConical size={20} /> },
+        { path: '/journey-map', label: 'الرحلة', icon: <Map size={20} /> },
     ];
 
-    const navigate = (view: ViewState) => {
-        // Use a standard event dispatch for navigation
-        window.dispatchEvent(new CustomEvent('change-view', { detail: { view } }));
+    const handleNavigate = (path: string) => {
+        navigate(path);
         setIsOpen(false);
     };
 
@@ -42,7 +43,7 @@ const FloatingNav: React.FC = () => {
 
                     return (
                         <div
-                            key={item.view}
+                            key={item.path}
                             className="absolute transition-all duration-300 ease-in-out flex flex-col items-center group"
                             style={{
                                 transform: isOpen ? `translate(${x}px, ${y}px)` : 'translate(0, 0)',
@@ -51,7 +52,7 @@ const FloatingNav: React.FC = () => {
                             }}
                         >
                             <button
-                                onClick={() => navigate(item.view as ViewState)}
+                                onClick={() => handleNavigate(item.path)}
                                 className="w-14 h-14 bg-white/10 border border-white/20 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-white hover:text-black transition-all mb-2"
                             >
                                 {item.icon}

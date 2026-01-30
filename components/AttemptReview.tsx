@@ -1,35 +1,55 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { User, StudentQuizAttempt, Quiz, Question } from '../types';
 import { dbService } from '../services/db';
 import katex from 'katex';
-import { X, Check, MessageSquare, Award } from 'lucide-react';
+import { X, Check, MessageSquare, Award, RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface AttemptReviewProps {
   user: User;
-  attempt: StudentQuizAttempt;
 }
 
-const AttemptReview: React.FC<AttemptReviewProps> = ({ user, attempt }) => {
+const AttemptReview: React.FC<AttemptReviewProps> = ({ user }) => {
+  const { attemptId } = useParams<{ attemptId: string }>();
+  const navigate = useNavigate();
+  const [attempt, setAttempt] = useState<StudentQuizAttempt | null>(null);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!attemptId || !user) {
+        setIsLoading(false);
+        return;
+    };
+
     const loadData = async () => {
       setIsLoading(true);
+      
+      // Since there's no direct dbService.getAttemptById, we fetch all user attempts and find the one.
+      const userAttempts = await dbService.getUserAttempts(user.uid);
+      const foundAttempt = userAttempts.find(a => a.id === attemptId);
+      
+      if (!foundAttempt) {
+        setIsLoading(false);
+        return;
+      }
+      setAttempt(foundAttempt);
+      
       const [quizData, questionsData] = await Promise.all([
-        dbService.getQuizById(attempt.quizId),
-        dbService.getQuestionsForQuiz(attempt.quizId),
+        dbService.getQuizById(foundAttempt.quizId),
+        dbService.getQuestionsForQuiz(foundAttempt.quizId),
       ]);
+
       setQuiz(quizData);
       setQuestions(questionsData);
       setIsLoading(false);
     };
     loadData();
-  }, [attempt]);
+  }, [attemptId, user]);
   
   const finalScore = useMemo(() => {
+    if (!attempt) return 0;
     if (attempt.status === 'manually-graded') {
       const autoScore = questions.filter(q => q.type === 'mcq' && attempt.answers[q.id] === q.correctChoiceId).reduce((sum: number, q: Question) => sum + Number(q.score || 0), 0);
       const manualScore = Object.values(attempt.manualGrades || {}).reduce((sum: number, grade: { awardedScore: number; feedback?: string }) => sum + (grade.awardedScore || 0), 0);
@@ -48,8 +68,21 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user, attempt }) => {
     }
   };
 
-  if (isLoading || !quiz) {
-    return <div className="fixed inset-0 bg-[#0A2540] flex items-center justify-center text-white font-bold animate-pulse">جاري تحميل المراجعة...</div>;
+  if (isLoading) {
+    return <div className="fixed inset-0 bg-[#0A2540] flex items-center justify-center text-white font-bold animate-pulse"><RefreshCw className="animate-spin mr-4" /> جاري تحميل المراجعة...</div>;
+  }
+  
+  if (!attempt || !quiz) {
+      return (
+          <div className="fixed inset-0 bg-[#0A2540] flex items-center justify-center text-white font-bold p-8 text-center">
+             <div className="glass-panel p-12 rounded-[50px] border-red-500/20 bg-red-500/5">
+                <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-6" />
+                <h2 className="text-3xl font-black mb-4">خطأ</h2>
+                <p className="text-gray-400 mb-8">لم يتم العثور على سجل هذه المحاولة.</p>
+                <button onClick={() => navigate('/quiz-center')} className="bg-red-500 text-white px-10 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 transition-all">العودة</button>
+            </div>
+          </div>
+      );
   }
   
   return (

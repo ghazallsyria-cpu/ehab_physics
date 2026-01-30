@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Unit, Lesson, Curriculum } from '../types';
 import { dbService } from '../services/db';
 import { RefreshCw, Map } from 'lucide-react';
@@ -9,6 +9,7 @@ interface PhysicsJourneyMapProps {
 }
 
 const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
+  const navigate = useNavigate();
   const [curriculums, setCurriculums] = useState<Curriculum[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -31,9 +32,7 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
 
   const navigateToLesson = (lesson: Lesson) => {
     if (!activeTopic) return;
-    window.dispatchEvent(new CustomEvent('change-view', { 
-      detail: { view: 'lesson', lesson } 
-    }));
+    navigate(`/lesson/${lesson.id}`);
   };
 
   const { progressPercent, nextLesson, activeUnitId } = useMemo(() => {

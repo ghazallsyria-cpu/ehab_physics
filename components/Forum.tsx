@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, ForumPost, ForumReply, ForumSection, Forum as ForumType, LoggingSettings } from '../types';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
@@ -34,6 +34,7 @@ interface ForumProps {
 }
 
 const Forum: React.FC<ForumProps> = ({ user }) => {
+  const navigate = useNavigate();
   const [sections, setSections] = useState<ForumSection[]>([]);
   const [activeForum, setActiveForum] = useState<ForumType | null>(null);
   const [posts, setPosts] = useState<ForumPost[]>([]);
@@ -310,7 +311,7 @@ const Forum: React.FC<ForumProps> = ({ user }) => {
                       
                       <div className="flex flex-col sm:flex-row justify-center gap-6">
                         <button 
-                            onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'subscription' } }))}
+                            onClick={() => navigate('/subscription')}
                             className="bg-amber-400 text-black px-12 py-5 rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-4"
                         >
                             <Crown size={20}/> اشترك وفعل حسابك الآن
