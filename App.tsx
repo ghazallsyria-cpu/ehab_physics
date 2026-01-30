@@ -47,6 +47,8 @@ const AdminLiveSessions = lazy(() => import('./components/AdminLiveSessions'));
 const AdminAssetManager = lazy(() => import('./components/AdminAssetManager'));
 const AdminSettings = lazy(() => import('./components/AdminSettings'));
 const LabHub = lazy(() => import('./components/LabHub'));
+const LessonPathViewer = lazy(() => import('./components/LessonPathViewer'));
+const LessonPathBuilder = lazy(() => import('./components/LessonPathBuilder'));
 
 // A reusable layout for all authenticated pages that include the sidebar and header.
 const AppLayout: React.FC<{ user: User; branding: AppBranding; onLogout: () => void; }> = ({ user, branding, onLogout }) => {
@@ -135,6 +137,7 @@ const App: React.FC = () => {
                         } />
                         <Route path="/curriculum" element={<CurriculumBrowser user={user!} subject="Physics" />} />
                         <Route path="/lesson/:lessonId" element={<LessonViewer user={user!} />} />
+                        <Route path="/lesson/:lessonId/path/:sceneId" element={<LessonPathViewer user={user!} />} />
                         <Route path="/quiz-center" element={<QuizCenter user={user!} />} />
                         <Route path="/quiz/:quizId" element={<QuizPlayer user={user!} onFinish={() => navigate('/quiz-center')} />} />
                         <Route path="/review/:attemptId" element={<AttemptReview user={user!} />} />
@@ -169,6 +172,7 @@ const App: React.FC = () => {
                     </Route>
                     <Route path="/lesson-builder" element={<InteractiveLessonBuilder />} />
                     <Route path="/lesson-builder/:lessonId" element={<InteractiveLessonBuilder />} />
+                    <Route path="/admin/lesson/:lessonId/path-builder" element={<LessonPathBuilder />} />
                 </Route>
 
                 <Route path="*" element={<Navigate to="/" />} />

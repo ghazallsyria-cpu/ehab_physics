@@ -11,10 +11,9 @@ interface State {
 }
 
 class GlobalErrorBoundary extends Component<Props, State> {
-  // FIX: The errors about missing `setState` and `props` on a class component suggest a potential
-  // tooling or TypeScript configuration issue with class property initializers.
-  // Refactoring to use a constructor for state initialization is a more traditional and widely
-  // supported pattern that resolves this type of problem.
+  // FIX: Refactored to use a constructor for state initialization, which is a more robust pattern
+  // and resolves tooling or TypeScript configuration issues with class property initializers that
+  // were causing errors on `this.state`, `this.setState`, and `this.props`.
   constructor(props: Props) {
     super(props);
     this.state = {

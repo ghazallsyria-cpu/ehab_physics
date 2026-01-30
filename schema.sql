@@ -92,7 +92,8 @@ CREATE TABLE public.lessons (
   template_type TEXT DEFAULT 'STANDARD'::text,
   universal_config JSONB,
   is_pinned BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  path_root_scene_id UUID -- Foreign key will be added later
 );
 
 -- Indexes for performance
@@ -181,3 +182,46 @@ CREATE POLICY "Admins/Teachers can manage quiz questions." ON public.quiz_questi
 
 CREATE POLICY "Students can crud their own attempts." ON public.student_quiz_attempts FOR ALL USING (auth.uid() = student_id);
 CREATE POLICY "Admins/Teachers can view all attempts." ON public.student_quiz_attempts FOR SELECT USING (get_user_role(auth.uid()) IN ('admin', 'teacher'));
+
+
+-- 5. INTERACTIVE LESSON PATH TABLES (NEW)
+CREATE TABLE public.lesson_scenes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lesson_id UUID NOT NULL REFERENCES public.lessons ON DELETE CASCADE,
+  title TEXT,
+  content JSONB,
+  decisions JSONB,
+  is_premium BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE public.student_lesson_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID NOT NULL REFERENCES public.profiles ON DELETE CASCADE,
+  lesson_id UUID NOT NULL REFERENCES public.lessons ON DELETE CASCADE,
+  current_scene_id UUID NOT NULL REFERENCES public.lesson_scenes ON DELETE CASCADE,
+  answers JSONB,
+  uploaded_files JSONB,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add foreign key constraint to lessons table now that lesson_scenes exists
+ALTER TABLE public.lessons
+ADD CONSTRAINT fk_path_root_scene_id
+FOREIGN KEY (path_root_scene_id)
+REFERENCES public.lesson_scenes(id)
+ON DELETE SET NULL;
+
+-- Indexes for lesson paths
+CREATE INDEX ON public.lesson_scenes (lesson_id);
+CREATE INDEX ON public.student_lesson_progress (student_id, lesson_id);
+
+-- RLS for lesson paths
+ALTER TABLE public.lesson_scenes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.student_lesson_progress ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Scenes are viewable by authenticated users." ON public.lesson_scenes FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Admins/Teachers can manage scenes." ON public.lesson_scenes FOR ALL USING (get_user_role(auth.uid()) IN ('admin', 'teacher'));
+
+CREATE POLICY "Students can manage their own progress." ON public.student_lesson_progress FOR ALL USING (auth.uid() = student_id);
+CREATE POLICY "Admins/Teachers can view all student progress." ON public.student_lesson_progress FOR SELECT USING (get_user_role(auth.uid()) IN ('admin', 'teacher'));

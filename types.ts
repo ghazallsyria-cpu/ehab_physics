@@ -1,4 +1,5 @@
 
+
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 
 export type ViewState = 
@@ -102,7 +103,8 @@ export interface Lesson {
     type: string; // THEORY, EXAMPLE, EXERCISE
     duration: string;
     content?: ContentBlock[];
-    templateType?: 'STANDARD' | 'UNIVERSAL';
+    templateType?: 'STANDARD' | 'UNIVERSAL' | 'PATH'; // New type for branching lessons
+    pathRootSceneId?: string; // ID of the first scene
     isPinned?: boolean; // New property for highlighting lessons
     universalConfig?: UniversalLessonConfig;
     aiGeneratedData?: AILessonSchema;
@@ -511,4 +513,33 @@ export interface PredictiveInsight {
     probabilityOfDifficulty: number;
     reasoning: string;
     suggestedPrep: string;
+}
+
+// --- NEW TYPES FOR INTERACTIVE LESSON PATH ---
+
+export interface LessonScene {
+  id: string;
+  lesson_id: string;
+  title: string;
+  content: { // Simple content structure for now
+      text: string;
+      imageUrl?: string;
+      videoUrl?: string;
+      requiresUpload?: boolean;
+  };
+  decisions: {
+      text: string; // Button text
+      next_scene_id: string; // ID of the next scene
+  }[];
+  is_premium: boolean;
+}
+
+export interface StudentLessonProgress {
+    id?: string;
+    student_id: string;
+    lesson_id: string;
+    current_scene_id: string;
+    answers: Record<string, string>; // sceneId: decisionText
+    uploaded_files: Record<string, Asset>; // sceneId: Asset
+    updated_at: string;
 }

@@ -11,7 +11,8 @@ import {
   NotificationSettings, PaymentSettings, Invoice, AIRecommendation,
   Unit, Lesson, LiveSession, EducationalResource, PaymentStatus, UserRole,
   AppBranding, Article, PhysicsExperiment, PhysicsEquation, StudyGroup,
-  SubscriptionPlan, InvoiceSettings, MaintenanceSettings
+  SubscriptionPlan, InvoiceSettings, MaintenanceSettings,
+  LessonScene, StudentLessonProgress
 } from '../types';
 
 class DBService {
@@ -695,6 +696,99 @@ class DBService {
     if (error) throw error;
     
     return { ...attempt, id: data.id };
+  }
+  
+// FIX: Added missing Supabase methods for interactive lesson paths.
+  async getLessonScenesForBuilder(lessonId: string): Promise<LessonScene[]> {
+    const { data, error } = await supabase
+        .from('lesson_scenes')
+        .select('*')
+        .eq('lesson_id', lessonId);
+
+    if (error) {
+        console.error('Supabase getLessonScenesForBuilder error:', error);
+        throw error;
+    }
+    return data as LessonScene[];
+  }
+
+  async saveLessonScene(scene: LessonScene) {
+    const payload = {
+        id: scene.id,
+        lesson_id: scene.lesson_id,
+        title: scene.title,
+        content: scene.content,
+        decisions: scene.decisions,
+        is_premium: scene.is_premium,
+    };
+    const { error } = await supabase.from('lesson_scenes').upsert(payload);
+    if (error) {
+        console.error('Supabase saveLessonScene error:', error);
+        throw error;
+    }
+  }
+
+  async deleteLessonScene(sceneId: string) {
+    const { error } = await supabase.from('lesson_scenes').delete().eq('id', sceneId);
+    if (error) {
+        console.error('Supabase deleteLessonScene error:', error);
+        throw error;
+    }
+  }
+
+  async getLessonScene(sceneId: string): Promise<LessonScene | null> {
+    const { data, error } = await supabase
+        .from('lesson_scenes')
+        .select('*')
+        .eq('id', sceneId)
+        .single();
+    if (error) {
+        console.error('Supabase getLessonScene error:', error);
+        return null;
+    }
+    return data as LessonScene;
+  }
+  
+  async saveStudentLessonProgress(progress: Partial<StudentLessonProgress>) {
+    if (!progress.student_id || !progress.lesson_id) {
+        throw new Error("student_id and lesson_id are required.");
+    }
+
+    const { data: existing, error: fetchError } = await supabase
+        .from('student_lesson_progress')
+        .select('id, answers, uploaded_files')
+        .eq('student_id', progress.student_id)
+        .eq('lesson_id', progress.lesson_id)
+        .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 indicates 0 rows found
+        console.error("Error fetching student progress", fetchError);
+        throw fetchError;
+    }
+    
+    if (existing) {
+        // Update existing progress
+        const payload = {
+            current_scene_id: progress.current_scene_id,
+            answers: { ...existing.answers, ...progress.answers },
+            uploaded_files: { ...existing.uploaded_files, ...progress.uploaded_files },
+            updated_at: new Date().toISOString()
+        };
+        const { error } = await supabase.from('student_lesson_progress').update(payload).eq('id', existing.id);
+        if (error) throw error;
+    } else {
+        // Insert new progress
+        const payload = {
+            student_id: progress.student_id,
+            lesson_id: progress.lesson_id,
+            current_scene_id: progress.current_scene_id,
+            answers: progress.answers,
+            uploaded_files: progress.uploaded_files,
+            updated_at: new Date().toISOString()
+        };
+        const { error } = await supabase.from('student_lesson_progress').insert(payload);
+        if (error) throw error;
+    }
   }
 }
 
