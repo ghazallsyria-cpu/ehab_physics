@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import * as genAI from "@google/genai";
 import { AISolverResult, User, StudentQuizAttempt, Question, Curriculum, AILessonSchema } from "../types";
 
 // --- Helper for Robust JSON Parsing ---
@@ -40,7 +40,7 @@ const fileToGenerativePart = (dataUrl: string) => {
 // The API key is injected via vite.config.ts.
 export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, subject: 'Physics' | 'Chemistry') => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new genAI.GoogleGenAI({ apiKey: process.env.API_KEY });
     const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
@@ -62,7 +62,7 @@ export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, 
 
 export const getPhysicsExplanation = async (prompt: string, grade: string) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new genAI.GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `اشرح لصف ${grade}: ${prompt}`,
@@ -76,7 +76,7 @@ export const getPhysicsExplanation = async (prompt: string, grade: string) => {
 };
 
 export const solvePhysicsProblem = async (problem: string): Promise<AISolverResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new genAI.GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
     contents: `حل المسألة الفيزيائية التالية: ${problem}`,
@@ -84,12 +84,12 @@ export const solvePhysicsProblem = async (problem: string): Promise<AISolverResu
       systemInstruction: "أنت خبير في حل المسائل الفيزيائية. قدم الحل بخطوات واضحة، مع ذكر القانون المستخدم، والناتج النهائي مع الوحدة، وشرح مبسط للنتيجة. استخدم صيغة JSON.",
       responseMimeType: "application/json",
       responseSchema: {
-        type: Type.OBJECT,
+        type: genAI.Type.OBJECT,
         properties: {
-          law: { type: Type.STRING, description: 'القانون الفيزيائي المستخدم بصيغة LaTeX' },
-          steps: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'خطوات الحل بالتفصيل' },
-          finalResult: { type: Type.STRING, description: 'النتيجة النهائية مع الوحدة بصيغة LaTeX' },
-          explanation: { type: Type.STRING, description: 'شرح مبسط لمعنى النتيجة' },
+          law: { type: genAI.Type.STRING, description: 'القانون الفيزيائي المستخدم بصيغة LaTeX' },
+          steps: { type: genAI.Type.ARRAY, items: { type: genAI.Type.STRING }, description: 'خطوات الحل بالتفصيل' },
+          finalResult: { type: genAI.Type.STRING, description: 'النتيجة النهائية مع الوحدة بصيغة LaTeX' },
+          explanation: { type: genAI.Type.STRING, description: 'شرح مبسط لمعنى النتيجة' },
         }
       }
     }
@@ -100,7 +100,7 @@ export const solvePhysicsProblem = async (problem: string): Promise<AISolverResu
 };
 
 export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAttempt[]): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new genAI.GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `
     حلل أداء الطالب ${user.name} بناءً على نتائج اختباراته:
     ${JSON.stringify(attempts, null, 2)}
@@ -111,7 +111,7 @@ export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAt
 };
 
 export const generatePhysicsVisualization = async (prompt: string): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new genAI.GoogleGenAI({ apiKey: process.env.API_KEY });
 
     let operation = await ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
@@ -147,41 +147,41 @@ export const extractBankQuestionsAdvanced = async (
   subject: string,
   unit: string
 ): Promise<{ questions: Question[] }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new genAI.GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
     contents: `Digitize the following questions text for grade ${grade}, subject ${subject}, unit ${unit}. Extract all questions into a structured JSON format. For each question, provide: question_text, type ('mcq', 'short_answer', 'essay'), choices (array of {key: 'A', text: '...'}), correct_answer (the key of the correct choice), difficulty ('Easy', 'Medium', 'Hard'), category, solution (detailed explanation), steps_array (if applicable), and common_errors (if applicable). Here is the text:\n\n${rawText}`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
-        type: Type.OBJECT,
+        type: genAI.Type.OBJECT,
         properties: {
           questions: {
-            type: Type.ARRAY,
+            type: genAI.Type.ARRAY,
             items: {
-              type: Type.OBJECT,
+              type: genAI.Type.OBJECT,
               properties: {
-                question_text: { type: Type.STRING, description: "The full text of the question." },
-                type: { type: Type.STRING, description: "Type of question: 'mcq', 'short_answer', 'essay'." },
+                question_text: { type: genAI.Type.STRING, description: "The full text of the question." },
+                type: { type: genAI.Type.STRING, description: "Type of question: 'mcq', 'short_answer', 'essay'." },
                 choices: {
-                  type: Type.ARRAY,
+                  type: genAI.Type.ARRAY,
                   items: {
-                    type: Type.OBJECT,
+                    type: genAI.Type.OBJECT,
                     properties: {
-                      key: { type: Type.STRING },
-                      text: { type: Type.STRING }
+                      key: { type: genAI.Type.STRING },
+                      text: { type: genAI.Type.STRING }
                     },
                     required: ['key', 'text']
                   }
                 },
-                correct_answer: { type: Type.STRING, description: "The key of the correct choice for MCQ questions." },
-                difficulty: { type: Type.STRING, description: "'Easy', 'Medium', or 'Hard'." },
-                category: { type: Type.STRING, description: "The specific topic or category of the question." },
-                solution: { type: Type.STRING, description: "A detailed explanation for the solution." },
-                steps_array: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Step-by-step solution if applicable." },
-                common_errors: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Common mistakes students make." },
-                question_latex: { type: Type.STRING, description: "LaTeX version of the question if it contains complex formulas." },
-                hasDiagram: { type: Type.BOOLEAN, description: "True if the question refers to a diagram that needs to be manually added." },
+                correct_answer: { type: genAI.Type.STRING, description: "The key of the correct choice for MCQ questions." },
+                difficulty: { type: genAI.Type.STRING, description: "'Easy', 'Medium', or 'Hard'." },
+                category: { type: genAI.Type.STRING, description: "The specific topic or category of the question." },
+                solution: { type: genAI.Type.STRING, description: "A detailed explanation for the solution." },
+                steps_array: { type: genAI.Type.ARRAY, items: { type: genAI.Type.STRING }, description: "Step-by-step solution if applicable." },
+                common_errors: { type: genAI.Type.ARRAY, items: { type: genAI.Type.STRING }, description: "Common mistakes students make." },
+                question_latex: { type: genAI.Type.STRING, description: "LaTeX version of the question if it contains complex formulas." },
+                hasDiagram: { type: genAI.Type.BOOLEAN, description: "True if the question refers to a diagram that needs to be manually added." },
               },
             },
           },
@@ -202,7 +202,7 @@ export const digitizeExamPaper = async (
   grade: string,
   subject: string,
 ): Promise<{ questions: Question[] }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new genAI.GoogleGenAI({ apiKey: process.env.API_KEY });
   const imagePart = fileToGenerativePart(imageDataUrl);
 
   const textPart = {
@@ -215,28 +215,28 @@ export const digitizeExamPaper = async (
     config: {
       responseMimeType: "application/json",
       responseSchema: {
-        type: Type.OBJECT,
+        type: genAI.Type.OBJECT,
         properties: {
           questions: {
-            type: Type.ARRAY,
+            type: genAI.Type.ARRAY,
             items: {
-              type: Type.OBJECT,
+              type: genAI.Type.OBJECT,
               properties: {
-                question_text: { type: Type.STRING },
-                type: { type: Type.STRING },
+                question_text: { type: genAI.Type.STRING },
+                type: { type: genAI.Type.STRING },
                 choices: {
-                  type: Type.ARRAY,
+                  type: genAI.Type.ARRAY,
                   items: {
-                    type: Type.OBJECT,
-                    properties: { key: { type: Type.STRING }, text: { type: Type.STRING }},
+                    type: genAI.Type.OBJECT,
+                    properties: { key: { type: genAI.Type.STRING }, text: { type: genAI.Type.STRING }},
                     required: ['key', 'text']
                   }
                 },
-                correct_answer: { type: Type.STRING },
-                difficulty: { type: Type.STRING },
-                category: { type: Type.STRING },
-                solution: { type: Type.STRING },
-                hasDiagram: { type: Type.BOOLEAN },
+                correct_answer: { type: genAI.Type.STRING },
+                difficulty: { type: genAI.Type.STRING },
+                category: { type: genAI.Type.STRING },
+                solution: { type: genAI.Type.STRING },
+                hasDiagram: { type: genAI.Type.BOOLEAN },
               },
             },
           },
@@ -255,7 +255,7 @@ export const digitizeExamPaper = async (
 export const verifyQuestionQuality = async (
   question: Question
 ): Promise<{ valid: boolean; feedback: string }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new genAI.GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const questionString = JSON.stringify({
     text: question.text,
@@ -274,10 +274,10 @@ export const verifyQuestionQuality = async (
     config: {
       responseMimeType: "application/json",
       responseSchema: {
-        type: Type.OBJECT,
+        type: genAI.Type.OBJECT,
         properties: {
-          valid: { type: Type.BOOLEAN, description: "True if the question is scientifically accurate, clear, and well-formed." },
-          feedback: { type: Type.STRING, description: "Constructive feedback. If valid is false, explain why. If valid is true, provide a short confirmation." },
+          valid: { type: genAI.Type.BOOLEAN, description: "True if the question is scientifically accurate, clear, and well-formed." },
+          feedback: { type: genAI.Type.STRING, description: "Constructive feedback. If valid is false, explain why. If valid is true, provide a short confirmation." },
         },
         required: ['valid', 'feedback']
       },
@@ -301,7 +301,7 @@ export const convertTextbookToLesson = async (
   grade: string = "12",
   imageData?: string // اختياري: صورة الصفحة
 ): Promise<AILessonSchema | null> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new genAI.GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const systemInstruction = `
 أنت محرك تحويل محتوى تعليمي متخصص في المناهج الدراسية.
@@ -338,50 +338,50 @@ export const convertTextbookToLesson = async (
             systemInstruction: systemInstruction,
             responseMimeType: "application/json",
             responseSchema: {
-                type: Type.OBJECT,
+                type: genAI.Type.OBJECT,
                 properties: {
                     lesson_metadata: {
-                        type: Type.OBJECT,
+                        type: genAI.Type.OBJECT,
                         properties: {
-                            grade: { type: Type.STRING },
-                            subject: { type: Type.STRING },
-                            lesson_title: { type: Type.STRING },
-                            unit: { type: Type.STRING },
-                            status: { type: Type.STRING },
-                            version: { type: Type.NUMBER }
+                            grade: { type: genAI.Type.STRING },
+                            subject: { type: genAI.Type.STRING },
+                            lesson_title: { type: genAI.Type.STRING },
+                            unit: { type: genAI.Type.STRING },
+                            status: { type: genAI.Type.STRING },
+                            version: { type: genAI.Type.NUMBER }
                         }
                     },
                     learning_objectives: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING }
+                        type: genAI.Type.ARRAY,
+                        items: { type: genAI.Type.STRING }
                     },
                     content_blocks: {
-                        type: Type.ARRAY,
+                        type: genAI.Type.ARRAY,
                         items: {
-                            type: Type.OBJECT,
+                            type: genAI.Type.OBJECT,
                             properties: {
-                                block_id: { type: Type.STRING },
-                                block_type: { type: Type.STRING },
-                                locked_after_approval: { type: Type.BOOLEAN },
-                                linked_concept: { type: Type.STRING },
+                                block_id: { type: genAI.Type.STRING },
+                                block_type: { type: genAI.Type.STRING },
+                                locked_after_approval: { type: genAI.Type.BOOLEAN },
+                                linked_concept: { type: genAI.Type.STRING },
                                 ui_component: {
-                                    type: Type.OBJECT,
+                                    type: genAI.Type.OBJECT,
                                     properties: {
-                                        component_category: { type: Type.STRING },
-                                        react_component: { type: Type.STRING }
+                                        component_category: { type: genAI.Type.STRING },
+                                        react_component: { type: genAI.Type.STRING }
                                     }
                                 },
-                                textContent: { type: Type.STRING }
+                                textContent: { type: genAI.Type.STRING }
                             }
                         }
                     },
                     formulae: {
-                        type: Type.ARRAY,
+                        type: genAI.Type.ARRAY,
                         items: {
-                            type: Type.OBJECT,
+                            type: genAI.Type.OBJECT,
                             properties: {
-                                formula_text: { type: Type.STRING },
-                                variables: { type: Type.ARRAY, items: { type: Type.STRING } }
+                                formula_text: { type: genAI.Type.STRING },
+                                variables: { type: genAI.Type.ARRAY, items: { type: genAI.Type.STRING } }
                             }
                         }
                     }

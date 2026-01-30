@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import * as genAI from "@google/genai";
 
 type ImageSize = "1K" | "2K" | "4K";
 
@@ -40,9 +40,9 @@ const ImageGenerator: React.FC = () => {
 
     try {
       // Create new instance to use the latest key from the dialog
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new genAI.GoogleGenAI({ apiKey: process.env.API_KEY });
 
-      const response: GenerateContentResponse = await ai.models.generateContent({
+      const response: genAI.GenerateContentResponse = await ai.models.generateContent({
         model: 'gemini-3-pro-image-preview',
         contents: {
           parts: [{ text: `Educational, high-quality, cinematic physics visualization, suitable for a Kuwaiti curriculum: ${prompt}` }],
