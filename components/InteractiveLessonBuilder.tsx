@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Lesson, Curriculum, Unit } from '../types';
 import AdminUniversalLessonEditor from './AdminUniversalLessonEditor';
 import UniversalLessonViewer from './UniversalLessonViewer';
-import { Edit, Eye, ArrowLeft, RefreshCw, Save, CheckCircle2, Pin, Layers, BookOpen, AlertCircle } from 'lucide-react';
+import { Edit, Eye, ArrowLeft, RefreshCw, Save, CheckCircle2, Pin, Layers, BookOpen, AlertCircle, Trash2, X } from 'lucide-react';
 import { dbService } from '../services/db';
 
 interface InteractiveLessonBuilderProps {
@@ -20,11 +20,11 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
   const [targetSubject, setTargetSubject] = useState<'Physics'|'Chemistry'>('Physics');
   const [availableUnits, setAvailableUnits] = useState<Unit[]>([]);
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
-  const [isPinned, setIsPinned] = useState(false);
+  const [isPinned, setIsPinned] = useState(initialLesson?.isPinned || false);
   const [curriculums, setCurriculums] = useState<Curriculum[]>([]);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // الحالة المبدئية للدرس
+  // Initial state setup
   const [currentLesson, setCurrentLesson] = useState<Lesson>(initialLesson || {
     id: `temp_${Date.now()}`,
     title: 'عنوان الدرس الجديد',
@@ -57,15 +57,23 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
     }
   });
 
-  // تحديث الحالة عند التعديل في المحرر
+  // Keep lesson state in sync with initialLesson if provided (for editing mode)
+  useEffect(() => {
+    if (initialLesson) {
+        setCurrentLesson(initialLesson);
+        setIsPinned(initialLesson.isPinned || false);
+    }
+  }, [initialLesson]);
+
   const handleUpdateDraft = (updatedLesson: Lesson) => {
       setCurrentLesson(updatedLesson);
+      // Only save temp draft to localStorage for new lessons
       if (!initialLesson) {
           localStorage.setItem('ssc_draft_lesson', JSON.stringify(updatedLesson));
       }
   };
 
-  // تحميل الوحدات المتاحة عند فتح نافذة الحفظ
+  // Load curriculums when modal opens
   useEffect(() => {
       if (showSaveModal) {
           const loadCurriculums = async () => {
@@ -77,7 +85,7 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
       }
   }, [showSaveModal]);
 
-  // تحديث الوحدات عند تغيير الصف/المادة
+  // Update units list when grade/subject changes in modal
   useEffect(() => {
       if (curriculums.length > 0) {
           updateAvailableUnits(curriculums, targetGrade, targetSubject);
@@ -96,17 +104,9 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
   };
 
   const handleSaveToDB = async () => {
-      if (!selectedUnitId) {
-          // إذا لم توجد وحدات، نقترح إنشاء وحدة جديدة
-          const confirmCreate = confirm("لا توجد وحدات في هذا المنهج. هل تود إنشاء وحدة افتراضية؟");
-          if (!confirmCreate) return;
-      }
-
       setIsSaving(true);
-      
       try {
           const targetCurriculum = curriculums.find(c => c.grade === targetGrade && c.subject === targetSubject);
-          
           if (!targetCurriculum) {
               alert("خطأ: المنهج غير موجود.");
               setIsSaving(false);
@@ -114,8 +114,6 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
           }
 
           let finalUnitId = selectedUnitId;
-
-          // إنشاء وحدة تلقائية إذا لم توجد وحدات
           if (!finalUnitId) {
               const newUnit = { 
                   id: `u_${Date.now()}`, 
@@ -127,7 +125,6 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
               finalUnitId = newUnit.id;
           }
 
-          // تجهيز الدرس النهائي
           const finalLesson: Lesson = { 
               ...currentLesson, 
               id: currentLesson.id.startsWith('temp') ? `l_${Date.now()}` : currentLesson.id,
@@ -142,7 +139,7 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
           setTimeout(() => {
               setSaveSuccess(false);
               setShowSaveModal(false);
-              // Option: Redirect or stay
+              window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'dashboard' } }));
           }, 2000);
           
       } catch (e: any) {
@@ -155,17 +152,16 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
 
   return (
     <div className="min-h-screen bg-[#0A2540] font-['Tajawal']" dir="rtl">
-        {/* شريط التحكم العلوي */}
+        {/* Navigation bar */}
         <div className="fixed top-0 left-0 right-0 z-[100] bg-[#0a1118]/90 backdrop-blur-md border-b border-white/10 px-6 py-4 flex justify-between items-center shadow-2xl">
             <div className="flex items-center gap-4">
                 <button onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'dashboard' } }))} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-all text-white">
                     <ArrowLeft size={20} />
                 </button>
-                <div>
-                    <h2 className="text-xl font-black text-white flex items-center gap-2">
-                        مختبر <span className="text-[#00d2ff]">الدروس الذكية</span>
-                    </h2>
-                </div>
+                <h2 className="text-xl font-black text-white flex items-center gap-2">
+                    مختبر <span className="text-[#00d2ff]">الدروس الذكية</span>
+                    {initialLesson && <span className="mr-4 px-3 py-1 bg-blue-500/20 text-blue-400 text-[10px] rounded-full uppercase border border-blue-500/30">وضع التعديل</span>}
+                </h2>
             </div>
             
             <div className="flex bg-black/40 p-1 rounded-xl border border-white/10">
@@ -184,22 +180,15 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
             </div>
         </div>
 
-        {/* منطقة المحتوى */}
+        {/* Builder Content */}
         <div className="pt-20 h-screen overflow-hidden">
             {mode === 'EDIT' ? (
                 <div className="h-full overflow-y-auto no-scrollbar pb-20 animate-fadeIn">
-                    <div className="max-w-6xl mx-auto px-6 mb-6 mt-4 flex justify-between items-center">
-                        <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-2xl text-blue-300 text-xs font-bold flex items-center gap-3">
-                            <Save size={16} />
-                            <span>يتم حفظ المسودة محلياً. اضغط "حفظ النظام" للنشر.</span>
-                        </div>
-                    </div>
-                    
                     <AdminUniversalLessonEditor 
                         initialLesson={currentLesson} 
                         onSave={(lesson) => {
                             handleUpdateDraft(lesson);
-                            setShowSaveModal(true); // Open Modal instead of direct save
+                            setShowSaveModal(true);
                         }}
                         onCancel={() => window.dispatchEvent(new CustomEvent('change-view', { detail: { view: 'dashboard' } }))}
                     />
@@ -209,7 +198,7 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
                     <UniversalLessonViewer 
                         lesson={currentLesson} 
                         onBack={() => setMode('EDIT')} 
-                        onComplete={() => alert("تجربة ناجحة! الوضع التفاعلي يعمل بشكل صحيح.")}
+                        onComplete={() => alert("تجربة ناجحة!")}
                         isCompleted={false}
                     />
                 </div>
@@ -218,7 +207,7 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
         
         {/* Modern Save Modal */}
         {showSaveModal && (
-            <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+            <div className="fixed inset-0 z-[250] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
                 <div className="bg-[#0a1118] border border-white/10 w-full max-w-lg rounded-[40px] p-8 shadow-3xl relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-[#00d2ff]/10 rounded-full blur-[80px]"></div>
                     
@@ -228,16 +217,18 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
                                 <CheckCircle2 size={40} className="text-white" />
                             </div>
                             <h3 className="text-2xl font-black text-white mb-2">تم النشر بنجاح!</h3>
-                            <p className="text-gray-400">أصبح الدرس متاحاً للطلاب الآن.</p>
+                            <p className="text-gray-400">سيتم إعادة توجيهك الآن...</p>
                         </div>
                     ) : (
                         <>
-                            <h3 className="text-2xl font-black text-white mb-8 relative z-10 flex items-center gap-3">
-                                <Save className="text-[#fbbf24]" /> نشر الدرس التفاعلي
-                            </h3>
+                            <div className="flex justify-between items-center mb-8 relative z-10">
+                                <h3 className="text-2xl font-black text-white flex items-center gap-3">
+                                    <Save className="text-[#fbbf24]" /> نشر الدرس التفاعلي
+                                </h3>
+                                <button onClick={() => setShowSaveModal(false)} className="text-gray-500 hover:text-white transition-colors"><X/></button>
+                            </div>
                             
                             <div className="space-y-6 relative z-10">
-                                {/* Grade & Subject Selection */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">الصف الدراسي</label>
@@ -249,7 +240,6 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
                                             <option value="10">الصف 10</option>
                                             <option value="11">الصف 11</option>
                                             <option value="12">الصف 12</option>
-                                            <option value="uni">جامعي</option>
                                         </select>
                                     </div>
                                     <div className="space-y-2">
@@ -265,7 +255,6 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
                                     </div>
                                 </div>
 
-                                {/* Unit Selection */}
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
                                         <Layers size={12}/> الوحدة الدراسية
@@ -282,21 +271,20 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
                                         </select>
                                     ) : (
                                         <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl text-xs text-yellow-500 flex items-center gap-2">
-                                            <AlertCircle size={14}/> سيتم إنشاء وحدة جديدة تلقائياً لهذا المنهج.
+                                            <AlertCircle size={14}/> سيتم إنشاء وحدة جديدة تلقائياً.
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Pin Option */}
                                 <div 
                                     onClick={() => setIsPinned(!isPinned)}
                                     className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${isPinned ? 'bg-[#fbbf24]/10 border-[#fbbf24] text-[#fbbf24]' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}
                                 >
                                     <div className="flex items-center gap-3">
                                         <Pin size={20} fill={isPinned ? "currentColor" : "none"} />
-                                        <div>
+                                        <div className="text-right">
                                             <p className="font-bold text-sm">تثبيت وتمييز الدرس</p>
-                                            <p className="text-[10px] opacity-70">سيظهر بلون مميز وفي أعلى قائمة الدروس.</p>
+                                            <p className="text-[10px] opacity-70">سيظهر بلون ذهبي وفي أعلى قائمة الدروس.</p>
                                         </div>
                                     </div>
                                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isPinned ? 'border-[#fbbf24] bg-[#fbbf24]' : 'border-gray-600'}`}>
@@ -304,11 +292,10 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
                                     </div>
                                 </div>
 
-                                {/* Action Buttons */}
                                 <div className="grid grid-cols-2 gap-4 mt-8">
                                     <button 
                                         onClick={() => setShowSaveModal(false)}
-                                        className="py-4 rounded-2xl font-bold text-xs uppercase bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                                        className="py-4 rounded-2xl font-bold text-xs uppercase bg-white/5 text-gray-400 hover:text-white"
                                     >
                                         إلغاء
                                     </button>
@@ -318,7 +305,7 @@ const InteractiveLessonBuilder: React.FC<InteractiveLessonBuilderProps> = ({ ini
                                         className="py-4 rounded-2xl font-bold text-xs uppercase bg-[#00d2ff] text-black shadow-lg hover:scale-105 transition-all flex items-center justify-center gap-2"
                                     >
                                         {isSaving ? <RefreshCw className="animate-spin" size={16}/> : <Save size={16}/>}
-                                        نشر في قاعدة البيانات
+                                        اعتماد ونشر
                                     </button>
                                 </div>
                             </div>

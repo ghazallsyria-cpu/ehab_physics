@@ -14,7 +14,7 @@ import { Lesson, UniversalLessonConfig } from '../types';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
 
-// Math Renderer Component - Fixed Direction to LTR
+// Math Renderer Component - Fixed Direction to LTR for scientific accuracy
 const MathBlock: React.FC<{ tex: string; inline?: boolean }> = ({ tex, inline }) => {
   const html = katex.renderToString(tex, { throwOnError: false, displayMode: !inline });
   return (
@@ -61,9 +61,11 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
     try {
         const vars = Object.keys(calcValues);
         const values = Object.values(calcValues);
-        const func = new Function(...vars, `return ${config.calculationFormula};`);
-        const res = func(...values);
-        setResult(isNaN(res) ? 0 : res);
+        if (vars.length > 0) {
+            const func = new Function(...vars, `return ${config.calculationFormula};`);
+            const res = func(...values);
+            setResult(isNaN(res) ? 0 : res);
+        }
     } catch (e) {
         console.error("Calculation Error:", e);
     }
@@ -78,12 +80,10 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
     
     if (!xVar) return null;
 
-    // Generate 10 points for smoother graphs
-    const stepsCount = 10;
+    const stepsCount = 12;
     const stepSize = (xVar.max - xVar.min) / (stepsCount - 1);
     const labels = Array.from({length: stepsCount}, (_, i) => parseFloat((xVar.min + i * stepSize).toFixed(1)));
 
-    // Generate Data
     const dataPoints = labels.map(val => {
         const tempValues = { ...calcValues, [xVarId]: val };
         try {
@@ -101,7 +101,7 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
             label: `${config.graphConfig.yAxisLabel}`,
             data: dataPoints,
             borderColor: color,
-            backgroundColor: isArea ? `${color}33` : `${color}88`, // Transparent fill
+            backgroundColor: isArea ? `${color}33` : `${color}88`,
             borderWidth: 3,
             tension: 0.4,
             pointRadius: 4,
@@ -136,11 +136,7 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
           ticks: { color: '#aaa', font: { family: 'Tajawal' } },
           border: { display: false }
       }
-    },
-    interaction: {
-        mode: 'index' as const,
-        intersect: false,
-    },
+    }
   };
 
   return (
@@ -164,7 +160,7 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
         <div className="container mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-10">
             <div className="lg:col-span-8 space-y-12">
                 
-                {/* Visual Graph Area - Priority Display */}
+                {/* Visual Graph Area */}
                 {chartData && (
                     <div className="glass-panel p-8 rounded-[50px] border-white/5 bg-gradient-to-b from-white/[0.02] to-transparent shadow-2xl relative overflow-hidden group">
                         <div className="flex justify-between items-center mb-8 px-2">
@@ -172,9 +168,6 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
                                 {config.graphConfig?.chartType === 'bar' ? <BarChartIcon className="text-[#00d2ff]" /> : <LineChart className="text-[#00d2ff]" />} 
                                 التحليل البياني المباشر
                             </h3>
-                            <span className="text-[10px] font-black text-gray-500 bg-black/30 px-3 py-1 rounded-lg border border-white/5">
-                                متغير X: {config.variables.find(v => v.id === config.graphConfig?.xAxisVariableId)?.name}
-                            </span>
                         </div>
                         <div className="h-[450px] w-full relative z-10">
                             {config.graphConfig?.chartType === 'bar' ? 
@@ -203,7 +196,7 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
                     </div>
                 </div>
 
-                {/* Learning Objectives */}
+                {/* Objectives */}
                 <div className="bg-white/[0.02] border border-white/5 rounded-[40px] p-10">
                     <h3 className="text-xl font-black text-gray-300 mb-6 flex items-center gap-3"><CheckCircle2 size={20} className="text-green-500" /> ماذا سنتعلم؟</h3>
                     <ul className="space-y-4">
@@ -221,7 +214,7 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
                     <div key={i} className="space-y-4">
                         {block.caption && <h3 className="text-2xl font-bold text-white border-r-4 border-[#fbbf24] pr-4">{block.caption}</h3>}
                         
-                        {/* Text Block with Inline Math LTR Fix */}
+                        {/* Text Block with LTR Math Fix */}
                         {block.type === 'text' && (
                             <div className="prose prose-invert max-w-none text-gray-300 text-lg leading-loose font-light">
                                 <p dangerouslySetInnerHTML={{
@@ -232,11 +225,11 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
                             </div>
                         )}
 
-                        {/* HTML/Simulation Block */}
+                        {/* HTML/Simulation Block - Verified Rendering */}
                         {block.type === 'html' && (
-                            <div className="my-8 w-full bg-black/40 border border-white/10 rounded-[30px] overflow-hidden shadow-2xl relative group">
+                            <div className="my-8 w-full bg-black/40 border border-white/10 rounded-[30px] overflow-hidden shadow-2xl relative group min-h-[500px]">
                                 <div className="absolute top-0 left-0 bg-[#fbbf24] text-black px-3 py-1 text-[9px] font-black uppercase tracking-widest z-10 rounded-br-xl shadow-lg flex items-center gap-2">
-                                    <Code size={10} /> محاكاة / كود
+                                    <Code size={10} /> محاكاة تفاعلية
                                 </div>
                                 <iframe
                                     srcDoc={`
@@ -246,7 +239,7 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
                                             <meta charset="UTF-8">
                                             <meta name="viewport" content="width=device-width, initial-scale=1.0">
                                             <style>
-                                                body { margin: 0; padding: 0; background: transparent; color: #fff; font-family: 'Tajawal', sans-serif; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
+                                                body { margin: 0; padding: 20px; background: transparent; color: #fff; font-family: 'Tajawal', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; }
                                                 * { box-sizing: border-box; }
                                                 ::-webkit-scrollbar { width: 6px; }
                                                 ::-webkit-scrollbar-track { background: #000; }
@@ -254,12 +247,12 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
                                             </style>
                                         </head>
                                         <body>
-                                            ${block.content}
+                                            <div style="width: 100%;">${block.content}</div>
                                         </body>
                                         </html>
                                     `}
                                     title={`Interactive-Block-${i}`}
-                                    className="w-full h-[500px] border-none bg-transparent"
+                                    className="w-full min-h-[500px] border-none bg-transparent"
                                     sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                                 />
                             </div>
@@ -301,8 +294,8 @@ const UniversalLessonViewer: React.FC<UniversalLessonViewerProps> = ({ lesson, o
                             
                             <div className="pt-8 border-t border-white/10 text-center">
                                 <p className="text-[9px] font-black uppercase text-gray-500 tracking-[0.2em] mb-2">القيمة المحسوبة</p>
-                                <div className="text-6xl font-black text-white drop-shadow-[0_0_20px_rgba(251,191,36,0.4)] tabular-nums tracking-tighter">
-                                    {result.toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-xl text-[#fbbf24] font-medium">{config.resultUnit}</span>
+                                <div className="text-6xl font-black text-white drop-shadow-[0_0_20px_rgba(251,191,36,0.4)] tabular-nums tracking-tighter" dir="ltr">
+                                    {result.toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-xl text-[#fbbf24] font-medium ml-2">{config.resultUnit}</span>
                                 </div>
                             </div>
                         </div>

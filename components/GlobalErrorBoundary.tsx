@@ -11,7 +11,8 @@ interface State {
   error: Error | null;
 }
 
-class GlobalErrorBoundary extends Component<Props, State> {
+// Extending React.Component explicitly to resolve property existence issues in TypeScript
+class GlobalErrorBoundary extends React.Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null
@@ -21,11 +22,14 @@ class GlobalErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  // Use explicit React.ErrorInfo for proper type resolution
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
   }
 
+  // Use arrow function for correct 'this' context when called from onClick. Fix for setState not recognized.
   handleReset = () => {
+    // Standard setState usage from the base class
     this.setState({ hasError: false, error: null });
     window.location.reload();
   };
@@ -56,6 +60,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
       );
     }
 
+    // Fix for accessing children via this.props inherited from React.Component
     return this.props.children;
   }
 }
