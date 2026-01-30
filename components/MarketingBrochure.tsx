@@ -1,0 +1,150 @@
+import React from 'react';
+import { Waypoints, BrainCircuit, BarChart3, Tv, Smartphone, Tablet, Monitor, Lock, Cloud, Sparkles, Star } from 'lucide-react';
+import QRCode from 'react-qr-code';
+
+// Reusable component for a feature card
+const FeatureCard = ({ icon, title, description, color = "amber" }: { icon: React.ReactNode, title: string, description: string, color?: "amber" | "cyan" }) => {
+    const colorClasses = {
+        amber: {
+            border: 'border-amber-400/20',
+            bg: 'bg-amber-400/5',
+            iconBg: 'bg-amber-400/10 text-amber-400',
+            glow: 'shadow-[0_0_80px_rgba(251,191,36,0.15)]'
+        },
+        cyan: {
+            border: 'border-cyan-400/20',
+            bg: 'bg-cyan-400/5',
+            iconBg: 'bg-cyan-400/10 text-cyan-400',
+            glow: 'shadow-[0_0_80px_rgba(34,211,238,0.15)]'
+        }
+    };
+    const classes = colorClasses[color];
+
+    return (
+        <div className={`glass-panel p-10 rounded-[50px] border ${classes.border} ${classes.bg} ${classes.glow} backdrop-blur-2xl transition-all hover:-translate-y-2 hover:border-${color}-400/40`}>
+            <div className="flex items-start gap-6">
+                <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shrink-0 ${classes.iconBg} border border-white/5`}>
+                    {icon}
+                </div>
+                <div>
+                    <h3 className={`text-2xl font-black mb-2 text-white`}>{title}</h3>
+                    <p className="text-gray-400 text-sm leading-relaxed">{description}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const MarketingBrochure: React.FC = () => {
+
+    const PageContainer: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className = '' }) => (
+        <div className={`w-full max-w-5xl mx-auto bg-[#050a10] border border-white/10 rounded-[60px] shadow-2xl p-12 md:p-20 relative overflow-hidden ${className}`}>
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-soft-light"></div>
+            {children}
+        </div>
+    );
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-[#0A2540] to-[#010304] font-['Tajawal'] text-white p-6 md:p-12" dir="rtl">
+            <div className="space-y-12">
+
+                {/* --- PAGE 1: HERO & RESPONSIVENESS --- */}
+                <PageContainer className="text-center">
+                    <div className="absolute -top-32 -right-32 w-96 h-96 bg-cyan-500/10 rounded-full blur-[150px] pointer-events-none"></div>
+                    <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-amber-500/10 rounded-full blur-[150px] pointer-events-none"></div>
+                    
+                    <div className="w-32 h-32 mx-auto bg-white/5 backdrop-blur-lg border border-white/10 rounded-[45px] flex items-center justify-center p-5 shadow-2xl mb-8">
+                        <img src="https://cdn-icons-png.flaticon.com/512/3063/3063206.png" alt="Logo" className="w-full h-full object-contain" />
+                    </div>
+                    <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-4 leading-tight">
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">مستقبل التعليم</span> في الكويت
+                    </h1>
+                    <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed mb-16">
+                        منصة المركز السوري للعلوم: حيث يلتقي المنهج الكويتي بالذكاء الاصطناعي ليصنع تجربة تعليمية فريدة.
+                    </p>
+
+                    <div className="relative h-64 md:h-96 w-full mt-10 flex items-center justify-center group">
+                        <Monitor className="absolute text-white/10 w-full h-full max-w-4xl transition-transform duration-500 group-hover:scale-105" />
+                        <Tablet className="absolute text-white/20 w-1/2 h-1/2 max-w-lg transition-transform duration-500 group-hover:scale-110 group-hover:-translate-x-4" />
+                        <Smartphone className="absolute text-white/50 w-1/4 h-1/4 max-w-xs transition-transform duration-500 group-hover:scale-125 group-hover:translate-x-4 group-hover:-translate-y-2" />
+                        <div className="absolute w-1/4 h-1/4 max-w-[80px] -bottom-4 left-1/4 bg-amber-400/10 rounded-full blur-2xl"></div>
+                        <div className="absolute w-1/3 h-1/3 max-w-[120px] -top-8 right-1/4 bg-cyan-400/10 rounded-full blur-3xl"></div>
+                    </div>
+                     <p className="text-sm font-bold text-gray-600 uppercase tracking-[0.3em] mt-16">متوافق مع جميع أجهزتك</p>
+                </PageContainer>
+                
+                {/* --- PAGE 2: INTERACTIVITY & AI --- */}
+                 <PageContainer>
+                    <h2 className="text-center text-4xl font-black mb-16">تجربة تعليمية <span className="text-cyan-400">تفاعلية</span> وغير مسبوقة</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <FeatureCard 
+                            icon={<Waypoints size={32} />}
+                            title="مسارات تعليمية ذكية"
+                            description="انطلق في رحلة تفاعلية تتفرع وتتكيف مع قراراتك، مما يضمن فهماً عميقاً للمفاهيم بدلاً من الحفظ."
+                            color="cyan"
+                        />
+                        <FeatureCard 
+                            icon={<BrainCircuit size={32} />}
+                            title="المساعد الذكي"
+                            description="لا تدع أي سؤال يقف في طريقك. احصل على شروحات فورية ومبسطة لأصعب المسائل الفيزيائية، مع الالتزام الكامل بالمنهج."
+                            color="cyan"
+                        />
+                    </div>
+                </PageContainer>
+                
+                {/* --- PAGE 3: ANALYTICS & ADAPTIVE LEARNING --- */}
+                <PageContainer>
+                    <h2 className="text-center text-4xl font-black mb-16">متابعة دقيقة <span className="text-amber-400">وتوجيه شخصي</span></h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <FeatureCard 
+                            icon={<BarChart3 size={32} />}
+                            title="لوحة تحليلات مباشرة"
+                            description="يراقب المديرون والمعلمون تفاعل الطلاب مع الدروس لحظة بلحظة، مما يسمح بالتدخل الفوري وتحسين المحتوى."
+                            color="amber"
+                        />
+                         <FeatureCard 
+                            icon={<Sparkles size={32} />}
+                            title="اقتراحات تكيفية"
+                            description="يقوم النظام بتحليل أدائك وتقديم توصيات ذكية لمراجعة الدروس أو خوض تحديات جديدة لتعزيز نقاط ضعفك."
+                            color="amber"
+                        />
+                    </div>
+                </PageContainer>
+                
+                {/* --- PAGE 4: SECURITY & CALL TO ACTION --- */}
+                <PageContainer className="text-center">
+                     <h2 className="text-center text-4xl font-black mb-16">أمان، موثوقية، ومستقبل واعد</h2>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-20">
+                         <FeatureCard 
+                            icon={<div className="flex items-center gap-2"><img src="https://supabase.com/favicon/favicon-192x192.png" className="w-8 h-8"/><Lock size={20}/></div>}
+                            title="تخزين سحابي آمن"
+                            description="نستخدم أقوى قواعد البيانات السحابية (Supabase & Firebase) لضمان أمان بياناتك وسرعة الوصول إليها."
+                            color="cyan"
+                        />
+                         <FeatureCard 
+                            icon={<Star size={32} />}
+                            title="نظام نقاط ومكافآت"
+                            description="اجمع النقاط مع كل درس تنهيه وكل اختبار تتفوق فيه. تنافس مع زملائك وتصدر قائمة الأوائل!"
+                            color="amber"
+                        />
+                     </div>
+
+                     <div className="flex flex-col md:flex-row items-center justify-center gap-12 bg-white/5 p-12 rounded-[50px] border border-white/10">
+                        <div className="flex-1 text-right">
+                             <h3 className="text-3xl font-black mb-4">انضم لمستقبل التعليم الآن!</h3>
+                             <p className="text-gray-400">سجل اليوم وابدأ رحلتك نحو التميز في الفيزياء مع أفضل الأدوات التقنية والمعلمين الخبراء في الكويت.</p>
+                             <button className="mt-8 bg-amber-400 text-black px-12 py-5 rounded-full font-black text-sm uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-amber-500/20">
+                                ابدأ رحلتك التعليمية
+                             </button>
+                        </div>
+                        <div className="bg-white p-6 rounded-3xl shadow-2xl">
+                             <QRCode value="https://kuwait-physics.web.app/" size={128} />
+                        </div>
+                     </div>
+                </PageContainer>
+            </div>
+        </div>
+    );
+};
+
+export default MarketingBrochure;

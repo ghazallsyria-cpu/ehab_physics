@@ -1,5 +1,6 @@
 
 
+
 // FIX: Manually define ImportMeta interface to resolve errors in files
 // that use `import.meta.env` when `vite/client` types are not found.
 interface ImportMetaEnv {

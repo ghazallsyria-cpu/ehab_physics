@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect, Suspense, lazy, createContext } from 'react';
 import { Routes, Route, Outlet, useNavigate, useLocation, Navigate, NavLink } from 'react-router-dom';
 import { User, AppBranding, MaintenanceSettings, ViewState } from './types';
@@ -51,6 +53,7 @@ const LabHub = lazy(() => import('./components/LabHub'));
 const LessonPathViewer = lazy(() => import('./components/LessonPathViewer'));
 const LessonPathBuilder = lazy(() => import('./components/LessonPathBuilder'));
 const AdminAnalytics = lazy(() => import('./components/AdminAnalytics'));
+const MarketingBrochure = lazy(() => import('./components/MarketingBrochure'));
 
 // A reusable layout for all authenticated pages that include the sidebar and header.
 const AppLayout: React.FC<{ user: User; branding: AppBranding; onLogout: () => void; }> = ({ user, branding, onLogout }) => {
@@ -129,6 +132,7 @@ const App: React.FC = () => {
             <Routes>
                 <Route path="/" element={<LandingPage onStart={() => navigate(user ? '/dashboard' : '/login')} />} />
                 <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Auth onLogin={handleLogin} onBack={() => navigate('/')} />} />
+                <Route path="/brochure" element={<MarketingBrochure />} />
 
                 <Route element={<ProtectedRoute />}>
                     <Route element={<AppLayout user={user!} branding={branding} onLogout={handleLogout} />}>
