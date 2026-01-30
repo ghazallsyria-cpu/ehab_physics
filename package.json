@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.36.0",
+    "@google/genai": "^0.14.0",
     "@supabase/supabase-js": "2.44.4",
     "@zoomus/websdk": "^2.11.0",
     "animejs": "^3.2.2",
