@@ -34,6 +34,7 @@ try {
 // تصدير الخدمات
 export const db = app ? firebase.firestore() : null;
 export const auth = app ? firebase.auth() : null;
+export const storage = app ? firebase.storage() : null;
 
 // إعداد مزود جوجل
 const provider = new firebase.auth.GoogleAuthProvider();

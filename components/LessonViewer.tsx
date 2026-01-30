@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Lesson, User, ContentBlock } from '../types';
@@ -29,22 +30,15 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user }) => {
     
     const fetchLesson = async () => {
         setIsLoading(true);
-        // In a real, large-scale app, this would be a single DB call like `dbService.getLessonById(lessonId)`.
-        // For now, we find it from the full curriculum structure.
-        const curriculumData = await dbService.getCurriculum();
-        let foundLesson: Lesson | null = null;
-        for (const curriculum of curriculumData) {
-            for (const unit of curriculum.units) {
-                const l = unit.lessons.find(l => l.id === lessonId);
-                if (l) {
-                    foundLesson = l;
-                    break;
-                }
-            }
-            if (foundLesson) break;
+        try {
+            // NEW: Fetching directly from Supabase via dbService
+            const supabaseLesson = await dbService.getLessonSupabase(lessonId);
+            setLesson(supabaseLesson);
+        } catch (error) {
+            console.error("Failed to fetch lesson from Supabase", error);
+        } finally {
+            setIsLoading(false);
         }
-        setLesson(foundLesson);
-        setIsLoading(false);
     };
 
     fetchLesson();

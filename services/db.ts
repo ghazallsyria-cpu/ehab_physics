@@ -1,5 +1,5 @@
 
-import { db } from './firebase'; 
+import { db, storage } from './firebase'; 
 import { supabase } from './supabase';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
@@ -415,10 +415,42 @@ class DBService {
   async saveQuestion(question: Question): Promise<string> { this.checkDb(); const docRef = await db!.collection('questions').add(this.cleanData(question)); return docRef.id; }
   async updateQuestion(id: string, updates: Partial<Question>) { this.checkDb(); await db!.collection('questions').doc(id).update(this.cleanData(updates)); }
 
-  // --- 🖼️ خدمات الملفات ---
-  async uploadAsset(file: File): Promise<Asset> { const name = `${Date.now()}_${file.name}`; const { error } = await supabase.storage.from('assets').upload(name, file); if (error) throw error; const publicUrl = supabase.storage.from('assets').getPublicUrl(name).data.publicUrl; return { name, url: publicUrl, type: file.type, size: file.size }; }
-  async listAssets(): Promise<Asset[]> { const { data, error } = await supabase.storage.from('assets').list(); if (error) throw error; return data.map(item => ({ name: item.name, url: supabase.storage.from('assets').getPublicUrl(item.name).data.publicUrl, type: item.metadata?.mimetype || 'unknown', size: item.metadata?.size || 0 })); }
-  async deleteAsset(name: string) { await supabase.storage.from('assets').remove([name]); }
+  // --- 🖼️ خدمات الملفات (تدعم الآن التخزين المزدوج) ---
+  async uploadAsset(file: File, useSupabase: boolean = false): Promise<Asset> {
+    const name = `${Date.now()}_${file.name}`;
+    if (useSupabase) {
+      const { error } = await supabase.storage.from('assets').upload(name, file);
+      if (error) throw error;
+      const { data } = supabase.storage.from('assets').getPublicUrl(name);
+      return { name, url: data.publicUrl, type: file.type, size: file.size };
+    } else {
+      if (!storage) throw new Error("Firebase Storage is not initialized.");
+      const fileRef = storage.ref(`assets/${name}`);
+      await fileRef.put(file);
+      const url = await fileRef.getDownloadURL();
+      return { name: `assets/${name}`, url, type: file.type, size: file.size };
+    }
+  }
+
+  async listAssets(): Promise<Asset[]> { 
+    const { data, error } = await supabase.storage.from('assets').list(); 
+    if (error) throw error; 
+    return data.map(item => ({ 
+        name: item.name, 
+        url: supabase.storage.from('assets').getPublicUrl(item.name).data.publicUrl, 
+        type: item.metadata?.mimetype || 'unknown', 
+        size: item.metadata?.size || 0 
+    })); 
+  }
+
+  async deleteAsset(name: string, useSupabase: boolean = false) { 
+    if (useSupabase) {
+      await supabase.storage.from('assets').remove([name]); 
+    } else {
+      if (!storage) throw new Error("Firebase Storage is not initialized.");
+      await storage.ref(name).delete();
+    }
+  }
 
   // --- 🔔 الإشعارات ---
   subscribeToNotifications(uid: string, callback: (notifications: AppNotification[]) => void) { this.checkDb(); return db!.collection('notifications').where('userId', '==', uid).orderBy('timestamp', 'desc').limit(50).onSnapshot((snap) => callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification)))); }
@@ -486,6 +518,72 @@ class DBService {
   async deleteUnit(curriculumId: string, unitId: string) { this.checkDb(); const curRef = db!.collection('curriculum').doc(curriculumId); const snap = await curRef.get(); if (!snap.exists) return; const data = snap.data() as Curriculum; data.units = data.units.filter(u => u.id !== unitId); await curRef.update({ units: data.units }); }
   async deleteLesson(curriculumId: string, unitId: string, lessonId: string) { this.checkDb(); const curRef = db!.collection('curriculum').doc(curriculumId); const snap = await curRef.get(); if (!snap.exists) return; const data = snap.data() as Curriculum; const uIdx = data.units.findIndex(u => u.id === unitId); if (uIdx > -1) { data.units[uIdx].lessons = data.units[uIdx].lessons.filter(l => l.id !== lessonId); await curRef.update({ units: data.units }); } }
   async toggleLessonComplete(uid: string, lessonId: string) { this.checkDb(); const userRef = db!.collection('users').doc(uid); const snap = await userRef.get(); if (!snap.exists) return; const user = snap.data() as User; const completed = user.progress.completedLessonIds || []; const index = completed.indexOf(lessonId); if (index > -1) completed.splice(index, 1); else completed.push(lessonId); await userRef.update({ 'progress.completedLessonIds': completed, 'progress.points': firebase.firestore.FieldValue.increment(index > -1 ? -10 : 10) }); }
+
+  // --- ☁️ خدمات Supabase ---
+  async getCurriculumSupabase(): Promise<Curriculum[]> {
+    const { data, error } = await supabase
+      .from('curriculums')
+      .select(`
+        id,
+        grade,
+        subject,
+        title,
+        description,
+        icon,
+        units (
+          id,
+          title,
+          description,
+          order,
+          lessons (
+            id,
+            title,
+            type,
+            duration,
+            is_pinned,
+            template_type
+          )
+        )
+      `)
+      .order('order', { foreignTable: 'units', ascending: true });
+
+    if (error) {
+      console.error('Supabase getCurriculum error:', error);
+      throw error;
+    }
+    // Map Supabase snake_case to our camelCase types
+    return (data as any[]).map(curriculum => ({
+      ...curriculum,
+      units: curriculum.units.map((unit: any) => ({
+        ...unit,
+        lessons: unit.lessons.map((lesson: any) => ({
+          ...lesson,
+          isPinned: lesson.is_pinned,
+          templateType: lesson.template_type
+        }))
+      }))
+    }));
+  }
+  
+  async getLessonSupabase(id: string): Promise<Lesson | null> {
+    const { data, error } = await supabase
+      .from('lessons')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Supabase getLesson error:', error);
+      return null;
+    }
+    // Map snake_case to camelCase
+    return {
+      ...(data as any),
+      isPinned: data.is_pinned,
+      templateType: data.template_type,
+      universalConfig: data.universal_config,
+    } as Lesson;
+  }
 }
 
 export const dbService = new DBService();

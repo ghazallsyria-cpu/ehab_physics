@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Asset } from '../types';
 import { dbService } from '../services/db';
@@ -21,6 +22,7 @@ const AdminAssetManager: React.FC = () => {
         setMessage(null);
         setStorageRulesError(false);
         try {
+            // Always list from Supabase for this manager
             const data = await dbService.listAssets();
             setAssets(data);
         } catch (e: any) {
@@ -40,8 +42,9 @@ const AdminAssetManager: React.FC = () => {
         setIsUploading(true);
         setMessage(null);
         try {
-            await Promise.all(Array.from(files).map(file => dbService.uploadAsset(file)));
-            setMessage({ text: `تم رفع ${files.length} ملف بنجاح.`, type: 'success' });
+            // Upload to Supabase by passing `true`
+            await Promise.all(Array.from(files).map(file => dbService.uploadAsset(file, true)));
+            setMessage({ text: `تم رفع ${files.length} ملف بنجاح إلى Supabase.`, type: 'success' });
             await loadAssets();
         } catch (e: any) {
             console.error(e);
@@ -60,7 +63,8 @@ const AdminAssetManager: React.FC = () => {
         if (!window.confirm(`هل أنت متأكد من حذف الملف "${asset.name}"؟`)) return;
         
         try {
-            await dbService.deleteAsset(asset.name);
+            // Delete from Supabase by passing `true`
+            await dbService.deleteAsset(asset.name, true);
             setMessage({ text: 'تم حذف الملف بنجاح.', type: 'success' });
             await loadAssets();
         } catch(e) {

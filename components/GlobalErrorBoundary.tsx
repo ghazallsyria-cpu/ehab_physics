@@ -1,8 +1,8 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React from 'react';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface Props {
-  children?: ReactNode;
+  children?: React.ReactNode;
 }
 
 interface State {
@@ -10,24 +10,22 @@ interface State {
   error: Error | null;
 }
 
-// FIX: Changed to extend `Component` directly to resolve type inference issues where `setState` and `props` were not found.
-class GlobalErrorBoundary extends Component<Props, State> {
-  public state: State = {
+class GlobalErrorBoundary extends React.Component<Props, State> {
+  // FIX: Use class property for state initialization to simplify the component and avoid potential constructor-related issues with `this` context.
+  state: State = {
     hasError: false,
-    error: null
+    error: null,
   };
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  // FIX: Use `ErrorInfo` from the direct import for proper type resolution.
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
   }
 
   handleReset = () => {
-    // This `setState` call is now correctly recognized.
     this.setState({ hasError: false, error: null });
     window.location.reload();
   };
@@ -58,7 +56,6 @@ class GlobalErrorBoundary extends Component<Props, State> {
       );
     }
 
-    // This `this.props.children` call is now correctly recognized.
     return this.props.children;
   }
 }
