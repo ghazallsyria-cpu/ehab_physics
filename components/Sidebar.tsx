@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ViewState, User, AppBranding, HomePageContent } from '../types';
 import { dbService } from '../services/db';
-import { LayoutDashboard, BookOpen, Atom, FlaskConical, Target, MessageSquare, BrainCircuit, ShieldCheck, UserPlus, Database, Settings, LogOut, ChevronLeft, Map, Image as ImageIcon, Zap, Crown, Library, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Atom, FlaskConical, Target, MessageSquare, BrainCircuit, ShieldCheck, UserPlus, Database, Settings, LogOut, ChevronLeft, Map, Image as ImageIcon, Zap, Crown, Library, ExternalLink, Users, Briefcase, Lock, Video, Newspaper, CreditCard } from 'lucide-react';
 
 interface SidebarProps {
   user: User;
@@ -19,7 +19,6 @@ const Sidebar: React.FC<SidebarProps> = ({ user, branding, onLogout, isOpen, onC
   
   // This would be derived from the route in a more complex app
   const activeSubject = 'Physics'; 
-  const currentView = location.pathname.split('/')[1] as ViewState || 'dashboard';
 
   useEffect(() => {
     const loadAds = async () => {
@@ -42,23 +41,51 @@ const Sidebar: React.FC<SidebarProps> = ({ user, branding, onLogout, isOpen, onC
         return [
           { label: 'الرئيسية', items: [
             { path: '/dashboard', id: 'dashboard', label: 'لوحة التحكم', icon: '🏠' },
+            { path: '/journey-map', id: 'journey-map', label: 'خريطة رحلتك', icon: '🗺️' },
           ]},
-          { label: 'المناهج', items: [
-            { path: '/curriculum', id: 'curriculum', subject: 'Physics', label: 'الفيزياء', icon: '⚛️' },
-            { path: '/curriculum', id: 'curriculum', subject: 'Chemistry', label: 'الكيمياء (قريباً)', icon: '🧪' },
-          ]},
-          { label: 'الأدوات', items: [
+          { label: 'المحتوى التعليمي', items: [
+            { path: '/curriculum', id: 'curriculum', label: 'المنهج الدراسي', icon: '📚' },
+            { path: '/lab-hub', id: 'lab-hub', label: 'المختبر التفاعلي', icon: '🔬' },
             { path: '/quiz-center', id: 'quiz_center', label: 'مركز الاختبارات', icon: '⚡' },
+          ]},
+          { label: 'أدوات الذكاء الاصطناعي', items: [
             { path: '/ai-chat', id: 'ai-chat', label: 'المساعد الذكي', icon: '🤖' },
+          ]},
+          { label: 'التفاعل والمجتمع', items: [
             { path: '/discussions', id: 'discussions', label: 'ساحة النقاش', icon: '💬' },
+          ]},
+          { label: 'الحساب', items: [
+            { path: '/subscription', id: 'subscription', label: 'الاشتراك والفواتير', icon: '💳' },
           ]},
         ];
       case 'admin':
+      case 'teacher':
         return [
-          { label: 'القائمة الرئيسية', items: [
-            { path: '/admin/dashboard', id: 'dashboard', label: 'لوحة التحكم', icon: '📊' },
-            { path: '/admin/students', id: 'admin-students', label: 'إدارة المستخدمين', icon: '👥' },
-            { path: '/admin/curriculum', id: 'admin-curriculum', label: 'إدارة المناهج', icon: '📚' },
+          { label: 'الرئيسية', items: [
+            { path: user.role === 'admin' ? '/admin/dashboard' : '/dashboard', id: 'dashboard', label: 'لوحة التحكم', icon: '📊' },
+          ]},
+          { label: 'إدارة المحتوى', items: [
+            { path: '/admin/curriculum', id: 'admin-curriculum', label: 'المناهج والدروس', icon: '📚' },
+            { path: '/admin/quizzes', id: 'admin-quizzes', label: 'الاختبارات', icon: '📝' },
+            { path: '/admin/labs', id: 'admin-labs', label: 'المختبرات', icon: '🔬' },
+            { path: '/admin/assets', id: 'admin-assets', label: 'مكتبة الوسائط', icon: '🖼️' },
+            { path: '/admin/content', id: 'admin-content', label: 'محتوى الرئيسية', icon: '📰' },
+          ]},
+          { label: 'إدارة المستخدمين', items: [
+            { path: '/admin/students', id: 'admin-students', label: 'الطلاب', icon: '🎓' },
+            { path: '/admin/teachers', id: 'admin-teachers', label: 'المعلمين', icon: '🧑‍🏫' },
+            { path: '/admin/managers', id: 'admin-managers', label: 'المدراء', icon: '🛡️' },
+          ]},
+          { label: 'التفاعل والمجتمع', items: [
+            { path: '/admin/forums', id: 'admin-forums', label: 'هيكل المنتديات', icon: '💬' },
+            { path: '/admin/forum-posts', id: 'admin-forum-posts', label: 'مراقبة المنشورات', icon: '🚨' },
+            { path: '/admin/live-sessions', id: 'admin-live-sessions', label: 'البث المباشر', icon: '📺' },
+          ]},
+          { label: 'النظام والمالية', items: [
+            { path: '/admin/payment-manager', id: 'admin-payment-manager', label: 'المالية والأسعار', icon: '💰' },
+            { path: '/admin/recommendations', id: 'admin-recommendations', label: 'التوصيات الذكية', icon: '🧠' },
+            { path: '/admin/settings', id: 'admin-settings', label: 'إعدادات النظام', icon: '⚙️' },
+            { path: '/admin/security-fix', id: 'admin-security-fix', label: 'أمان Firestore', icon: '🔒' },
           ]},
         ];
       default:
@@ -96,16 +123,21 @@ const Sidebar: React.FC<SidebarProps> = ({ user, branding, onLogout, isOpen, onC
             <div key={idx}>
               <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mb-3">{group.label}</p>
               <div className="space-y-1">
-                {group.items.map((item: any) => (
-                  <button
-                    key={item.path + (item.subject || '')}
-                    onClick={() => handleNavigate(item.path)}
-                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group ${location.pathname.startsWith(item.path) && item.id === currentView ? 'bg-amber-400 text-black shadow-lg' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
-                  >
-                    <span className="text-lg">{item.icon}</span>
-                    <span className="font-bold text-[13px] tracking-wide">{item.label}</span>
-                  </button>
-                ))}
+                {group.items.map((item: any) => {
+                  // FIX: Replaced complex and buggy active state logic with a simpler, more reliable check.
+                  // This correctly handles the root path for the dashboard and prefix-based matching for other routes.
+                  const isActive = (item.id === 'dashboard' && location.pathname === '/') || (item.path && location.pathname.startsWith(item.path));
+                  return (
+                    <button
+                      key={item.path + (item.subject || '')}
+                      onClick={() => handleNavigate(item.path)}
+                      className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group ${isActive ? 'bg-amber-400 text-black shadow-lg' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+                    >
+                      <span className="text-lg">{item.icon}</span>
+                      <span className="font-bold text-[13px] tracking-wide">{item.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}

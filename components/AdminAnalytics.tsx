@@ -43,7 +43,7 @@ const AdminAnalytics: React.FC = () => {
             console.log("Real-time update received!", payload);
             // Refetch analytics to get updated aggregates
 // FIX: The real-time subscription now refetches analytics and updates all metrics, including the new AI help request count.
-            dbService.getLessonAnalytics(lessonId).then(data => {
+            dbService.getLessonAnalytics(lessonId!).then(data => {
                 setAnalytics(data);
                 setAiRequests(data.ai_help_requests || 0);
             });
