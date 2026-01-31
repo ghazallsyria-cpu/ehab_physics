@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User, StudentQuizAttempt, Quiz, Question } from '../types';
@@ -27,7 +26,8 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user }) => {
     const loadData = async () => {
       setIsLoading(true);
       
-      const attemptData = await dbService.getAttemptByIdSupabase(attemptId);
+      // FIX: Property 'getAttemptByIdSupabase' does not exist on type 'DBService'.
+      const attemptData = await dbService.getAttemptById(attemptId);
       
       if (!attemptData) {
         setIsLoading(false);
@@ -35,7 +35,8 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user }) => {
       }
       setAttempt(attemptData);
       
-      const quizAndQuestionsData = await dbService.getQuizWithQuestionsSupabase(attemptData.quizId);
+      // FIX: Property 'getQuizWithQuestionsSupabase' does not exist on type 'DBService'. Did you mean 'getQuizWithQuestions'?
+      const quizAndQuestionsData = await dbService.getQuizWithQuestions(attemptData.quizId);
 
       if (quizAndQuestionsData) {
         setQuiz(quizAndQuestionsData.quiz);

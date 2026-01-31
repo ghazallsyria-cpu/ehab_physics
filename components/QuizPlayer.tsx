@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User, Quiz, Question, StudentQuizAttempt } from '../types';
@@ -32,7 +31,8 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
 
     const loadQuizData = async () => {
       setIsLoading(true);
-      const data = await dbService.getQuizWithQuestionsSupabase(quizId);
+      // FIX: Property 'getQuizWithQuestionsSupabase' does not exist on type 'DBService'. Did you mean 'getQuizWithQuestions'?
+      const data = await dbService.getQuizWithQuestions(quizId);
       if (data) {
         setQuiz(data.quiz);
         setQuestions(data.questions);
@@ -63,7 +63,8 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
     if (!file) return;
     setUploadingQuestions(prev => ({ ...prev, [questionId]: true }));
     try {
-      const asset = await dbService.uploadAsset(file, true); // Use Supabase
+      // FIX: Expected 1 arguments, but got 2.
+      const asset = await dbService.uploadAsset(file); // Use Supabase
       if (asset && asset.url) {
         setUserAnswers(prev => ({ ...prev, [questionId]: asset.url }));
       } else {
@@ -89,7 +90,8 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
     setIsFinished(true);
 
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
-    const userAttempts = await dbService.getUserAttemptsSupabase(user.uid, quiz.id);
+    // FIX: Property 'getUserAttemptsSupabase' does not exist on type 'DBService'.
+    const userAttempts = await dbService.getUserAttempts(user.uid, quiz.id);
 
     const attempt: StudentQuizAttempt = {
       id: '', // Will be set by Supabase
@@ -106,7 +108,8 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
       status: 'pending-review',
     };
 
-    const savedAttempt = await dbService.saveAttemptSupabase(attempt);
+    // FIX: Property 'saveAttemptSupabase' does not exist on type 'DBService'.
+    const savedAttempt = await dbService.saveAttempt(attempt);
     setFinalAttempt(savedAttempt);
     
     await dbService.createNotification({

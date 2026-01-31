@@ -23,7 +23,8 @@ const AdminCurriculumManager: React.FC = () => {
   const loadCurriculum = async () => {
     setIsLoading(true);
     try {
-      const data = await dbService.getCurriculumSupabase();
+      // FIX: Property 'getCurriculumSupabase' does not exist on type 'DBService'.
+      const data = await dbService.getCurriculum();
       setCurriculum(data);
     } catch (e) {
       console.error("Load failed", e);

@@ -36,8 +36,10 @@ const AdminQuizManager: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     const [quizData, questionData] = await Promise.all([
-      dbService.getQuizzesSupabase(),
-      dbService.getAllQuestionsSupabase(),
+      // FIX: Property 'getQuizzesSupabase' does not exist on type 'DBService'.
+      dbService.getQuizzes(),
+      // FIX: Property 'getAllQuestionsSupabase' does not exist on type 'DBService'.
+      dbService.getAllQuestions(),
     ]);
     setQuizzes(quizData);
     setAllQuestions(questionData);
@@ -46,7 +48,8 @@ const AdminQuizManager: React.FC = () => {
   
   const handleViewAttempts = async (quiz: Quiz) => {
     setIsLoading(true);
-    const attempts = await dbService.getAttemptsForQuizSupabase(quiz.id);
+    // FIX: Property 'getAttemptsForQuizSupabase' does not exist on type 'DBService'. Did you mean 'getAttemptsForQuiz'?
+    const attempts = await dbService.getAttemptsForQuiz(quiz.id);
     setQuizAttempts(attempts);
     setViewingAttemptsFor(quiz);
     setIsLoading(false);
@@ -74,7 +77,8 @@ const AdminQuizManager: React.FC = () => {
     };
 
     setIsLoading(true);
-    await dbService.updateAttemptSupabase(updatedAttempt.id, updatedAttempt);
+    // FIX: Property 'updateAttemptSupabase' does not exist on type 'DBService'.
+    await dbService.updateAttempt(updatedAttempt.id, updatedAttempt);
     
     await dbService.createNotification({
         userId: updatedAttempt.studentId,
@@ -125,7 +129,8 @@ const AdminQuizManager: React.FC = () => {
         totalScore: quizQuestions.reduce((sum: number, q: Question) => sum + Number(q.score || 0), 0)
     } as Quiz;
     
-    await dbService.saveQuizSupabase(finalQuiz);
+    // FIX: Property 'saveQuizSupabase' does not exist on type 'DBService'.
+    await dbService.saveQuiz(finalQuiz);
     setEditingQuiz(null);
     setQuizQuestions([]);
     await loadData();
@@ -134,14 +139,16 @@ const AdminQuizManager: React.FC = () => {
   
   const handleDeleteQuiz = async (quizId: string) => {
     if (window.confirm('هل أنت متأكد من حذف هذا الاختبار؟')) {
-      await dbService.deleteQuizSupabase(quizId);
+      // FIX: Property 'deleteQuizSupabase' does not exist on type 'DBService'.
+      await dbService.deleteQuiz(quizId);
       await loadData();
     }
   };
 
   const handleSaveQuestion = async (question: Question) => {
     const isNew = !question.id || !allQuestions.some(q => q.id === question.id);
-    const savedQuestion = await dbService.saveQuestionSupabase(question);
+    // FIX: Property 'saveQuestionSupabase' does not exist on type 'DBService'.
+    const savedQuestion = await dbService.saveQuestion(question);
     
     await loadData();
     
