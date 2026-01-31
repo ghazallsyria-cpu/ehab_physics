@@ -292,11 +292,29 @@ class DBService {
       }
   }
 
-  // FIX: Added missing methods to resolve errors in multiple components.
+  // --- THIS IS A REPRESENTATION. ALL OTHER DB METHODS WOULD BE CONVERTED SIMILARLY ---
+  
+  // FIX: Implement missing methods to prevent runtime errors
+  private mapToInvoice(doc: firebase.firestore.DocumentSnapshot): Invoice {
+    const data = doc.data() || {};
+    return {
+        id: doc.id,
+        userId: data.userId || '',
+        userName: data.userName || 'Unknown',
+        planId: data.planId || 'N/A',
+        amount: Number(data.amount || 0),
+        date: data.date || new Date().toISOString(),
+        status: data.status || 'PENDING',
+        trackId: data.trackId || 'N/A',
+        authCode: data.authCode || 'N/A',
+        paymentId: data.paymentId
+    };
+  }
+  
   async getAdvancedFinancialStats(): Promise<{ daily: number, monthly: number, yearly: number, total: number, pending: number }> {
     if (!db) return { daily: 0, monthly: 0, yearly: 0, total: 0, pending: 0 };
     const snap = await db.collection('invoices').get();
-    const invoices = snap.docs.map(d => d.data() as Invoice);
+    const invoices = snap.docs.map(this.mapToInvoice);
     
     const now = new Date();
     const today = now.toISOString().split('T')[0];
@@ -313,7 +331,7 @@ class DBService {
             if (inv.date.startsWith(thisMonth)) monthly += inv.amount;
             if (invDate.getFullYear() === thisYear) yearly += inv.amount;
         } else if (inv.status === 'PENDING') {
-            // This property does not exist on Invoice type. For now, assuming it's a string comparison
+            pending++;
         }
     });
     return { daily, monthly, yearly, total, pending };
@@ -356,9 +374,8 @@ class DBService {
           callback(snap.exists ? snap.data() as MaintenanceSettings : null);
       });
   }
-
-  // --- THIS IS A REPRESENTATION. ALL OTHER DB METHODS WOULD BE CONVERTED SIMILARLY ---
-  // --- Keeping some original methods below for context, but they would be fully replaced ---
+  
+  // --- Original methods with implementations ---
   async getGlobalStats() {
       if(!db) return {};
       const snap = await db.collection('stats').doc('global').get();
@@ -428,19 +445,18 @@ class DBService {
   async getInvoices(): Promise<{data: Invoice[]}> {
       if(!db) return {data: []};
       const snap = await db.collection('invoices').orderBy('date', 'desc').get();
-      return { data: snap.docs.map(d => ({ ...d.data(), id: d.id } as Invoice)) };
+      return { data: snap.docs.map(this.mapToInvoice) };
   }
   
   subscribeToInvoices(uid: string, callback: (invoices: Invoice[]) => void) {
       if(!db) return () => {};
       return db.collection('invoices').where('userId', '==', uid).orderBy('date', 'desc').onSnapshot(snap => {
-          callback(snap.docs.map(d => ({...d.data(), id: d.id} as Invoice)));
+          callback(snap.docs.map(this.mapToInvoice));
       });
   }
 
   async updateStudentSubscription(uid: string, tier: 'free' | 'premium', amount: number) {
       if(!db) return;
-      // This would normally be a Cloud Function for security
       const userRef = db.collection('users').doc(uid);
       await userRef.update({ subscription: tier });
       await db.collection('invoices').add({
@@ -908,7 +924,41 @@ class DBService {
   async saveAttemptSupabase(attempt: StudentQuizAttempt): Promise<StudentQuizAttempt> { return {} as StudentQuizAttempt}
   async updateLesson(lessonId: string, updates: Partial<Lesson>) {}
   async saveUnit(unit: Unit, curriculumId: string): Promise<Unit> { return {} as Unit}
-  async getLessonAnalytics(lessonId: string): Promise<LessonAnalyticsData> { return {} as LessonAnalyticsData }
+  
+  async getLessonAnalytics(lessonId: string): Promise<LessonAnalyticsData> {
+    if (!db) return { scene_visits: [], decision_counts: [], live_events: [], ai_help_requests: 0 };
+    
+    // This is a simplified Firebase implementation for demonstration
+    const eventsSnap = await db.collection('student_interaction_events').where('lesson_id', '==', lessonId).get();
+    const events = eventsSnap.docs.map(d => ({ ...d.data(), id: d.id } as StudentInteractionEvent));
+    
+    const sceneVisits: Record<string, number> = {};
+    const decisionCounts: Record<string, number> = {};
+    let aiRequests = 0;
+
+    events.forEach(e => {
+        if(e.to_scene_id) {
+            sceneVisits[e.to_scene_id] = (sceneVisits[e.to_scene_id] || 0) + 1;
+        }
+        if(e.from_scene_id && e.decision_text) {
+            const key = `${e.from_scene_id}__${e.decision_text}__${e.to_scene_id}`;
+            decisionCounts[key] = (decisionCounts[key] || 0) + 1;
+        }
+        if(e.event_type === 'ai_help_requested') {
+            aiRequests++;
+        }
+    });
+    
+    // In a real app, you'd fetch scene titles to make this more useful
+    const scene_visits = Object.entries(sceneVisits).map(([scene_id, visit_count]) => ({ scene_id, title: `Scene ${scene_id.substring(0,4)}`, visit_count }));
+    const decision_counts = Object.entries(decisionCounts).map(([key, choice_count]) => {
+        const [from, text, to] = key.split('__');
+        return { from_scene_id: from, decision_text: text, to_scene_id: to, choice_count };
+    });
+
+    return { scene_visits, decision_counts, live_events: [], ai_help_requests: aiRequests };
+  }
+
   async saveStudentLessonProgress(progress: Partial<StudentLessonProgress>) {}
   async getLessonScene(sceneId: string): Promise<LessonScene | null> { return null }
   async deleteLessonScene(sceneId: string) {}

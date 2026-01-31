@@ -104,7 +104,7 @@ const ProgressReport: React.FC<ProgressReportProps> = ({ user, attempts: initial
               </div>
            </div>
 
-           <div className="glass-card p-10 rounded-[50px] border-[#00d2ff]/20 bg-gradient-to-br from-[#00d2ff]/5 to-transparent">
+           <div className="glass-panel p-10 rounded-[50px] border-[#00d2ff]/20 bg-gradient-to-br from-[#00d2ff]/5 to-transparent">
               <h3 className="text-xl font-black mb-6">تحليل الذكاء الاصطناعي 🤖</h3>
               <p className="text-xs text-gray-400 leading-relaxed italic">
                 "بناءً على نتائجك الأخيرة في 'قانون أوم'، أنصحك بمشاهدة فيديو Veo لمحاكاة حركة الإلكترونات قبل المحاولة القادمة. مستواك العام يتحسن بنسبة 8% أسبوعياً!"
