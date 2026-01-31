@@ -1,9 +1,22 @@
-import React from 'react';
-import { Waypoints, BrainCircuit, BarChart3, Tv, Smartphone, Tablet, Monitor, Lock, Cloud, Sparkles, Star } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Waypoints, BrainCircuit, BarChart3, Smartphone, Tablet, Monitor, Lock, Star, Sparkles, RefreshCw } from 'lucide-react';
 import QRCode from 'react-qr-code';
+import { BrochureSettings, BrochureFeature } from '../types';
+import { dbService } from '../services/db';
+
+// Helper to render icons dynamically based on string names from the database
+const IconMap: { [key: string]: React.FC<any> } = {
+    Waypoints, BrainCircuit, BarChart3, Smartphone, Tablet, Monitor, Lock, Star, Sparkles
+};
+
+const DynamicIcon = ({ name, ...props }: { name: string, [key: string]: any }) => {
+    const IconComponent = IconMap[name];
+    return IconComponent ? <IconComponent {...props} /> : null;
+};
+
 
 // Reusable component for a feature card
-const FeatureCard = ({ icon, title, description, color = "amber" }: { icon: React.ReactNode, title: string, description: string, color?: "amber" | "cyan" }) => {
+const FeatureCard = ({ icon, title, description, color = "amber" }: { icon: string, title: string, description: string, color?: "amber" | "cyan" }) => {
     const colorClasses = {
         amber: {
             border: 'border-amber-400/20',
@@ -24,7 +37,7 @@ const FeatureCard = ({ icon, title, description, color = "amber" }: { icon: Reac
         <div className={`glass-panel p-10 rounded-[50px] border ${classes.border} ${classes.bg} ${classes.glow} backdrop-blur-2xl transition-all hover:-translate-y-2 hover:border-${color}-400/40`}>
             <div className="flex items-start gap-6">
                 <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shrink-0 ${classes.iconBg} border border-white/5`}>
-                    {icon}
+                    <DynamicIcon name={icon} size={32} />
                 </div>
                 <div>
                     <h3 className={`text-2xl font-black mb-2 text-white`}>{title}</h3>
@@ -36,6 +49,23 @@ const FeatureCard = ({ icon, title, description, color = "amber" }: { icon: Reac
 };
 
 const MarketingBrochure: React.FC = () => {
+    const [settings, setSettings] = useState<BrochureSettings | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    
+    useEffect(() => {
+        const loadData = async () => {
+            setIsLoading(true);
+            try {
+                const data = await dbService.getBrochureSettings();
+                setSettings(data);
+            } catch (e) {
+                console.error("Failed to load brochure settings", e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadData();
+    }, []);
 
     const PageContainer: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className = '' }) => (
         <div className={`w-full max-w-5xl mx-auto bg-[#050a10] border border-white/10 rounded-[60px] shadow-2xl p-12 md:p-20 relative overflow-hidden ${className}`}>
@@ -43,6 +73,22 @@ const MarketingBrochure: React.FC = () => {
             {children}
         </div>
     );
+    
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-[#0A2540] flex items-center justify-center">
+                <RefreshCw className="w-12 h-12 text-white animate-spin" />
+            </div>
+        );
+    }
+
+    if (!settings) {
+        return (
+            <div className="min-h-screen bg-[#0A2540] flex items-center justify-center text-center text-red-400">
+                فشل تحميل محتوى البروشور. يرجى المحاولة مرة أخرى.
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0A2540] to-[#010304] font-['Tajawal'] text-white p-6 md:p-12" dir="rtl">
@@ -56,11 +102,9 @@ const MarketingBrochure: React.FC = () => {
                     <div className="w-32 h-32 mx-auto bg-white/5 backdrop-blur-lg border border-white/10 rounded-[45px] flex items-center justify-center p-5 shadow-2xl mb-8">
                         <img src="https://cdn-icons-png.flaticon.com/512/3063/3063206.png" alt="Logo" className="w-full h-full object-contain" />
                     </div>
-                    <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-4 leading-tight">
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">مستقبل التعليم</span> في الكويت
-                    </h1>
+                    <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-4 leading-tight" dangerouslySetInnerHTML={{ __html: settings.heroTitle }} />
                     <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed mb-16">
-                        منصة المركز السوري للعلوم: حيث يلتقي المنهج الكويتي بالذكاء الاصطناعي ليصنع تجربة تعليمية فريدة.
+                        {settings.heroSubtitle}
                     </p>
 
                     <div className="relative h-64 md:h-96 w-full mt-10 flex items-center justify-center group">
@@ -75,66 +119,51 @@ const MarketingBrochure: React.FC = () => {
                 
                 {/* --- PAGE 2: INTERACTIVITY & AI --- */}
                  <PageContainer>
-                    <h2 className="text-center text-4xl font-black mb-16">تجربة تعليمية <span className="text-cyan-400">تفاعلية</span> وغير مسبوقة</h2>
+                    <h2 className="text-center text-4xl font-black mb-16" dangerouslySetInnerHTML={{ __html: settings.section1Title }} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        <FeatureCard 
-                            icon={<Waypoints size={32} />}
-                            title="مسارات تعليمية ذكية"
-                            description="انطلق في رحلة تفاعلية تتفرع وتتكيف مع قراراتك، مما يضمن فهماً عميقاً للمفاهيم بدلاً من الحفظ."
-                            color="cyan"
-                        />
-                        <FeatureCard 
-                            icon={<BrainCircuit size={32} />}
-                            title="المساعد الذكي"
-                            description="لا تدع أي سؤال يقف في طريقك. احصل على شروحات فورية ومبسطة لأصعب المسائل الفيزيائية، مع الالتزام الكامل بالمنهج."
-                            color="cyan"
-                        />
+                        {/* FIX: Refactored map calls for FeatureCard to use destructuring and spread syntax, resolving a TypeScript error. */}
+                        {settings.section1Features.map(({ id, ...featureProps }) => (
+                            <FeatureCard 
+                                key={id}
+                                {...featureProps}
+                            />
+                        ))}
                     </div>
                 </PageContainer>
                 
                 {/* --- PAGE 3: ANALYTICS & ADAPTIVE LEARNING --- */}
                 <PageContainer>
-                    <h2 className="text-center text-4xl font-black mb-16">متابعة دقيقة <span className="text-amber-400">وتوجيه شخصي</span></h2>
+                    <h2 className="text-center text-4xl font-black mb-16" dangerouslySetInnerHTML={{ __html: settings.section2Title }} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        <FeatureCard 
-                            icon={<BarChart3 size={32} />}
-                            title="لوحة تحليلات مباشرة"
-                            description="يراقب المديرون والمعلمون تفاعل الطلاب مع الدروس لحظة بلحظة، مما يسمح بالتدخل الفوري وتحسين المحتوى."
-                            color="amber"
-                        />
-                         <FeatureCard 
-                            icon={<Sparkles size={32} />}
-                            title="اقتراحات تكيفية"
-                            description="يقوم النظام بتحليل أدائك وتقديم توصيات ذكية لمراجعة الدروس أو خوض تحديات جديدة لتعزيز نقاط ضعفك."
-                            color="amber"
-                        />
+                        {/* FIX: Refactored map calls for FeatureCard to use destructuring and spread syntax, resolving a TypeScript error. */}
+                        {settings.section2Features.map(({ id, ...featureProps }) => (
+                            <FeatureCard 
+                                key={id}
+                                {...featureProps}
+                            />
+                        ))}
                     </div>
                 </PageContainer>
                 
                 {/* --- PAGE 4: SECURITY & CALL TO ACTION --- */}
                 <PageContainer className="text-center">
-                     <h2 className="text-center text-4xl font-black mb-16">أمان، موثوقية، ومستقبل واعد</h2>
+                     <h2 className="text-center text-4xl font-black mb-16" dangerouslySetInnerHTML={{ __html: settings.section3Title }}/>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-20">
-                         <FeatureCard 
-                            icon={<div className="flex items-center gap-2"><img src="https://supabase.com/favicon/favicon-192x192.png" className="w-8 h-8"/><Lock size={20}/></div>}
-                            title="تخزين سحابي آمن"
-                            description="نستخدم أقوى قواعد البيانات السحابية (Supabase & Firebase) لضمان أمان بياناتك وسرعة الوصول إليها."
-                            color="cyan"
-                        />
-                         <FeatureCard 
-                            icon={<Star size={32} />}
-                            title="نظام نقاط ومكافآت"
-                            description="اجمع النقاط مع كل درس تنهيه وكل اختبار تتفوق فيه. تنافس مع زملائك وتصدر قائمة الأوائل!"
-                            color="amber"
-                        />
+                         {/* FIX: Refactored map calls for FeatureCard to use destructuring and spread syntax, resolving a TypeScript error. */}
+                         {settings.section3Features.map(({ id, ...featureProps }) => (
+                             <FeatureCard 
+                                key={id}
+                                {...featureProps}
+                            />
+                         ))}
                      </div>
 
                      <div className="flex flex-col md:flex-row items-center justify-center gap-12 bg-white/5 p-12 rounded-[50px] border border-white/10">
                         <div className="flex-1 text-right">
-                             <h3 className="text-3xl font-black mb-4">انضم لمستقبل التعليم الآن!</h3>
-                             <p className="text-gray-400">سجل اليوم وابدأ رحلتك نحو التميز في الفيزياء مع أفضل الأدوات التقنية والمعلمين الخبراء في الكويت.</p>
+                             <h3 className="text-3xl font-black mb-4">{settings.ctaTitle}</h3>
+                             <p className="text-gray-400">{settings.ctaSubtitle}</p>
                              <button className="mt-8 bg-amber-400 text-black px-12 py-5 rounded-full font-black text-sm uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-amber-500/20">
-                                ابدأ رحلتك التعليمية
+                                {settings.ctaButtonText}
                              </button>
                         </div>
                         <div className="bg-white p-6 rounded-3xl shadow-2xl">

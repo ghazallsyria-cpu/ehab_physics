@@ -1,4 +1,5 @@
 
+
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent';
 
 export type ViewState = 
@@ -16,7 +17,8 @@ export type ViewState =
   | 'admin-internal-messages' | 'admin-forums' | 'admin-forum-posts' 
   | 'admin-security-fix' | 'verify-certificate' | 'resources-center' 
   | 'admin-managers' | 'admin-payment-manager' | 'admin-labs' 
-  | 'admin-recommendations' | 'template-demo' | 'lesson-builder';
+  | 'admin-recommendations' | 'template-demo' | 'lesson-builder'
+  | 'admin-brochure';
 
 export type SubjectType = 'Physics' | 'Chemistry' | 'Math' | 'English';
 export type BranchType = 'Scientific' | 'Literary';
@@ -566,4 +568,28 @@ export interface LessonAnalyticsData {
     decision_counts: { from_scene_id: string; decision_text: string; to_scene_id: string; choice_count: number }[];
     live_events: (StudentInteractionEvent & { student_name: string })[];
     ai_help_requests?: number;
+}
+
+// --- NEW TYPES FOR MARKETING BROCHURE ---
+
+export interface BrochureFeature {
+  id: string;
+  icon: string; // e.g., 'Waypoints', 'BrainCircuit'
+  title: string;
+  description: string;
+  color: 'amber' | 'cyan';
+}
+
+export interface BrochureSettings {
+  heroTitle: string;
+  heroSubtitle: string;
+  section1Title: string;
+  section1Features: BrochureFeature[];
+  section2Title: string;
+  section2Features: BrochureFeature[];
+  section3Title: string;
+  section3Features: BrochureFeature[];
+  ctaTitle: string;
+  ctaSubtitle: string;
+  ctaButtonText: string;
 }

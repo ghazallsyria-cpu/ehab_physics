@@ -4,6 +4,8 @@
 
 
 
+
+
 import React, { useState, useEffect, Suspense, lazy, createContext } from 'react';
 import { Routes, Route, Outlet, useNavigate, useLocation, Navigate, NavLink } from 'react-router-dom';
 import { User, AppBranding, MaintenanceSettings, ViewState } from './types';
@@ -56,6 +58,7 @@ const LessonPathViewer = lazy(() => import('./components/LessonPathViewer'));
 const LessonPathBuilder = lazy(() => import('./components/LessonPathBuilder'));
 const AdminAnalytics = lazy(() => import('./components/AdminAnalytics'));
 const MarketingBrochure = lazy(() => import('./components/MarketingBrochure'));
+const AdminBrochureManager = lazy(() => import('./components/AdminBrochureManager'));
 
 // A reusable layout for all authenticated pages that include the sidebar and header.
 const AppLayout: React.FC<{ user: User; branding: AppBranding; onLogout: () => void; }> = ({ user, branding, onLogout }) => {
@@ -168,6 +171,7 @@ const App: React.FC = () => {
                         <Route path="labs" element={<AdminLabManager />} />
                         <Route path="recommendations" element={<AdminRecommendationManager />} />
                         <Route path="content" element={<AdminContentManager />} />
+                        <Route path="brochure" element={<AdminBrochureManager />} />
                         <Route path="payment-manager" element={<AdminPaymentManager />} />
                         <Route path="teachers" element={<AdminTeacherManager />} />
                         <Route path="managers" element={<AdminManager />} />

@@ -1,6 +1,5 @@
 
 
-
 import { db, storage } from './firebase'; 
 import { supabase } from './supabase';
 import firebase from 'firebase/compat/app';
@@ -14,7 +13,8 @@ import {
   Unit, Lesson, LiveSession, EducationalResource, PaymentStatus, UserRole,
   AppBranding, Article, PhysicsExperiment, PhysicsEquation, StudyGroup,
   SubscriptionPlan, InvoiceSettings, MaintenanceSettings,
-  LessonScene, StudentLessonProgress, StudentInteractionEvent, LessonAnalyticsData
+  LessonScene, StudentLessonProgress, StudentInteractionEvent, LessonAnalyticsData,
+  BrochureSettings
 } from '../types';
 
 class DBService {
@@ -504,6 +504,43 @@ class DBService {
   async saveLoggingSettings(settings: LoggingSettings) { this.checkDb(); await db!.collection('settings').doc('logging').set(this.cleanData(settings), { merge: true }); }
   async getNotificationSettings(): Promise<NotificationSettings> { this.checkDb(); const defaults: NotificationSettings = { pushForLiveSessions: true, pushForGradedQuizzes: true, pushForAdminAlerts: true }; try { const snap = await db!.collection('settings').doc('notifications').get(); if (snap.exists) return { ...defaults, ...snap.data() } as NotificationSettings; } catch (e) {} return defaults; }
   async saveNotificationSettings(settings: NotificationSettings) { this.checkDb(); await db!.collection('settings').doc('notifications').set(this.cleanData(settings), { merge: true }); }
+
+  // --- 📰 البروشور التسويقي ---
+  async getBrochureSettings(): Promise<BrochureSettings> {
+    this.checkDb();
+    const defaults: BrochureSettings = {
+      heroTitle: '<span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">مستقبل التعليم</span> في الكويت',
+      heroSubtitle: 'منصة المركز السوري للعلوم: حيث يلتقي المنهج الكويتي بالذكاء الاصطناعي ليصنع تجربة تعليمية فريدة.',
+      section1Title: 'تجربة تعليمية <span class="text-cyan-400">تفاعلية</span> وغير مسبوقة',
+      section1Features: [
+        { id: 'f1', icon: 'Waypoints', title: 'مسارات تعليمية ذكية', description: 'انطلق في رحلة تفاعلية تتفرع وتتكيف مع قراراتك، مما يضمن فهماً عميقاً للمفاهيم بدلاً من الحفظ.', color: 'cyan' },
+        { id: 'f2', icon: 'BrainCircuit', title: 'المساعد الذكي', description: 'لا تدع أي سؤال يقف في طريقك. احصل على شروحات فورية ومبسطة لأصعب المسائل الفيزيائية، مع الالتزام الكامل بالمنهج.', color: 'cyan' }
+      ],
+      section2Title: 'متابعة دقيقة <span class="text-amber-400">وتوجيه شخصي</span>',
+      section2Features: [
+        { id: 'f3', icon: 'BarChart3', title: 'لوحة تحليلات مباشرة', description: 'يراقب المديرون والمعلمون تفاعل الطلاب مع الدروس لحظة بلحظة، مما يسمح بالتدخل الفوري وتحسين المحتوى.', color: 'amber' },
+        { id: 'f4', icon: 'Sparkles', title: 'اقتراحات تكيفية', description: 'يقوم النظام بتحليل أدائك وتقديم توصيات ذكية لمراجعة الدروس أو خوض تحديات جديدة لتعزيز نقاط ضعفك.', color: 'amber' }
+      ],
+      section3Title: 'أمان، موثوقية، ومستقبل واعد',
+      section3Features: [
+         { id: 'f5', icon: 'Lock', title: 'تخزين سحابي آمن', description: 'نستخدم أقوى قواعد البيانات السحابية (Supabase & Firebase) لضمان أمان بياناتك وسرعة الوصول إليها.', color: 'cyan' },
+         { id: 'f6', icon: 'Star', title: 'نظام نقاط ومكافآت', description: 'اجمع النقاط مع كل درس تنهيه وكل اختبار تتفوق فيه. تنافس مع زملائك وتصدر قائمة الأوائل!', color: 'amber' }
+      ],
+      ctaTitle: 'انضم لمستقبل التعليم الآن!',
+      ctaSubtitle: 'سجل اليوم وابدأ رحلتك نحو التميز في الفيزياء مع أفضل الأدوات التقنية والمعلمين الخبراء في الكويت.',
+      ctaButtonText: 'ابدأ رحلتك التعليمية'
+    };
+    try {
+        const snap = await db!.collection('settings').doc('brochure').get();
+        if (snap.exists) return { ...defaults, ...snap.data() } as BrochureSettings;
+    } catch (e) {}
+    return defaults;
+  }
+
+  async saveBrochureSettings(settings: BrochureSettings) {
+    this.checkDb();
+    await db!.collection('settings').doc('brochure').set(this.cleanData(settings), { merge: true });
+  }
 
   // --- ✅ فحص الحالة ---
   async checkConnection() { try { this.checkDb(); await db!.collection('settings').limit(1).get(); return { alive: true }; } catch (e: any) { return { alive: false, error: e.message }; } }
@@ -1006,7 +1043,7 @@ subscribeToLessonInteractions(lessonId: string, callback: (payload: any) => void
         async (payload) => {
           const newEvent = payload.new as StudentInteractionEvent;
           const { data: user } = await supabase.from('profiles').select('name').eq('id', newEvent.student_id as string).single();
-          // FIX: Explicitly cast `user.name` to a string. The type from Supabase can be 'unknown', which is not directly assignable to 'string'.
+// FIX: Explicitly cast `user.name` to a string. The type from Supabase can be 'unknown', which is not directly assignable to 'string'.
           const userName: string = String(user?.name ?? 'Unknown');
           callback({...newEvent, student_name: userName});
         }

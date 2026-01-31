@@ -47,6 +47,7 @@ const AdminDashboard: React.FC = () => {
     { view: 'admin-labs', icon: FlaskConical, title: 'إدارة المختبرات', description: 'تجارب HTML5 و Phet.' },
     { view: 'admin-recommendations', icon: Zap, title: 'التوصيات الذكية', description: 'توجيه الطلاب أكاديمياً.' },
     { view: 'admin-content', icon: Newspaper, title: 'محتوى الرئيسية', description: 'الأخبار والإعلانات.' },
+    { view: 'admin-brochure', icon: Sparkles, title: 'إدارة البروشور', description: 'تعديل محتوى الصفحة التسويقية.' },
     { view: 'admin-students', icon: Users, title: 'إدارة الطلاب', description: 'الحسابات والاشتراكات.' },
     { view: 'admin-payment-manager', icon: CreditCard, title: 'إدارة الدفع', description: 'الأسعار ورقم ومض.' },
     { view: 'admin-teachers', icon: Briefcase, title: 'إدارة المعلمين', description: 'الصلاحيات والحسابات.' },
