@@ -29,6 +29,7 @@ try {
 export const db = app ? firebase.firestore() : null;
 export const auth = app ? firebase.auth() : null;
 export const storage = app ? firebase.storage() : null;
+export { firebase }; // Export the core firebase object for FieldPath etc.
 
 // إعداد مزود جوجل
 const provider = app ? new firebase.auth.GoogleAuthProvider() : null;
