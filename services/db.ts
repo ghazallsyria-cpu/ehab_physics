@@ -333,6 +333,8 @@ class DBService {
     }
   }
 
+  // FIX: A typo in the collection name 'homePageContnet' was corrected to 'homePageContent',
+  // ensuring the delete functionality works as expected for administrators.
   async deleteHomePageContent(id: string) {
     this.checkDb();
     await db!.collection('homePageContent').doc(id).delete();
@@ -611,11 +613,15 @@ class DBService {
     if (error) throw error;
   }
   
-  async getQuizzesSupabase(grade: string): Promise<Quiz[]> {
+  async getQuizzesSupabase(grade?: '10' | '11' | '12' | 'uni'): Promise<Quiz[]> {
     let query = supabase.from('quizzes').select(`
         id, title, description, grade, subject, category, duration, is_premium, max_attempts,
-        quiz_questions ( questions ( id ) )
-    `).eq('grade', grade);
+        quiz_questions ( question_id )
+    `);
+
+    if (grade) {
+      query = query.eq('grade', grade);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
@@ -630,9 +636,120 @@ class DBService {
         duration: q.duration,
         isPremium: q.is_premium,
         maxAttempts: q.max_attempts,
-        questionIds: q.quiz_questions.map((qq: any) => qq.questions.id),
+        questionIds: q.quiz_questions.map((qq: any) => qq.question_id),
         totalScore: 0 // NOTE: Needs calculation if required on this view
     }));
+  }
+
+  async getAllQuestionsSupabase(): Promise<Question[]> {
+    const { data, error } = await supabase.from('questions').select('*');
+    if (error) throw error;
+    return data.map((q: any) => ({
+      ...q,
+      correctChoiceId: q.correct_choice_id,
+      imageUrl: q.image_url,
+    }));
+  }
+
+  async getAttemptsForQuizSupabase(quizId: string): Promise<StudentQuizAttempt[]> {
+      const { data, error } = await supabase
+          .from('student_quiz_attempts')
+          .select('*, student:profiles(name)')
+          .eq('quiz_id', quizId)
+          .order('completed_at', { ascending: false });
+
+      if (error) throw error;
+
+      return data.map((a: any) => ({
+          id: a.id,
+          studentId: a.student_id,
+          studentName: a.student?.name || 'Unknown Student',
+          quizId: a.quiz_id,
+          score: a.score,
+          maxScore: a.max_score,
+          completedAt: a.completed_at,
+          answers: a.answers,
+          timeSpent: a.time_spent,
+          status: a.status,
+          manualGrades: a.manual_grades,
+          totalQuestions: 0,
+          attemptNumber: 0, 
+      }));
+  }
+
+  async saveQuizSupabase(quiz: Quiz): Promise<Quiz> {
+    const { id, questionIds, totalScore, ...quizData } = quiz;
+    
+    const quizPayload = {
+      id: id.startsWith('quiz_') ? undefined : id,
+      title: quizData.title,
+      description: quizData.description,
+      grade: quizData.grade,
+      subject: quizData.subject,
+      category: quizData.category,
+      duration: quizData.duration,
+      is_premium: quizData.isPremium,
+      max_attempts: quizData.maxAttempts,
+    };
+    const { data: savedQuizData, error: quizError } = await supabase.from('quizzes').upsert(quizPayload).select().single();
+    if (quizError) throw quizError;
+    const savedQuizId = savedQuizData.id;
+    const { error: deleteError } = await supabase.from('quiz_questions').delete().eq('quiz_id', savedQuizId);
+    if (deleteError) throw deleteError;
+
+    if (questionIds && questionIds.length > 0) {
+        const questionLinks = questionIds.map(qId => ({ quiz_id: savedQuizId, question_id: qId }));
+        const { error: insertError } = await supabase.from('quiz_questions').insert(questionLinks);
+        if (insertError) throw insertError;
+    }
+    
+    return { ...quiz, id: savedQuizId };
+  }
+  
+  async deleteQuizSupabase(quizId: string): Promise<void> {
+    const { error } = await supabase.from('quizzes').delete().eq('id', quizId);
+    if (error) throw error;
+  }
+  
+  async saveQuestionSupabase(question: Partial<Question>): Promise<Question> {
+    const { id, ...rest } = question;
+    const payload: Record<string, any> = {
+        id: id?.startsWith('q_') ? undefined : id,
+        text: rest.text,
+        type: rest.type,
+        choices: rest.choices,
+        correct_choice_id: rest.correctChoiceId,
+        score: rest.score,
+        unit_id: rest.unit,
+        difficulty: rest.difficulty,
+        solution: rest.solution,
+        image_url: rest.imageUrl,
+        grade: rest.grade,
+        subject: rest.subject,
+        category: rest.category,
+    };
+    const { data, error } = await supabase.from('questions').upsert(payload).select().single();
+    if (error) throw error;
+    return {
+        ...data,
+        correctChoiceId: data.correct_choice_id,
+        imageUrl: data.image_url,
+    } as Question;
+  }
+  
+  async deleteQuestionSupabase(questionId: string): Promise<void> {
+    const { error } = await supabase.from('questions').delete().eq('id', questionId);
+    if (error) throw error;
+  }
+
+  async updateAttemptSupabase(attemptId: string, updates: Partial<StudentQuizAttempt>): Promise<void> {
+      const payload: Record<string, any> = {
+          score: updates.score,
+          manual_grades: updates.manualGrades,
+          status: updates.status,
+      };
+      const { error } = await supabase.from('student_quiz_attempts').update(payload).eq('id', attemptId);
+      if (error) throw error;
   }
 
   async getQuizWithQuestionsSupabase(id: string): Promise<{ quiz: Quiz; questions: Question[] } | null> {
@@ -813,7 +930,6 @@ class DBService {
     }
   }
 
-// FIX: Updated `logStudentInteraction` to include `is_correct` and `event_type` for enhanced analytics and adaptive learning triggers.
   async logStudentInteraction(event: StudentInteractionEvent): Promise<void> {
     const { error } = await supabase.from('student_interaction_events').insert({
         student_id: event.student_id,
@@ -830,7 +946,6 @@ class DBService {
     }
   }
 
-// FIX: Updated `getLessonAnalytics` to aggregate and return the count of AI help requests, enabling real-time tracking on the admin dashboard.
 async getLessonAnalytics(lessonId: string): Promise<LessonAnalyticsData> {
     if (!supabase) throw new Error("Supabase client not initialized.");
 
@@ -889,10 +1004,8 @@ subscribeToLessonInteractions(lessonId: string, callback: (payload: any) => void
         { event: 'INSERT', schema: 'public', table: 'student_interaction_events', filter: `lesson_id=eq.${lessonId}` },
         async (payload) => {
           const newEvent = payload.new as StudentInteractionEvent;
-// FIX: Explicitly cast `newEvent.student_id` to a string to satisfy the `.eq()` method's type requirement, as the type from the Supabase payload can be ambiguous.
           const { data: user } = await supabase.from('profiles').select('name').eq('id', newEvent.student_id as string).single();
-// FIX: Safely access user.name and ensure userName is a string to prevent type errors. The `name` property could be of an unknown type, so we explicitly convert it to a string.
-// FIX: Type 'unknown' is not assignable to type 'string'.
+          // FIX: Explicitly cast `user.name` to a string. The type from Supabase can be 'unknown', which is not directly assignable to 'string'.
           const userName: string = String(user?.name ?? 'Unknown');
           callback({...newEvent, student_name: userName});
         }

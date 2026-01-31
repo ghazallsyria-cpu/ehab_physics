@@ -60,14 +60,15 @@ const InteractiveLessonBuilder: React.FC = () => {
     const loadLesson = async () => {
         setIsLoading(true);
         if (lessonId) {
-// FIX: The method to fetch curriculum data was renamed. Updated to use the correct `getCurriculumSupabase` method.
             const curriculumData = await dbService.getCurriculumSupabase();
             let foundLesson: Lesson | null = null;
+            let foundUnitId: string | null = null;
             for (const curriculum of curriculumData) {
                 for (const unit of curriculum.units) {
                     const l = unit.lessons.find(l => l.id === lessonId);
                     if (l) {
                         foundLesson = l;
+                        foundUnitId = unit.id;
                         setTargetGrade(curriculum.grade as any);
                         setTargetSubject(curriculum.subject as any);
                         break;
@@ -77,13 +78,12 @@ const InteractiveLessonBuilder: React.FC = () => {
             }
             if(foundLesson) {
                 setCurrentLesson(foundLesson);
+                setSelectedUnitId(foundUnitId || '');
                 setIsPinned(foundLesson.isPinned || false);
             } else {
-                // Lesson not found, redirect or show error
                 navigate('/admin/curriculum');
             }
         } else {
-            // New lesson mode
             setCurrentLesson(defaultLesson);
             setIsPinned(false);
         }
@@ -102,7 +102,6 @@ const InteractiveLessonBuilder: React.FC = () => {
   useEffect(() => {
       if (showSaveModal) {
           const loadCurriculums = async () => {
-// FIX: The method to fetch curriculum data was renamed. Updated to use the correct `getCurriculumSupabase` method.
               const data = await dbService.getCurriculumSupabase();
               setCurriculums(data);
               updateAvailableUnits(data, targetGrade, targetSubject);
@@ -121,7 +120,9 @@ const InteractiveLessonBuilder: React.FC = () => {
       const targetCurriculum = data.find(c => c.grade === grade && c.subject === subject);
       const units = targetCurriculum?.units || [];
       setAvailableUnits(units);
-      setSelectedUnitId(units[0]?.id || '');
+      if (!units.some(u => u.id === selectedUnitId)) {
+          setSelectedUnitId(units[0]?.id || '');
+      }
   };
 
   const handleSaveToDB = async () => {
@@ -132,15 +133,15 @@ const InteractiveLessonBuilder: React.FC = () => {
           if (!targetCurriculum) throw new Error("المنهج المستهدف غير موجود.");
 
           let finalUnitId = selectedUnitId;
-          if (!finalUnitId) {
-              const newUnit = { id: `u_${Date.now()}`, title: 'وحدة الدروس التفاعلية', description: 'تم إنشاؤها تلقائياً', lessons: [] };
-// FIX: `saveUnit` expects 2 arguments (Unit, curriculumId), but 4 were provided. Corrected the call.
+          if (!finalUnitId && availableUnits.length === 0) {
+              const newUnit: Unit = { id: `u_${Date.now()}`, title: 'وحدة الدروس التفاعلية', description: 'تم إنشاؤها تلقائياً', lessons: [] };
               const savedUnit = await dbService.saveUnit(newUnit, targetCurriculum.id!);
               finalUnitId = savedUnit.id;
           }
 
+          if (!finalUnitId) throw new Error("لم يتم تحديد وحدة لحفظ الدرس فيها.");
+
           const finalLesson: Lesson = { ...currentLesson, id: lessonId || `l_${Date.now()}`, isPinned };
-// FIX: `saveLesson` expects 2 arguments (Lesson, unitId), but 3 were provided. Corrected the call.
           await dbService.saveLesson(finalLesson, finalUnitId);
           
           setSaveSuccess(true);

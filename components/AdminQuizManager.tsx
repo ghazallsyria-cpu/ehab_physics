@@ -36,8 +36,8 @@ const AdminQuizManager: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     const [quizData, questionData] = await Promise.all([
-      dbService.getQuizzes(),
-      dbService.getAllQuestions(),
+      dbService.getQuizzesSupabase(),
+      dbService.getAllQuestionsSupabase(),
     ]);
     setQuizzes(quizData);
     setAllQuestions(questionData);
@@ -46,7 +46,7 @@ const AdminQuizManager: React.FC = () => {
   
   const handleViewAttempts = async (quiz: Quiz) => {
     setIsLoading(true);
-    const attempts = await dbService.getAttemptsForQuiz(quiz.id);
+    const attempts = await dbService.getAttemptsForQuizSupabase(quiz.id);
     setQuizAttempts(attempts);
     setViewingAttemptsFor(quiz);
     setIsLoading(false);
@@ -74,7 +74,7 @@ const AdminQuizManager: React.FC = () => {
     };
 
     setIsLoading(true);
-    await dbService.updateAttempt(updatedAttempt);
+    await dbService.updateAttemptSupabase(updatedAttempt.id, updatedAttempt);
     
     await dbService.createNotification({
         userId: updatedAttempt.studentId,
@@ -125,7 +125,7 @@ const AdminQuizManager: React.FC = () => {
         totalScore: quizQuestions.reduce((sum: number, q: Question) => sum + Number(q.score || 0), 0)
     } as Quiz;
     
-    await dbService.saveQuiz(finalQuiz);
+    await dbService.saveQuizSupabase(finalQuiz);
     setEditingQuiz(null);
     setQuizQuestions([]);
     await loadData();
@@ -134,20 +134,15 @@ const AdminQuizManager: React.FC = () => {
   
   const handleDeleteQuiz = async (quizId: string) => {
     if (window.confirm('هل أنت متأكد من حذف هذا الاختبار؟')) {
-      await dbService.deleteQuiz(quizId);
+      await dbService.deleteQuizSupabase(quizId);
       await loadData();
     }
   };
 
   const handleSaveQuestion = async (question: Question) => {
     const isNew = !question.id || !allQuestions.some(q => q.id === question.id);
-    let savedQuestion = question;
-    if (isNew) {
-      const newId = await dbService.saveQuestion(question);
-      savedQuestion = {...question, id: newId};
-    } else {
-      await dbService.updateQuestion(question.id, question);
-    }
+    const savedQuestion = await dbService.saveQuestionSupabase(question);
+    
     await loadData();
     
     setQuizQuestions(prev => {
@@ -364,7 +359,7 @@ const AdminQuizManager: React.FC = () => {
             <div className="lg:col-span-8 glass-panel p-8 md:p-10 rounded-[50px] border-white/5 bg-[#0a1118]/80">
                 <div className="flex justify-between items-center mb-8 border-b border-white/5 pb-6">
                     <h3 className="text-2xl font-black text-white">أسئلة الاختبار الحالي ({quizQuestions.length})</h3>
-                    <button onClick={() => setEditingQuestion({ score: 5, grade: editingQuiz.grade as any, subject: editingQuiz.subject, unit: '', type: 'mcq', text: '' })} className="bg-green-500/10 text-green-400 px-6 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-green-500 hover:text-black transition-all">
+                    <button onClick={() => setEditingQuestion({ score: 5, grade: editingQuiz.grade as any, subject: editingQuiz.subject as any, unit: '', type: 'mcq', text: '' })} className="bg-green-500/10 text-green-400 px-6 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-green-500 hover:text-black transition-all">
                         <PlusCircle size={14}/> إنشاء سؤال جديد للبنك
                     </button>
                 </div>
