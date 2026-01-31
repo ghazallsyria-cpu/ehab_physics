@@ -62,18 +62,43 @@ const AdminBrochureManager: React.FC = () => {
     const renderFeatureEditor = (sectionName: keyof BrochureSettings, title: string) => (
         <div className="glass-panel p-8 rounded-[30px] border-white/5 space-y-4">
             <h3 className="text-xl font-black text-white mb-4">{title}</h3>
+            <label className="text-xs text-gray-400">عنوان القسم</label>
             <textarea
                 value={(settings[sectionName] as string) || ''}
                 onChange={e => handleSettingsChange(sectionName, e.target.value)}
                 className="w-full bg-black/40 p-3 rounded-lg border border-white/10 text-white"
                 rows={2}
             />
-            {(settings[sectionName.replace('Title', 'Features') as keyof BrochureSettings] as BrochureFeature[]).map((feature, index) => (
-                <div key={feature.id} className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-2">
-                    <input type="text" value={feature.title} onChange={e => handleFeatureChange(sectionName.replace('Title', 'Features') as keyof BrochureSettings, index, 'title', e.target.value)} className="w-full bg-transparent border-b border-white/10 pb-1 font-bold" />
-                    <textarea value={feature.description} onChange={e => handleFeatureChange(sectionName.replace('Title', 'Features') as keyof BrochureSettings, index, 'description', e.target.value)} className="w-full bg-transparent text-sm text-gray-400 h-16" />
-                </div>
-            ))}
+            <label className="text-xs text-gray-400 mt-4 block">المميزات</label>
+            {(settings[sectionName.replace('Title', 'Features') as keyof BrochureSettings] as BrochureFeature[]).map((feature, index) => {
+                const featureSectionName = sectionName.replace('Title', 'Features') as keyof BrochureSettings;
+                return (
+                    <div key={feature.id} className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[10px] text-gray-500">الأيقونة (اسم من lucide-react)</label>
+                                <input type="text" value={feature.icon} onChange={e => handleFeatureChange(featureSectionName, index, 'icon', e.target.value)} className="w-full bg-black/40 p-2 rounded text-xs font-mono" placeholder="e.g., Waypoints" />
+                                <p className="text-[9px] text-gray-600 mt-1">Icons: Waypoints, BrainCircuit, BarChart3, Lock, Star, etc.</p>
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-gray-500">اللون</label>
+                                <select value={feature.color} onChange={e => handleFeatureChange(featureSectionName, index, 'color', e.target.value)} className="w-full bg-black/40 p-2 rounded text-xs">
+                                    <option value="amber">Amber (أصفر)</option>
+                                    <option value="cyan">Cyan (سماوي)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-gray-500">العنوان</label>
+                            <input type="text" value={feature.title} onChange={e => handleFeatureChange(featureSectionName, index, 'title', e.target.value)} className="w-full bg-black/40 p-2 rounded" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-gray-500">الوصف</label>
+                            <textarea value={feature.description} onChange={e => handleFeatureChange(featureSectionName, index, 'description', e.target.value)} className="w-full bg-black/40 p-2 rounded text-sm text-gray-400 h-16" />
+                        </div>
+                    </div>
+                )
+            })}
         </div>
     );
 
@@ -98,9 +123,9 @@ const AdminBrochureManager: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
                 <div className="space-y-8">
-                    {renderFeatureEditor('section1Title', 'القسم الأول')}
-                    {renderFeatureEditor('section2Title', 'القسم الثاني')}
-                    {renderFeatureEditor('section3Title', 'القسم الثالث')}
+                    {renderFeatureEditor('section1Title', 'القسم الأول: التفاعلية والذكاء')}
+                    {renderFeatureEditor('section2Title', 'القسم الثاني: التحليل والتوجيه')}
+                    {renderFeatureEditor('section3Title', 'القسم الثالث: الأمان والموثوقية')}
                 </div>
                 <div className="space-y-8">
                      <div className="glass-panel p-8 rounded-[30px] border-white/5 space-y-4">
