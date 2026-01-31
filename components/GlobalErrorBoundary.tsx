@@ -25,7 +25,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  // FIX: Use an arrow function for the handler to automatically bind `this`.
+  // FIX: Use an arrow function for the handler to automatically bind `this`, resolving issues with `this.setState`.
   handleReset = () => {
     this.setState({ hasError: false, error: null });
     window.location.reload();

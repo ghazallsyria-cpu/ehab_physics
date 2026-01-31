@@ -22,11 +22,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
     // Attempt to load real stats, fail silently if database is restricted
     try {
         const unsubscribe = dbService.subscribeToGlobalStats((updatedStats) => {
-            if (updatedStats) setStats(updatedStats);
+            // FIX: Add a more robust check to ensure the stats object is not empty and has the required properties.
+            // This prevents a crash if Firestore returns an empty object, which would cause `updatedStats.totalStudents` to be undefined.
+            if (updatedStats && typeof updatedStats.totalStudents === 'number') {
+                setStats(updatedStats);
+            }
         });
         return () => unsubscribe();
     } catch (e) {
         // Keep default stats
+        console.warn("Could not subscribe to global stats, using default values.", e);
     }
   }, []);
 
@@ -41,7 +46,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                 <div className="space-y-1">
                     <div className="flex items-center justify-center gap-1">
                         <span className="text-4xl font-black text-white tabular-nums tracking-tighter">
-                            {value.toLocaleString()}
+                            {/* FIX: Ensure `value` is a number before calling toLocaleString to prevent runtime errors. */}
+                            {(value || 0).toLocaleString()}
                         </span>
                         <span className="text-xl font-black text-blue-400 mb-2">+</span>
                     </div>
