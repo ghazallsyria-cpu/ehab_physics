@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { dbService } from '../services/db';
@@ -23,7 +24,8 @@ const AdminAnalytics: React.FC = () => {
             setIsLoading(true);
             try {
                 const [lessonData, analyticsData] = await Promise.all([
-                    dbService.getLessonSupabase(lessonId),
+                    // FIX: Property 'getLessonSupabase' does not exist on type 'DBService'.
+                    dbService.getLesson(lessonId),
                     dbService.getLessonAnalytics(lessonId)
                 ]);
                 setLesson(lessonData);

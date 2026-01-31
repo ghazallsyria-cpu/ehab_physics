@@ -43,7 +43,8 @@ const AdminAssetManager: React.FC = () => {
         setMessage(null);
         try {
             // Upload to Supabase by passing `true`
-            await Promise.all(Array.from(files).map(file => dbService.uploadAsset(file, true)));
+            // FIX: Expected 1 arguments, but got 2.
+            await Promise.all(Array.from(files).map(file => dbService.uploadAsset(file)));
             setMessage({ text: `تم رفع ${files.length} ملف بنجاح إلى Supabase.`, type: 'success' });
             await loadAssets();
         } catch (e: any) {
@@ -64,7 +65,8 @@ const AdminAssetManager: React.FC = () => {
         
         try {
             // Delete from Supabase by passing `true`
-            await dbService.deleteAsset(asset.name, true);
+            // FIX: Expected 1 arguments, but got 2.
+            await dbService.deleteAsset(asset.name);
             setMessage({ text: 'تم حذف الملف بنجاح.', type: 'success' });
             await loadAssets();
         } catch(e) {

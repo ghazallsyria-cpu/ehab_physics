@@ -66,7 +66,8 @@ const LessonPathViewer: React.FC<{ user: User }> = ({ user }) => {
         let fileAsset: Asset | null = uploadedFile;
         if (file && !uploadedFile) {
             setIsUploading(true);
-            fileAsset = await dbService.uploadAsset(file, true);
+            // FIX: Expected 1 arguments, but got 2.
+            fileAsset = await dbService.uploadAsset(file);
             setIsUploading(false);
         }
 

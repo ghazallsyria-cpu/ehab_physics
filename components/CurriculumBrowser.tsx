@@ -27,7 +27,8 @@ const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({ user, subject }) 
   const fetchCurriculum = async () => {
     setIsLoading(true);
     try {
-      const data = await dbService.getCurriculumSupabase();
+      // FIX: Property 'getCurriculumSupabase' does not exist on type 'DBService'.
+      const data = await dbService.getCurriculum();
       setDbCurriculum(data);
     } catch (e) {
       console.error("Load failed", e);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Waypoints, BrainCircuit, BarChart3, Smartphone, Tablet, Monitor, Lock, Star, Sparkles, RefreshCw } from 'lucide-react';
 import QRCode from 'react-qr-code';

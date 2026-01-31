@@ -32,7 +32,8 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user }) => {
         setIsLoading(true);
         try {
             // NEW: Fetching directly from Supabase via dbService
-            const supabaseLesson = await dbService.getLessonSupabase(lessonId);
+            // FIX: Property 'getLessonSupabase' does not exist on type 'DBService'.
+            const supabaseLesson = await dbService.getLesson(lessonId);
             setLesson(supabaseLesson);
         } catch (error) {
             console.error("Failed to fetch lesson from Supabase", error);

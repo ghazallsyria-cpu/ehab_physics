@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Unit, Lesson, Curriculum } from '../types';
@@ -17,7 +18,8 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const data = await dbService.getCurriculumSupabase();
+        // FIX: Property 'getCurriculumSupabase' does not exist on type 'DBService'.
+        const data = await dbService.getCurriculum();
         setCurriculums(data);
       } catch (e) {
         console.error(e);

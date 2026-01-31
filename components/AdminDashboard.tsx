@@ -3,15 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, Users, Briefcase, Settings, Video, RefreshCw, HeartPulse, Library, MessageSquare, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard, Newspaper, FlaskConical, Zap, Sparkles, Cpu } from 'lucide-react';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
-import SupabaseConnectionFixer from './SupabaseConnectionFixer';
 import EscalatedPostsWidget from './EscalatedPostsWidget';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [firestoreStatus, setFirestoreStatus] = useState<{ alive: boolean | null, error?: string }>({ alive: null });
-  const [supabaseStatus, setSupabaseStatus] = useState<{ alive: boolean | null, error?: string }>({ alive: null });
   const [isChecking, setIsChecking] = useState(false);
-  const [showGuides, setShowGuides] = useState(false);
   const [adminRoleValid, setAdminRoleValid] = useState<boolean>(true);
 
   useEffect(() => {
@@ -31,12 +28,8 @@ const AdminDashboard: React.FC = () => {
 
   const checkHealth = async () => {
     setIsChecking(true);
-    const [fsStatus, sbStatus] = await Promise.all([
-        dbService.checkConnection(),
-        dbService.checkSupabaseConnection()
-    ]);
+    const fsStatus = await dbService.checkConnection();
     setFirestoreStatus(fsStatus);
-    setSupabaseStatus(sbStatus);
     setIsChecking(false);
   };
 
@@ -113,21 +106,14 @@ const AdminDashboard: React.FC = () => {
               <h3 className="text-sm font-black text-gray-400 mb-8 flex items-center gap-3 uppercase tracking-[0.2em]"><HeartPulse className="text-red-500" size={16} /> سرعة الاستجابة</h3>
               <div className="space-y-4">
                  <div className={`p-5 rounded-2xl border flex justify-between items-center ${firestoreStatus.alive ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                    <span className="text-[10px] font-black uppercase">Firestore</span>
+                    <span className="text-[10px] font-black uppercase">Database</span>
                     <span className="text-[10px] font-bold">{firestoreStatus.alive ? 'ONLINE' : 'ERROR'}</span>
-                 </div>
-                 <div className={`p-5 rounded-2xl border flex justify-between items-center ${supabaseStatus.alive ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                    <span className="text-[10px] font-black uppercase">Storage</span>
-                    <span className="text-[10px] font-bold">{supabaseStatus.alive ? 'ONLINE' : 'ERROR'}</span>
                  </div>
                  <button onClick={checkHealth} className="w-full py-4 bg-white/5 rounded-xl text-gray-400 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3">
                     <RefreshCw size={14} className={isChecking ? 'animate-spin' : ''} /> تحديث الحالة
                  </button>
               </div>
            </div>
-           
-           <button onClick={() => setShowGuides(!showGuides)} className="w-full text-[10px] font-black text-gray-700 hover:text-blue-400 transition-colors uppercase tracking-[0.3em]">دليل إصلاح Supabase ▼</button>
-           {showGuides && <SupabaseConnectionFixer onFix={checkHealth} />}
         </div>
       </div>
     </div>

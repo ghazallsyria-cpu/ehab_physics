@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Lesson, Curriculum, Unit } from '../types';
@@ -60,7 +61,8 @@ const InteractiveLessonBuilder: React.FC = () => {
     const loadLesson = async () => {
         setIsLoading(true);
         if (lessonId) {
-            const curriculumData = await dbService.getCurriculumSupabase();
+            // FIX: Property 'getCurriculumSupabase' does not exist on type 'DBService'.
+            const curriculumData = await dbService.getCurriculum();
             let foundLesson: Lesson | null = null;
             let foundUnitId: string | null = null;
             for (const curriculum of curriculumData) {
@@ -102,7 +104,8 @@ const InteractiveLessonBuilder: React.FC = () => {
   useEffect(() => {
       if (showSaveModal) {
           const loadCurriculums = async () => {
-              const data = await dbService.getCurriculumSupabase();
+              // FIX: Property 'getCurriculumSupabase' does not exist on type 'DBService'.
+              const data = await dbService.getCurriculum();
               setCurriculums(data);
               updateAvailableUnits(data, targetGrade, targetSubject);
           };
