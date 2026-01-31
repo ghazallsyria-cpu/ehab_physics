@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { User } from '../types';
 import { dbService } from '../services/db';

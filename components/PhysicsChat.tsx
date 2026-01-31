@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { getAdvancedPhysicsInsight } from '../services/gemini';
 import { contentFilter } from '../services/contentFilter'; // استيراد نظام الرقابة

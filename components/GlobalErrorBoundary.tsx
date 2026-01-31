@@ -11,16 +11,11 @@ interface State {
 }
 
 class GlobalErrorBoundary extends Component<Props, State> {
-  // FIX: Added constructor to correctly initialize state and bind `this` context for event handlers.
-  // This resolves errors related to accessing `this.state` and `this.props` in a class component.
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-    };
-    this.handleReset = this.handleReset.bind(this);
-  }
+  // FIX: Use public class field syntax for state to avoid constructor and binding issues.
+  public state: State = {
+    hasError: false,
+    error: null,
+  };
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
@@ -30,7 +25,8 @@ class GlobalErrorBoundary extends Component<Props, State> {
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  handleReset() {
+  // FIX: Use arrow function for auto-binding 'this'.
+  handleReset = () => {
     this.setState({ hasError: false, error: null });
     window.location.reload();
   }
