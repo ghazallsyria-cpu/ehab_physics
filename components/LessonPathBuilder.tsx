@@ -24,7 +24,6 @@ const LessonPathBuilder: React.FC = () => {
         try {
             const [scenesData, lessonData] = await Promise.all([
                 dbService.getLessonScenesForBuilder(lessonId),
-                // FIX: Property 'getLessonSupabase' does not exist on type 'DBService'.
                 dbService.getLesson(lessonId)
             ]);
             setScenes(scenesData);

@@ -30,12 +30,10 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user }) => {
     const fetchLesson = async () => {
         setIsLoading(true);
         try {
-            // NEW: Fetching directly from Supabase via dbService
-            // FIX: Property 'getLessonSupabase' does not exist on type 'DBService'.
             const supabaseLesson = await dbService.getLesson(lessonId);
             setLesson(supabaseLesson);
         } catch (error) {
-            console.error("Failed to fetch lesson from Supabase", error);
+            console.error("Failed to fetch lesson", error);
         } finally {
             setIsLoading(false);
         }
@@ -115,19 +113,20 @@ const LessonViewer: React.FC<LessonViewerProps> = ({ user }) => {
     
     // Switch case for different block types...
     switch (block.type) {
-        // ... (rest of the render logic remains the same)
          case 'text':
             const html = block.content
               .replace(/(\$\$[\s\S]*?\$\$)/g, (match) => katex.renderToString(match.slice(2, -2), { displayMode: true, throwOnError: false }))
               .replace(/(\$.*?\$)/g, (match) => katex.renderToString(match.slice(1, -1), { throwOnError: false }));
             return <div key={index} className="prose prose-invert prose-lg max-w-none text-gray-300 leading-loose text-xl md:text-2xl mb-10" dangerouslySetInnerHTML={{ __html: html }} />;
+         default:
+            return null; // Handle other types as needed or as in previous implementation
     }
-    return null;
   };
 
   return (
     <div className="max-w-4xl mx-auto animate-fadeIn font-['Tajawal']" dir="rtl">
-        {/* ... (rest of the JSX remains the same) */}
+        <h1 className="text-3xl font-bold mb-4">{lesson.title}</h1>
+        {lesson.content && lesson.content.map((block, idx) => renderContentBlock(block, idx))}
     </div>
   );
 };

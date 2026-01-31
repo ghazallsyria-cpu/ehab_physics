@@ -60,7 +60,6 @@ const InteractiveLessonBuilder: React.FC = () => {
     const loadLesson = async () => {
         setIsLoading(true);
         if (lessonId) {
-            // FIX: Property 'getCurriculumSupabase' does not exist on type 'DBService'.
             const curriculumData = await dbService.getCurriculum();
             let foundLesson: Lesson | null = null;
             let foundUnitId: string | null = null;
@@ -103,7 +102,6 @@ const InteractiveLessonBuilder: React.FC = () => {
   useEffect(() => {
       if (showSaveModal) {
           const loadCurriculums = async () => {
-              // FIX: Property 'getCurriculumSupabase' does not exist on type 'DBService'.
               const data = await dbService.getCurriculum();
               setCurriculums(data);
               updateAvailableUnits(data, targetGrade, targetSubject);

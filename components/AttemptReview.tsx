@@ -26,7 +26,6 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user }) => {
     const loadData = async () => {
       setIsLoading(true);
       
-      // FIX: Property 'getAttemptByIdSupabase' does not exist on type 'DBService'.
       const attemptData = await dbService.getAttemptById(attemptId);
       
       if (!attemptData) {
@@ -35,7 +34,6 @@ const AttemptReview: React.FC<AttemptReviewProps> = ({ user }) => {
       }
       setAttempt(attemptData);
       
-      // FIX: Property 'getQuizWithQuestionsSupabase' does not exist on type 'DBService'. Did you mean 'getQuizWithQuestions'?
       const quizAndQuestionsData = await dbService.getQuizWithQuestions(attemptData.quizId);
 
       if (quizAndQuestionsData) {

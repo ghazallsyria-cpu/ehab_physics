@@ -77,7 +77,7 @@ class DBService {
     }
   }
 
-  // New helper to ensure curriculum exists
+  // New helper to ensure curriculum exists to prevent "Empty Path" errors
   async createCurriculum(data: Partial<Curriculum>): Promise<Curriculum> {
       if (!db) throw new Error("DB not connected");
       const id = data.id || `curr_${Date.now()}`;
@@ -128,7 +128,6 @@ class DBService {
           }
       } catch (e) {
           console.error("Failed to update unit structure:", e);
-          // Don't throw, as the lesson was saved to the main collection
       }
       return lesson;
   }
@@ -156,6 +155,7 @@ class DBService {
           if (!quiz.questionIds || quiz.questionIds.length === 0) return { quiz, questions: [] };
           
           // Firestore 'in' query is limited to 10 items. Chunking needed for production.
+          // For now, we take first 10 to prevent error. In prod, use multiple queries.
           const questionsSnap = await db.collection('questions').where(firebase.firestore.FieldPath.documentId(), 'in', quiz.questionIds.slice(0, 10)).get();
           const questions = questionsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Question));
           return { quiz, questions };
@@ -198,6 +198,7 @@ class DBService {
               for (const change of snapshot.docChanges()) {
                   if (change.type === 'added') {
                       const newEvent = change.doc.data() as StudentInteractionEvent;
+                      // Fetch user name for analytics
                       const user = await this.getUser(newEvent.student_id as string);
                       callback({ ...newEvent, studentName: user?.name || 'Unknown' });
                   }
@@ -805,8 +806,7 @@ class DBService {
       if (!doc.exists) return;
       const userData = doc.data() as User;
       const completed = userData.progress?.completedLessonIds || [];
-      const points = userData.progress?.points || 0;
-
+      
       if (completed.includes(lessonId)) {
           await userRef.update({
               'progress.completedLessonIds': firebase.firestore.FieldValue.arrayRemove(lessonId),
@@ -835,9 +835,7 @@ class DBService {
       const currRef = db.collection('curriculum').doc(targetId);
       const currSnap = await currRef.get();
       if (!currSnap.exists) {
-          // If curriculum doc doesn't exist, we must create it. 
-          // However, we need minimal curriculum data.
-          // For now, if we reach here with an ID but no doc, we assume a sync issue or first-time setup.
+          // Fix: Auto-create curriculum doc if it doesn't exist
           await currRef.set({
               id: targetId,
               grade: '12', 

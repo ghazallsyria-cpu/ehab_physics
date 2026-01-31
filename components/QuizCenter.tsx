@@ -32,9 +32,7 @@ const QuizCenter: React.FC<{ user: User }> = ({ user }) => {
     setIsLoading(true);
     try {
         const [allQuizzes, allAttempts] = await Promise.all([
-            // FIX: Property 'getQuizzesSupabase' does not exist on type 'DBService'.
             dbService.getQuizzes(user.grade),
-            // FIX: Property 'getUserAttemptsSupabase' does not exist on type 'DBService'.
             dbService.getUserAttempts(user.uid)
         ]);
         setQuizzes(allQuizzes);

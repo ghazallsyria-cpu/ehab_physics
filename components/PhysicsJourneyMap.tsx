@@ -17,7 +17,6 @@ const PhysicsJourneyMap: React.FC<PhysicsJourneyMapProps> = ({ user }) => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // FIX: Property 'getCurriculumSupabase' does not exist on type 'DBService'.
         const data = await dbService.getCurriculum();
         setCurriculums(data);
       } catch (e) {

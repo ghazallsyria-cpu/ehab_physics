@@ -31,7 +31,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
 
     const loadQuizData = async () => {
       setIsLoading(true);
-      // FIX: Property 'getQuizWithQuestionsSupabase' does not exist on type 'DBService'. Did you mean 'getQuizWithQuestions'?
       const data = await dbService.getQuizWithQuestions(quizId);
       if (data) {
         setQuiz(data.quiz);
@@ -63,8 +62,7 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
     if (!file) return;
     setUploadingQuestions(prev => ({ ...prev, [questionId]: true }));
     try {
-      // FIX: Expected 1 arguments, but got 2.
-      const asset = await dbService.uploadAsset(file); // Use Supabase
+      const asset = await dbService.uploadAsset(file);
       if (asset && asset.url) {
         setUserAnswers(prev => ({ ...prev, [questionId]: asset.url }));
       } else {
@@ -90,11 +88,10 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
     setIsFinished(true);
 
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
-    // FIX: Property 'getUserAttemptsSupabase' does not exist on type 'DBService'.
     const userAttempts = await dbService.getUserAttempts(user.uid, quiz.id);
 
     const attempt: StudentQuizAttempt = {
-      id: '', // Will be set by Supabase
+      id: '', // Will be set by Firebase
       studentId: user.uid,
       studentName: user.name,
       quizId: quiz.id,
@@ -108,7 +105,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ user, onFinish }) => {
       status: 'pending-review',
     };
 
-    // FIX: Property 'saveAttemptSupabase' does not exist on type 'DBService'.
     const savedAttempt = await dbService.saveAttempt(attempt);
     setFinalAttempt(savedAttempt);
     

@@ -12,7 +12,6 @@ const AdminAnalytics: React.FC = () => {
     const { lessonId } = useParams<{ lessonId: string }>();
     const [lesson, setLesson] = useState<Lesson | null>(null);
     const [analytics, setAnalytics] = useState<LessonAnalyticsData | null>(null);
-// FIX: Added state to track the number of AI help requests for the new analytics card.
     const [aiRequests, setAiRequests] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -23,13 +22,11 @@ const AdminAnalytics: React.FC = () => {
             setIsLoading(true);
             try {
                 const [lessonData, analyticsData] = await Promise.all([
-                    // FIX: Property 'getLessonSupabase' does not exist on type 'DBService'.
                     dbService.getLesson(lessonId),
                     dbService.getLessonAnalytics(lessonId)
                 ]);
                 setLesson(lessonData);
                 setAnalytics(analyticsData);
-// FIX: Initialized the AI help request count from the fetched analytics data.
                 setAiRequests(analyticsData.ai_help_requests || 0);
             } catch (e) {
                 console.error("Failed to load analytics", e);
@@ -40,10 +37,8 @@ const AdminAnalytics: React.FC = () => {
 
         fetchData();
 
-// FIX: The real-time subscription now refetches analytics and updates all metrics, including the new AI help request count.
         const subscription = dbService.subscribeToLessonInteractions(lessonId, (payload) => {
             console.log("Real-time update received!", payload);
-            // Refetch analytics to get updated aggregates
             dbService.getLessonAnalytics(lessonId!).then(data => {
                 setAnalytics(data);
                 setAiRequests(data.ai_help_requests || 0);
@@ -104,7 +99,6 @@ const AdminAnalytics: React.FC = () => {
                                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">إجمالي الطلاب</h3>
                                 <p className="text-5xl font-black text-white">{new Set(analytics.live_events.map(e => e.student_id)).size}</p>
                             </div>
-                            {/* FIX: Added a new analytics card to display the real-time count of AI help requests. */}
                              <div className="glass-panel p-8 rounded-[40px] border-purple-500/20 bg-purple-500/5 text-center">
                                 <h3 className="text-sm font-bold text-purple-400 uppercase tracking-widest mb-4 flex items-center justify-center gap-2"><BrainCircuit size={16}/> طلبات مساعدة AI</h3>
                                 <p className="text-5xl font-black text-white">{aiRequests}</p>
