@@ -21,7 +21,10 @@ class DBService {
 
   // --- 👤 User Services ---
   async getUser(identifier: string): Promise<User | null> {
-    if (!db) return null;
+    if (!db) {
+        console.error("Firestore DB is not initialized.");
+        return null;
+    }
     try {
       if (identifier.includes('@')) {
           const snap = await db.collection('users').where('email', '==', identifier).limit(1).get();
@@ -41,30 +44,48 @@ class DBService {
   
   async saveUser(user: User): Promise<void> {
     if (!db) return;
-    const cleanedUser = this.cleanData(user);
-    await db.collection('users').doc(user.uid).set(cleanedUser, { merge: true });
+    try {
+      const cleanedUser = this.cleanData(user);
+      await db.collection('users').doc(user.uid).set(cleanedUser, { merge: true });
+    } catch (e) {
+        console.error("Failed to save user:", e);
+        throw e;
+    }
   }
   
   subscribeToUser(uid: string, callback: (user: User | null) => void): () => void {
       if (!db) return () => {};
       return db.collection('users').doc(uid).onSnapshot(snap => {
           callback(snap.exists ? { uid: snap.id, ...snap.data() } as User : null);
+      }, (error) => {
+          console.error("Subscribe user error:", error);
       });
   }
 
   // --- 📚 Curriculum, Units, Lessons ---
   async getCurriculum(): Promise<Curriculum[]> {
-    if(!db) return [];
-    // Assuming curriculum data is structured with units and lessons nested as arrays.
-    const snap = await db.collection('curriculum').get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Curriculum));
+    if(!db) {
+        console.error("DB not initialized in getCurriculum");
+        return [];
+    }
+    try {
+        const snap = await db.collection('curriculum').get();
+        return snap.docs.map(d => ({ id: d.id, ...d.data() } as Curriculum));
+    } catch (e) {
+        console.error("Failed to get curriculum:", e);
+        return [];
+    }
   }
 
   async getLesson(id: string): Promise<Lesson | null> {
      if (!db) return null;
-     // This assumes a flat 'lessons' collection for efficient lookup, which is a common practice.
-     const snap = await db.collection('lessons').doc(id).get();
-     return snap.exists ? { id: snap.id, ...snap.data() } as Lesson : null;
+     try {
+         const snap = await db.collection('lessons').doc(id).get();
+         return snap.exists ? { id: snap.id, ...snap.data() } as Lesson : null;
+     } catch (e) {
+         console.error("Failed to get lesson:", e);
+         return null;
+     }
   }
   
   async saveLesson(lesson: Lesson, unitId: string): Promise<Lesson> {
@@ -74,19 +95,31 @@ class DBService {
       await db.collection('lessons').doc(lesson.id).set(lesson, { merge: true });
       
       // Update the nested lesson array within the unit document
-      const curriculums = await this.getCurriculum();
-      for (const curriculum of curriculums) {
-          const unit = curriculum.units.find(u => u.id === unitId);
-          if (unit) {
-              const lessonIndex = unit.lessons.findIndex(l => l.id === lesson.id);
-              if (lessonIndex > -1) {
-                  unit.lessons[lessonIndex] = lesson;
-              } else {
-                  unit.lessons.push(lesson);
+      try {
+          const curriculums = await this.getCurriculum();
+          let updated = false;
+          
+          for (const curriculum of curriculums) {
+              const unit = curriculum.units.find(u => u.id === unitId);
+              if (unit) {
+                  const lessonIndex = unit.lessons.findIndex(l => l.id === lesson.id);
+                  if (lessonIndex > -1) {
+                      unit.lessons[lessonIndex] = lesson;
+                  } else {
+                      unit.lessons.push(lesson);
+                  }
+                  await db.collection('curriculum').doc(curriculum.id).update({ units: curriculum.units });
+                  updated = true;
+                  break;
               }
-              await db.collection('curriculum').doc(curriculum.id).update({ units: curriculum.units });
-              break;
           }
+          
+          if (!updated) {
+              console.warn("Unit ID not found in curriculum structure. Lesson saved to 'lessons' collection only.");
+          }
+      } catch (e) {
+          console.error("Failed to update unit structure:", e);
+          // Don't throw, as the lesson was saved to the main collection
       }
       return lesson;
   }
@@ -94,30 +127,44 @@ class DBService {
   // --- ❓ Quizzes, Questions, Attempts ---
   async getQuizzes(grade?: string): Promise<Quiz[]> {
       if (!db) return [];
-      let query: firebase.firestore.Query = db.collection('quizzes');
-      if (grade && grade !== 'all') query = query.where('grade', '==', grade);
-      const snap = await query.get();
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as Quiz));
+      try {
+          let query: firebase.firestore.Query = db.collection('quizzes');
+          if (grade && grade !== 'all') query = query.where('grade', '==', grade);
+          const snap = await query.get();
+          return snap.docs.map(d => ({ id: d.id, ...d.data() } as Quiz));
+      } catch (e) {
+          console.error("Failed to get quizzes:", e);
+          return [];
+      }
   }
 
   async getQuizWithQuestions(id: string): Promise<{ quiz: Quiz; questions: Question[] } | null> {
       if (!db) return null;
-      const quizSnap = await db.collection('quizzes').doc(id).get();
-      if (!quizSnap.exists) return null;
-      const quiz = { id: quizSnap.id, ...quizSnap.data() } as Quiz;
-      if (!quiz.questionIds || quiz.questionIds.length === 0) return { quiz, questions: [] };
-      
-      // Firestore 'in' query is limited to 10 items. For more, chunking is needed.
-      // Assuming number of questions per quiz is reasonable.
-      const questionsSnap = await db.collection('questions').where(firebase.firestore.FieldPath.documentId(), 'in', quiz.questionIds).get();
-      const questions = questionsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Question));
-      return { quiz, questions };
+      try {
+          const quizSnap = await db.collection('quizzes').doc(id).get();
+          if (!quizSnap.exists) return null;
+          const quiz = { id: quizSnap.id, ...quizSnap.data() } as Quiz;
+          if (!quiz.questionIds || quiz.questionIds.length === 0) return { quiz, questions: [] };
+          
+          // Firestore 'in' query is limited to 10 items. Chunking needed for production.
+          const questionsSnap = await db.collection('questions').where(firebase.firestore.FieldPath.documentId(), 'in', quiz.questionIds.slice(0, 10)).get();
+          const questions = questionsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Question));
+          return { quiz, questions };
+      } catch (e) {
+          console.error("Failed to get quiz details:", e);
+          return null;
+      }
   }
   
   async getLessonScenesForBuilder(lessonId: string): Promise<LessonScene[]> {
       if (!db) return [];
-      const snap = await db.collection('lesson_scenes').where('lesson_id', '==', lessonId).get();
-      return snap.docs.map(d => d.data() as LessonScene);
+      try {
+          const snap = await db.collection('lesson_scenes').where('lesson_id', '==', lessonId).get();
+          return snap.docs.map(d => d.data() as LessonScene);
+      } catch (e) {
+          console.error(e);
+          return [];
+      }
   }
   
   async saveLessonScene(scene: LessonScene): Promise<LessonScene> {
@@ -128,7 +175,9 @@ class DBService {
 
   async logStudentInteraction(event: StudentInteractionEvent): Promise<void> {
     if (!db) return;
-    await db.collection('student_interaction_events').add(event);
+    try {
+        await db.collection('student_interaction_events').add(event);
+    } catch (e) { console.error("Log interaction failed", e); }
   }
 
   subscribeToLessonInteractions(lessonId: string, callback: (payload: any) => void): { unsubscribe: () => void } {
@@ -144,7 +193,7 @@ class DBService {
                       callback({ ...newEvent, studentName: user?.name || 'Unknown' });
                   }
               }
-          });
+          }, err => console.error("Subscribe analytics error", err));
       return { unsubscribe };
   }
 
@@ -166,28 +215,33 @@ class DBService {
   
   async getAdvancedFinancialStats(): Promise<{ daily: number, monthly: number, yearly: number, total: number, pending: number }> {
     if (!db) return { daily: 0, monthly: 0, yearly: 0, total: 0, pending: 0 };
-    const snap = await db.collection('invoices').get();
-    const invoices = snap.docs.map(this.mapToInvoice);
-    
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const thisMonth = now.toISOString().substring(0, 7);
-    const thisYear = now.getFullYear();
+    try {
+        const snap = await db.collection('invoices').get();
+        const invoices = snap.docs.map(this.mapToInvoice);
+        
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const thisMonth = now.toISOString().substring(0, 7);
+        const thisYear = now.getFullYear();
 
-    let daily = 0, monthly = 0, yearly = 0, total = 0, pending = 0;
+        let daily = 0, monthly = 0, yearly = 0, total = 0, pending = 0;
 
-    invoices.forEach(inv => {
-        if (inv.status === 'PAID') {
-            const invDate = new Date(inv.date);
-            total += inv.amount;
-            if (inv.date.startsWith(today)) daily += inv.amount;
-            if (inv.date.startsWith(thisMonth)) monthly += inv.amount;
-            if (invDate.getFullYear() === thisYear) yearly += inv.amount;
-        } else if (inv.status === 'PENDING') {
-            pending++;
-        }
-    });
-    return { daily, monthly, yearly, total, pending };
+        invoices.forEach(inv => {
+            if (inv.status === 'PAID') {
+                const invDate = new Date(inv.date);
+                total += inv.amount;
+                if (inv.date.startsWith(today)) daily += inv.amount;
+                if (inv.date.startsWith(thisMonth)) monthly += inv.amount;
+                if (invDate.getFullYear() === thisYear) yearly += inv.amount;
+            } else if (inv.status === 'PENDING') {
+                pending++;
+            }
+        });
+        return { daily, monthly, yearly, total, pending };
+    } catch (e) {
+        console.error(e);
+        return { daily: 0, monthly: 0, yearly: 0, total: 0, pending: 0 };
+    }
   }
 
   subscribeToUsers(callback: (users: User[]) => void, role: UserRole): () => void {
@@ -212,8 +266,10 @@ class DBService {
 
   async getMaintenanceSettings(): Promise<MaintenanceSettings | null> {
       if (!db) return null;
-      const snap = await db.collection('settings').doc('maintenance').get();
-      return snap.exists ? snap.data() as MaintenanceSettings : null;
+      try {
+          const snap = await db.collection('settings').doc('maintenance').get();
+          return snap.exists ? snap.data() as MaintenanceSettings : null;
+      } catch (e) { return null; }
   }
   
   async saveMaintenanceSettings(settings: MaintenanceSettings) {
@@ -230,21 +286,25 @@ class DBService {
   
   async getGlobalStats() {
       if(!db) return {};
-      const snap = await db.collection('stats').doc('global').get();
-      return snap.exists ? snap.data() : {};
+      try {
+          const snap = await db.collection('stats').doc('global').get();
+          return snap.exists ? snap.data() : {};
+      } catch (e) { return {}; }
   }
   
   subscribeToGlobalStats(callback: (stats: any) => void): () => void {
       if(!db) return () => {};
       return db.collection('stats').doc('global').onSnapshot(snap => {
           callback(snap.exists ? snap.data() : {});
-      });
+      }, e => console.error("Stats subscription error", e));
   }
   
   async getPaymentSettings(): Promise<PaymentSettings | null> {
       if(!db) return null;
-      const snap = await db.collection('settings').doc('payment').get();
-      return snap.exists ? snap.data() as PaymentSettings : null;
+      try {
+          const snap = await db.collection('settings').doc('payment').get();
+          return snap.exists ? snap.data() as PaymentSettings : null;
+      } catch (e) { return null; }
   }
   
   async savePaymentSettings(settings: PaymentSettings) {
@@ -276,8 +336,13 @@ class DBService {
   
   async getHomePageContent(): Promise<HomePageContent[]> {
       if(!db) return [];
-      const snap = await db.collection('homePageContent').orderBy('createdAt', 'desc').get();
-      return snap.docs.map(d => ({ ...d.data(), id: d.id } as HomePageContent));
+      try {
+          const snap = await db.collection('homePageContent').orderBy('createdAt', 'desc').get();
+          return snap.docs.map(d => ({ ...d.data(), id: d.id } as HomePageContent));
+      } catch (e) {
+          console.error("Failed to load home content", e);
+          return [];
+      }
   }
 
   async saveHomePageContent(content: Partial<HomePageContent>) {
@@ -424,22 +489,27 @@ class DBService {
 
   async listAssets(): Promise<Asset[]> {
     if (!storage) return [];
-    const listRef = storage.ref('assets');
-    const res = await listRef.listAll();
-    const assets: Asset[] = [];
-    for (const itemRef of res.items) {
-        const [metadata, url] = await Promise.all([
-            itemRef.getMetadata(),
-            itemRef.getDownloadURL()
-        ]);
-        assets.push({
-            name: itemRef.name,
-            url: url,
-            type: metadata.contentType || 'unknown',
-            size: metadata.size || 0
-        });
+    try {
+        const listRef = storage.ref('assets');
+        const res = await listRef.listAll();
+        const assets: Asset[] = [];
+        for (const itemRef of res.items) {
+            const [metadata, url] = await Promise.all([
+                itemRef.getMetadata(),
+                itemRef.getDownloadURL()
+            ]);
+            assets.push({
+                name: itemRef.name,
+                url: url,
+                type: metadata.contentType || 'unknown',
+                size: metadata.size || 0
+            });
+        }
+        return assets;
+    } catch (e) {
+        console.error("List assets failed:", e);
+        return [];
     }
-    return assets;
   }
 
   async deleteAsset(name: string) {
@@ -695,8 +765,12 @@ class DBService {
   
   async getBrochureSettings(): Promise<BrochureSettings> {
       if(!db) return {} as BrochureSettings;
-      const snap = await db.collection('settings').doc('brochure').get();
-      return snap.data() as BrochureSettings;
+      try {
+          const snap = await db.collection('settings').doc('brochure').get();
+          return snap.data() as BrochureSettings;
+      } catch (e) {
+          return {} as BrochureSettings;
+      }
   }
 
   async saveBrochureSettings(settings: BrochureSettings) {
@@ -710,6 +784,7 @@ class DBService {
           await db.collection('_health').doc('check').get();
           return { alive: true };
       } catch (e: any) {
+          console.error("DB Check Failed:", e);
           return { alive: false, error: e.message };
       }
   }
@@ -739,34 +814,68 @@ class DBService {
   async deleteUnit(unitId: string) { if (!db) return; /* Complex: Needs to delete all sub-lessons */ }
   async deleteLesson(lessonId: string) { if (!db) return; /* Complex: Needs to update parent unit */ }
   async updateLesson(lessonId: string, updates: Partial<Lesson>) { if (!db) return; /* Complex: Needs to update parent unit */ }
-  async saveUnit(unit: Unit, curriculumId: string): Promise<Unit> { if (!db) throw new Error("DB offline"); return unit; }
+  async saveUnit(unit: Unit, curriculumId: string): Promise<Unit> { 
+      if (!db) throw new Error("DB offline"); 
+      // Ensure the curriculum exists first (simple check)
+      const currRef = db.collection('curriculum').doc(curriculumId);
+      const currSnap = await currRef.get();
+      if (!currSnap.exists) {
+          // Auto-create curriculum doc if missing to allow unit creation
+          await currRef.set({
+              id: curriculumId,
+              grade: '12', // Defaults
+              subject: 'Physics',
+              title: 'المنهج الافتراضي',
+              description: 'تم الإنشاء تلقائياً',
+              icon: '📚',
+              units: []
+          });
+      }
+      
+      const currentData = (await currRef.get()).data() as Curriculum;
+      const units = currentData.units || [];
+      const existingIdx = units.findIndex(u => u.id === unit.id);
+      
+      if (existingIdx > -1) {
+          units[existingIdx] = unit;
+      } else {
+          units.push(unit);
+      }
+      
+      await currRef.update({ units });
+      return unit; 
+  }
   
   async getLessonAnalytics(lessonId: string): Promise<LessonAnalyticsData> {
     if (!db) return { scene_visits: [], decision_counts: [], live_events: [], ai_help_requests: 0 };
-    
-    const eventsSnap = await db.collection('student_interaction_events').where('lesson_id', '==', lessonId).get();
-    const events = eventsSnap.docs.map(d => ({ ...d.data(), id: d.id } as StudentInteractionEvent));
-    
-    const sceneVisits: Record<string, number> = {};
-    const decisionCounts: Record<string, number> = {};
-    let aiRequests = 0;
+    try {
+        const eventsSnap = await db.collection('student_interaction_events').where('lesson_id', '==', lessonId).get();
+        const events = eventsSnap.docs.map(d => ({ ...d.data(), id: d.id } as StudentInteractionEvent));
+        
+        const sceneVisits: Record<string, number> = {};
+        const decisionCounts: Record<string, number> = {};
+        let aiRequests = 0;
 
-    events.forEach(e => {
-        if(e.to_scene_id) { sceneVisits[e.to_scene_id] = (sceneVisits[e.to_scene_id] || 0) + 1; }
-        if(e.from_scene_id && e.decision_text) {
-            const key = `${e.from_scene_id}__${e.decision_text}__${e.to_scene_id}`;
-            decisionCounts[key] = (decisionCounts[key] || 0) + 1;
-        }
-        if(e.event_type === 'ai_help_requested') { aiRequests++; }
-    });
-    
-    const scene_visits = Object.entries(sceneVisits).map(([scene_id, visit_count]) => ({ scene_id, title: `Scene ${scene_id.substring(0,4)}`, visit_count }));
-    const decision_counts = Object.entries(decisionCounts).map(([key, choice_count]) => {
-        const [from, text, to] = key.split('__');
-        return { from_scene_id: from, decision_text: text, to_scene_id: to, choice_count };
-    });
+        events.forEach(e => {
+            if(e.to_scene_id) { sceneVisits[e.to_scene_id] = (sceneVisits[e.to_scene_id] || 0) + 1; }
+            if(e.from_scene_id && e.decision_text) {
+                const key = `${e.from_scene_id}__${e.decision_text}__${e.to_scene_id}`;
+                decisionCounts[key] = (decisionCounts[key] || 0) + 1;
+            }
+            if(e.event_type === 'ai_help_requested') { aiRequests++; }
+        });
+        
+        const scene_visits = Object.entries(sceneVisits).map(([scene_id, visit_count]) => ({ scene_id, title: `Scene ${scene_id.substring(0,4)}`, visit_count }));
+        const decision_counts = Object.entries(decisionCounts).map(([key, choice_count]) => {
+            const [from, text, to] = key.split('__');
+            return { from_scene_id: from, decision_text: text, to_scene_id: to, choice_count };
+        });
 
-    return { scene_visits, decision_counts, live_events: [], ai_help_requests: aiRequests };
+        return { scene_visits, decision_counts, live_events: [], ai_help_requests: aiRequests };
+    } catch(e) {
+        console.error("Analytics Error", e);
+        return { scene_visits: [], decision_counts: [], live_events: [], ai_help_requests: 0 };
+    }
   }
 
   async saveStudentLessonProgress(progress: Partial<StudentLessonProgress>) {
@@ -776,8 +885,10 @@ class DBService {
 
   async getLessonScene(sceneId: string): Promise<LessonScene | null> { 
       if (!db) return null;
-      const snap = await db.collection('lesson_scenes').doc(sceneId).get();
-      return snap.exists ? snap.data() as LessonScene : null;
+      try {
+          const snap = await db.collection('lesson_scenes').doc(sceneId).get();
+          return snap.exists ? snap.data() as LessonScene : null;
+      } catch (e) { return null; }
   }
   async deleteLessonScene(sceneId: string) { if(!db) return; await db.collection('lesson_scenes').doc(sceneId).delete(); }
   

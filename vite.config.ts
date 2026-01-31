@@ -4,10 +4,6 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // Manually define non-VITE_ prefixed env vars for client-side access
-  define: {
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY),
-  },
   build: {
     outDir: 'build',
     sourcemap: false,

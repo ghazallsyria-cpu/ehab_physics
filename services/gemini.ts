@@ -37,10 +37,12 @@ const fileToGenerativePart = (dataUrl: string) => {
     };
 };
 
-// The API key is injected via vite.config.ts.
+// Access the API key safely using Vite's env standard
+const getApiKey = () => import.meta.env.VITE_GEMINI_API_KEY;
+
 export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, subject: 'Physics' | 'Chemistry') => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
@@ -62,7 +64,7 @@ export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, 
 
 export const getPhysicsExplanation = async (prompt: string, grade: string) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `اشرح لصف ${grade}: ${prompt}`,
@@ -76,7 +78,7 @@ export const getPhysicsExplanation = async (prompt: string, grade: string) => {
 };
 
 export const solvePhysicsProblem = async (problem: string): Promise<AISolverResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
     contents: `حل المسألة الفيزيائية التالية: ${problem}`,
@@ -100,7 +102,7 @@ export const solvePhysicsProblem = async (problem: string): Promise<AISolverResu
 };
 
 export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAttempt[]): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const prompt = `
     حلل أداء الطالب ${user.name} بناءً على نتائج اختباراته:
     ${JSON.stringify(attempts, null, 2)}
@@ -111,7 +113,7 @@ export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAt
 };
 
 export const generatePhysicsVisualization = async (prompt: string): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
     let operation = await ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
@@ -133,21 +135,19 @@ export const generatePhysicsVisualization = async (prompt: string): Promise<stri
         throw new Error("Video generation failed to produce a download link.");
     }
 
-    const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+    // Pass the API key to fetch the video securely
+    const response = await fetch(`${downloadLink}&key=${getApiKey()}`);
     const blob = await response.blob();
     return URL.createObjectURL(blob);
 };
 
-/**
- * Extracts questions from raw text using Gemini.
- */
 export const extractBankQuestionsAdvanced = async (
   rawText: string,
   grade: string,
   subject: string,
   unit: string
 ): Promise<{ questions: Question[] }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
     contents: `Digitize the following questions text for grade ${grade}, subject ${subject}, unit ${unit}. Extract all questions into a structured JSON format. For each question, provide: question_text, type ('mcq', 'short_answer', 'essay'), choices (array of {key: 'A', text: '...'}), correct_answer (the key of the correct choice), difficulty ('Easy', 'Medium', 'Hard'), category, solution (detailed explanation), steps_array (if applicable), and common_errors (if applicable). Here is the text:\n\n${rawText}`,
@@ -194,15 +194,12 @@ export const extractBankQuestionsAdvanced = async (
   return cleanAndParseJSON(jsonText) as { questions: Question[] };
 };
 
-/**
- * Digitizes an exam paper from an image using Gemini's multimodal capabilities.
- */
 export const digitizeExamPaper = async (
   imageDataUrl: string,
   grade: string,
   subject: string,
 ): Promise<{ questions: Question[] }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const imagePart = fileToGenerativePart(imageDataUrl);
 
   const textPart = {
@@ -210,7 +207,7 @@ export const digitizeExamPaper = async (
   };
   
   const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview", // Upgraded to Pro for better OCR
+    model: "gemini-3-pro-preview",
     contents: { parts: [textPart, imagePart] },
     config: {
       responseMimeType: "application/json",
@@ -249,13 +246,10 @@ export const digitizeExamPaper = async (
   return cleanAndParseJSON(jsonText) as { questions: Question[] };
 };
 
-/**
- * Verifies the quality and accuracy of a single question using Gemini.
- */
 export const verifyQuestionQuality = async (
   question: Question
 ): Promise<{ valid: boolean; feedback: string }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
   const questionString = JSON.stringify({
     text: question.text,
@@ -292,16 +286,12 @@ export const verifyQuestionQuality = async (
   }
 };
 
-/**
- * محرك تحويل محتوى الكتاب المدرسي إلى بنية تفاعلية.
- * يستخدم نموذج gemini-3-pro-preview القوي لدعم النصوص والصور معاً بدقة عالية.
- */
 export const convertTextbookToLesson = async (
-  inputContent: string, // نص الصفحة أو وصف الصورة
+  inputContent: string, 
   grade: string = "12",
-  imageData?: string // اختياري: صورة الصفحة
+  imageData?: string
 ): Promise<AILessonSchema | null> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   
   const systemInstruction = `
 أنت محرك تحويل محتوى تعليمي متخصص في المناهج الدراسية.
@@ -318,7 +308,6 @@ export const convertTextbookToLesson = async (
 - الإخراج يجب أن يكون JSON صالحاً تماماً وفق المخطط المطلوب.
 `;
 
-  // تحضير أجزاء الطلب (نص + صورة إذا وجدت)
   const parts: any[] = [];
   const promptText = inputContent?.trim() 
     ? `Analyze this content: ${inputContent}` 
@@ -332,7 +321,7 @@ export const convertTextbookToLesson = async (
   
   try {
     const response = await ai.models.generateContent({
-        model: "gemini-3-pro-preview", // استخدام النموذج الأقوى للتعامل مع الصور المعقدة
+        model: "gemini-3-pro-preview",
         contents: { parts },
         config: {
             systemInstruction: systemInstruction,
@@ -390,7 +379,6 @@ export const convertTextbookToLesson = async (
         }
     });
 
-    // استخدام دالة التنظيف القوية لاستخراج JSON الصحيح
     const jsonText = response.text || "";
     return cleanAndParseJSON(jsonText) as AILessonSchema;
     

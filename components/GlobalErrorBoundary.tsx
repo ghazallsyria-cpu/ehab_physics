@@ -10,7 +10,7 @@ interface State {
   error: Error | null;
 }
 
-class GlobalErrorBoundary extends Component<Props, State> {
+class GlobalErrorBoundary extends React.Component<Props, State> {
   // FIX: Initialize state as a class property to avoid constructor issues and ensure `this.state` is available.
   public state: State = {
     hasError: false,

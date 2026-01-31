@@ -121,11 +121,13 @@ const MarketingBrochure: React.FC = () => {
                  <PageContainer>
                     <h2 className="text-center text-4xl font-black mb-16" dangerouslySetInnerHTML={{ __html: settings.section1Title }} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        {/* FIX: Destructuring feature properties to correctly pass them to the FeatureCard component, avoiding type errors related to the 'key' prop. */}
-                        {settings.section1Features.map(({ id, ...featureProps }) => (
+                        {settings.section1Features.map((feature) => (
                             <FeatureCard 
-                                key={id}
-                                {...featureProps}
+                                key={feature.id}
+                                icon={feature.icon}
+                                title={feature.title}
+                                description={feature.description}
+                                color={feature.color}
                             />
                         ))}
                     </div>
@@ -135,11 +137,13 @@ const MarketingBrochure: React.FC = () => {
                 <PageContainer>
                     <h2 className="text-center text-4xl font-black mb-16" dangerouslySetInnerHTML={{ __html: settings.section2Title }} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        {/* FIX: Destructuring feature properties to correctly pass them to the FeatureCard component, avoiding type errors related to the 'key' prop. */}
-                        {settings.section2Features.map(({ id, ...featureProps }) => (
+                        {settings.section2Features.map((feature) => (
                             <FeatureCard 
-                                key={id}
-                                {...featureProps}
+                                key={feature.id}
+                                icon={feature.icon}
+                                title={feature.title}
+                                description={feature.description}
+                                color={feature.color}
                             />
                         ))}
                     </div>
@@ -149,11 +153,13 @@ const MarketingBrochure: React.FC = () => {
                 <PageContainer className="text-center">
                      <h2 className="text-center text-4xl font-black mb-16" dangerouslySetInnerHTML={{ __html: settings.section3Title }}/>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-20">
-                         {/* FIX: Destructuring feature properties to correctly pass them to the FeatureCard component, avoiding type errors related to the 'key' prop. */}
-                         {settings.section3Features.map(({ id, ...featureProps }) => (
+                         {settings.section3Features.map((feature) => (
                              <FeatureCard 
-                                key={id}
-                                {...featureProps}
+                                key={feature.id}
+                                icon={feature.icon}
+                                title={feature.title}
+                                description={feature.description}
+                                color={feature.color}
                             />
                          ))}
                      </div>
