@@ -121,14 +121,11 @@ const MarketingBrochure: React.FC = () => {
                  <PageContainer>
                     <h2 className="text-center text-4xl font-black mb-16" dangerouslySetInnerHTML={{ __html: settings.section1Title }} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        {/* FIX: Refactored map calls for FeatureCard to use explicit props, resolving a potential TypeScript spread issue. */}
-                        {settings.section1Features.map((feature) => (
-                            <FeatureCard
-                                key={feature.id}
-                                icon={feature.icon}
-                                title={feature.title}
-                                description={feature.description}
-                                color={feature.color}
+                        {/* FIX: Refactored map call for FeatureCard to use destructuring. This separates the 'id' for the 'key' prop and spreads the rest of the properties, resolving a TypeScript error. */}
+                        {settings.section1Features.map(({ id, ...featureProps }) => (
+                            <FeatureCard 
+                                key={id}
+                                {...featureProps}
                             />
                         ))}
                     </div>
@@ -138,14 +135,11 @@ const MarketingBrochure: React.FC = () => {
                 <PageContainer>
                     <h2 className="text-center text-4xl font-black mb-16" dangerouslySetInnerHTML={{ __html: settings.section2Title }} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        {/* FIX: Refactored map calls for FeatureCard to use explicit props, resolving a potential TypeScript spread issue. */}
-                        {settings.section2Features.map((feature) => (
-                            <FeatureCard
-                                key={feature.id}
-                                icon={feature.icon}
-                                title={feature.title}
-                                description={feature.description}
-                                color={feature.color}
+                        {/* FIX: Refactored map call for FeatureCard to use destructuring. This separates the 'id' for the 'key' prop and spreads the rest of the properties, resolving a TypeScript error. */}
+                        {settings.section2Features.map(({ id, ...featureProps }) => (
+                            <FeatureCard 
+                                key={id}
+                                {...featureProps}
                             />
                         ))}
                     </div>
@@ -155,14 +149,11 @@ const MarketingBrochure: React.FC = () => {
                 <PageContainer className="text-center">
                      <h2 className="text-center text-4xl font-black mb-16" dangerouslySetInnerHTML={{ __html: settings.section3Title }}/>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-20">
-                         {/* FIX: Refactored map calls for FeatureCard to use explicit props, resolving a potential TypeScript spread issue. */}
-                         {settings.section3Features.map((feature) => (
-                             <FeatureCard
-                                key={feature.id}
-                                icon={feature.icon}
-                                title={feature.title}
-                                description={feature.description}
-                                color={feature.color}
+                         {/* FIX: Refactored map call for FeatureCard to use destructuring. This separates the 'id' for the 'key' prop and spreads the rest of the properties, resolving a TypeScript error. */}
+                         {settings.section3Features.map(({ id, ...featureProps }) => (
+                             <FeatureCard 
+                                key={id}
+                                {...featureProps}
                             />
                          ))}
                      </div>

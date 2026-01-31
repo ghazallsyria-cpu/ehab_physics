@@ -11,9 +11,8 @@ interface State {
 }
 
 class GlobalErrorBoundary extends Component<Props, State> {
-  // FIX: Correctly initialize state and bind 'this' context in the constructor.
-  // This resolves errors related to 'this.state' and 'this.props' being unavailable
-  // in environments where class property initializers are not properly supported.
+  // FIX: Added constructor to correctly initialize state and bind `this` context for event handlers.
+  // This resolves errors related to accessing `this.state` and `this.props` in a class component.
   constructor(props: Props) {
     super(props);
     this.state = {
