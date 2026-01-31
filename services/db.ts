@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 import { db, storage } from './firebase'; 
 import { supabase } from './supabase';
 import firebase from 'firebase/compat/app';
@@ -897,7 +890,7 @@ subscribeToLessonInteractions(lessonId: string, callback: (payload: any) => void
           const newEvent = payload.new as StudentInteractionEvent;
 // FIX: Explicitly cast `newEvent.student_id` to a string to satisfy the `.eq()` method's type requirement, as the type from the Supabase payload can be ambiguous.
           const { data: user } = await supabase.from('profiles').select('name').eq('id', newEvent.student_id as string).single();
-          // FIX: Safely access user.name and ensure userName is a string to prevent type errors. The `name` property could be of an unknown type, so we explicitly convert it to a string.
+// FIX: Safely access user.name and ensure userName is a string to prevent type errors. The `name` property could be of an unknown type, so we explicitly convert it to a string.
 // FIX: Type 'unknown' is not assignable to type 'string'.
           const userName: string = String(user?.name ?? 'Unknown');
           callback({...newEvent, student_name: userName});
