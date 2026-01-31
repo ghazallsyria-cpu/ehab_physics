@@ -23,7 +23,6 @@ const AdminCurriculumManager: React.FC = () => {
   const loadCurriculum = async () => {
     setIsLoading(true);
     try {
-      // FIX: Property 'getCurriculumSupabase' does not exist on type 'DBService'.
       const data = await dbService.getCurriculum();
       setCurriculum(data);
     } catch (e) {
@@ -77,10 +76,26 @@ const AdminCurriculumManager: React.FC = () => {
       return;
     }
     setSaveStatus('saving');
+    
     try {
+        let targetId = editingUnit.curriculumId;
+        
+        // Critical Fix: If no curriculum exists for this grade/subject, create it first
+        if (!targetId) {
+            const newCurriculum = await dbService.createCurriculum({
+                grade: activeGrade,
+                subject: activeSubject,
+                title: `منهج ${activeSubject === 'Physics' ? 'الفيزياء' : 'الكيمياء'} - الصف ${activeGrade}`,
+                description: 'تم الإنشاء تلقائياً بواسطة المدير',
+                icon: '📚',
+                units: []
+            });
+            targetId = newCurriculum.id;
+        }
+
         await dbService.saveUnit(
           editingUnit.unit as Unit, 
-          editingUnit.curriculumId, 
+          targetId
         );
         setEditingUnit(null);
         await loadCurriculum();

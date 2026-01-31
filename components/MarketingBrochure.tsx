@@ -14,9 +14,16 @@ const DynamicIcon = ({ name, ...props }: { name: string, [key: string]: any }) =
     return IconComponent ? <IconComponent {...props} /> : null;
 };
 
+// Interface for FeatureCard props
+interface FeatureCardProps {
+    icon: string;
+    title: string;
+    description: string;
+    color?: "amber" | "cyan";
+}
 
 // Reusable component for a feature card
-const FeatureCard = ({ icon, title, description, color = "amber" }: { icon: string, title: string, description: string, color?: "amber" | "cyan" }) => {
+const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, color = "amber" }) => {
     const colorClasses = {
         amber: {
             border: 'border-amber-400/20',
@@ -31,7 +38,7 @@ const FeatureCard = ({ icon, title, description, color = "amber" }: { icon: stri
             glow: 'shadow-[0_0_80px_rgba(34,211,238,0.15)]'
         }
     };
-    const classes = colorClasses[color];
+    const classes = colorClasses[color || "amber"];
 
     return (
         <div className={`glass-panel p-10 rounded-[50px] border ${classes.border} ${classes.bg} ${classes.glow} backdrop-blur-2xl transition-all hover:-translate-y-2 hover:border-${color}-400/40`}>

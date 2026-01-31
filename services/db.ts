@@ -77,6 +77,15 @@ class DBService {
     }
   }
 
+  // New helper to ensure curriculum exists
+  async createCurriculum(data: Partial<Curriculum>): Promise<Curriculum> {
+      if (!db) throw new Error("DB not connected");
+      const id = data.id || `curr_${Date.now()}`;
+      const newCurr = { ...data, id, units: data.units || [] };
+      await db.collection('curriculum').doc(id).set(newCurr, { merge: true });
+      return newCurr as Curriculum;
+  }
+
   async getLesson(id: string): Promise<Lesson | null> {
      if (!db) return null;
      try {
@@ -811,25 +820,33 @@ class DBService {
       }
   }
   
-  async deleteUnit(unitId: string) { if (!db) return; /* Complex: Needs to delete all sub-lessons */ }
-  async deleteLesson(lessonId: string) { if (!db) return; /* Complex: Needs to update parent unit */ }
-  async updateLesson(lessonId: string, updates: Partial<Lesson>) { if (!db) return; /* Complex: Needs to update parent unit */ }
+  async deleteUnit(unitId: string) { if (!db) return; await db.collection('units').doc(unitId).delete(); }
+  async deleteLesson(lessonId: string) { if (!db) return; await db.collection('lessons').doc(lessonId).delete(); }
+  async updateLesson(lessonId: string, updates: Partial<Lesson>) { if (!db) return; await db.collection('lessons').doc(lessonId).update(updates); }
+  
   async saveUnit(unit: Unit, curriculumId: string): Promise<Unit> { 
       if (!db) throw new Error("DB offline"); 
-      // Ensure the curriculum exists first (simple check)
-      const currRef = db.collection('curriculum').doc(curriculumId);
+      
+      let targetId = curriculumId;
+      if (!targetId) {
+          throw new Error("Cannot save unit: Curriculum ID is empty.");
+      }
+
+      const currRef = db.collection('curriculum').doc(targetId);
       const currSnap = await currRef.get();
       if (!currSnap.exists) {
-          // Auto-create curriculum doc if missing to allow unit creation
+          // If curriculum doc doesn't exist, we must create it. 
+          // However, we need minimal curriculum data.
+          // For now, if we reach here with an ID but no doc, we assume a sync issue or first-time setup.
           await currRef.set({
-              id: curriculumId,
-              grade: '12', // Defaults
+              id: targetId,
+              grade: '12', 
               subject: 'Physics',
               title: 'المنهج الافتراضي',
               description: 'تم الإنشاء تلقائياً',
               icon: '📚',
               units: []
-          });
+          }, { merge: true });
       }
       
       const currentData = (await currRef.get()).data() as Curriculum;

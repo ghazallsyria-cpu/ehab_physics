@@ -10,12 +10,14 @@ interface State {
   error: Error | null;
 }
 
-class GlobalErrorBoundary extends React.Component<Props, State> {
-  // FIX: Initialize state as a class property to avoid constructor issues and ensure `this.state` is available.
-  public state: State = {
-    hasError: false,
-    error: null,
-  };
+class GlobalErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+    };
+  }
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
@@ -25,15 +27,12 @@ class GlobalErrorBoundary extends React.Component<Props, State> {
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  // FIX: Use an arrow function for the handler to automatically bind `this`.
   handleReset = () => {
-    // FIX: Access `this.state` which is now correctly initialized.
     this.setState({ hasError: false, error: null });
     window.location.reload();
   };
 
   render() {
-    // FIX: Access `this.state` which is now correctly initialized.
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[#0A2540] flex flex-col items-center justify-center p-6 text-center font-['Tajawal'] text-white" dir="rtl">
@@ -46,7 +45,6 @@ class GlobalErrorBoundary extends React.Component<Props, State> {
               واجه النظام مشكلة تقنية بسيطة. غالباً ما يكون السبب ضعف في الاتصال أو تحديث في البيانات.
             </p>
             <div className="bg-black/30 p-4 rounded-xl mb-8 text-left ltr font-mono text-[10px] text-red-300 overflow-hidden">
-                {/* FIX: Access `this.state` which is now correctly initialized. */}
                 {this.state.error?.message}
             </div>
             <button
@@ -60,7 +58,6 @@ class GlobalErrorBoundary extends React.Component<Props, State> {
       );
     }
 
-    // FIX: Access `this.props` which is available on class components.
     return this.props.children;
   }
 }
