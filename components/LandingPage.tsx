@@ -1,5 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
 import { ChevronLeft, User, Briefcase, UserCheck, Activity } from 'lucide-react';
 import HeroSection from './HeroSection';
@@ -9,6 +9,7 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ 
       totalStudents: 1250, 
       maleStudents: 600, 
@@ -77,12 +78,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                 منصة تعليمية متطورة تدمج الذكاء الاصطناعي مع المنهج الكويتي لتجربة تعليمية لا مثيل لها.
             </p>
 
-            <div>
+            <div className="flex flex-col sm:flex-row gap-6">
                 <button 
                     onClick={onStart} 
-                    className="group relative px-12 py-5 bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-full font-black text-lg uppercase transition-all duration-300 hover:bg-[#38bdf8] hover:text-black hover:border-[#38bdf8] shadow-[0_0_40px_rgba(56,189,248,0.2)] hover:shadow-[0_0_80px_rgba(56,189,248,0.6)] active:scale-95 flex items-center gap-4"
+                    className="group relative px-12 py-5 bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-full font-black text-lg uppercase transition-all duration-300 hover:bg-[#38bdf8] hover:text-black hover:border-[#38bdf8] shadow-[0_0_40px_rgba(56,189,248,0.2)] hover:shadow-[0_0_80px_rgba(56,189,248,0.6)] active:scale-95 flex items-center gap-4 justify-center"
                 >
                     دخول المنصة <ChevronLeft className="group-hover:-translate-x-2 transition-transform duration-300" size={24} />
+                </button>
+                <button 
+                    onClick={() => navigate('/brochure')} 
+                    className="group relative px-12 py-5 bg-transparent border border-white/20 text-white rounded-full font-black text-lg uppercase transition-all duration-300 hover:bg-white/10 active:scale-95 flex items-center gap-4 justify-center"
+                >
+                    عرض البروشور
                 </button>
             </div>
 
