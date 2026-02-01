@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { LoggingSettings, NotificationSettings, AppBranding, MaintenanceSettings } from '../types';
 import { dbService } from '../services/db';
@@ -58,12 +57,19 @@ const AdminSettings: React.FC = () => {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const handleToggle = (key: keyof LoggingSettings) => {
-    if (settings) {
-      setSettings(prev => ({ ...prev!, [key]: !prev![key] }));
-    }
+  const handleSystemInit = async () => {
+      if (!confirm("تحذير: سيتم إعادة تهيئة المناهج والمختبرات والإعدادات بقيم افتراضية. استخدم هذا الخيار فقط إذا كانت قاعدة البيانات فارغة تماماً.")) return;
+      setIsSaving(true);
+      try {
+          await dbService.initializeSystemWithDefaults();
+          setMessage({ text: 'تمت إعادة بناء النظام وحقن البيانات بنجاح! قم بتحديث الصفحة.', type: 'success' });
+      } catch (e) {
+          setMessage({ text: 'فشل تهيئة النظام.', type: 'error' });
+      } finally {
+          setIsSaving(false);
+      }
   };
-  
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !branding) return;
@@ -79,7 +85,6 @@ const AdminSettings: React.FC = () => {
     }
   };
 
-  // دالة لتحويل ISO الخاص بقاعدة البيانات إلى صيغة تفهمها مدخلات HTML (YYYY-MM-DDTHH:MM)
   const formatForInput = (iso: string) => {
     if (!iso) return '';
     const d = new Date(iso);
@@ -95,18 +100,27 @@ const AdminSettings: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto py-12 px-6 animate-fadeIn font-['Tajawal'] text-white text-right pb-32" dir="rtl">
-      <header className="mb-12 border-r-4 border-[#fbbf24] pr-8 flex justify-between items-center">
+      <header className="mb-12 border-r-4 border-[#fbbf24] pr-8 flex flex-col md:flex-row justify-between items-center gap-6">
         <div>
             <h2 className="text-5xl font-black mb-4 tracking-tighter italic">إعدادات <span className="text-[#fbbf24]">المنظومة</span></h2>
             <p className="text-gray-500 text-xl font-medium">التحكم في خصوصية البيانات، الهوية، ووضع الصيانة.</p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-[#fbbf24] text-black px-12 py-5 rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50"
-        >
-          {isSaving ? <RefreshCw className="animate-spin" /> : <Save />} حفظ الكل
-        </button>
+        <div className="flex gap-4">
+            <button
+              onClick={handleSystemInit}
+              disabled={isSaving}
+              className="bg-red-500/10 border border-red-500/30 text-red-400 px-6 py-5 rounded-[30px] font-black text-xs uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
+            >
+              <Database size={16} /> تهيئة النظام وحقن البيانات
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="bg-[#fbbf24] text-black px-12 py-5 rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50"
+            >
+              {isSaving ? <RefreshCw className="animate-spin" /> : <Save />} حفظ الكل
+            </button>
+        </div>
       </header>
 
       {message && (

@@ -8,7 +8,7 @@ import {
   Unit, Lesson, LiveSession, EducationalResource, UserRole,
   AppBranding, InvoiceSettings, MaintenanceSettings,
   LessonScene, StudentLessonProgress, StudentInteractionEvent, LessonAnalyticsData,
-  BrochureSettings, WeeklyReport
+  BrochureSettings, WeeklyReport, PhysicsExperiment
 } from '../types';
 
 
@@ -17,6 +17,74 @@ class DBService {
     const clean = { ...data };
     Object.keys(clean).forEach(key => (clean[key] === undefined) && delete clean[key]);
     return clean;
+  }
+
+  // --- SYSTEM INITIALIZATION (EMERGENCY SEED) ---
+  async initializeSystemWithDefaults() {
+      if (!db) return;
+      const batch = db.batch();
+
+      // 1. Create Default Curriculum (Physics Grade 12)
+      const currRef = db.collection('curriculum').doc('curr_phy_12');
+      batch.set(currRef, {
+          id: 'curr_phy_12',
+          grade: '12',
+          subject: 'Physics',
+          title: 'فيزياء الصف الثاني عشر',
+          description: 'المنهج الكامل للكورس الأول والثاني',
+          icon: '⚛️',
+          units: [
+              {
+                  id: 'unit_1',
+                  title: 'الطاقة والشغل',
+                  description: 'مفاهيم الطاقة الميكانيكية والشغل المبذول',
+                  lessons: [
+                      { id: 'l_intro_energy', title: 'مقدمة في الطاقة', type: 'THEORY', duration: '15 د', templateType: 'STANDARD', isPinned: true, content: [{ type: 'text', content: 'الطاقة هي القدرة على إنجاز شغل...' }] },
+                      { id: 'l_work_calc', title: 'حساب الشغل', type: 'EXAMPLE', duration: '20 د', templateType: 'UNIVERSAL', isPinned: false, universalConfig: {
+                          introduction: 'كيف نحسب الشغل؟', objectives: ['فهم القانون'], mainEquation: 'W = F d \\cos\\theta',
+                          variables: [{id:'f', name:'القوة', symbol:'F', unit:'N', defaultValue:10, min:0, max:100, step:1}],
+                          calculationFormula: 'f * 10', resultUnit: 'Joule'
+                      }}
+                  ]
+              }
+          ]
+      });
+
+      // 2. Create Default Labs
+      const labRef = db.collection('experiments').doc('exp_ohm');
+      batch.set(labRef, {
+          id: 'exp_ohm',
+          title: 'تحقيق قانون أوم',
+          description: 'دراسة العلاقة بين الجهد والتيار والمقاومة كهربائياً.',
+          grade: '12',
+          type: 'CUSTOM_HTML',
+          isFutureLab: true,
+          thumbnail: 'https://cdn-icons-png.flaticon.com/512/3063/3063206.png',
+          customHtml: '<div style="color:white; text-align:center; padding:50px;"><h1>محاكاة قانون أوم</h1><p>سيتم تحميل المحاكاة هنا...</p></div>',
+          parameters: [
+              { id: 'voltage', name: 'الجهد (V)', min: 0, max: 24, step: 1, defaultValue: 5, unit: 'V' },
+              { id: 'resistance', name: 'المقاومة (R)', min: 10, max: 1000, step: 10, defaultValue: 100, unit: 'Ω' }
+          ]
+      });
+
+      // 3. Create Forum Structure
+      const forumRef = db.collection('forumSections').doc('general_physics');
+      batch.set(forumRef, {
+          id: 'general_physics',
+          title: 'الفيزياء العامة',
+          description: 'نقاشات المنهج الدراسي',
+          order: 1,
+          forums: [
+              { id: 'f_grade_12', title: 'تجمع الصف 12', description: 'أسئلة ومناقشات الثاني عشر', icon: '🎓', order: 1 }
+          ]
+      });
+
+      // 4. Create Settings
+      batch.set(db.collection('settings').doc('branding'), { appName: 'المركز السوري للعلوم', logoUrl: '' });
+      batch.set(db.collection('settings').doc('notifications'), { pushForLiveSessions: true, pushForGradedQuizzes: true, pushForAdminAlerts: true });
+
+      await batch.commit();
+      return true;
   }
 
   // --- 👤 User Services ---
@@ -649,15 +717,15 @@ class DBService {
       await db.collection('liveSessions').doc(id).delete();
   }
   
-  async getExperiments(grade?: string): Promise<any[]> {
+  async getExperiments(grade?: string): Promise<PhysicsExperiment[]> {
       if(!db) return [];
       let query: firebase.firestore.Query = db.collection('experiments');
       if (grade) query = query.where('grade', '==', grade);
       const snap = await query.get();
-      return snap.docs.map(d => ({...d.data(), id: d.id}));
+      return snap.docs.map(d => ({...d.data(), id: d.id} as PhysicsExperiment));
   }
   
-  async saveExperiment(exp: Partial<any>) {
+  async saveExperiment(exp: Partial<PhysicsExperiment>) {
       if(!db) return;
       if (exp.id) await db.collection('experiments').doc(exp.id).set(exp, { merge: true });
       else await db.collection('experiments').add(exp);

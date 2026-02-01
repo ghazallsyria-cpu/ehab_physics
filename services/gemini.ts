@@ -38,6 +38,7 @@ const fileToGenerativePart = (dataUrl: string) => {
 };
 
 // Access the API key safely using Vite's env standard
+// IMPORTANT: This must be VITE_GEMINI_API_KEY as per standard practice, mapped from API_KEY in config
 const getApiKey = () => import.meta.env.VITE_GEMINI_API_KEY;
 
 export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, subject: 'Physics' | 'Chemistry') => {
