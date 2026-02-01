@@ -215,7 +215,7 @@ class DBService {
           return snap.docs.map(d => ({ id: d.id, ...d.data() } as Quiz));
       } catch (e: any) {
           // If permissions are missing, return empty array instead of crashing
-          if (e.code !== 'permission-denied') console.error("Failed to get quizzes:", e);
+          if (e.code === 'permission-denied') console.warn("Quiz permissions missing.");
           return [];
       }
   }
@@ -518,16 +518,26 @@ class DBService {
   
   async getUserAttempts(uid: string, quizId?: string): Promise<StudentQuizAttempt[]> {
       if(!db) return [];
-      let query: firebase.firestore.Query = db.collection('attempts').where('studentId', '==', uid);
-      if (quizId) query = query.where('quizId', '==', quizId);
-      const snap = await query.orderBy('completedAt', 'desc').get();
-      return snap.docs.map(d => ({...d.data(), id: d.id} as StudentQuizAttempt));
+      try {
+        let query: firebase.firestore.Query = db.collection('attempts').where('studentId', '==', uid);
+        if (quizId) query = query.where('quizId', '==', quizId);
+        const snap = await query.orderBy('completedAt', 'desc').get();
+        return snap.docs.map(d => ({...d.data(), id: d.id} as StudentQuizAttempt));
+      } catch (e: any) {
+          if (e.code === 'permission-denied') return [];
+          console.error("Get attempts error:", e);
+          return [];
+      }
   }
 
   async getAttemptsForQuiz(quizId: string): Promise<StudentQuizAttempt[]> {
       if(!db) return [];
-      const snap = await db.collection('attempts').where('quizId', '==', quizId).orderBy('completedAt', 'desc').get();
-      return snap.docs.map(d => ({...d.data(), id: d.id} as StudentQuizAttempt));
+      try {
+        const snap = await db.collection('attempts').where('quizId', '==', quizId).orderBy('completedAt', 'desc').get();
+        return snap.docs.map(d => ({...d.data(), id: d.id} as StudentQuizAttempt));
+      } catch (e) {
+          return [];
+      }
   }
   
   async updateAttempt(attemptId: string, updates: Partial<StudentQuizAttempt>): Promise<void> {
@@ -625,18 +635,28 @@ class DBService {
   
   async getForumSections(): Promise<ForumSection[]> {
       if(!db) return [];
-      const snap = await db.collection('forumSections').orderBy('order', 'asc').get();
-      return snap.docs.map(d => ({...d.data(), id: d.id} as ForumSection));
+      try {
+        const snap = await db.collection('forumSections').orderBy('order', 'asc').get();
+        return snap.docs.map(d => ({...d.data(), id: d.id} as ForumSection));
+      } catch (e: any) {
+          if (e.code === 'permission-denied') console.warn("Forum permissions missing.");
+          return [];
+      }
   }
 
   async getForumPosts(forumId?: string): Promise<ForumPost[]> {
       if(!db) return [];
-      let query: firebase.firestore.Query = db.collection('forumPosts');
-      if (forumId) {
-          query = query.where('tags', 'array-contains', forumId);
+      try {
+        let query: firebase.firestore.Query = db.collection('forumPosts');
+        if (forumId) {
+            query = query.where('tags', 'array-contains', forumId);
+        }
+        const snap = await query.orderBy('timestamp', 'desc').get();
+        return snap.docs.map(d => ({...d.data(), id: d.id} as ForumPost));
+      } catch (e: any) {
+          if (e.code === 'permission-denied') console.warn("Forum posts permissions missing.");
+          return [];
       }
-      const snap = await query.orderBy('timestamp', 'desc').get();
-      return snap.docs.map(d => ({...d.data(), id: d.id} as ForumPost));
   }
   
   async createForumPost(post: Omit<ForumPost, 'id'>) {
@@ -692,8 +712,13 @@ class DBService {
   
   async getLiveSessions(): Promise<LiveSession[]> {
       if(!db) return [];
-      const snap = await db.collection('liveSessions').orderBy('startTime', 'asc').get();
-      return snap.docs.map(d => ({...d.data(), id: d.id} as LiveSession));
+      try {
+        const snap = await db.collection('liveSessions').orderBy('startTime', 'asc').get();
+        return snap.docs.map(d => ({...d.data(), id: d.id} as LiveSession));
+      } catch(e: any) {
+          if (e.code === 'permission-denied') console.warn("Live sessions permission denied.");
+          return [];
+      }
   }
 
   subscribeToLiveSessions(callback: (sessions: LiveSession[]) => void) {
@@ -719,10 +744,15 @@ class DBService {
   
   async getExperiments(grade?: string): Promise<PhysicsExperiment[]> {
       if(!db) return [];
-      let query: firebase.firestore.Query = db.collection('experiments');
-      if (grade) query = query.where('grade', '==', grade);
-      const snap = await query.get();
-      return snap.docs.map(d => ({...d.data(), id: d.id} as PhysicsExperiment));
+      try {
+        let query: firebase.firestore.Query = db.collection('experiments');
+        if (grade) query = query.where('grade', '==', grade);
+        const snap = await query.get();
+        return snap.docs.map(d => ({...d.data(), id: d.id} as PhysicsExperiment));
+      } catch (e: any) {
+          if (e.code === 'permission-denied') console.warn("Experiments permission denied.");
+          return [];
+      }
   }
   
   async saveExperiment(exp: Partial<PhysicsExperiment>) {
@@ -870,7 +900,7 @@ class DBService {
   async checkConnection() {
       if (!db) return { alive: false, error: 'Firebase not initialized' };
       try {
-          await db.collection('_health').doc('check').get();
+          await db.collection('settings').doc('branding').get(); // Try reading a public doc
           return { alive: true };
       } catch (e: any) {
           console.error("DB Check Failed:", e);

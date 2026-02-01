@@ -1,92 +1,168 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Code, CheckCircle2, Copy, Lock, Info } from 'lucide-react';
+import { ShieldCheck, Code, CheckCircle2, Copy, Lock, Info, AlertTriangle } from 'lucide-react';
 
 const FirestoreRulesFixer: React.FC = () => {
     const [copied, setCopied] = useState(false);
 
+    // هذه القواعد شاملة وتغطي كل الجداول المستخدمة في التطبيق
     const firestoreRules = `rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- Helper Functions ---
-    function isAuth() {
+    // --- دوال مساعدة للتحقق من الصلاحيات ---
+    function isSignedIn() {
       return request.auth != null;
     }
     
-    function isUser(userId) {
-      return isAuth() && request.auth.uid == userId;
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     function isTeacher() {
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
     }
 
-    // --- Public Read Collections (Critical for App Functionality) ---
-    // Allow any authenticated user to read curriculum, units, and lessons
-    match /curriculum/{docId} { 
-      allow read: if isAuth(); 
+    // =========================================================
+    // 1. المحتوى التعليمي العام (قراءة للكل، كتابة للمدير والمعلم)
+    // =========================================================
+    
+    match /curriculum/{document=**} { 
+      allow read: if isSignedIn(); 
       allow write: if isAdmin() || isTeacher(); 
     }
-    match /units/{docId} { 
-      allow read: if isAuth(); 
+    match /units/{document=**} { 
+      allow read: if isSignedIn(); 
       allow write: if isAdmin() || isTeacher(); 
     }
-    match /lessons/{docId} { 
-      allow read: if isAuth(); 
+    match /lessons/{document=**} { 
+      allow read: if isSignedIn(); 
       allow write: if isAdmin() || isTeacher(); 
     }
-    match /questions/{docId} {
-      allow read: if isAuth();
-      allow write: if isAdmin() || isTeacher();
+    match /experiments/{document=**} { 
+      allow read: if isSignedIn(); 
+      allow write: if isAdmin() || isTeacher(); 
     }
-    match /quizzes/{docId} {
-      allow read: if isAuth();
-      allow write: if isAdmin() || isTeacher();
+    match /lesson_scenes/{document=**} { 
+      allow read: if isSignedIn(); 
+      allow write: if isAdmin() || isTeacher(); 
     }
-    match /experiments/{docId} {
-      allow read: if isAuth();
-      allow write: if isAdmin() || isTeacher();
+    
+    // =========================================================
+    // 2. الاختبارات والأسئلة
+    // =========================================================
+
+    match /quizzes/{document=**} { 
+      allow read: if isSignedIn(); 
+      allow write: if isAdmin() || isTeacher(); 
+    }
+    match /questions/{document=**} { 
+      allow read: if isSignedIn(); 
+      allow write: if isAdmin() || isTeacher(); 
     }
 
-    // --- Publicly Readable System Content ---
-    match /settings/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    match /homePageContent/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // --- User-Specific Data ---
+    // =========================================================
+    // 3. بيانات المستخدمين والتقدم
+    // =========================================================
+
     match /users/{userId} {
-      // Allow users to read their own profile, admins to read all
-      allow read: if isUser(userId) || isAdmin() || isTeacher(); 
-      allow update: if isUser(userId) || isAdmin();
-      allow create: if isAuth(); // Allow signup
+      allow read: if isSignedIn(); // السماح بقراءة ملفات المعلمين والطلاب
+      allow create: if isSignedIn(); // السماح بالتسجيل
+      allow update: if isOwner(userId) || isAdmin(); // تحديث الملف الشخصي
+      allow delete: if isAdmin();
+      
+      match /todos/{todoId} {
+         allow read, write: if isOwner(userId);
+      }
     }
-    
+
     match /attempts/{attemptId} {
-        allow read: if isAuth() && (resource.data.studentId == request.auth.uid || isAdmin() || isTeacher());
-        allow create: if isAuth() && request.resource.data.studentId == request.auth.uid;
-        allow update: if isAdmin() || isTeacher(); 
+      // الطالب يقرأ محاولاته، المعلم والمدير يقرأون الكل
+      allow read: if isSignedIn() && (resource.data.studentId == request.auth.uid || isAdmin() || isTeacher());
+      allow create: if isSignedIn();
+      allow update: if isAdmin() || isTeacher(); // للتصحيح اليدوي
+    }
+
+    match /student_lesson_progress/{docId} {
+       allow read, write: if isSignedIn();
     }
     
-    // --- Other Collections ---
-    match /forumSections/{sectionId} { allow read: if isAuth(); allow write: if isAdmin(); }
+    match /student_interaction_events/{docId} {
+       allow create: if isSignedIn();
+       allow read: if isAdmin() || isTeacher();
+    }
+
+    // =========================================================
+    // 4. التواصل، المنتدى، والإشعارات
+    // =========================================================
+
+    match /forumSections/{document=**} { 
+      allow read: if isSignedIn(); 
+      allow write: if isAdmin(); 
+    }
+    
     match /forumPosts/{postId} { 
-        allow read: if isAuth(); 
-        allow create: if isAuth();
-        allow update, delete: if isUser(resource.data.authorUid) || isAdmin();
+        allow read: if isSignedIn(); 
+        allow create: if isSignedIn();
+        // الحذف والتعديل لصاحب المنشور أو المدير
+        allow update, delete: if isAdmin() || (isSignedIn() && resource.data.authorUid == request.auth.uid);
+    }
+
+    match /notifications/{noteId} {
+       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+       allow write: if isSignedIn(); // السماح للنظام بإنشاء إشعارات
+       allow update: if isSignedIn() && resource.data.userId == request.auth.uid; // لتحديث حالة القراءة
+    }
+
+    match /teacherMessages/{msgId} {
+       allow read, write: if isSignedIn();
     }
     
+    match /reviews/{reviewId} {
+       allow read: if isSignedIn();
+       allow create: if isSignedIn();
+    }
+
+    // =========================================================
+    // 5. النظام، الإعدادات، والمالية
+    // =========================================================
+
+    match /settings/{document=**} {
+      allow read: if true; // السماح بقراءة إعدادات الصيانة والهوية للجميع
+      allow write: if isAdmin();
+    }
+    
+    match /homePageContent/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /stats/{document=**} {
+       allow read: if true;
+       allow write: if isAdmin() || isTeacher();
+    }
+
+    match /invoices/{invoiceId} {
+       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+       allow write: if isAdmin();
+    }
+    
+    match /liveSessions/{sessionId} {
+       allow read: if isSignedIn();
+       allow write: if isAdmin() || isTeacher();
+    }
+    
+    match /recommendations/{recId} {
+       allow read: if isSignedIn();
+       allow write: if isAdmin() || isTeacher();
+    }
+    
+    // قاعدة افتراضية لمنع الوصول لأي شيء آخر غير معرف
     match /{document=**} {
-      allow read, write: if false; // Default deny
+      allow read, write: if false; 
     }
   }
 }`;
@@ -98,44 +174,53 @@ service cloud.firestore {
     };
 
     return (
-        <div className="max-w-4xl mx-auto py-12 animate-fadeIn font-['Tajawal'] text-right" dir="rtl">
-            <header className="mb-12 border-r-4 border-emerald-500 pr-8">
+        <div className="max-w-5xl mx-auto py-12 animate-fadeIn font-['Tajawal'] text-right" dir="rtl">
+            <header className="mb-12 border-r-4 border-red-500 pr-8 bg-red-500/5 py-6 rounded-l-3xl">
                 <h2 className="text-4xl font-black text-white flex items-center gap-4">
-                    <ShieldCheck className="text-emerald-400" /> مصلح الصلاحيات <span className="text-emerald-400">V2.0</span>
+                    <ShieldCheck className="text-red-500" size={40} /> إصلاح صلاحيات <span className="text-red-500">قاعدة البيانات</span>
                 </h2>
-                <p className="text-gray-500 mt-2 font-medium">إصلاح شامل لمشاكل "Missing Permissions" في قاعدة البيانات.</p>
+                <p className="text-gray-400 mt-2 font-bold text-lg">هذه الخطوة ضرورية لظهور الدروس والمختبرات والمنتدى.</p>
             </header>
 
             <div className="glass-panel p-10 rounded-[60px] border-white/5 bg-black/40 relative shadow-2xl">
-                <div className="p-8 bg-blue-500/10 border border-blue-500/20 rounded-[40px] mb-10">
-                    <div className="flex items-start gap-4">
-                        <Info size={24} className="text-blue-400 shrink-0" />
-                        <div>
-                            <h4 className="font-black text-blue-400">هام جداً:</h4>
-                            <p className="text-gray-400 text-sm mt-2 leading-relaxed">
-                                الرسالة "Missing or insufficient permissions" تعني أن قواعد Firestore الحالية تمنع تطبيقك من قراءة البيانات (الدروس، المختبرات).
-                                <br/>
-                                انسخ القواعد أدناه واستبدلها في تبويب <b>Rules</b> في Firebase Console لحل المشكلة فوراً.
-                            </p>
-                        </div>
+                <div className="p-8 bg-amber-500/10 border border-amber-500/20 rounded-[40px] mb-10 flex items-start gap-6">
+                    <AlertTriangle size={32} className="text-amber-500 shrink-0 mt-1" />
+                    <div>
+                        <h4 className="font-black text-amber-500 text-xl mb-2">لماذا لا تظهر البيانات؟</h4>
+                        <p className="text-gray-300 text-sm leading-relaxed">
+                            يقوم Firebase بشكل افتراضي بمنع قراءة البيانات لحماية التطبيق. 
+                            الكود الموجود في التطبيق (Client-side) لا يمكنه تغيير هذه القواعد تلقائياً لأسباب أمنية.
+                            <br/><br/>
+                            <span className="text-white font-bold underline">الحل الوحيد:</span> هو نسخ القواعد الموجودة في الأسفل يدوياً ولصقها في لوحة تحكم Firebase.
+                        </p>
                     </div>
                 </div>
 
-                <h3 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
-                    <Code size={24}/> القواعد المصححة (Corrected Rules)
-                </h3>
-                
-                <div className="relative group">
-                    <pre className="bg-black/80 p-6 rounded-3xl text-[10px] font-mono text-cyan-300 overflow-x-auto ltr text-left border border-white/10 h-96 no-scrollbar">
-                        {firestoreRules}
-                    </pre>
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-2xl font-black text-white flex items-center gap-3">
+                        <Code size={24} className="text-blue-400"/> القواعد الشاملة (v3.0)
+                    </h3>
                     <button 
                         onClick={handleCopy}
-                        className="absolute top-4 left-4 p-3 bg-emerald-500 text-black rounded-xl hover:bg-emerald-400 transition-all flex items-center gap-2 text-xs font-black shadow-xl"
+                        className="bg-emerald-500 text-black px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest hover:scale-105 transition-all shadow-lg flex items-center gap-2"
                     >
-                        {copied ? <CheckCircle2 size={16}/> : <Copy size={16}/>}
-                        {copied ? 'تم النسخ!' : 'نسخ القواعد'}
+                        {copied ? <CheckCircle2 size={18}/> : <Copy size={18}/>}
+                        {copied ? 'تم النسخ للحافظة' : 'نسخ القواعد'}
                     </button>
+                </div>
+                
+                <div className="relative group">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+                    <pre className="relative bg-[#0a1118] p-8 rounded-3xl text-[11px] font-mono text-cyan-300 overflow-x-auto ltr text-left border border-white/10 h-[500px] leading-relaxed shadow-inner">
+                        {firestoreRules}
+                    </pre>
+                </div>
+
+                <div className="mt-10 text-center">
+                    <p className="text-gray-500 text-xs mb-4">بعد النسخ، اذهب إلى:</p>
+                    <div className="inline-flex items-center gap-2 bg-white/5 px-6 py-3 rounded-full text-sm font-bold text-white border border-white/10">
+                        Firebase Console <span className="text-gray-600">→</span> Firestore Database <span className="text-gray-600">→</span> Tab: Rules
+                    </div>
                 </div>
             </div>
         </div>
