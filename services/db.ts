@@ -63,10 +63,6 @@ class DBService {
           callback(snap.exists ? { uid: snap.id, ...snap.data() } as User : null);
       }, (error) => {
           console.error("Subscribe user error:", error);
-          if (error.code === 'permission-denied') {
-             // Handle permission error gracefully
-             callback(null); 
-          }
       });
   }
 
@@ -150,6 +146,7 @@ class DBService {
           const snap = await query.get();
           return snap.docs.map(d => ({ id: d.id, ...d.data() } as Quiz));
       } catch (e: any) {
+          // If permissions are missing, return empty array instead of crashing
           if (e.code !== 'permission-denied') console.error("Failed to get quizzes:", e);
           return [];
       }
@@ -280,10 +277,8 @@ class DBService {
 
   async getNotifications(uid: string): Promise<AppNotification[]> {
       if(!db) return [];
-      try {
-        const snap = await db.collection('notifications').where('userId', '==', uid).orderBy('timestamp', 'desc').limit(20).get();
-        return snap.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
-      } catch (e) { return []; }
+      const snap = await db.collection('notifications').where('userId', '==', uid).orderBy('timestamp', 'desc').limit(20).get();
+      return snap.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
   }
 
   async getMaintenanceSettings(): Promise<MaintenanceSettings | null> {

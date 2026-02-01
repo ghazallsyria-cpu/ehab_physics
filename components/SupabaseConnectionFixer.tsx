@@ -31,17 +31,17 @@ ON storage.objects FOR SELECT
 TO public
 USING ( bucket_id = 'assets' );
 
--- 4. السماح برفع الملفات (بدون تعقيدات للمرحلة الحالية)
+-- 4. السماح برفع الملفات (للمستخدمين المسجلين فقط)
 CREATE POLICY "Public Upload Access"
 ON storage.objects FOR INSERT
 TO public
-WITH CHECK ( bucket_id = 'assets' );
+WITH CHECK ( bucket_id = 'assets' AND auth.role() = 'authenticated' );
 
--- 5. السماح بالحذف (للمسؤول)
+-- 5. السماح بالحذف (للمسؤولين فقط - اختياري، هنا مفتوح للمالك)
 CREATE POLICY "Public Delete Access"
 ON storage.objects FOR DELETE
 TO public
-USING ( bucket_id = 'assets' );
+USING ( bucket_id = 'assets' AND auth.uid() = owner );
 `;
 
   const handleCopy = () => {
@@ -64,7 +64,7 @@ USING ( bucket_id = 'assets' );
               <span className="bg-red-600 text-white text-[8px] px-2 py-0.5 rounded font-black animate-pulse">404 FIX REQUIRED</span>
           </div>
           <p className="text-gray-400 text-sm mb-8 leading-relaxed">
-            لحل مشكلة <b>Bucket not found</b>، اتبع الخطوات التالية بدقة:
+            لحل مشكلة <b>Bucket not found</b> أو عدم القدرة على رفع الملفات، اتبع الخطوات التالية:
             <br/>1. اذهب إلى مشروعك في Supabase.
             <br/>2. افتح قسم <b>SQL Editor</b> من القائمة الجانبية.
             <br/>3. الصق الكود أدناه واضغط على <b>Run</b>.

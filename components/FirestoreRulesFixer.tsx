@@ -47,6 +47,10 @@ service cloud.firestore {
       allow read: if isAuth();
       allow write: if isAdmin() || isTeacher();
     }
+    match /experiments/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin() || isTeacher();
+    }
 
     // --- Publicly Readable System Content ---
     match /settings/{docId} {
@@ -109,7 +113,7 @@ service cloud.firestore {
                         <div>
                             <h4 className="font-black text-blue-400">هام جداً:</h4>
                             <p className="text-gray-400 text-sm mt-2 leading-relaxed">
-                                الرسالة "Missing or insufficient permissions" تعني أن قواعد Firestore الحالية تمنع تطبيقك من قراءة البيانات.
+                                الرسالة "Missing or insufficient permissions" تعني أن قواعد Firestore الحالية تمنع تطبيقك من قراءة البيانات (الدروس، المختبرات).
                                 <br/>
                                 انسخ القواعد أدناه واستبدلها في تبويب <b>Rules</b> في Firebase Console لحل المشكلة فوراً.
                             </p>
