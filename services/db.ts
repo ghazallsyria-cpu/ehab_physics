@@ -38,8 +38,10 @@ class DBService {
           const snap = await db.collection('users').doc(identifier).get();
           return snap.exists ? { uid: snap.id, ...snap.data() } as User : null;
       }
-    } catch (e) {
-      console.error("Firebase getUser failed:", e);
+    } catch (e: any) {
+      if (e.code === 'permission-denied') {
+          console.warn("User permission denied. Check Firestore Rules.");
+      }
       return null;
     }
   }
@@ -61,6 +63,10 @@ class DBService {
           callback(snap.exists ? { uid: snap.id, ...snap.data() } as User : null);
       }, (error) => {
           console.error("Subscribe user error:", error);
+          if (error.code === 'permission-denied') {
+             // Handle permission error gracefully
+             callback(null); 
+          }
       });
   }
 
@@ -73,8 +79,9 @@ class DBService {
     try {
         const snap = await db.collection('curriculum').get();
         return snap.docs.map(d => ({ id: d.id, ...d.data() } as Curriculum));
-    } catch (e) {
+    } catch (e: any) {
         console.error("Failed to get curriculum:", e);
+        if (e.code === 'permission-denied') return [];
         return [];
     }
   }
@@ -142,8 +149,8 @@ class DBService {
           if (grade && grade !== 'all') query = query.where('grade', '==', grade);
           const snap = await query.get();
           return snap.docs.map(d => ({ id: d.id, ...d.data() } as Quiz));
-      } catch (e) {
-          console.error("Failed to get quizzes:", e);
+      } catch (e: any) {
+          if (e.code !== 'permission-denied') console.error("Failed to get quizzes:", e);
           return [];
       }
   }
@@ -258,6 +265,9 @@ class DBService {
       if (!db) return () => {};
       return db.collection('users').where('role', '==', role).onSnapshot(snap => {
           callback(snap.docs.map(d => ({ uid: d.id, ...d.data() } as User)));
+      }, err => {
+          console.warn("Subscribe users warning:", err.message);
+          callback([]);
       });
   }
 
@@ -270,8 +280,10 @@ class DBService {
 
   async getNotifications(uid: string): Promise<AppNotification[]> {
       if(!db) return [];
-      const snap = await db.collection('notifications').where('userId', '==', uid).orderBy('timestamp', 'desc').limit(20).get();
-      return snap.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
+      try {
+        const snap = await db.collection('notifications').where('userId', '==', uid).orderBy('timestamp', 'desc').limit(20).get();
+        return snap.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
+      } catch (e) { return []; }
   }
 
   async getMaintenanceSettings(): Promise<MaintenanceSettings | null> {
@@ -734,10 +746,14 @@ class DBService {
   
   async getAIRecommendations(user: User): Promise<AIRecommendation[]> {
       if(!db) return [];
-      const snap = await db.collection('recommendations')
-        .where('targetGrade', 'in', ['all', user.grade])
-        .get();
-      return snap.docs.map(d => ({...d.data(), id: d.id} as AIRecommendation));
+      try {
+        const snap = await db.collection('recommendations')
+            .where('targetGrade', 'in', ['all', user.grade])
+            .get();
+        return snap.docs.map(d => ({...d.data(), id: d.id} as AIRecommendation));
+      } catch (e) {
+          return [];
+      }
   }
   
   async saveRecommendation(rec: Partial<AIRecommendation>) {

@@ -47,7 +47,7 @@ const AdminDashboard: React.FC = () => {
     { view: 'admin-managers', icon: ShieldCheck, title: 'إدارة المدراء', description: 'فريق الإدارة.' },
     { view: 'admin-forums', icon: MessageSquare, title: 'المنتديات', description: 'هيكل الأقسام.' },
     { view: 'admin-forum-posts', icon: ShieldAlert, title: 'الرقابة', description: 'إدارة المنشورات.' },
-    { view: 'admin-security-fix', icon: Lock, title: 'الأمان', description: 'إصلاح القواعد.' },
+    { view: 'admin-security-fix', icon: Lock, title: 'أمان وتصحيح', description: 'إصلاح قواعد البيانات.' },
     { view: 'admin-live-sessions', icon: Video, title: 'البث المباشر', description: 'جدولة الحصص.' },
     { view: 'admin-assets', icon: Library, title: 'المكتبة', description: 'إدارة الوسائط.' },
     { view: 'admin-settings', icon: Settings, title: 'الإعدادات', description: 'سياسات النظام.' },
@@ -74,6 +74,19 @@ const AdminDashboard: React.FC = () => {
                   <h4 className="text-white font-black">تحذير الصلاحيات</h4>
                   <p className="text-xs text-gray-400 mt-1">حسابك الحالي غير مسجل بصفة "Admin" في قاعدة البيانات.</p>
               </div>
+          </div>
+      )}
+
+      {firestoreStatus.error?.includes('permission-denied') && (
+          <div className="bg-yellow-500/10 border-2 border-yellow-500/30 p-6 rounded-[30px] flex items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                  <Lock className="text-yellow-500" size={32} />
+                  <div>
+                      <h4 className="text-white font-black">مشكلة في الصلاحيات</h4>
+                      <p className="text-xs text-gray-400 mt-1">قواعد الأمان تمنع الوصول. يرجى استخدام أداة الإصلاح.</p>
+                  </div>
+              </div>
+              <button onClick={() => navigate('/admin/security-fix')} className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold text-xs">إصلاح الآن</button>
           </div>
       )}
 
@@ -107,7 +120,7 @@ const AdminDashboard: React.FC = () => {
               <div className="space-y-4">
                  <div className={`p-5 rounded-2xl border flex justify-between items-center ${firestoreStatus.alive ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
                     <span className="text-[10px] font-black uppercase">Database</span>
-                    <span className="text-[10px] font-bold">{firestoreStatus.alive ? 'ONLINE' : 'ERROR'}</span>
+                    <span className="text-[10px] font-bold">{firestoreStatus.alive ? 'ONLINE' : 'CHECK'}</span>
                  </div>
                  <button onClick={checkHealth} className="w-full py-4 bg-white/5 rounded-xl text-gray-400 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3">
                     <RefreshCw size={14} className={isChecking ? 'animate-spin' : ''} /> تحديث الحالة

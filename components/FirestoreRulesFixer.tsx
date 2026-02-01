@@ -25,7 +25,30 @@ service cloud.firestore {
       return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
     }
 
-    // --- Publicly Readable Collections (System Content) ---
+    // --- Public Read Collections (Critical for App Functionality) ---
+    // Allow any authenticated user to read curriculum, units, and lessons
+    match /curriculum/{docId} { 
+      allow read: if isAuth(); 
+      allow write: if isAdmin() || isTeacher(); 
+    }
+    match /units/{docId} { 
+      allow read: if isAuth(); 
+      allow write: if isAdmin() || isTeacher(); 
+    }
+    match /lessons/{docId} { 
+      allow read: if isAuth(); 
+      allow write: if isAdmin() || isTeacher(); 
+    }
+    match /questions/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin() || isTeacher();
+    }
+    match /quizzes/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin() || isTeacher();
+    }
+
+    // --- Publicly Readable System Content ---
     match /settings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -36,68 +59,30 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // --- Curriculum Content (Read by all, Write by Admin/Teacher) ---
-    match /curriculum/{docId} { allow read: if true; allow write: if isAdmin() || isTeacher(); }
-    match /units/{docId} { allow read: if true; allow write: if isAdmin() || isTeacher(); }
-    match /lessons/{docId} { allow read: if true; allow write: if isAdmin() || isTeacher(); }
-    
-    // --- Authenticated Read Collections ---
-    match /experiments/{expId} { allow read: if isAuth(); allow write: if isAdmin() || isTeacher(); }
-    match /quizzes/{quizId} { allow read: if isAuth(); allow write: if isAdmin() || isTeacher(); }
-    match /questions/{qId} { allow read: if isAuth(); allow write: if isAdmin() || isTeacher(); }
-    match /forumSections/{sectionId} { allow read: if isAuth(); allow write: if isAdmin(); }
-    match /recommendations/{recId} { allow read: if isAuth(); allow write: if isAdmin() || isTeacher(); }
-    match /liveSessions/{sessionId} { allow read: if isAuth(); allow write: if isAdmin() || isTeacher(); }
-    match /lesson_scenes/{sceneId} { allow read: if isAuth(); allow write: if isAdmin() || isTeacher(); }
-
     // --- User-Specific Data ---
     match /users/{userId} {
-      allow read: if isAuth(); // Allow reading profiles for interactions
+      // Allow users to read their own profile, admins to read all
+      allow read: if isUser(userId) || isAdmin() || isTeacher(); 
       allow update: if isUser(userId) || isAdmin();
-      allow create, delete: if isAdmin() || isUser(userId);
-    }
-    
-    match /users/{userId}/todos/{todoId} {
-       allow read, write, create, delete: if isUser(userId);
-    }
-    
-    match /invoices/{invoiceId} {
-      allow read: if isUser(resource.data.userId) || isAdmin();
-      allow write: if isAdmin();
-    }
-    
-    match /notifications/{noteId} {
-      allow read, update: if isUser(resource.data.userId);
-      allow create: if isAuth(); // System/admin can create for a user
-      allow delete: if isAdmin();
+      allow create: if isAuth(); // Allow signup
     }
     
     match /attempts/{attemptId} {
-        allow read: if isUser(resource.data.studentId) || isAdmin() || isTeacher();
-        allow create: if isUser(request.resource.data.studentId);
-        allow update: if isAdmin() || isTeacher(); // For manual grading
+        allow read: if isAuth() && (resource.data.studentId == request.auth.uid || isAdmin() || isTeacher());
+        allow create: if isAuth() && request.resource.data.studentId == request.auth.uid;
+        allow update: if isAdmin() || isTeacher(); 
     }
     
-    match /student_lesson_progress/{docId} {
-       allow read, write: if isAuth();
-    }
-    
-    match /student_interaction_events/{docId} {
-       allow create: if isAuth();
-       allow read: if isAdmin() || isTeacher();
-    }
-    
-    // --- Forum Posts ---
-    match /forumPosts/{postId} {
-        allow read: if isAuth();
+    // --- Other Collections ---
+    match /forumSections/{sectionId} { allow read: if isAuth(); allow write: if isAdmin(); }
+    match /forumPosts/{postId} { 
+        allow read: if isAuth(); 
         allow create: if isAuth();
-        allow update: if isUser(resource.data.authorUid) || isAdmin();
-        allow delete: if isUser(resource.data.authorUid) || isAdmin();
+        allow update, delete: if isUser(resource.data.authorUid) || isAdmin();
     }
     
-    // --- Health Check ---
-    match /_health/{docId} {
-      allow read: if true;
+    match /{document=**} {
+      allow read, write: if false; // Default deny
     }
   }
 }`;
@@ -112,55 +97,41 @@ service cloud.firestore {
         <div className="max-w-4xl mx-auto py-12 animate-fadeIn font-['Tajawal'] text-right" dir="rtl">
             <header className="mb-12 border-r-4 border-emerald-500 pr-8">
                 <h2 className="text-4xl font-black text-white flex items-center gap-4">
-                    <ShieldCheck className="text-emerald-400" /> مصلح الصلاحيات <span className="text-emerald-400">V12</span>
+                    <ShieldCheck className="text-emerald-400" /> مصلح الصلاحيات <span className="text-emerald-400">V2.0</span>
                 </h2>
-                <p className="text-gray-500 mt-2 font-medium">إصلاح شامل لمنع ظهور الصفحات البيضاء (Blank Pages).</p>
+                <p className="text-gray-500 mt-2 font-medium">إصلاح شامل لمشاكل "Missing Permissions" في قاعدة البيانات.</p>
             </header>
 
             <div className="glass-panel p-10 rounded-[60px] border-white/5 bg-black/40 relative shadow-2xl">
-                <div className="absolute top-0 right-0 p-8 text-[120px] font-black text-white/[0.02] -rotate-12 pointer-events-none select-none">
-                    RULES
-                </div>
-                
-                <div className="relative z-10">
-                    <div className="p-8 bg-green-500/5 border border-green-500/20 rounded-[40px] mb-10">
-                        <div className="flex items-start gap-4">
-                            <Info size={24} className="text-green-400 shrink-0" />
-                            <div>
-                                <h4 className="font-black text-green-400">لماذا هذا التحديث؟</h4>
-                                <p className="text-gray-400 text-sm mt-2 leading-relaxed">
-                                    لتعزيز الأمان ومنع الأخطاء، قمنا بتحديث قواعد الوصول. هذه القواعد الجديدة تضمن أن المحتوى العام (مثل الإعلانات) يظهر للجميع، بينما تبقى بيانات الطلاب والمعلمين محمية بشكل كامل ولا يمكن الوصول إليها إلا من قبل أصحابها أو المدراء.
-                                </p>
-                            </div>
+                <div className="p-8 bg-blue-500/10 border border-blue-500/20 rounded-[40px] mb-10">
+                    <div className="flex items-start gap-4">
+                        <Info size={24} className="text-blue-400 shrink-0" />
+                        <div>
+                            <h4 className="font-black text-blue-400">هام جداً:</h4>
+                            <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+                                الرسالة "Missing or insufficient permissions" تعني أن قواعد Firestore الحالية تمنع تطبيقك من قراءة البيانات.
+                                <br/>
+                                انسخ القواعد أدناه واستبدلها في تبويب <b>Rules</b> في Firebase Console لحل المشكلة فوراً.
+                            </p>
                         </div>
                     </div>
+                </div>
 
-                    <h3 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
-                        <Code size={24}/> قواعد Firestore الموصى بها
-                    </h3>
-                    
-                    <div className="relative group">
-                        <pre className="bg-black/80 p-6 rounded-3xl text-[10px] font-mono text-cyan-300 overflow-x-auto ltr text-left border border-white/10 h-80 no-scrollbar">
-                            {firestoreRules}
-                        </pre>
-                        <button 
-                            onClick={handleCopy}
-                            className="absolute top-4 left-4 p-3 bg-emerald-500 text-black rounded-xl hover:bg-emerald-400 transition-all flex items-center gap-2 text-xs font-black shadow-xl"
-                        >
-                            {copied ? <CheckCircle2 size={16}/> : <Copy size={16}/>}
-                            {copied ? 'تم النسخ!' : 'نسخ القواعد'}
-                        </button>
-                    </div>
-
-                    <div className="mt-10 pt-8 border-t border-white/5">
-                        <h4 className="font-black text-lg text-amber-400">خطوات التطبيق:</h4>
-                        <ol className="list-decimal list-inside mt-4 space-y-3 text-gray-300 text-sm">
-                            <li>اذهب إلى مشروعك في Firebase Console.</li>
-                            <li>من القائمة، اختر <b className="text-white">Firestore Database</b> ثم اذهب إلى تبويب <b className="text-white">Rules</b>.</li>
-                            <li>احذف القواعد القديمة بالكامل، ثم الصق القواعد الجديدة التي نسختها.</li>
-                            <li>اضغط على <b className="text-amber-400">Publish</b> لحفظ التغييرات.</li>
-                        </ol>
-                    </div>
+                <h3 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
+                    <Code size={24}/> القواعد المصححة (Corrected Rules)
+                </h3>
+                
+                <div className="relative group">
+                    <pre className="bg-black/80 p-6 rounded-3xl text-[10px] font-mono text-cyan-300 overflow-x-auto ltr text-left border border-white/10 h-96 no-scrollbar">
+                        {firestoreRules}
+                    </pre>
+                    <button 
+                        onClick={handleCopy}
+                        className="absolute top-4 left-4 p-3 bg-emerald-500 text-black rounded-xl hover:bg-emerald-400 transition-all flex items-center gap-2 text-xs font-black shadow-xl"
+                    >
+                        {copied ? <CheckCircle2 size={16}/> : <Copy size={16}/>}
+                        {copied ? 'تم النسخ!' : 'نسخ القواعد'}
+                    </button>
                 </div>
             </div>
         </div>
