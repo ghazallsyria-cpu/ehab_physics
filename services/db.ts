@@ -25,6 +25,8 @@ class DBService {
         console.error("Firestore DB is not initialized.");
         return null;
     }
+    if (!identifier) return null;
+    
     try {
       if (identifier.includes('@')) {
           const snap = await db.collection('users').where('email', '==', identifier).limit(1).get();
@@ -54,7 +56,7 @@ class DBService {
   }
   
   subscribeToUser(uid: string, callback: (user: User | null) => void): () => void {
-      if (!db) return () => {};
+      if (!db || !uid) return () => {};
       return db.collection('users').doc(uid).onSnapshot(snap => {
           callback(snap.exists ? { uid: snap.id, ...snap.data() } as User : null);
       }, (error) => {
@@ -87,7 +89,7 @@ class DBService {
   }
 
   async getLesson(id: string): Promise<Lesson | null> {
-     if (!db) return null;
+     if (!db || !id) return null;
      try {
          const snap = await db.collection('lessons').doc(id).get();
          return snap.exists ? { id: snap.id, ...snap.data() } as Lesson : null;
@@ -147,7 +149,7 @@ class DBService {
   }
 
   async getQuizWithQuestions(id: string): Promise<{ quiz: Quiz; questions: Question[] } | null> {
-      if (!db) return null;
+      if (!db || !id) return null;
       try {
           const quizSnap = await db.collection('quizzes').doc(id).get();
           if (!quizSnap.exists) return null;
@@ -155,7 +157,6 @@ class DBService {
           if (!quiz.questionIds || quiz.questionIds.length === 0) return { quiz, questions: [] };
           
           // Firestore 'in' query is limited to 10 items. Chunking needed for production.
-          // For now, we take first 10 to prevent error. In prod, use multiple queries.
           const questionsSnap = await db.collection('questions').where(firebase.firestore.FieldPath.documentId(), 'in', quiz.questionIds.slice(0, 10)).get();
           const questions = questionsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Question));
           return { quiz, questions };
@@ -198,7 +199,6 @@ class DBService {
               for (const change of snapshot.docChanges()) {
                   if (change.type === 'added') {
                       const newEvent = change.doc.data() as StudentInteractionEvent;
-                      // Fetch user name for analytics
                       const user = await this.getUser(newEvent.student_id as string);
                       callback({ ...newEvent, studentName: user?.name || 'Unknown' });
                   }
@@ -835,7 +835,7 @@ class DBService {
       const currRef = db.collection('curriculum').doc(targetId);
       const currSnap = await currRef.get();
       if (!currSnap.exists) {
-          // Fix: Auto-create curriculum doc if it doesn't exist
+          // If curriculum doc doesn't exist, we must create it. 
           await currRef.set({
               id: targetId,
               grade: '12', 

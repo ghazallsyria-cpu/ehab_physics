@@ -25,7 +25,7 @@ service cloud.firestore {
       return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
     }
 
-    // --- Publicly Readable Collections ---
+    // --- Publicly Readable Collections (System Content) ---
     match /settings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -36,6 +36,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // --- Curriculum Content (Read by all, Write by Admin/Teacher) ---
+    match /curriculum/{docId} { allow read: if true; allow write: if isAdmin() || isTeacher(); }
+    match /units/{docId} { allow read: if true; allow write: if isAdmin() || isTeacher(); }
+    match /lessons/{docId} { allow read: if true; allow write: if isAdmin() || isTeacher(); }
+    
     // --- Authenticated Read Collections ---
     match /experiments/{expId} { allow read: if isAuth(); allow write: if isAdmin() || isTeacher(); }
     match /quizzes/{quizId} { allow read: if isAuth(); allow write: if isAdmin() || isTeacher(); }
@@ -43,12 +48,13 @@ service cloud.firestore {
     match /forumSections/{sectionId} { allow read: if isAuth(); allow write: if isAdmin(); }
     match /recommendations/{recId} { allow read: if isAuth(); allow write: if isAdmin() || isTeacher(); }
     match /liveSessions/{sessionId} { allow read: if isAuth(); allow write: if isAdmin() || isTeacher(); }
+    match /lesson_scenes/{sceneId} { allow read: if isAuth(); allow write: if isAdmin() || isTeacher(); }
 
     // --- User-Specific Data ---
     match /users/{userId} {
-      allow read: if isAuth();
+      allow read: if isAuth(); // Allow reading profiles for interactions
       allow update: if isUser(userId) || isAdmin();
-      allow create, delete: if isAdmin();
+      allow create, delete: if isAdmin() || isUser(userId);
     }
     
     match /users/{userId}/todos/{todoId} {
@@ -72,12 +78,26 @@ service cloud.firestore {
         allow update: if isAdmin() || isTeacher(); // For manual grading
     }
     
+    match /student_lesson_progress/{docId} {
+       allow read, write: if isAuth();
+    }
+    
+    match /student_interaction_events/{docId} {
+       allow create: if isAuth();
+       allow read: if isAdmin() || isTeacher();
+    }
+    
     // --- Forum Posts ---
     match /forumPosts/{postId} {
         allow read: if isAuth();
         allow create: if isAuth();
         allow update: if isUser(resource.data.authorUid) || isAdmin();
         allow delete: if isUser(resource.data.authorUid) || isAdmin();
+    }
+    
+    // --- Health Check ---
+    match /_health/{docId} {
+      allow read: if true;
     }
   }
 }`;
@@ -92,7 +112,7 @@ service cloud.firestore {
         <div className="max-w-4xl mx-auto py-12 animate-fadeIn font-['Tajawal'] text-right" dir="rtl">
             <header className="mb-12 border-r-4 border-emerald-500 pr-8">
                 <h2 className="text-4xl font-black text-white flex items-center gap-4">
-                    <ShieldCheck className="text-emerald-400" /> مصلح الصلاحيات <span className="text-emerald-400">V11</span>
+                    <ShieldCheck className="text-emerald-400" /> مصلح الصلاحيات <span className="text-emerald-400">V12</span>
                 </h2>
                 <p className="text-gray-500 mt-2 font-medium">إصلاح شامل لمنع ظهور الصفحات البيضاء (Blank Pages).</p>
             </header>

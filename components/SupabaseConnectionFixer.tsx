@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Code, CheckCircle2, RefreshCw, AlertTriangle, Globe, Zap, Database } from 'lucide-react';
+import { ShieldCheck, Code, CheckCircle2, RefreshCw, AlertTriangle, Globe, Zap, Database } from 'lucide-react';
 
 interface SupabaseConnectionFixerProps {
   onFix: () => void;
@@ -21,6 +21,9 @@ DROP POLICY IF EXISTS "Public Access" ON storage.objects;
 DROP POLICY IF EXISTS "Allow All Access" ON storage.objects;
 DROP POLICY IF EXISTS "Subscription Protected Read" ON storage.objects;
 DROP POLICY IF EXISTS "Restricted Upload Access" ON storage.objects;
+DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
+DROP POLICY IF EXISTS "Public Upload Access" ON storage.objects;
+DROP POLICY IF EXISTS "Public Delete Access" ON storage.objects;
 
 -- 3. السماح للجميع بمشاهدة الملفات (ضروري لكي يرى المعلم والطالب المرفقات)
 CREATE POLICY "Public Read Access"
