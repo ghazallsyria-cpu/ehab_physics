@@ -56,6 +56,7 @@ const InteractiveLesson = lazy(() => import('./pages/InteractiveLesson'));
 const AdminInteractiveLessons = lazy(() => import('./pages/admin/AdminInteractiveLessons'));
 const AdminLessonCategories = lazy(() => import('./pages/admin/AdminLessonCategories'));
 const AdminRewards = lazy(() => import('./pages/admin/AdminRewards'));
+const AdminInteractiveLessonBuilder = lazy(() => import('./components/AdminInteractiveLessonBuilder'));
 
 
 // A reusable layout for all authenticated pages that include the sidebar and header.
@@ -203,6 +204,7 @@ const App: React.FC = () => {
                         <Route path="settings" element={<AdminSettings />} />
                         <Route path="lesson/:lessonId/analytics" element={<AdminAnalytics />} />
                         <Route path="interactive-lessons" element={<AdminInteractiveLessons />} />
+                        <Route path="interactive-builder/:id" element={<AdminInteractiveLessonBuilder />} />
                         <Route path="lesson-categories" element={<AdminLessonCategories />} />
                         <Route path="rewards" element={<AdminRewards />} />
                     </Route>

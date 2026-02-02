@@ -68,7 +68,7 @@ const AdminInteractiveLessons: React.FC = () => {
       
       try {
           await dbService.saveInteractiveLesson(newLesson);
-          navigate(`/lesson-builder/${newLessonId}`);
+          navigate(`/admin/interactive-builder/${newLessonId}`);
       } catch (e) {
           console.error("Failed to create manual lesson:", e);
           alert("حدث خطأ أثناء إنشاء الدرس.");
@@ -137,7 +137,8 @@ const AdminInteractiveLessons: React.FC = () => {
           await dbService.saveInteractiveLesson(newLesson);
           setShowAIModal(false);
           resetAIModal();
-          await loadData();
+          // Navigate to the builder after generation
+          navigate(`/admin/interactive-builder/${lessonId}`);
 
       } catch (e: any) {
           console.error("AI Generation failed:", e);
@@ -209,7 +210,7 @@ const AdminInteractiveLessons: React.FC = () => {
                           </td>
                           <td className="p-4 text-center flex justify-center gap-2">
                               <button onClick={() => navigate(`/interactive/${lesson.id}`)} className="p-2.5 text-blue-400 bg-blue-500/10 rounded-xl hover:bg-blue-500/20 transition-all" title="معاينة"><Eye size={16}/></button>
-                              <button onClick={() => navigate(`/lesson-builder/${lesson.id}`)} className="p-2.5 text-amber-400 bg-amber-500/10 rounded-xl hover:bg-amber-500/20 transition-all" title="تعديل"><Edit size={16}/></button>
+                              <button onClick={() => navigate(`/admin/interactive-builder/${lesson.id}`)} className="p-2.5 text-amber-400 bg-amber-500/10 rounded-xl hover:bg-amber-500/20 transition-all" title="تعديل"><Edit size={16}/></button>
                               <button onClick={() => handleDelete(lesson.id)} className="p-2.5 text-red-500 bg-red-500/10 rounded-xl hover:bg-red-500/20 transition-all" title="حذف"><Trash2 size={16}/></button>
                           </td>
                       </tr>

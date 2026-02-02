@@ -47,10 +47,12 @@ interface Interaction {
   // FIX: Made question_text optional to align with the SceneInteraction type from types.ts.
   question_text?: string | null;
   options: Option[];
-  hint: string | null;
+  // FIX: Made hint optional to align with SceneInteraction type
+  hint?: string | null;
   points: number;
-  feedback_correct: string | null;
-  feedback_incorrect: string | null;
+  // FIX: Made feedback optional
+  feedback_correct?: string | null;
+  feedback_incorrect?: string | null;
 }
 interface InteractionRendererProps {
   interactions: Interaction[];
