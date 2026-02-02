@@ -10,10 +10,9 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-// FIX: Added `extends React.Component` to make this a valid React class component.
+// FIX: Converted component to a proper React class component to implement the error boundary pattern.
 class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  // FIX: Refactored to use a constructor for state initialization and method binding.
-  // This is more compatible with various TypeScript configurations and avoids issues with 'this' context.
+  // FIX: Initialized state in the constructor to track error status, which is required for class components.
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
@@ -32,11 +31,13 @@ class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBound
   }
 
   handleReset() {
+    // FIX: Used `this.setState` to update component state, which is the correct method for class components.
     this.setState({ hasError: false, error: null });
     window.location.reload();
   }
 
   render() {
+    // FIX: Accessed `this.state` to conditionally render the error UI.
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[#0A2540] flex flex-col items-center justify-center p-6 text-center font-['Tajawal'] text-white" dir="rtl">
@@ -62,6 +63,7 @@ class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBound
       );
     }
 
+    // FIX: Accessed `this.props.children` to render child components when there are no errors.
     return this.props.children;
   }
 }

@@ -8,7 +8,10 @@ import {
   Unit, Lesson, LiveSession, EducationalResource, UserRole,
   AppBranding, InvoiceSettings, MaintenanceSettings,
   LessonScene, StudentLessonProgress, StudentInteractionEvent, LessonAnalyticsData,
-  BrochureSettings, WeeklyReport, PhysicsExperiment
+  BrochureSettings, WeeklyReport, PhysicsExperiment,
+  InteractiveLesson, InteractiveLessonCategory, InteractiveLessonProgress,
+  // FIX: Import `InteractiveScene` type to resolve the "Cannot find name" error.
+  InteractiveScene
 } from '../types';
 
 
@@ -1021,6 +1024,109 @@ class DBService {
   async deleteLessonScene(sceneId: string) { if(!db) return; await db.collection('lesson_scenes').doc(sceneId).delete(); }
   
   async updateUnitsOrderSupabase(units: Unit[]) { /* Placeholder */ }
+
+  // --- NEW INTERACTIVE LESSONS SERVICES ---
+
+  async getInteractiveLessons(publishedOnly = true): Promise<InteractiveLesson[]> {
+    if (!db) return [];
+    try {
+      let query: firebase.firestore.Query = db.collection('interactive_lessons');
+      if (publishedOnly) {
+        query = query.where('is_published', '==', true);
+      }
+      const snapshot = await query.get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InteractiveLesson));
+    } catch (e) {
+      console.error("Error getting interactive lessons:", e);
+      return [];
+    }
+  }
+
+  async getInteractiveLessonById(lessonId: string): Promise<InteractiveLesson | null> {
+    if (!db) return null;
+    try {
+      const lessonDoc = await db.collection('interactive_lessons').doc(lessonId).get();
+      if (!lessonDoc.exists) return null;
+
+      const lessonData = { id: lessonDoc.id, ...lessonDoc.data() } as InteractiveLesson;
+
+      const scenesSnap = await db.collection('interactive_scenes').where('interactive_lesson_id', '==', lessonId).orderBy('order_index').get();
+      const sceneIds = scenesSnap.docs.map(doc => doc.id);
+      
+      let interactions: any[] = [];
+      if (sceneIds.length > 0) {
+        const interactionsSnap = await db.collection('scene_interactions').where('scene_id', 'in', sceneIds).get();
+        interactions = interactionsSnap.docs.map(d => ({id: d.id, ...d.data()}));
+      }
+
+      lessonData.scenes = scenesSnap.docs.map(sceneDoc => {
+        const scene = { id: sceneDoc.id, ...sceneDoc.data() } as InteractiveScene;
+        scene.interactions = interactions.filter(i => i.scene_id === scene.id);
+        return scene;
+      });
+
+      return lessonData;
+    } catch (e) {
+      console.error(`Error getting interactive lesson ${lessonId}:`, e);
+      return null;
+    }
+  }
+  
+  async saveInteractiveLesson(lesson: Partial<InteractiveLesson>): Promise<void> {
+    if (!db || !lesson.id) return;
+    
+    const { scenes, ...lessonData } = lesson;
+    const batch = db.batch();
+
+    const lessonRef = db.collection('interactive_lessons').doc(lesson.id);
+    batch.set(lessonRef, this.cleanData(lessonData), { merge: true });
+
+    if (scenes) {
+      for (const scene of scenes) {
+        const sceneRef = db.collection('interactive_scenes').doc(scene.id);
+        const { interactions, game, simulation, ...sceneData } = scene;
+        batch.set(sceneRef, this.cleanData({ ...sceneData, interactive_lesson_id: lesson.id }), { merge: true });
+
+        if (interactions) {
+          for (const interaction of interactions) {
+            const intRef = db.collection('scene_interactions').doc(interaction.id);
+            batch.set(intRef, this.cleanData({ ...interaction, scene_id: scene.id }), { merge: true });
+          }
+        }
+      }
+    }
+
+    await batch.commit();
+  }
+  
+  async deleteInteractiveLesson(lessonId: string): Promise<void> {
+    if (!db) return;
+    await db.collection('interactive_lessons').doc(lessonId).delete();
+  }
+  
+  async getInteractiveLessonCategories(): Promise<InteractiveLessonCategory[]> {
+      if (!db) return [];
+      try {
+        const snap = await db.collection('interactive_lesson_categories').orderBy('order_index').get();
+        return snap.docs.map(d => ({id: d.id, ...d.data()} as InteractiveLessonCategory));
+      } catch {
+        return []; // Return empty if collection doesn't exist
+      }
+  }
+  
+  async getInteractiveLessonProgress(userId: string, lessonId: string): Promise<InteractiveLessonProgress | null> {
+      if (!db) return null;
+      const docRef = db.collection('interactive_lesson_progress').doc(`${userId}_${lessonId}`);
+      const doc = await docRef.get();
+      return doc.exists ? doc.data() as InteractiveLessonProgress : null;
+  }
+  
+  async saveInteractiveLessonProgress(progress: Partial<InteractiveLessonProgress>): Promise<void> {
+      if (!db || !progress.user_id || !progress.interactive_lesson_id) return;
+      const docId = `${progress.user_id}_${progress.interactive_lesson_id}`;
+      await db.collection('interactive_lesson_progress').doc(docId).set(this.cleanData(progress), { merge: true });
+  }
+
 }
 
 export const dbService = new DBService();
