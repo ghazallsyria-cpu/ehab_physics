@@ -25,11 +25,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user }) => {
 
   useEffect(() => {
     loadDynamicContent();
-    const completed = (user.progress.completedLessonIds || []).length;
+    const completed = (user?.progress?.completedLessonIds || []).length;
     setProgressData({ 
         lessons: completed, 
         percent: Math.min(completed * 5, 100), 
-        points: user.progress.points || 0 
+        points: user?.progress?.points || 0 
     });
   }, [user]);
 

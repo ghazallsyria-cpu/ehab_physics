@@ -45,6 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, branding, onLogout, isOpen, onC
           ]},
           { label: 'المحتوى التعليمي', items: [
             { path: '/curriculum', id: 'curriculum', label: 'المنهج الدراسي', icon: '📚' },
+            { path: '/interactive', id: 'interactive-lessons', label: 'الدروس التفاعلية', icon: '✨' },
             { path: '/lab-hub', id: 'lab-hub', label: 'المختبر التفاعلي', icon: '🔬' },
             { path: '/quiz-center', id: 'quiz_center', label: 'مركز الاختبارات', icon: '⚡' },
           ]},
@@ -66,6 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, branding, onLogout, isOpen, onC
           ]},
           { label: 'إدارة المحتوى', items: [
             { path: '/admin/curriculum', id: 'admin-curriculum', label: 'المناهج والدروس', icon: '📚' },
+            { path: '/admin/interactive-lessons', id: 'admin-interactive-lessons', label: 'الدروس التفاعلية', icon: '✨' },
             { path: '/admin/quizzes', id: 'admin-quizzes', label: 'الاختبارات', icon: '📝' },
             { path: '/admin/labs', id: 'admin-labs', label: 'المختبرات', icon: '🔬' },
             { path: '/admin/assets', id: 'admin-assets', label: 'مكتبة الوسائط', icon: '🖼️' },
@@ -83,6 +85,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, branding, onLogout, isOpen, onC
           ]},
           { label: 'النظام والمالية', items: [
             { path: '/admin/payment-manager', id: 'admin-payment-manager', label: 'المالية والأسعار', icon: '💰' },
+            { path: '/admin/rewards', id: 'admin-rewards', label: 'المكافآت', icon: '🎁' },
             { path: '/admin/recommendations', id: 'admin-recommendations', label: 'التوصيات الذكية', icon: '🧠' },
             { path: '/admin/settings', id: 'admin-settings', label: 'إعدادات النظام', icon: '⚙️' },
             { path: '/admin/security-fix', id: 'admin-security-fix', label: 'أمان Firestore', icon: '🔒' },

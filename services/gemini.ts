@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { AISolverResult, User, StudentQuizAttempt, Question, Curriculum, AILessonSchema } from "../types";
+import { AISolverResult, User, StudentQuizAttempt, Question, Curriculum, AILessonSchema, InteractiveLesson } from "../types";
 
 // --- Helper for Robust JSON Parsing ---
 const cleanAndParseJSON = (text: string) => {
@@ -37,13 +37,10 @@ const fileToGenerativePart = (dataUrl: string) => {
     };
 };
 
-// Access the API key safely using Vite's env standard
-// IMPORTANT: This must be VITE_GEMINI_API_KEY as per standard practice, mapped from API_KEY in config
-const getApiKey = () => import.meta.env.VITE_GEMINI_API_KEY;
-
 export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, subject: 'Physics' | 'Chemistry') => {
   try {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    // FIX: Use process.env.API_KEY directly as per guidelines.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const subjectName = subject === 'Physics' ? 'الفيزياء' : 'الكيمياء';
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
@@ -65,7 +62,8 @@ export const getAdvancedPhysicsInsight = async (userMsg: string, grade: string, 
 
 export const getPhysicsExplanation = async (prompt: string, grade: string) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    // FIX: Use process.env.API_KEY directly as per guidelines.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `اشرح لصف ${grade}: ${prompt}`,
@@ -79,7 +77,8 @@ export const getPhysicsExplanation = async (prompt: string, grade: string) => {
 };
 
 export const solvePhysicsProblem = async (problem: string): Promise<AISolverResult> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  // FIX: Use process.env.API_KEY directly as per guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
     contents: `حل المسألة الفيزيائية التالية: ${problem}`,
@@ -103,7 +102,8 @@ export const solvePhysicsProblem = async (problem: string): Promise<AISolverResu
 };
 
 export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAttempt[]): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  // FIX: Use process.env.API_KEY directly as per guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `
     حلل أداء الطالب ${user.name} بناءً على نتائج اختباراته:
     ${JSON.stringify(attempts, null, 2)}
@@ -114,7 +114,8 @@ export const getPerformanceAnalysis = async (user: User, attempts: StudentQuizAt
 };
 
 export const generatePhysicsVisualization = async (prompt: string): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    // FIX: Use process.env.API_KEY directly as per guidelines.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     let operation = await ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
@@ -137,7 +138,8 @@ export const generatePhysicsVisualization = async (prompt: string): Promise<stri
     }
 
     // Pass the API key to fetch the video securely
-    const response = await fetch(`${downloadLink}&key=${getApiKey()}`);
+    // FIX: Use process.env.API_KEY directly as per guidelines.
+    const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
     const blob = await response.blob();
     return URL.createObjectURL(blob);
 };
@@ -148,7 +150,8 @@ export const extractBankQuestionsAdvanced = async (
   subject: string,
   unit: string
 ): Promise<{ questions: Question[] }> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  // FIX: Use process.env.API_KEY directly as per guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
     contents: `Digitize the following questions text for grade ${grade}, subject ${subject}, unit ${unit}. Extract all questions into a structured JSON format. For each question, provide: question_text, type ('mcq', 'short_answer', 'essay'), choices (array of {key: 'A', text: '...'}), correct_answer (the key of the correct choice), difficulty ('Easy', 'Medium', 'Hard'), category, solution (detailed explanation), steps_array (if applicable), and common_errors (if applicable). Here is the text:\n\n${rawText}`,
@@ -200,7 +203,8 @@ export const digitizeExamPaper = async (
   grade: string,
   subject: string,
 ): Promise<{ questions: Question[] }> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  // FIX: Use process.env.API_KEY directly as per guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const imagePart = fileToGenerativePart(imageDataUrl);
 
   const textPart = {
@@ -250,7 +254,8 @@ export const digitizeExamPaper = async (
 export const verifyQuestionQuality = async (
   question: Question
 ): Promise<{ valid: boolean; feedback: string }> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  // FIX: Use process.env.API_KEY directly as per guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const questionString = JSON.stringify({
     text: question.text,
@@ -292,7 +297,8 @@ export const convertTextbookToLesson = async (
   grade: string = "12",
   imageData?: string
 ): Promise<AILessonSchema | null> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  // FIX: Use process.env.API_KEY directly as per guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const systemInstruction = `
 أنت محرك تحويل محتوى تعليمي متخصص في المناهج الدراسية.
@@ -387,4 +393,52 @@ export const convertTextbookToLesson = async (
     console.error("Lesson Conversion Error:", e);
     return null;
   }
+};
+
+export const generateInteractiveLesson = async (
+  content: string, 
+  title: string, 
+  subject: string, 
+  gradeLevel: string
+): Promise<Partial<InteractiveLesson>> => {
+    // FIX: Use process.env.API_KEY directly as per guidelines.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    const INTERACTIVE_LESSON_PROMPT = `أنت مصمم تجارب تعليمية تفاعلية.
+    عند استلام نص تعليمي، حوّل المحتوى إلى رحلة تعلم تفاعلية.
+    بنية الدرس التفاعلي:
+    1️⃣ مشهد الانطلاق (Hook) - scene_type: "hook"
+    2️⃣ مشاهد الاستكشاف - scene_type: "discovery"
+    3️⃣ تفاعل فوري - scene_type: "interaction"
+    4️⃣ لعبة تعليمية - scene_type: "game"
+    5️⃣ محاكاة - scene_type: "simulation"
+    6️⃣ تحدّي نهائي - scene_type: "challenge"
+    7️⃣ ملخص ذكي - scene_type: "summary"
+    8️⃣ تقييم تفاعلي - scene_type: "assessment"
+    قواعد:
+    • كل شاشة ≤ 60 كلمة
+    • كل مفهوم يجب أن يحتوي على تفاعل
+    • استخدم لغة عربية بسيطة
+    أرجع JSON فقط بالهيكل المطلوب.`;
+
+    const userPrompt = `حوّل المحتوى التالي إلى رحلة تعليمية تفاعلية:
+    العنوان: ${title}
+    المادة: ${subject}
+    المستوى: ${gradeLevel}
+    المحتوى:
+    ${content}
+    ---
+    أرجع JSON فقط.`;
+
+    const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: userPrompt,
+        config: {
+            systemInstruction: INTERACTIVE_LESSON_PROMPT,
+            responseMimeType: "application/json",
+        }
+    });
+
+    const aiResponse = response.text?.trim() || "{}";
+    return cleanAndParseJSON(aiResponse) as Partial<InteractiveLesson>;
 };

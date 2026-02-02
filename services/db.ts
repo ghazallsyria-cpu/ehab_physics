@@ -13,6 +13,10 @@ import {
 
 
 class DBService {
+  public get isDbConnected(): boolean {
+    return db !== null;
+  }
+  
   private cleanData(data: any) {
     const clean = { ...data };
     Object.keys(clean).forEach(key => (clean[key] === undefined) && delete clean[key]);

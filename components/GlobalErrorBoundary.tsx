@@ -10,11 +10,18 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
+// FIX: Added `extends React.Component` to make this a valid React class component.
 class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
-    hasError: false,
-    error: null,
-  };
+  // FIX: Refactored to use a constructor for state initialization and method binding.
+  // This is more compatible with various TypeScript configurations and avoids issues with 'this' context.
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+    };
+    this.handleReset = this.handleReset.bind(this);
+  }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
@@ -24,10 +31,10 @@ class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBound
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  handleReset = () => {
+  handleReset() {
     this.setState({ hasError: false, error: null });
     window.location.reload();
-  };
+  }
 
   render() {
     if (this.state.hasError) {

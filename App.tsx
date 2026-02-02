@@ -51,6 +51,12 @@ const LessonPathBuilder = lazy(() => import('./components/LessonPathBuilder'));
 const AdminAnalytics = lazy(() => import('./components/AdminAnalytics'));
 const MarketingBrochure = lazy(() => import('./components/MarketingBrochure'));
 const AdminBrochureManager = lazy(() => import('./components/AdminBrochureManager'));
+const InteractiveLessons = lazy(() => import('./pages/InteractiveLessons'));
+const InteractiveLesson = lazy(() => import('./pages/InteractiveLesson'));
+const AdminInteractiveLessons = lazy(() => import('./pages/admin/AdminInteractiveLessons'));
+const AdminLessonCategories = lazy(() => import('./pages/admin/AdminLessonCategories'));
+const AdminRewards = lazy(() => import('./pages/admin/AdminRewards'));
+
 
 // A reusable layout for all authenticated pages that include the sidebar and header.
 const AppLayout: React.FC<{ user: User; branding: AppBranding; onLogout: () => void; }> = ({ user, branding, onLogout }) => {
@@ -98,18 +104,38 @@ const App: React.FC = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
+        // Failsafe timeout to prevent indefinite loading screen
+        const loadingTimeout = setTimeout(() => {
+            if (isAuthLoading) {
+                console.warn("Auth loading timed out. Forcing UI render.");
+                setIsAuthLoading(false);
+            }
+        }, 5000); // 5 seconds timeout
+
         const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
+            clearTimeout(loadingTimeout); // Clear timeout if auth responds in time
             if (firebaseUser) {
-                dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
-                    setUser(updatedUser || null);
+                // Ensure DB is ready before subscribing
+                if (dbService.isDbConnected) {
+                    dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
+                        setUser(updatedUser || null);
+                        setIsAuthLoading(false);
+                    });
+                } else {
+                    console.error("DB not connected, cannot fetch user data.");
+                    setUser(null);
                     setIsAuthLoading(false);
-                });
+                }
             } else {
                 setUser(null);
                 setIsAuthLoading(false);
             }
         });
-        return () => unsubscribeAuth();
+
+        return () => {
+            unsubscribeAuth();
+            clearTimeout(loadingTimeout);
+        };
     }, []);
 
     const handleLogin = (loggedInUser: User) => {
@@ -150,6 +176,8 @@ const App: React.FC = () => {
                         <Route path="/journey-map" element={<PhysicsJourneyMap user={user!} />} />
                         <Route path="/template-demo" element={<UniversalLesson onBack={() => navigate('/dashboard')} />} />
                         <Route path="/lab-hub" element={<LabHub user={user!} />} />
+                        <Route path="/interactive" element={<InteractiveLessons />} />
+                        <Route path="/interactive/:id" element={<InteractiveLesson />} />
                     </Route>
                 </Route>
                 
@@ -174,6 +202,9 @@ const App: React.FC = () => {
                         <Route path="assets" element={<AdminAssetManager />} />
                         <Route path="settings" element={<AdminSettings />} />
                         <Route path="lesson/:lessonId/analytics" element={<AdminAnalytics />} />
+                        <Route path="interactive-lessons" element={<AdminInteractiveLessons />} />
+                        <Route path="lesson-categories" element={<AdminLessonCategories />} />
+                        <Route path="rewards" element={<AdminRewards />} />
                     </Route>
                     <Route path="/lesson-builder" element={<InteractiveLessonBuilder />} />
                     <Route path="/lesson-builder/:lessonId" element={<InteractiveLessonBuilder />} />

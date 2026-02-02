@@ -591,3 +591,103 @@ export interface BrochureSettings {
   ctaSubtitle: string;
   ctaButtonText: string;
 }
+
+// --- NEW TYPES FOR FULL INTERACTIVE LESSON SYSTEM ---
+
+export interface InteractiveLessonCategory {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  order_index?: number;
+  is_active?: boolean;
+}
+
+export interface InteractiveLesson {
+  id: string;
+  title: string;
+  description?: string;
+  subject?: string;
+  grade_level?: string;
+  source_type?: string;
+  source_content?: string;
+  estimated_duration_minutes?: number;
+  thumbnail_url?: string;
+  is_published?: boolean;
+  is_featured?: boolean;
+  total_points?: number;
+  category_id?: string;
+  created_by: string;
+  scenes?: InteractiveScene[]; // This will be populated after fetch
+}
+
+export interface InteractiveScene {
+  id: string;
+  interactive_lesson_id: string;
+  order_index: number;
+  scene_type: string;
+  title?: string;
+  content?: string;
+  visual_type?: string;
+  visual_url?: string;
+  visual_description?: string;
+  background_color?: string;
+  interactions?: SceneInteraction[];
+  game?: SceneGame | null;
+  simulation?: SceneSimulation | null;
+}
+
+export interface SceneInteractionOption {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+  feedback?: string;
+}
+
+export interface SceneInteraction {
+  id: string;
+  scene_id: string;
+  interaction_type: 'choice' | 'multi_choice' | string;
+  order_index?: number;
+  question_text?: string;
+  options: SceneInteractionOption[];
+  hint?: string;
+  points: number;
+  feedback_correct?: string;
+  feedback_incorrect?: string;
+  config?: any;
+}
+
+export interface SceneGame {
+  id: string;
+  scene_id: string;
+  game_type: string;
+  title: string;
+  instructions?: string;
+  config?: any;
+  max_attempts?: number;
+  time_limit_seconds?: number;
+  points_per_success?: number;
+}
+
+export interface SceneSimulation {
+  id: string;
+  scene_id: string;
+  simulation_type: string;
+  title: string;
+  description?: string;
+  variables?: any;
+  expected_outcomes?: any;
+}
+
+export interface InteractiveLessonProgress {
+  id?: string; // combination of user_id and lesson_id
+  user_id: string;
+  interactive_lesson_id: string;
+  current_scene_index: number;
+  total_points: number;
+  completed_scenes: string[];
+  last_activity_at: string;
+  completed_at?: string;
+}
