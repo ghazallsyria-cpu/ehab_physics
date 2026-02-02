@@ -405,37 +405,79 @@ export const generateInteractiveLesson = async (
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const INTERACTIVE_LESSON_PROMPT = `أنت مصمم تجارب تعليمية تفاعلية.
-    عند استلام نص تعليمي، حوّل المحتوى إلى رحلة تعلم تفاعلية.
-    بنية الدرس التفاعلي:
-    1️⃣ مشهد الانطلاق (Hook) - scene_type: "hook"
-    2️⃣ مشاهد الاستكشاف - scene_type: "discovery"
-    3️⃣ تفاعل فوري - scene_type: "interaction"
-    4️⃣ لعبة تعليمية - scene_type: "game"
-    5️⃣ محاكاة - scene_type: "simulation"
-    6️⃣ تحدّي نهائي - scene_type: "challenge"
-    7️⃣ ملخص ذكي - scene_type: "summary"
-    8️⃣ تقييم تفاعلي - scene_type: "assessment"
-    قواعد:
-    • كل شاشة ≤ 60 كلمة
-    • كل مفهوم يجب أن يحتوي على تفاعل
-    • استخدم لغة عربية بسيطة
-    أرجع JSON فقط بالهيكل المطلوب.`;
+    حول المحتوى المقدم إلى درس تفاعلي منظم بدقة.
+    
+    الهيكلية المطلوبة:
+    - title: عنوان الدرس
+    - description: وصف مختصر
+    - scenes: مصفوفة من المشاهد، كل مشهد يحتوي على:
+      - title: عنوان المشهد
+      - content: نص المحتوى التعليمي
+      - scene_type: نوع المشهد (discovery, interaction, summary, etc)
+      - interactions: مصفوفة تفاعلات (اختياري)
+        - interaction_type: 'choice' أو 'multi_choice'
+        - question_text: نص السؤال
+        - options: مصفوفة خيارات (id, text, isCorrect)
+        - points: نقاط السؤال
+    
+    القواعد:
+    • بسط المحتوى ليكون مناسباً لطلاب الصف ${gradeLevel}.
+    • أضف سؤالاً تفاعلياً واحداً على الأقل لكل مفهوم رئيسي.
+    • استخدم اللغة العربية الفصحى المبسطة.
+    `;
 
-    const userPrompt = `حوّل المحتوى التالي إلى رحلة تعليمية تفاعلية:
+    const userPrompt = `المحتوى:
     العنوان: ${title}
     المادة: ${subject}
-    المستوى: ${gradeLevel}
-    المحتوى:
-    ${content}
-    ---
-    أرجع JSON فقط.`;
+    النص: ${content}
+    `;
 
     const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3-pro-preview",
         contents: userPrompt,
         config: {
             systemInstruction: INTERACTIVE_LESSON_PROMPT,
             responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    scenes: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                title: { type: Type.STRING },
+                                content: { type: Type.STRING },
+                                scene_type: { type: Type.STRING },
+                                interactions: {
+                                    type: Type.ARRAY,
+                                    items: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            interaction_type: { type: Type.STRING, enum: ["choice", "multi_choice"] },
+                                            question_text: { type: Type.STRING },
+                                            points: { type: Type.NUMBER },
+                                            options: {
+                                                type: Type.ARRAY,
+                                                items: {
+                                                    type: Type.OBJECT,
+                                                    properties: {
+                                                        id: { type: Type.STRING },
+                                                        text: { type: Type.STRING },
+                                                        isCorrect: { type: Type.BOOLEAN }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     });
 

@@ -43,6 +43,18 @@ const AdminInteractiveLessons: React.FC = () => {
   const handleCreateManual = async () => {
       if (!user) return;
       const newLessonId = generateId('int');
+      
+      // Create a default initial scene to prevent empty lesson errors
+      const defaultScene: InteractiveScene = {
+          id: generateId('scn'),
+          interactive_lesson_id: newLessonId,
+          order_index: 0,
+          title: 'المقدمة',
+          content: 'أهلاً بك في هذا الدرس التفاعلي. ابدأ رحلتك من هنا.',
+          scene_type: 'intro',
+          interactions: []
+      };
+
       const newLesson: Partial<InteractiveLesson> = {
           id: newLessonId,
           title: 'درس تفاعلي جديد',
@@ -50,7 +62,7 @@ const AdminInteractiveLessons: React.FC = () => {
           grade_level: '12',
           is_published: false,
           created_by: user.uid,
-          scenes: [],
+          scenes: [defaultScene], // Initialize with one scene
           total_points: 0
       };
       
@@ -75,8 +87,8 @@ const AdminInteractiveLessons: React.FC = () => {
       try {
           const generatedData = await generateInteractiveLesson(aiContent, aiTitle, aiSubject, aiGrade);
           
-          if (!generatedData) {
-              throw new Error("فشل توليد البيانات من الذكاء الاصطناعي.");
+          if (!generatedData || !generatedData.scenes || generatedData.scenes.length === 0) {
+              throw new Error("فشل توليد البيانات. لم يتم استلام أي مشاهد من الذكاء الاصطناعي.");
           }
 
           const lessonId = generateId('int');
@@ -129,7 +141,7 @@ const AdminInteractiveLessons: React.FC = () => {
 
       } catch (e: any) {
           console.error("AI Generation failed:", e);
-          setGenerationError("فشل التوليد. قد يكون النص طويلاً جداً أو غير واضح. حاول تقليل النص أو صياغته بشكل أفضل.");
+          setGenerationError(`فشل التوليد: ${e.message}`);
       } finally {
           setIsGenerating(false);
       }

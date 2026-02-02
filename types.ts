@@ -16,7 +16,7 @@ export type ViewState =
   | 'admin-security-fix' | 'verify-certificate' | 'resources-center' 
   | 'admin-managers' | 'admin-payment-manager' | 'admin-labs' 
   | 'admin-recommendations' | 'template-demo' | 'lesson-builder'
-  | 'admin-brochure';
+  | 'admin-brochure' | 'admin-interactive-lessons' | 'admin-rewards';
 
 export type SubjectType = 'Physics' | 'Chemistry' | 'Math' | 'English';
 export type BranchType = 'Scientific' | 'Literary';
@@ -68,6 +68,16 @@ export interface User {
     activityLog?: Record<string, number>; // date: minutes
     lastSeen?: string;
     jobTitle?: string;
+}
+
+export interface Achievement {
+    id: string;
+    title: string;
+    description: string;
+    icon: string; // Emoji or URL
+    points: number;
+    category: 'academic' | 'participation' | 'streak' | 'special';
+    isHidden: boolean; // If true, only visible when unlocked
 }
 
 export interface WeeklyReport {

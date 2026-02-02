@@ -10,7 +10,7 @@ import {
   LessonScene, StudentLessonProgress, StudentInteractionEvent, LessonAnalyticsData,
   BrochureSettings, WeeklyReport, PhysicsExperiment,
   InteractiveLesson, InteractiveLessonCategory, InteractiveLessonProgress,
-  InteractiveScene
+  InteractiveScene, Achievement
 } from '../types';
 
 
@@ -24,8 +24,6 @@ class DBService {
     Object.keys(clean).forEach(key => (clean[key] === undefined) && delete clean[key]);
     return clean;
   }
-
-  // ... (Other existing methods remain unchanged, focusing on the fix below) ...
 
   // --- SYSTEM INITIALIZATION (EMERGENCY SEED) ---
   async initializeSystemWithDefaults() {
@@ -1079,22 +1077,32 @@ class DBService {
     // Auto-generate lesson ID if missing
     const lessonId = lesson.id || `int_${Date.now()}`;
     
-    const { scenes, ...lessonData } = lesson;
+    // Handle case where scenes might be undefined/empty from the UI
+    const scenes = lesson.scenes || [];
+    
+    // Extract lesson data excluding scenes to save to the main document
+    const { scenes: _, ...lessonData } = lesson;
+    
     const batch = db.batch();
 
+    // Save main lesson document
     const lessonRef = db.collection('interactive_lessons').doc(lessonId);
     batch.set(lessonRef, this.cleanData({ ...lessonData, id: lessonId }), { merge: true });
 
-    if (scenes) {
+    // Save each scene and its interactions
+    if (scenes.length > 0) {
       for (const scene of scenes) {
         // Auto-generate scene ID if missing
         const sceneId = scene.id || `scn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const sceneRef = db.collection('interactive_scenes').doc(sceneId);
         
+        // Extract scene data excluding nested arrays
         const { interactions, game, simulation, ...sceneData } = scene;
+        
         batch.set(sceneRef, this.cleanData({ ...sceneData, id: sceneId, interactive_lesson_id: lessonId }), { merge: true });
 
-        if (interactions) {
+        // Save interactions for this scene
+        if (interactions && interactions.length > 0) {
           for (const interaction of interactions) {
             // Auto-generate interaction ID if missing
             const interactionId = interaction.id || `act_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -1136,6 +1144,53 @@ class DBService {
       if (!db || !progress.user_id || !progress.interactive_lesson_id) return;
       const docId = `${progress.user_id}_${progress.interactive_lesson_id}`;
       await db.collection('interactive_lesson_progress').doc(docId).set(this.cleanData(progress), { merge: true });
+  }
+
+  // --- REWARDS & ACHIEVEMENTS SERVICES ---
+
+  async getAchievements(): Promise<Achievement[]> {
+      if (!db) return [];
+      try {
+          const snap = await db.collection('achievements').get();
+          return snap.docs.map(d => ({ id: d.id, ...d.data() } as Achievement));
+      } catch (e) {
+          console.error("Error fetching achievements:", e);
+          return [];
+      }
+  }
+
+  async saveAchievement(achievement: Partial<Achievement>): Promise<void> {
+      if (!db) return;
+      const id = achievement.id || `ach_${Date.now()}`;
+      await db.collection('achievements').doc(id).set({ ...achievement, id }, { merge: true });
+  }
+
+  async deleteAchievement(id: string): Promise<void> {
+      if (!db) return;
+      await db.collection('achievements').doc(id).delete();
+  }
+
+  async assignAchievementToStudent(studentId: string, achievementId: string): Promise<void> {
+      if (!db) return;
+      const userRef = db.collection('users').doc(studentId);
+      
+      await userRef.update({
+          'progress.achievements': firebase.firestore.FieldValue.arrayUnion(achievementId)
+      });
+
+      // Optionally, send a notification
+      const ach = (await db.collection('achievements').doc(achievementId).get()).data() as Achievement;
+      if (ach) {
+          await this.createNotification({
+              userId: studentId,
+              title: "🎉 إنجاز جديد!",
+              message: `مبارك! لقد حصلت على وسام: ${ach.title}`,
+              timestamp: new Date().toISOString(),
+              isRead: false,
+              type: 'success',
+              category: 'general'
+          });
+      }
   }
 
 }
