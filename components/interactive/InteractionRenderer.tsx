@@ -6,7 +6,13 @@ import { cn } from '../../lib/utils';
 
 // --- Placeholder UI Components ---
 // These are simplified versions. In a real app with a UI library, you'd import these.
-const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ className, ...props }) => (
+// FIX: Added variant and size to ButtonProps to resolve type error.
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+    variant?: string;
+    size?: string;
+}
+
+const Button: React.FC<ButtonProps> = ({ className, variant, size, ...props }) => (
   <button className={cn("px-4 py-2 bg-blue-500 text-white rounded-lg disabled:opacity-50", className)} {...props} />
 );
 const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => (
@@ -38,7 +44,8 @@ interface Option {
 interface Interaction {
   id: string;
   interaction_type: string;
-  question_text: string | null;
+  // FIX: Made question_text optional to align with the SceneInteraction type from types.ts.
+  question_text?: string | null;
   options: Option[];
   hint: string | null;
   points: number;
