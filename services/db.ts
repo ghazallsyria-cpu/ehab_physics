@@ -10,7 +10,6 @@ import {
   LessonScene, StudentLessonProgress, StudentInteractionEvent, LessonAnalyticsData,
   BrochureSettings, WeeklyReport, PhysicsExperiment,
   InteractiveLesson, InteractiveLessonCategory, InteractiveLessonProgress,
-  // FIX: Import `InteractiveScene` type to resolve the "Cannot find name" error.
   InteractiveScene
 } from '../types';
 
@@ -25,6 +24,8 @@ class DBService {
     Object.keys(clean).forEach(key => (clean[key] === undefined) && delete clean[key]);
     return clean;
   }
+
+  // ... (Other existing methods remain unchanged, focusing on the fix below) ...
 
   // --- SYSTEM INITIALIZATION (EMERGENCY SEED) ---
   async initializeSystemWithDefaults() {
@@ -1073,24 +1074,32 @@ class DBService {
   }
   
   async saveInteractiveLesson(lesson: Partial<InteractiveLesson>): Promise<void> {
-    if (!db || !lesson.id) return;
+    if (!db) return;
+    
+    // Auto-generate lesson ID if missing
+    const lessonId = lesson.id || `int_${Date.now()}`;
     
     const { scenes, ...lessonData } = lesson;
     const batch = db.batch();
 
-    const lessonRef = db.collection('interactive_lessons').doc(lesson.id);
-    batch.set(lessonRef, this.cleanData(lessonData), { merge: true });
+    const lessonRef = db.collection('interactive_lessons').doc(lessonId);
+    batch.set(lessonRef, this.cleanData({ ...lessonData, id: lessonId }), { merge: true });
 
     if (scenes) {
       for (const scene of scenes) {
-        const sceneRef = db.collection('interactive_scenes').doc(scene.id);
+        // Auto-generate scene ID if missing
+        const sceneId = scene.id || `scn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const sceneRef = db.collection('interactive_scenes').doc(sceneId);
+        
         const { interactions, game, simulation, ...sceneData } = scene;
-        batch.set(sceneRef, this.cleanData({ ...sceneData, interactive_lesson_id: lesson.id }), { merge: true });
+        batch.set(sceneRef, this.cleanData({ ...sceneData, id: sceneId, interactive_lesson_id: lessonId }), { merge: true });
 
         if (interactions) {
           for (const interaction of interactions) {
-            const intRef = db.collection('scene_interactions').doc(interaction.id);
-            batch.set(intRef, this.cleanData({ ...interaction, scene_id: scene.id }), { merge: true });
+            // Auto-generate interaction ID if missing
+            const interactionId = interaction.id || `act_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const intRef = db.collection('scene_interactions').doc(interactionId);
+            batch.set(intRef, this.cleanData({ ...interaction, id: interactionId, scene_id: sceneId }), { merge: true });
           }
         }
       }
@@ -1101,6 +1110,8 @@ class DBService {
   
   async deleteInteractiveLesson(lessonId: string): Promise<void> {
     if (!db) return;
+    // Note: A real app should also delete associated scenes and interactions
+    // For now, we rely on the client to clean up or ignore orphaned records
     await db.collection('interactive_lessons').doc(lessonId).delete();
   }
   
