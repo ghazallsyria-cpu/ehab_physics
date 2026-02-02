@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Users, Briefcase, Settings, Video, RefreshCw, HeartPulse, Library, MessageSquare, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard, Newspaper, FlaskConical, Zap, Sparkles, Cpu } from 'lucide-react';
+import { BookOpen, Users, Briefcase, Settings, Video, RefreshCw, HeartPulse, Library, MessageSquare, ClipboardList, ShieldCheck, ShieldAlert, Lock, CreditCard, Newspaper, FlaskConical, Zap, Sparkles, Cpu, Banknote } from 'lucide-react';
 import { dbService } from '../services/db';
 import { auth } from '../services/firebase';
 import EscalatedPostsWidget from './EscalatedPostsWidget';
@@ -42,7 +42,8 @@ const AdminDashboard: React.FC = () => {
     { view: 'admin-content', icon: Newspaper, title: 'محتوى الرئيسية', description: 'الأخبار والإعلانات.' },
     { view: 'admin-brochure', icon: Sparkles, title: 'إدارة البروشور', description: 'تعديل محتوى الصفحة التسويقية.' },
     { view: 'admin-students', icon: Users, title: 'إدارة الطلاب', description: 'الحسابات والاشتراكات.' },
-    { view: 'admin-payment-manager', icon: CreditCard, title: 'إدارة الدفع', description: 'الأسعار ورقم ومض.' },
+    { view: 'admin-financials', icon: Banknote, title: 'السجلات المالية', description: 'الفواتير والتحصيل.' },
+    { view: 'admin-payment-manager', icon: CreditCard, title: 'إعدادات الدفع', description: 'الأسعار ورقم ومض.' },
     { view: 'admin-teachers', icon: Briefcase, title: 'إدارة المعلمين', description: 'الصلاحيات والحسابات.' },
     { view: 'admin-managers', icon: ShieldCheck, title: 'إدارة المدراء', description: 'فريق الإدارة.' },
     { view: 'admin-forums', icon: MessageSquare, title: 'المنتديات', description: 'هيكل الأقسام.' },

@@ -37,6 +37,7 @@ const AdminLabManager = lazy(() => import('./components/AdminLabManager'));
 const AdminRecommendationManager = lazy(() => import('./components/AdminRecommendationManager'));
 const AdminContentManager = lazy(() => import('./components/AdminContentManager'));
 const AdminPaymentManager = lazy(() => import('./components/AdminPaymentManager'));
+const AdminFinancials = lazy(() => import('./components/AdminFinancials'));
 const AdminTeacherManager = lazy(() => import('./components/AdminTeacherManager'));
 const AdminManager = lazy(() => import('./components/AdminManager'));
 const AdminForumManager = lazy(() => import('./components/AdminForumManager'));
@@ -194,6 +195,7 @@ const App: React.FC = () => {
                         <Route path="content" element={<AdminContentManager />} />
                         <Route path="brochure" element={<AdminBrochureManager />} />
                         <Route path="payment-manager" element={<AdminPaymentManager />} />
+                        <Route path="financials" element={<AdminFinancials />} />
                         <Route path="teachers" element={<AdminTeacherManager />} />
                         <Route path="managers" element={<AdminManager />} />
                         <Route path="forums" element={<AdminForumManager />} />
