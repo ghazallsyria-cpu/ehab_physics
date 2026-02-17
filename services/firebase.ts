@@ -34,6 +34,8 @@ export { firebase }; // Export the core firebase object for FieldPath etc.
 // إعداد مزود جوجل
 const provider = app ? new firebase.auth.GoogleAuthProvider() : null;
 if (provider) {
+    provider.addScope('profile');
+    provider.addScope('email');
     provider.setCustomParameters({ prompt: 'select_account' });
 }
 export const googleProvider = provider;

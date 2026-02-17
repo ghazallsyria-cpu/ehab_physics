@@ -30,6 +30,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
     try {
       let user: User | null = null;
       if (isRegistering) {
+        if (!auth) throw new Error("Auth not initialized");
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         await userCredential.user?.updateProfile({ displayName: name });
         const newUser: User = {
@@ -48,13 +49,14 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
         await dbService.saveUser(newUser);
         user = newUser;
       } else {
+        if (!auth) throw new Error("Auth not initialized");
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         user = await dbService.getUser(userCredential.user!.uid);
       }
       if (user) onLogin(user);
     } catch (error: any) {
         console.error(error);
-        setMessage({ text: "خطأ في البريد أو كلمة المرور.", type: 'error' });
+        setMessage({ text: error.message || "خطأ في البريد أو كلمة المرور.", type: 'error' });
     } finally {
         setIsLoading(false);
     }
@@ -62,34 +64,51 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
 
   const handleGoogleSignIn = async () => {
     if (!auth || !googleProvider) {
-      setMessage({ text: 'خدمة جوجل غير متاحة حالياً.', type: 'error' });
+      setMessage({ text: 'خدمة جوجل غير متاحة حالياً - يرجى التحقق من الإعدادات.', type: 'error' });
       return;
     }
     setIsLoading(true);
+    setMessage({ text: '', type: '' });
+    
     try {
       const result = await auth.signInWithPopup(googleProvider);
       const firebaseUser = result.user;
-      if (!firebaseUser) throw new Error("No user");
       
+      if (!firebaseUser) throw new Error("No user returned from Google");
+      if (!firebaseUser.email) throw new Error("Google account has no email");
+      
+      // Check if user exists in DB
       let appUser = await dbService.getUser(firebaseUser.uid);
+      
       if (!appUser) {
+        // Create new user document
         const newUser: User = {
           uid: firebaseUser.uid,
           name: firebaseUser.displayName || 'طالب جديد',
-          email: firebaseUser.email!,
+          email: firebaseUser.email,
           role: 'student',
-          grade: '12',
+          grade: '12', // Default placement
           subscription: 'free',
           createdAt: new Date().toISOString(),
-          progress: { completedLessonIds: [], points: 0, achievements: [] }
+          progress: { completedLessonIds: [], points: 0, achievements: [] },
+          photoURL: firebaseUser.photoURL || undefined
         };
+        
         await dbService.saveUser(newUser);
         appUser = newUser;
       }
+      
       onLogin(appUser);
     } catch (error: any) {
-      console.error(error);
-      setMessage({ text: 'فشل تسجيل الدخول عبر جوجل.', type: 'error' });
+      console.error("Google Sign In Error:", error);
+      let errMsg = 'فشل تسجيل الدخول عبر جوجل.';
+      
+      if (error.code === 'auth/popup-closed-by-user') errMsg = 'تم إغلاق النافذة قبل اكتمال التسجيل.';
+      else if (error.code === 'auth/popup-blocked') errMsg = 'المتصفح منع النافذة المنبثقة. يرجى السماح بها.';
+      else if (error.code === 'auth/cancelled-popup-request') errMsg = 'تم إلغاء الطلب.';
+      else if (error.message) errMsg = `خطأ: ${error.message}`;
+
+      setMessage({ text: errMsg, type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +125,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onBack }) => {
             {message.text && (<div className={`mb-6 p-4 rounded-2xl text-xs font-bold text-center ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>{message.text}</div>)}
             
             {isResetMode ? (
-              <form onSubmit={(e) => { e.preventDefault(); auth.sendPasswordResetEmail(email).then(() => setMessage({text: 'تم إرسال الرابط', type: 'success'})).catch(() => setMessage({text: 'فشل الإرسال', type: 'error'})); }} className="space-y-4">
+              <form onSubmit={(e) => { e.preventDefault(); if(auth) auth.sendPasswordResetEmail(email).then(() => setMessage({text: 'تم إرسال الرابط', type: 'success'})).catch(() => setMessage({text: 'فشل الإرسال', type: 'error'})); }} className="space-y-4">
                 <div>
                     <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label>
                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-amber-400 transition-all ltr text-left" placeholder="name@example.com" />
