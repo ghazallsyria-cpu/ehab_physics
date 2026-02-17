@@ -49,7 +49,7 @@ const AdminSettings: React.FC = () => {
           dbService.saveAppBranding(branding),
           dbService.saveMaintenanceSettings(maintenance)
       ]);
-      setMessage({ text: 'تم حفظ كافة التغييرات بنجاح! ✅', type: 'success' });
+      setMessage({ text: 'تم حفظ كافة التغييرات وتطبيقها بنجاح! ✅', type: 'success' });
     } catch (e) {
       setMessage({ text: 'فشل حفظ الإعدادات.', type: 'error' });
     }
@@ -88,12 +88,9 @@ const AdminSettings: React.FC = () => {
   const formatForInput = (iso: string) => {
     if (!iso) return '';
     const d = new Date(iso);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hours = String(d.getHours()).padStart(2, '0');
-    const mins = String(d.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${mins}`;
+    // Adjust for timezone offset to show correct local time in input
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
   };
 
   if (isLoading) return <div className="py-40 text-center animate-pulse"><RefreshCw className="animate-spin mx-auto text-amber-500 mb-4" /></div>;
@@ -111,14 +108,14 @@ const AdminSettings: React.FC = () => {
               disabled={isSaving}
               className="bg-red-500/10 border border-red-500/30 text-red-400 px-6 py-5 rounded-[30px] font-black text-xs uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
             >
-              <Database size={16} /> تهيئة النظام وحقن البيانات
+              <Database size={16} /> تهيئة النظام
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
               className="bg-[#fbbf24] text-black px-12 py-5 rounded-[30px] font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50"
             >
-              {isSaving ? <RefreshCw className="animate-spin" /> : <Save />} حفظ الكل
+              {isSaving ? <RefreshCw className="animate-spin" /> : <Save />} حفظ التغييرات
             </button>
         </div>
       </header>
@@ -131,29 +128,31 @@ const AdminSettings: React.FC = () => {
 
       <div className="space-y-12">
         {/* وضع الصيانة الذكي */}
-        <div className="glass-panel p-10 md:p-12 rounded-[60px] border-red-500/20 bg-gradient-to-br from-red-500/5 to-transparent relative overflow-hidden shadow-2xl">
+        <div className={`glass-panel p-10 md:p-12 rounded-[60px] border-2 relative overflow-hidden shadow-2xl transition-all duration-500 ${maintenance?.isMaintenanceActive ? 'border-red-500 bg-red-900/10' : 'border-white/5 bg-black/20'}`}>
             <div className="flex flex-col md:flex-row items-center justify-between border-b border-white/5 pb-10 mb-10 gap-6">
                 <div className="flex items-center gap-6">
-                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all ${maintenance?.isMaintenanceActive ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)]' : 'bg-white/5 text-gray-500 border border-white/10'}`}>
+                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all ${maintenance?.isMaintenanceActive ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] animate-pulse' : 'bg-white/5 text-gray-500 border border-white/10'}`}>
                         {maintenance?.isMaintenanceActive ? <Power size={32} /> : <PowerOff size={32} />}
                     </div>
                     <div>
                         <h3 className="text-3xl font-black text-white italic">وضع الصيانة الذكي</h3>
-                        <p className="text-gray-500 text-sm mt-1 font-medium">قفل المنصة عن الطلاب فوراً وعرض شاشة العداد الزمني.</p>
+                        <p className="text-gray-500 text-sm mt-1 font-medium">
+                            {maintenance?.isMaintenanceActive ? '🔴 النظام مغلق حالياً أمام الطلاب' : '🟢 النظام يعمل بشكل طبيعي'}
+                        </p>
                     </div>
                 </div>
                 <button 
                     onClick={() => maintenance && setMaintenance({...maintenance, isMaintenanceActive: !maintenance.isMaintenanceActive})}
-                    className={`px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 ${maintenance?.isMaintenanceActive ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'}`}
+                    className={`px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 shadow-xl ${maintenance?.isMaintenanceActive ? 'bg-white text-red-600 hover:bg-gray-200' : 'bg-red-500 text-white hover:bg-red-600'}`}
                 >
-                    {maintenance?.isMaintenanceActive ? 'إيقاف وضع الصيانة' : 'تفعيل وضع الصيانة'}
+                    {maintenance?.isMaintenanceActive ? 'إيقاف وضع الصيانة' : 'تفعيل القفل (الصيانة)'}
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-10 transition-opacity ${maintenance?.isMaintenanceActive ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
                 <div className="space-y-4">
                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-4 flex items-center gap-2">
-                        <Calendar size={14} className="text-red-400"/> موعد الافتتاح المتوقع (العداد)
+                        <Calendar size={14} className="text-red-400"/> موعد الافتتاح المتوقع
                     </label>
                     <div className="relative">
                         <Clock className="absolute top-1/2 right-6 -translate-y-1/2 text-gray-500" size={20}/>
@@ -161,7 +160,7 @@ const AdminSettings: React.FC = () => {
                             type="datetime-local" 
                             value={maintenance?.expectedReturnTime ? formatForInput(maintenance.expectedReturnTime) : ''}
                             onChange={e => maintenance && setMaintenance({...maintenance, expectedReturnTime: new Date(e.target.value).toISOString()})}
-                            className="w-full bg-black/60 border-2 border-white/5 rounded-3xl px-16 py-5 text-white outline-none focus:border-red-500/50 font-black text-lg transition-all"
+                            className="w-full bg-black/60 border-2 border-white/5 rounded-3xl px-16 py-5 text-white outline-none focus:border-red-500/50 font-black text-lg transition-all ltr text-right placeholder-gray-600"
                         />
                     </div>
                 </div>

@@ -1,15 +1,14 @@
-import React, { useState, useEffect, Suspense, lazy, createContext } from 'react';
-import { Routes, Route, Outlet, useNavigate, useLocation, Navigate, NavLink } from 'react-router-dom';
-import { User, AppBranding, MaintenanceSettings, ViewState } from './types';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { Routes, Route, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { User, AppBranding, MaintenanceSettings } from './types';
 import { dbService } from './services/db';
 import { auth } from './services/firebase';
 import ProtectedRoute, { AuthContext } from './components/ProtectedRoute';
-import { Bell, ArrowRight, Menu, RefreshCw, LayoutDashboard, ShieldAlert } from 'lucide-react';
+import { Menu, ArrowRight, RefreshCw, AlertTriangle } from 'lucide-react';
 
 // Core Components
 import Sidebar from './components/Sidebar';
 import PWAPrompt from './components/PWAPrompt';
-import NotificationPanel from './components/NotificationPanel';
 import MaintenanceMode from './components/MaintenanceMode';
 import FloatingNav from './components/FloatingNav';
 import LandingPage from './components/LandingPage'; 
@@ -59,8 +58,6 @@ const AdminLessonCategories = lazy(() => import('./pages/admin/AdminLessonCatego
 const AdminRewards = lazy(() => import('./pages/admin/AdminRewards'));
 const AdminInteractiveLessonBuilder = lazy(() => import('./components/AdminInteractiveLessonBuilder'));
 
-
-// A reusable layout for all authenticated pages that include the sidebar and header.
 const AppLayout: React.FC<{ user: User; branding: AppBranding; onLogout: () => void; }> = ({ user, branding, onLogout }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const navigate = useNavigate();
@@ -89,7 +86,7 @@ const AppLayout: React.FC<{ user: User; branding: AppBranding; onLogout: () => v
                 </header>
                 <main className={`flex-1 w-full max-w-screen-2xl mx-auto overflow-x-hidden relative p-4 md:p-8 lg:p-12`}>
                     <Suspense fallback={<div className="flex flex-col items-center justify-center h-[50vh] gap-4"><RefreshCw className="w-12 h-12 text-amber-400 animate-spin" /></div>}>
-                        <Outlet /> {/* Child routes render here */}
+                        <Outlet /> 
                     </Suspense>
                     {user?.role === 'student' && <FloatingNav />}
                 </main>
@@ -102,29 +99,25 @@ const AppLayout: React.FC<{ user: User; branding: AppBranding; onLogout: () => v
 const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
+    const [maintenance, setMaintenance] = useState<MaintenanceSettings | null>(null);
     const [branding] = useState<AppBranding>({ logoUrl: 'https://cdn-icons-png.flaticon.com/512/3063/3063206.png', appName: 'المركز السوري للعلوم' });
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Failsafe timeout to prevent indefinite loading screen
-        const loadingTimeout = setTimeout(() => {
-            if (isAuthLoading) {
-                console.warn("Auth loading timed out. Forcing UI render.");
-                setIsAuthLoading(false);
-            }
-        }, 5000); // 5 seconds timeout
+        // 1. Subscribe to Maintenance Settings Immediately
+        const unsubscribeMaintenance = dbService.subscribeToMaintenance((settings) => {
+            setMaintenance(settings);
+        });
 
+        // 2. Handle Authentication
         const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
-            clearTimeout(loadingTimeout); // Clear timeout if auth responds in time
             if (firebaseUser) {
-                // Ensure DB is ready before subscribing
                 if (dbService.isDbConnected) {
                     dbService.subscribeToUser(firebaseUser.uid, (updatedUser) => {
                         setUser(updatedUser || null);
                         setIsAuthLoading(false);
                     });
                 } else {
-                    console.error("DB not connected, cannot fetch user data.");
                     setUser(null);
                     setIsAuthLoading(false);
                 }
@@ -136,7 +129,7 @@ const App: React.FC = () => {
 
         return () => {
             unsubscribeAuth();
-            clearTimeout(loadingTimeout);
+            unsubscribeMaintenance();
         };
     }, []);
 
@@ -151,6 +144,15 @@ const App: React.FC = () => {
             navigate('/login');
         });
     };
+
+    // --- Maintenance Mode Check ---
+    // If maintenance is active AND (user is not logged in OR user is not staff) -> Show Maintenance Screen
+    if (maintenance?.isMaintenanceActive && !isAuthLoading) {
+        const isStaff = user?.role === 'admin' || (maintenance.allowTeachers && user?.role === 'teacher');
+        if (!isStaff) {
+            return <MaintenanceMode />;
+        }
+    }
 
     return (
         <AuthContext.Provider value={{ user, isLoading: isAuthLoading }}>
